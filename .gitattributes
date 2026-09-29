@@ -1,0 +1,5 @@
+# Keep LF everywhere, including Windows checkouts: prettier --check and the shell
+# scripts both expect it.
+* text=auto eol=lf
+*.png binary
+*.ico binary

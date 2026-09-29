@@ -57,7 +57,8 @@ test('all accounts share one CLAUDE.md and skills folder', async () => {
 
     // Share from "personal": work links to it, and its own file is kept aside.
     await group.getByRole('radio', { name: 'personal' }).click()
-    await expect(win.getByRole('status').filter({ hasText: 'work' })).toContainText(
+    // "work: " is the report line; a bare "work" also matches CI paths like /home/runner/work.
+    await expect(win.getByRole('status').filter({ hasText: 'work: ' })).toContainText(
       'kept the old one'
     )
     expect(fs.readlinkSync(path.join(work, 'CLAUDE.md'))).toBe(path.join(personal, 'CLAUDE.md'))
