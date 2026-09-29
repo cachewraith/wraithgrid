@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wraithgrid prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Fira+Code:wght@400;600&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=Source+Code+Pro:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05050a}
+a{color:#a996ff}a:hover{color:#c4b8ff}
+.root{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#e7e6f2;background:#05050a;-webkit-font-smoothing:antialiased;overflow:hidden}
+.root button{font:inherit;color:inherit;cursor:pointer}
+.root :focus-visible{outline:2px solid #a996ff;outline-offset:2px}
+.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.s{width:14px;height:14px}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+.review{height:44px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:1px solid #1c1c2e;background:#05050a}
+.rv-brand{font-size:12px;color:#aeadc6;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.rv-brand b{color:#e7e6f2;font-weight:600}
+.rv-tabs{display:flex;gap:2px}
+.rv-tab{background:none;border:1px solid transparent;border-radius:6px;padding:5px 8px;font-size:12px;color:#aeadc6;white-space:nowrap}
+.rv-tab:hover{color:#e7e6f2;background:#12121f}
+.rv-tab.on{color:#fff;background:#1d1a35;border-color:#4a3aa0}
+.rv-tab span{color:#8a89a8;margin-right:5px;font-variant-numeric:tabular-nums}
+.rv-tab.on span{color:#c4b8ff}
+.rv-sp{flex:1}
+.rv-seg{display:flex;align-items:center;gap:2px;padding:2px;border:1px solid #262640;border-radius:7px;font-size:11.5px;color:#8a89a8}
+.rv-seg em{font-style:normal;padding:0 6px}
+.rv-seg button{background:none;border:0;border-radius:5px;padding:3px 8px;font-size:11.5px;color:#aeadc6}
+.rv-seg button.on{background:#262640;color:#fff}
+.stage{position:relative;width:1440px;height:900px;background:#05050a}
+.vp-note{position:absolute;right:24px;bottom:20px;font-size:12px;color:#8a89a8}
+
+.win{--bg:#0a0a12;--bg2:#0e0e18;--panel:#11111c;--raise:#171727;--line:#232338;--line2:#30304c;--tx:#e7e6f2;--mu:#aeadc6;--fa:#8a89a8;--acc:#7c5cff;--acct:#a996ff;--accf:#6a4cf0;--term:#0c0c15;--ok:#4ade80;--warn:#fbbf24;--err:#fb7185;--cy:#7dd3fc;--addbg:rgba(74,222,128,.10);--delbg:rgba(251,113,133,.10);--scrim:rgba(5,5,12,.72);--sel:#1b1833;--selr:#3a2f7a;
+position:absolute;left:0;top:0;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);overflow:hidden;box-sizing:border-box;border:1px solid #2a2a44;border-radius:10px}
+.win.light{--bg:#f5f4fa;--bg2:#ecebf4;--panel:#ffffff;--raise:#ffffff;--line:#dcdae8;--line2:#c3c0d8;--tx:#17162a;--mu:#43415c;--fa:#585673;--acct:#5a3de0;--term:#fbfaff;--ok:#15803d;--warn:#a16207;--err:#be123c;--cy:#0369a1;--scrim:rgba(20,18,40,.35);--sel:#e6e1ff;--selr:#b9aaf5}
+
+.tb{height:36px;flex:none;display:flex;align-items:center;gap:10px;padding:0 6px 0 12px;background:var(--bg2);border-bottom:1px solid var(--line);font-size:12.5px}
+.tb-name{font-weight:600;letter-spacing:.01em}
+.tb-ws{color:var(--fa)}
+.wc{display:flex;gap:2px;margin-left:auto}
+.wc button{width:34px;height:26px;border:0;border-radius:6px;background:none;color:var(--mu);display:grid;place-items:center}
+.wc button:hover{background:var(--raise);color:var(--tx)}
+.wc button.cl:hover{background:#c0263e;color:#fff}
+
+.row{flex:1;min-height:0;display:flex}
+.side{width:236px;flex:none;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side.col{width:52px;align-items:center}
+.side-hd{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;border-bottom:1px solid var(--line)}
+.side.col .side-hd{padding:0;justify-content:center}
+.side-hd b{font-size:13px;font-weight:600}
+.sec{padding:12px 10px 4px}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;padding:0 6px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fa)}
+.sec-hd button{border:0;background:none;color:var(--acct);font-size:11.5px;font-weight:500;letter-spacing:0;text-transform:none;padding:2px 4px;border-radius:4px}
+.ws-row{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:7px;background:none;text-align:left;font-size:13px;color:var(--mu)}
+.ws-row:hover{background:var(--raise);color:var(--tx)}
+.ws-row.on{background:var(--sel);color:var(--tx);box-shadow:inset 0 0 0 1px var(--selr)}
+.dots{display:flex;gap:3px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.cnt{margin-left:auto;font-size:11.5px;color:var(--fa);font-variant-numeric:tabular-nums}
+.kbd,.root kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.5;padding:0 5px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--mu);white-space:nowrap}
+.acc-row{display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:13px}
+.acc-sub{margin-left:auto;font-size:11.5px;color:var(--fa)}
+.acc-sub.warn{color:var(--warn)}
+.side-ft{margin-top:auto;padding:10px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line)}
+.side.col .side-ft{padding:10px 0;align-items:center}
+.cdots{display:flex;flex-direction:column;gap:10px;align-items:center;padding:14px 0}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:32px;box-sizing:border-box;padding:0 12px;border-radius:7px;border:1px solid var(--line2);background:var(--raise);font-size:13px;font-weight:500;color:var(--tx);white-space:nowrap}
+.btn:hover{border-color:#55557c}
+.btn.pri{background:var(--accf);border-color:var(--accf);color:#fff}
+.btn.pri:hover{background:#5a3de0;border-color:#5a3de0}
+.btn.dng{background:#be123c;border-color:#be123c;color:#fff}
+.btn.dng:hover{background:#9f1239}
+.btn.gh{background:none;border-color:transparent;color:var(--mu)}
+.btn.gh:hover{background:var(--raise);color:var(--tx)}
+.btn.lg{height:44px;padding:0 20px;font-size:14px}
+.btn.full{width:100%;justify-content:flex-start}
+.btn.full kbd{margin-left:auto}
+.btn.pri kbd{background:rgba(0,0,0,.22);border-color:rgba(255,255,255,.35);color:#fff}
+.icon-btn{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:6px;background:none;color:var(--mu);padding:0;flex:none}
+.icon-btn:hover{background:var(--raise);color:var(--tx)}
+.icon-btn.sm{width:24px;height:24px}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{height:46px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;border-bottom:1px solid var(--line);min-width:0}
+.top-title{font-size:14px;font-weight:600;white-space:nowrap}
+.top-sub{font-size:12px;color:var(--fa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-sp{flex:1}
+.seg{display:flex;gap:2px;padding:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px}
+.seg-btn{height:28px;min-width:32px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--mu);font-size:12px}
+.seg-btn:hover{color:var(--tx)}
+.seg-btn.on{background:var(--raise);color:var(--tx);box-shadow:inset 0 0 0 1px var(--line2)}
+.vsep{width:1px;height:22px;background:var(--line)}
+.minimap{display:grid;gap:2px;width:44px;height:26px}
+.minimap span{background:var(--line2);border-radius:2px}
+.minimap span.on{background:var(--acc)}
+
+.content{flex:1;min-height:0;position:relative;overflow:hidden}
+.grid{position:absolute;inset:0;padding:6px;display:grid;gap:6px;box-sizing:border-box}
+.pane{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--term);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.pane.focused{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 0 24px -6px rgba(124,92,255,.55)}
+.strip{height:3px;flex:none}
+.ph{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;border-bottom:1px solid var(--line);font-size:12.5px;min-width:0;background:var(--bg2)}
+.pane.focused .ph{background:var(--raise)}
+.ph-title{border:0;background:none;padding:2px 0;font-weight:600;font-size:13px;color:var(--tx);white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px 0 6px;border-radius:10px;border:1px solid var(--line2);font-size:11.5px;color:var(--tx);white-space:nowrap;flex:none}
+.cwd{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--fa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--mu);white-space:nowrap;flex:none}
+.sd{width:7px;height:7px;border-radius:50%;background:var(--fa);box-sizing:border-box}
+.st-running .sd{background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.16)}
+.st-approval,.st-login{color:var(--warn)}
+.st-approval .sd,.st-login .sd{background:var(--warn)}
+.st-idle .sd{background:transparent;border:1.5px solid var(--fa)}
+.st-exited{color:var(--err)}
+.st-exited .sd{background:var(--err)}
+.term{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 12px 10px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.55;color:var(--tx)}
+.term.sm{font-size:11px;padding:6px 8px 8px}
+.term.lg{font-size:14px;padding:16px 28px 20px}
+.term.dim{opacity:.4}
+.tl{white-space:pre-wrap;word-break:break-word;min-height:1.55em}
+.d{color:var(--fa)}.u,.b{color:var(--tx);font-weight:600}.a{color:var(--acct)}.g{color:var(--ok)}.p{color:var(--cy)}.w{color:var(--warn)}.r{color:var(--err)}
+.ladd{background:var(--addbg);color:var(--ok)}
+.ldel{background:var(--delbg);color:var(--err)}
+.lnum{color:var(--fa)}
+.bxt,.bx,.bxb{border-left:1px solid var(--warn);border-right:1px solid var(--warn);padding:0 10px}
+.bxt{border-top:1px solid var(--warn);border-radius:6px 6px 0 0;padding-top:4px;margin-top:4px}
+.bxb{border-bottom:1px solid var(--warn);border-radius:0 0 6px 6px;padding-bottom:4px}
+.inp{border:1px solid var(--line2);border-radius:6px;padding:2px 8px;margin-top:6px}
+.cur{display:inline-block;width:.62em;background:var(--acct);animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.slot{border:1.5px dashed var(--line2);border-radius:8px;background:none;color:var(--mu);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:13px}
+.slot:hover{border-color:var(--acc);color:var(--tx)}
+
+.pbanner{position:absolute;left:10px;right:10px;top:46px;display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid rgba(251,191,36,.5);background:#1c1707;border-radius:8px;font-size:12.5px;line-height:1.45;color:var(--mu)}
+.pbanner b{display:block;color:#fde68a;font-weight:600;margin-bottom:2px}
+.pbanner .btn{margin-left:auto;flex:none}
+.pexit{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--raise);border-top:1px solid var(--line2);font-size:12.5px;color:var(--mu)}
+.pexit b{color:var(--tx);font-weight:600}
+.pexit .btn{margin-left:auto}
+.pscrim{position:absolute;left:0;right:0;bottom:0;top:37px;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box}
+.pdlg{width:100%;max-width:360px;box-sizing:border-box;background:var(--raise);border:1px solid var(--line2);border-radius:10px;padding:16px;box-shadow:0 20px 40px -12px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:10px}
+.pdlg h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}
+.pdlg p{margin:0;font-size:12.5px;line-height:1.5;color:var(--mu)}
+.pdlg .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.root code{font-family:'JetBrains Mono',monospace;font-size:.92em;padding:1px 5px;border-radius:4px;background:var(--raise);border:1px solid var(--line)}
+
+.sbar{height:26px;flex:none;display:flex;align-items:center;gap:14px;padding:0 12px;border-top:1px solid var(--line);background:var(--bg2);font-size:11.5px;color:var(--mu)}
+.sbar b{color:var(--tx);font-weight:500}
+.sbar .sp{flex:1}
+.sbar button{border:0;background:none;color:var(--mu);font-size:11.5px;display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:4px}
+.sbar button:hover{color:var(--tx)}
+
+.scrim{position:absolute;left:0;right:0;bottom:0;top:36px;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding-top:64px;z-index:10;box-sizing:border-box}
+.dlg{width:560px;max-height:calc(100% - 96px);overflow:auto;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 60px -20px rgba(0,0,0,.75),0 0 0 1px rgba(124,92,255,.14)}
+.dlg.w6{width:600px}.dlg.w4{width:440px}
+.dlg-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 14px 4px 20px}
+.dlg-hd h2{margin:0;font-size:16px;font-weight:600}
+.dlg-bd{padding:12px 20px 18px;display:flex;flex-direction:column;gap:18px}
+.dlg-ft{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--line)}
+.dlg-ft .hint{margin-right:auto}
+.fld{display:flex;flex-direction:column;gap:8px}
+.lbl{font-size:12.5px;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:8px}
+.lbl em{font-style:normal;font-weight:400;color:var(--fa)}
+.hint{font-size:12px;color:var(--fa);line-height:1.5}
+.inrow{display:flex;gap:8px}
+.inpt{height:34px;box-sizing:border-box;padding:0 10px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',monospace;font-size:12.5px;width:100%;min-width:0}
+.inpt.sans{font-family:'Geist',system-ui,sans-serif;font-size:13px}
+.inpt:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(124,92,255,.28)}
+.apick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.aopt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);text-align:left;min-width:0}
+.aopt:hover{border-color:#55557c}
+.aopt.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.aopt .nm{font-size:13px;font-weight:600;color:var(--tx)}
+.aopt .sb{font-size:11.5px;color:var(--fa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aopt .sb.warn{color:var(--warn)}
+.aopt .tx{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.aopt .ck{color:var(--acct)}
+.recent{display:flex;flex-wrap:wrap;gap:6px}
+.rchip{height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--line2);background:var(--bg);font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--mu)}
+.rchip:hover{color:var(--tx)}
+.rchip.on{color:var(--tx);border-color:var(--acc)}
+.sw{width:36px;height:20px;border-radius:10px;border:1px solid var(--line2);background:var(--bg);position:relative;padding:0;flex:none}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--fa);transition:left .15s}
+.sw.on{background:var(--accf);border-color:var(--accf)}
+.sw.on::after{left:18px;background:#fff}
+.trow{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.trow .tx{flex:1;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.cmd{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mu);padding:8px 10px;border-radius:7px;background:var(--term);border:1px solid var(--line)}
+.cmd .a{color:var(--acct)}
+
+.page{position:absolute;inset:0;overflow:auto;padding:28px 32px;box-sizing:border-box}
+.page-in{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.pg-hd{display:flex;align-items:flex-end;gap:12px}
+.pg-hd h1{margin:0 0 4px;font-size:20px;font-weight:600}
+.pg-hd p{margin:0;font-size:13px;color:var(--mu);line-height:1.5;max-width:520px}
+.pg-hd .acts{margin-left:auto;display:flex;gap:8px}
+.tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) 128px 56px 238px;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line);font-size:13px}
+.tr.hd{border-top:0;background:var(--bg2);font-size:11px;color:var(--fa);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:9px 14px}
+.tr .nm{display:flex;align-items:center;gap:10px;font-weight:600;min-width:0}
+.tr .dir{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .dir small{display:block;font-family:'Geist',sans-serif;font-size:11px;color:var(--fa)}
+.tr .acts{display:flex;justify-content:flex-end;gap:4px}
+.tr .num{color:var(--mu);font-variant-numeric:tabular-nums}
+.swc{width:12px;height:12px;border-radius:4px;flex:none}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ok)}
+.badge.warn{color:var(--warn)}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:18px 20px;display:flex;flex-direction:column;gap:16px}
+.card h2{margin:0;font-size:15px}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:start}
+.colors{display:flex;gap:10px}
+.cpick{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;padding:0;font-size:11px;color:var(--fa)}
+.cpick .c{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:#0a0a12;box-sizing:border-box;border:2px solid transparent}
+.cpick.on .c{border-color:var(--tx)}
+.cpick.on{color:var(--tx)}
+.emptyc{display:flex;flex-direction:column;align-items:center;gap:12px;padding:56px 24px;text-align:center;border:1px dashed var(--line2);border-radius:12px}
+.emptyc h2{margin:0;font-size:17px}
+.emptyc p{margin:0;font-size:13px;color:var(--mu);max-width:420px;line-height:1.5}
+.note{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--mu);line-height:1.5;padding:10px 12px;border-radius:8px;background:var(--bg2);border:1px solid var(--line)}
+
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+.empty h1{margin:6px 0 0;font-size:22px;font-weight:600}
+.empty p{margin:0 0 6px;font-size:14px;color:var(--mu);max-width:470px;line-height:1.5}
+.qs-lbl{margin-top:22px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fa)}
+.qs{display:grid;grid-template-columns:repeat(4,128px);gap:10px}
+.qs-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);font-size:12.5px;color:var(--mu)}
+.qs-card:hover{border-color:var(--acc);color:var(--tx)}
+.mini{width:72px;height:44px;display:grid;gap:3px}
+.mini span{background:var(--line2);border-radius:3px}
+.qs-card:hover .mini span{background:#4a3aa0}
+
+.scl{display:flex;flex-direction:column}
+.sc-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:13.5px}
+.sc-row:first-child{border-top:0}
+.keys{display:flex;gap:4px;align-items:center;color:var(--fa);font-size:12px}
+.keys kbd{font-size:12px;padding:2px 7px}
+
+.srch{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);color:var(--fa)}
+.srch input{flex:1;border:0;background:none;color:var(--tx);font:inherit;font-size:14px;outline:none}
+.wsl{padding:8px;display:flex;flex-direction:column;gap:2px}
+.wsr{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 4px;border-radius:8px}
+.wsr.on{background:var(--raise);box-shadow:inset 0 0 0 1px var(--line2)}
+.wsr:hover{background:var(--raise)}
+.wsr .go{flex:1;display:flex;align-items:center;gap:12px;border:0;background:none;padding:8px;text-align:left;min-width:0;border-radius:6px}
+.wsr .go .nm{font-size:13.5px;font-weight:600}
+.wsr .go .mt{font-size:12px;color:var(--fa)}
+.wsr .go .tx{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.wsr .cur-tag{font-size:11px;color:var(--acct);font-weight:500}
+.wsr.del{background:rgba(190,18,60,.12);box-shadow:inset 0 0 0 1px rgba(251,113,133,.4)}
+.wsr .delmsg{flex:1;padding:8px;font-size:12.5px;color:var(--mu)}
+.wsr .delmsg b{color:var(--tx)}
+
+.set{max-width:840px;margin:0 auto}
+.srow{display:grid;grid-template-columns:220px minmax(0,1fr);gap:28px;padding:22px 0;border-top:1px solid var(--line)}
+.srow h3{margin:0 0 4px;font-size:13.5px;font-weight:600}
+.srow .ex{margin:0;font-size:12.5px;color:var(--fa);line-height:1.5}
+.srow .ctl{display:flex;flex-direction:column;gap:10px;min-width:0}
+.det{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mu)}
+.det .g{display:flex}
+.fonts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.fopt{height:36px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);color:var(--mu);font-size:12.5px;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fopt.on{border-color:var(--acc);color:var(--tx);box-shadow:0 0 0 1px var(--acc)}
+.step{display:flex;align-items:center;border:1px solid var(--line2);border-radius:7px;overflow:hidden;width:max-content;background:var(--bg)}
+.step button{width:34px;height:32px;border:0;background:none;color:var(--mu);font-size:16px}
+.step button:hover{background:var(--raise);color:var(--tx)}
+.step span{min-width:64px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;border-left:1px solid var(--line2);border-right:1px solid var(--line2);line-height:32px}
+.prev{border:1px solid var(--line2);border-radius:8px;background:var(--term);padding:12px 14px;line-height:1.55;color:var(--tx);white-space:pre-wrap}
+.theme-note{font-size:12px;color:var(--fa)}
+</style>
+</helmet>
+<div class="root" style="width: 1440px; height: 944px; position: relative">
+<nav class="review" aria-label="Prototype screens">
+<div class="rv-brand"><b>Wraithgrid</b> UI review</div>
+<div class="rv-tabs">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="10"><button class="rv-tab {{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}"><span>{{t.n}}</span>{{t.label}}</button></sc-for>
+</div>
+<div class="rv-sp"></div>
+<sc-if value="{{showAccVar}}" hint-placeholder-val="{{false}}">
+<div class="rv-seg" role="group" aria-label="Accounts state"><em>State</em>
+<sc-for list="{{accVars}}" as="v" hint-placeholder-count="4"><button class="{{v.cls}}" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}">{{v.label}}</button></sc-for>
+</div>
+</sc-if>
+<div class="rv-seg" role="group" aria-label="Viewport"><em>Viewport</em>
+<button class="{{vpLgCls}}" aria-pressed="{{vpLgP}}" onClick="{{vpLg}}">1440×900</button>
+<button class="{{vpSmCls}}" aria-pressed="{{vpSmP}}" onClick="{{vpSm}}">1100×700</button>
+</div>
+</nav>
+
+<div class="stage">
+<sc-if value="{{isSm}}" hint-placeholder-val="{{false}}"><div class="vp-note">Minimum supported window: 1100 × 700</div></sc-if>
+<div class="win {{themeCls}}" style="{{winStyle}}">
+
+<div class="tb">
+<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="2" fill="#7c5cff"></rect><rect x="10" y="1" width="7" height="7" rx="2" fill="none" stroke="#6d6c8c" stroke-width="1.5"></rect><rect x="1" y="10" width="7" height="7" rx="2" fill="none" stroke="#6d6c8c" stroke-width="1.5"></rect><rect x="10" y="10" width="7" height="7" rx="2" fill="none" stroke="#6d6c8c" stroke-width="1.5"></rect></svg>
+<span class="tb-name">Wraithgrid</span>
+<span class="tb-ws">— {{tbTitle}}</span>
+<div class="wc">
+<button aria-label="Minimize" title="Minimize"><svg class="i" viewBox="0 0 16 16"><path d="M4 8h8"></path></svg></button>
+<button aria-label="Maximize" title="Maximize"><svg class="i" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1"></rect></svg></button>
+<button class="cl" aria-label="Close window" title="Close window"><svg class="i" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></button>
+</div>
+</div>
+
+<div class="row">
+<aside class="side {{sideCls}}" aria-label="Sidebar">
+<div class="side-hd">
+<sc-if value="{{sideOpen}}" hint-placeholder-val="{{true}}"><b>Workspaces</b></sc-if>
+<button class="icon-btn" aria-label="{{sideAria}}" title="{{sideAria}}" onClick="{{toggleSide}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect><path d="M6 3v10"></path></svg></button>
+</div>
+<sc-if value="{{sideOpen}}" hint-placeholder-val="{{true}}">
+<div class="sec">
+<div class="sec-hd"><span>Ctrl+Shift+1…9</span></div>
+<sc-for list="{{wsItems}}" as="w" hint-placeholder-count="5">
+<button class="ws-row {{w.cls}}" onClick="{{w.pick}}" title="Switch to {{w.name}} (Ctrl+Shift+{{w.key}})" aria-current="{{w.current}}">
+<span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{w.name}}</span>
+<span class="dots"><sc-for list="{{w.dots}}" as="dt"><span class="dot" style="{{dt.style}}"></span></sc-for></span>
+<span class="cnt" style="margin-left: 0; min-width: 12px; text-align: right">{{w.count}}</span>
+<kbd>{{w.key}}</kbd>
+</button>
+</sc-for>
+</div>
+<div class="sec">
+<div class="sec-hd"><span>Accounts</span><button onClick="{{goAccounts}}">Manage</button></div>
+<sc-for list="{{accSide}}" as="a" hint-placeholder-count="4">
+<div class="acc-row"><span class="dot" style="{{a.dotStyle}}"></span><span>{{a.name}}</span><span class="acc-sub {{a.subCls}}">{{a.sub}}</span></div>
+</sc-for>
+</div>
+<div class="side-ft">
+<button class="btn pri full" onClick="{{openNew}}" title="New pane (Ctrl+Shift+N)"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg>New pane<kbd>Ctrl+Shift+N</kbd></button>
+<button class="btn gh full" onClick="{{goAddAccount}}"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="5.5" r="2.5"></circle><path d="M2.5 13c.6-2.4 2.3-3.5 4.5-3.5 1 0 1.9.2 2.6.7M12 9.5v4M10 11.5h4"></path></svg>New account</button>
+</div>
+</sc-if>
+<sc-if value="{{sideClosed}}" hint-placeholder-val="{{false}}">
+<div class="cdots" aria-label="Accounts">
+<sc-for list="{{accSide}}" as="a"><span class="dot" style="{{a.dotStyle}}" title="{{a.name}} — {{a.sub}}"></span></sc-for>
+</div>
+<div class="side-ft">
+<button class="icon-btn" aria-label="New pane (Ctrl+Shift+N)" title="New pane (Ctrl+Shift+N)" onClick="{{openNew}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg></button>
+<button class="icon-btn" aria-label="Switch workspace" title="Switch workspace (Ctrl+Shift+1…9)" onClick="{{openWs}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="2.5" width="5" height="5" rx="1"></rect><rect x="9" y="2.5" width="5" height="5" rx="1"></rect><rect x="2" y="9.5" width="5" height="5" rx="1"></rect><rect x="9" y="9.5" width="5" height="5" rx="1"></rect></svg></button>
+</div>
+</sc-if>
+</aside>
+
+<main class="main">
+<header class="top">
+<sc-if value="{{showBack}}" hint-placeholder-val="{{false}}">
+<button class="btn gh" onClick="{{goBack}}" style="padding: 0 8px"><svg class="i" viewBox="0 0 16 16"><path d="M10 3.5L5.5 8l4.5 4.5"></path></svg>{{backLabel}}</button>
+<div class="vsep"></div>
+</sc-if>
+<span class="top-title">{{topTitle}}</span>
+<span class="top-sub">{{topSub}}</span>
+<div class="top-sp"></div>
+<sc-if value="{{showPresets}}" hint-placeholder-val="{{true}}">
+<div class="seg" role="group" aria-label="Layout preset">
+<button class="seg-btn {{p1Cls}}" aria-pressed="{{p1P}}" aria-label="1 pane" title="1 pane" onClick="{{p1}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect></svg></button>
+<button class="seg-btn {{p2Cls}}" aria-pressed="{{p2P}}" aria-label="2 side by side" title="2 side by side" onClick="{{p2}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect><path d="M8 3v10"></path></svg></button>
+<button class="seg-btn {{p4Cls}}" aria-pressed="{{p4P}}" aria-label="2 by 2 grid" title="2×2 grid" onClick="{{p4}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect><path d="M8 3v10M2 8h12"></path></svg></button>
+<button class="seg-btn {{p3Cls}}" aria-pressed="{{p3P}}" aria-label="3 columns" title="3 columns" onClick="{{p3}}"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect><path d="M6 3v10M10 3v10"></path></svg></button>
+</div>
+<button class="btn gh" onClick="{{zoomFocused}}" title="Zoom focused pane (Ctrl+Shift+Z)"><svg class="i" viewBox="0 0 16 16"><path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3"></path></svg>Zoom<kbd>Ctrl+Shift+Z</kbd></button>
+</sc-if>
+<sc-if value="{{showZoomBar}}" hint-placeholder-val="{{false}}">
+<div class="minimap" style="{{miniStyle}}" aria-hidden="true"><sc-for list="{{miniCells}}" as="m"><span class="{{m.cls}}"></span></sc-for></div>
+<button class="btn pri" onClick="{{goBack}}" title="Back to grid (Ctrl+Shift+Z)"><svg class="i" viewBox="0 0 16 16"><path d="M6 3v3H3M10 3v3h3M6 13v-3H3M10 13v-3h3"></path></svg>Back to grid<kbd>Ctrl+Shift+Z</kbd></button>
+</sc-if>
+<div class="vsep"></div>
+<button class="icon-btn" aria-label="Keyboard shortcuts (Ctrl+Shift+/)" title="Keyboard shortcuts (Ctrl+Shift+/)" onClick="{{openShortcuts}}"><svg class="i" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8" rx="1.5"></rect><path d="M4 7h1M7 7h1M10 7h2M4.5 9.5h7"></path></svg></button>
+<button class="icon-btn" aria-label="Settings" title="Settings" onClick="{{goSettings}}"><svg class="i" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"></path><circle cx="5.5" cy="4.5" r="1.5" fill="var(--bg)"></circle><circle cx="10.5" cy="8" r="1.5" fill="var(--bg)"></circle><circle cx="6.5" cy="11.5" r="1.5" fill="var(--bg)"></circle></svg></button>
+</header>
+
+<div class="content">
+
+<sc-if value="{{showGrid}}" hint-placeholder-val="{{true}}">
+<div class="grid" style="{{gridStyle}}">
+<sc-for list="{{panes}}" as="p" hint-placeholder-count="4">
+<sc-if value="{{p.slot}}" hint-placeholder-val="{{false}}">
+<button class="slot" onClick="{{p.onNew}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg>New pane here</button>
+</sc-if>
+<sc-if value="{{p.real}}" hint-placeholder-val="{{true}}">
+<section class="pane {{p.focusCls}}" aria-label="{{p.aria}}">
+<div class="strip" style="{{p.stripStyle}}"></div>
+<div class="ph">
+<button class="ph-title" onClick="{{p.onFocus}}" title="Focus pane (Ctrl+Alt+Arrow)">{{p.title}}</button>
+<span class="chip"><span class="dot" style="{{p.dotStyle}}"></span>{{p.accName}}</span>
+<span class="cwd" title="{{p.cwdLabel}}">{{p.cwdLabel}}</span>
+<span class="st {{p.statusCls}}"><span class="sd"></span>{{p.statusLabel}}</span>
+<button class="icon-btn sm" aria-label="{{p.zoomAria}}" title="{{p.zoomAria}}" onClick="{{p.onZoom}}">
+<sc-if value="{{p.isZoomed}}" hint-placeholder-val="{{false}}"><svg class="i s" viewBox="0 0 16 16"><path d="M6 3v3H3M10 3v3h3M6 13v-3H3M10 13v-3h3"></path></svg></sc-if>
+<sc-if value="{{p.notZoomed}}" hint-placeholder-val="{{true}}"><svg class="i s" viewBox="0 0 16 16"><path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3"></path></svg></sc-if>
+</button>
+<button class="icon-btn sm" aria-label="Close pane (Ctrl+Shift+W)" title="Close pane (Ctrl+Shift+W)" onClick="{{p.onClose}}"><svg class="i s" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></button>
+</div>
+<div class="term {{p.termCls}}">
+<sc-for list="{{p.lines}}" as="ln" hint-placeholder-count="8"><div class="tl {{ln.lc}}"><sc-for list="{{ln.segs}}" as="sg"><span class="{{sg.c}}">{{sg.t}}</span></sc-for></div></sc-for>
+</div>
+<sc-if value="{{p.login}}" hint-placeholder-val="{{false}}">
+<div class="pbanner" role="status">
+<svg class="i" viewBox="0 0 16 16" style="color: #fbbf24; margin-top: 1px"><path d="M8 2.5l6 11H2z"></path><path d="M8 7v3M8 11.8v.2"></path></svg>
+<div><b>{{p.loginTitle}}</b>{{p.loginText}}</div>
+<sc-if value="{{p.loginIdle}}" hint-placeholder-val="{{true}}"><button class="btn pri" onClick="{{startLogin}}">Run /login</button></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{p.exited}}" hint-placeholder-val="{{false}}">
+<div class="pexit" role="status">
+<svg class="i" viewBox="0 0 16 16" style="color: #fb7185"><circle cx="8" cy="8" r="5.5"></circle><path d="M8 5v3.5M8 10.8v.2"></path></svg>
+<div><b>claude exited with code 1</b> · 14:32 · <span class="mono">Error: ECONNRESET while streaming response</span></div>
+<button class="btn pri" onClick="{{restart}}"><svg class="i" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 3v2.5h-2.5"></path></svg>Restart</button>
+</div>
+</sc-if>
+<sc-if value="{{p.closing}}" hint-placeholder-val="{{false}}">
+<div class="pscrim">
+<div class="pdlg" role="alertdialog" aria-label="Close pane">
+<h3><svg class="i" viewBox="0 0 16 16" style="color: #fbbf24"><path d="M8 2.5l6 11H2z"></path><path d="M8 7v3M8 11.8v.2"></path></svg>Process is still running</h3>
+<p><code>claude</code> is still running in <span class="mono">{{p.cwd}}</span> (pid {{p.pid}}). Closing the pane ends the process. Unsaved work in this session stops.</p>
+<div class="acts"><button class="btn gh" onClick="{{cancelClose}}">Cancel</button><button class="btn dng" onClick="{{p.confirmClose}}">Close pane</button></div>
+</div>
+</div>
+</sc-if>
+</section>
+</sc-if>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{showEmpty}}" hint-placeholder-val="{{false}}">
+<div class="empty">
+<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="26" height="26" rx="6" fill="none" stroke="#7c5cff" stroke-width="2" stroke-dasharray="4 4"></rect><rect x="34" y="4" width="26" height="26" rx="6" fill="none" stroke="#3a3a5c" stroke-width="2"></rect><rect x="4" y="34" width="26" height="26" rx="6" fill="none" stroke="#3a3a5c" stroke-width="2"></rect><rect x="34" y="34" width="26" height="26" rx="6" fill="none" stroke="#3a3a5c" stroke-width="2"></rect><path d="M17 12v10M12 17h10" stroke="#a996ff" stroke-width="2" stroke-linecap="round"></path></svg>
+<h1>{{emptyTitle}}</h1>
+<p>Each pane runs <code>claude</code> in one project folder, signed in with the account you pick.</p>
+<button class="btn pri lg" onClick="{{openNew}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg>New pane<kbd>Ctrl+Shift+N</kbd></button>
+<div class="qs-lbl">Or start from a layout</div>
+<div class="qs">
+<button class="qs-card" onClick="{{openNew}}"><span class="mini" style="grid-template-columns: 1fr"><span></span></span>1 pane</button>
+<button class="qs-card" onClick="{{openNew}}"><span class="mini" style="grid-template-columns: 1fr 1fr"><span></span><span></span></span>2 side by side</button>
+<button class="qs-card" onClick="{{openNew}}"><span class="mini" style="grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr"><span></span><span></span><span></span><span></span></span>2×2 grid</button>
+<button class="qs-card" onClick="{{openNew}}"><span class="mini" style="grid-template-columns: 1fr 1fr 1fr"><span></span><span></span><span></span></span>3 columns</button>
+</div>
+<p class="hint" style="margin-top: 4px">A preset creates the slots; you choose the account and folder for each one.</p>
+</div>
+</sc-if>
+
+<sc-if value="{{showAccounts}}" hint-placeholder-val="{{false}}">
+<div class="page"><div class="page-in">
+<div class="pg-hd">
+<div><h1>Accounts</h1><p>Each account is its own <code>CLAUDE_CONFIG_DIR</code>, with its own login, settings and history. Wraithgrid only sets the variable and never reads files inside it.</p></div>
+<div class="acts">
+<button class="btn" onClick="{{goImport}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 2.5v8M5 7.5l3 3 3-3M3 13h10"></path></svg>Import ~/.claude</button>
+<button class="btn pri" onClick="{{goAddAccount}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg>Add account</button>
+</div>
+</div>
+
+<sc-if value="{{accShowForm}}" hint-placeholder-val="{{false}}">
+<form class="card" aria-label="Add account">
+<h2>Add account</h2>
+<div class="frow">
+<div class="fld">
+<label class="lbl" for="acc-name">Name</label>
+<input id="acc-name" class="inpt sans" value="{{accName}}" onInput="{{onAccName}}" placeholder="e.g. freelance">
+<div class="hint">Config dir: <span class="mono" style="color: var(--mu)">~/.wraithgrid/accounts/{{accNameShown}}</span> (created for you)</div>
+</div>
+<div class="fld">
+<span class="lbl">Color tag</span>
+<div class="colors" role="radiogroup" aria-label="Color tag">
+<sc-for list="{{colorOpts}}" as="c" hint-placeholder-count="4"><button type="button" class="cpick {{c.cls}}" role="radio" aria-checked="{{c.checked}}" aria-label="{{c.name}}" onClick="{{c.pick}}"><span class="c" style="{{c.style}}"><sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><svg class="i" viewBox="0 0 16 16" style="stroke-width: 2.2"><path d="M3.5 8.5l3 3 6-7"></path></svg></sc-if></span>{{c.name}}</button></sc-for>
+</div>
+</div>
+</div>
+<div class="note"><svg class="i" viewBox="0 0 16 16" style="margin-top: 2px"><circle cx="8" cy="8" r="5.5"></circle><path d="M8 7.2v3.6M8 5.2v.1"></path></svg><span>After saving, use <b>Login</b> to open a pane running <code>claude</code> under this account and run <code>/login</code> there.</span></div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<button type="button" class="btn gh" onClick="{{accFormCancel}}">Cancel</button>
+<button type="button" class="btn pri" onClick="{{accFormCancel}}">Add account</button>
+</div>
+</form>
+</sc-if>
+
+<sc-if value="{{accShowImport}}" hint-placeholder-val="{{false}}">
+<form class="card" aria-label="Import existing config dir">
+<h2>Import an existing config dir</h2>
+<div class="fld">
+<label class="lbl" for="imp-dir">Folder</label>
+<div class="inrow"><input id="imp-dir" class="inpt" value="~/.claude" onInput="{{noop}}"><button type="button" class="btn"><svg class="i" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"></path></svg>Browse…</button></div>
+<div class="hint">The folder stays where it is. Wraithgrid points <code>CLAUDE_CONFIG_DIR</code> at it; nothing is copied.</div>
+</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<button type="button" class="btn gh" onClick="{{accFormCancel}}">Cancel</button>
+<button type="button" class="btn pri" onClick="{{accFormCancel}}">Import as account</button>
+</div>
+</form>
+</sc-if>
+
+<sc-if value="{{accShowList}}" hint-placeholder-val="{{true}}">
+<div class="tbl" role="table" aria-label="Accounts">
+<div class="tr hd" role="row"><span>Account</span><span>Config dir</span><span>Login</span><span>Panes</span><span style="text-align: right">Actions</span></div>
+<sc-for list="{{accRows}}" as="r" hint-placeholder-count="4">
+<div class="tr" role="row">
+<sc-if value="{{r.renaming}}" hint-placeholder-val="{{false}}">
+<span class="nm"><span class="swc" style="{{r.dotStyle}}"></span><input class="inpt sans" value="{{r.name}}" onInput="{{noop}}" aria-label="Account name" style="height: 30px"></span>
+</sc-if>
+<sc-if value="{{r.notRenaming}}" hint-placeholder-val="{{true}}">
+<span class="nm"><span class="swc" style="{{r.dotStyle}}"></span>{{r.name}}</span>
+</sc-if>
+<span class="dir" title="{{r.dir}}">{{r.dir}}<small>{{r.dirNote}}</small></span>
+<span class="badge {{r.badgeCls}}"><sc-if value="{{r.signed}}" hint-placeholder-val="{{true}}"><svg class="i s" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"></path></svg></sc-if><sc-if value="{{r.unsigned}}" hint-placeholder-val="{{false}}"><svg class="i s" viewBox="0 0 16 16"><path d="M8 2.5l6 11H2z"></path><path d="M8 7v3M8 11.8v.2"></path></svg></sc-if>{{r.signedLabel}}</span>
+<span class="num">{{r.uses}}</span>
+<span class="acts">
+<sc-if value="{{r.renaming}}" hint-placeholder-val="{{false}}">
+<button class="btn gh" onClick="{{r.onRenameDone}}">Cancel</button><button class="btn pri" onClick="{{r.onRenameDone}}">Save</button>
+</sc-if>
+<sc-if value="{{r.notRenaming}}" hint-placeholder-val="{{true}}">
+<button class="btn {{r.loginCls}}" onClick="{{r.onLogin}}" title="Open a pane running claude under {{r.name}}"><svg class="i s" viewBox="0 0 16 16"><path d="M9 3h3.5v10H9M3 8h7M7.5 5.5L10 8l-2.5 2.5"></path></svg>Login</button>
+<button class="icon-btn" aria-label="Rename {{r.name}}" title="Rename" onClick="{{r.onRename}}"><svg class="i" viewBox="0 0 16 16"><path d="M10.5 3l2.5 2.5L6 12.5H3.5V10z"></path></svg></button>
+<button class="icon-btn" aria-label="Remove {{r.name}}" title="Remove" onClick="{{r.onRemove}}"><svg class="i" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"></path></svg></button>
+</sc-if>
+</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{accShowEmpty}}" hint-placeholder-val="{{false}}">
+<div class="emptyc">
+<svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="16" r="7" fill="none" stroke="#7c5cff" stroke-width="2"></circle><path d="M9 37c2-7 7-10 13-10s11 3 13 10" fill="none" stroke="#3a3a5c" stroke-width="2" stroke-linecap="round"></path></svg>
+<h2>No accounts yet</h2>
+<p>Add an account to give panes their own login. Already use <code>claude</code> on this machine? Import <span class="mono">~/.claude</span> to keep that login.</p>
+<div style="display: flex; gap: 8px"><button class="btn" onClick="{{goImport}}">Import ~/.claude</button><button class="btn pri" onClick="{{goAddAccount}}">Add account</button></div>
+</div>
+</sc-if>
+</div></div>
+</sc-if>
+
+<sc-if value="{{showSettings}}" hint-placeholder-val="{{false}}">
+<div class="page"><div class="set">
+<div class="pg-hd" style="padding-bottom: 18px"><div><h1>Settings</h1><p>Saved to <span class="mono">~/.config/wraithgrid/config.json</span></p></div></div>
+
+<div class="srow">
+<div><h3><label for="bin">claude binary</label></h3><p class="ex">Found on your PATH. Override it if you keep several versions.</p></div>
+<div class="ctl">
+<div class="det"><span class="g" style="color: var(--ok)"><svg class="i s" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"></path></svg></span>Auto-detected: <span class="mono" style="color: var(--tx)">~/.local/bin/claude</span></div>
+<div class="inrow"><input id="bin" class="inpt" value="{{binOverride}}" onInput="{{onBin}}" placeholder="Override path (leave empty to use auto-detect)"><button class="btn"><svg class="i" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"></path></svg>Browse…</button><button class="btn gh" onClick="{{clearBin}}">Reset</button></div>
+</div>
+</div>
+
+<div class="srow">
+<div><h3>Terminal font</h3><p class="ex">Applies to every pane. Monospace fonts only.</p></div>
+<div class="ctl">
+<div class="fonts" role="radiogroup" aria-label="Font family">
+<sc-for list="{{fontOpts}}" as="f" hint-placeholder-count="4"><button class="fopt {{f.cls}}" role="radio" aria-checked="{{f.checked}}" style="{{f.style}}" onClick="{{f.pick}}">{{f.name}}</button></sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="lbl">Size</span>
+<div class="step"><button aria-label="Decrease font size" onClick="{{sizeDec}}">−</button><span aria-live="polite">{{size}} px</span><button aria-label="Increase font size" onClick="{{sizeInc}}">+</button></div>
+</div>
+<div class="prev" style="{{prevStyle}}" aria-label="Font preview"><span class="a">&gt; </span><span class="b">fix the failing auth test</span>
+<span class="g">● </span><span class="b">Bash</span><span class="d">(pnpm test auth)</span>
+<span class="d">  ⎿  </span><span class="g">PASS</span><span class="d"> src/auth/auth.controller.spec.ts</span>
+<span class="ladd">  13 + import { Throttle } from '@nestjs/throttler';</span>
+<span class="d">  0O 1lI {}[] =&gt; !== ─│╭╮ ✻ ⎿</span></div>
+</div>
+</div>
+
+<div class="srow">
+<div><h3>Theme</h3><p class="ex">Terminal colors follow the theme.</p></div>
+<div class="ctl">
+<div class="seg" role="radiogroup" aria-label="Theme" style="width: max-content">
+<button class="seg-btn {{thDarkCls}}" role="radio" aria-checked="{{thDarkP}}" onClick="{{thDark}}" style="padding: 0 14px"><svg class="i s" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"></path></svg>Dark</button>
+<button class="seg-btn {{thLightCls}}" role="radio" aria-checked="{{thLightP}}" onClick="{{thLight}}" style="padding: 0 14px"><svg class="i s" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"></circle><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"></path></svg>Light</button>
+</div>
+<span class="theme-note">{{themeNote}}</span>
+</div>
+</div>
+
+<div class="srow">
+<div><h3>Default account</h3><p class="ex">Pre-selected in the New pane dialog.</p></div>
+<div class="ctl">
+<div class="recent" role="radiogroup" aria-label="Default account">
+<sc-for list="{{defAccOpts}}" as="o" hint-placeholder-count="4"><button class="rchip {{o.cls}}" role="radio" aria-checked="{{o.checked}}" onClick="{{o.pick}}" style="display: flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px; height: 30px"><span class="dot" style="{{o.dotStyle}}"></span>{{o.name}}</button></sc-for>
+</div>
+</div>
+</div>
+
+<div class="srow">
+<div><h3><label for="defdir">Default working directory</label></h3><p class="ex">Where the folder picker opens.</p></div>
+<div class="ctl">
+<div class="inrow"><input id="defdir" class="inpt" value="{{defDir}}" onInput="{{onDefDir}}"><button class="btn"><svg class="i" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"></path></svg>Browse…</button></div>
+</div>
+</div>
+</div></div>
+</sc-if>
+
+</div>
+</main>
+</div>
+
+<footer class="sbar">
+<span><b>{{sbPanes}}</b> panes</span>
+<span><b>{{sbAccs}}</b> accounts</span>
+<span>workspace <b>{{sbWs}}</b></span>
+<span class="sp"></span>
+<span>Ctrl+Alt+Arrow focus</span>
+<button onClick="{{openShortcuts}}"><kbd>Ctrl+Shift+/</kbd>All shortcuts</button>
+</footer>
+
+<sc-if value="{{mNew}}" hint-placeholder-val="{{false}}">
+<div class="scrim">
+<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="np-t">
+<div class="dlg-hd"><h2 id="np-t">New pane</h2><button class="icon-btn" aria-label="Close dialog (Esc)" title="Close (Esc)" onClick="{{closeModal}}"><svg class="i" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></button></div>
+<div class="dlg-bd">
+<div class="fld">
+<span class="lbl">Account</span>
+<div class="apick" role="radiogroup" aria-label="Account">
+<sc-for list="{{npAccOpts}}" as="o" hint-placeholder-count="4">
+<button class="aopt {{o.cls}}" role="radio" aria-checked="{{o.checked}}" onClick="{{o.pick}}">
+<span class="dot" style="{{o.dotStyle}}; width: 10px; height: 10px"></span>
+<span class="tx"><span class="nm">{{o.name}}</span><span class="sb {{o.subCls}}">{{o.sub}}</span></span>
+<sc-if value="{{o.on}}" hint-placeholder-val="{{false}}"><svg class="i ck" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"></path></svg></sc-if>
+</button>
+</sc-for>
+</div>
+</div>
+<div class="fld">
+<label class="lbl" for="np-dir">Working directory</label>
+<div class="inrow"><input id="np-dir" class="inpt" value="{{npFolder}}" onInput="{{onNpFolder}}"><button class="btn"><svg class="i" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"></path></svg>Browse…</button></div>
+<div class="recent" aria-label="Recent folders">
+<span class="hint" style="align-self: center; margin-right: 2px">Recent</span>
+<sc-for list="{{recentOpts}}" as="r" hint-placeholder-count="5"><button class="rchip {{r.cls}}" onClick="{{r.pick}}">{{r.path}}</button></sc-for>
+</div>
+</div>
+<div class="fld">
+<label class="lbl" for="np-args">Launch args <em>optional</em></label>
+<input id="np-args" class="inpt" value="{{npArgs}}" onInput="{{onNpArgs}}" placeholder="--resume" disabled="{{npShell}}">
+<div class="recent"><button class="rchip" onClick="{{argResume}}">--resume</button><button class="rchip" onClick="{{argC}}">-c</button><span class="hint" style="align-self: center">Continue the last conversation with <span class="mono">-c</span>.</span></div>
+</div>
+<div class="trow">
+<span class="tx"><span style="font-weight: 600">Open a plain shell instead</span><span class="hint">Runs <span class="mono">$SHELL</span> in the same folder, no <span class="mono">claude</span>.</span></span>
+<button class="sw {{npShellCls}}" role="switch" aria-checked="{{npShellP}}" aria-label="Open a plain shell instead" onClick="{{toggleShell}}"></button>
+</div>
+<div class="fld">
+<span class="lbl">Will run</span>
+<div class="cmd">{{npCmd}}</div>
+</div>
+</div>
+<div class="dlg-ft"><span class="hint">Enter to create · Esc to cancel</span><button class="btn gh" onClick="{{closeModal}}">Cancel</button><button class="btn pri" onClick="{{closeModal}}">Create pane</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{mShortcuts}}" hint-placeholder-val="{{false}}">
+<div class="scrim">
+<div class="dlg w4" role="dialog" aria-modal="true" aria-labelledby="sc-t">
+<div class="dlg-hd"><h2 id="sc-t">Keyboard shortcuts</h2><button class="icon-btn" aria-label="Close (Esc)" title="Close (Esc)" onClick="{{closeModal}}"><svg class="i" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></button></div>
+<div class="dlg-bd" style="gap: 0">
+<div class="scl">
+<div class="sc-row"><span>New pane</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>N</kbd></span></div>
+<div class="sc-row"><span>Close pane</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>W</kbd></span></div>
+<div class="sc-row"><span>Zoom pane / back to grid</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Z</kbd></span></div>
+<div class="sc-row"><span>Focus next / previous pane</span><span class="keys"><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></span></div>
+<div class="sc-row"><span>Switch workspace</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>1</kbd>…<kbd>9</kbd></span></div>
+<div class="sc-row"><span>Show this sheet</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>/</kbd></span></div>
+</div>
+</div>
+<div class="dlg-ft"><span class="hint">Defaults. Custom bindings come later.</span><button class="btn" onClick="{{closeModal}}">Done</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{mWs}}" hint-placeholder-val="{{false}}">
+<div class="scrim">
+<div class="dlg w6" role="dialog" aria-modal="true" aria-label="Switch workspace">
+<div class="srch"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4"></circle><path d="M10 10l3.5 3.5"></path></svg><input placeholder="Switch workspace…" aria-label="Filter workspaces"><kbd>Esc</kbd></div>
+<div class="wsl">
+<sc-for list="{{wsItems}}" as="w" hint-placeholder-count="5">
+<sc-if value="{{w.deleting}}" hint-placeholder-val="{{false}}">
+<div class="wsr del">
+<span class="delmsg">Delete <b>{{w.name}}</b>? Its {{w.count}} panes close. Project folders and accounts are not touched.</span>
+<button class="btn gh" onClick="{{cancelWsDel}}">Cancel</button><button class="btn dng" onClick="{{cancelWsDel}}">Delete</button>
+</div>
+</sc-if>
+<sc-if value="{{w.renaming}}" hint-placeholder-val="{{false}}">
+<div class="wsr on">
+<input class="inpt sans" value="{{w.name}}" onInput="{{noop}}" aria-label="Workspace name" style="flex: 1; margin: 4px">
+<button class="btn gh" onClick="{{cancelWsRename}}">Cancel</button><button class="btn pri" onClick="{{cancelWsRename}}">Save</button>
+</div>
+</sc-if>
+<sc-if value="{{w.plain}}" hint-placeholder-val="{{true}}">
+<div class="wsr {{w.cls}}">
+<button class="go" onClick="{{w.pick}}">
+<span class="tx"><span class="nm">{{w.name}} <span class="cur-tag">{{w.curTag}}</span></span><span class="mt">{{w.meta}}</span></span>
+<span class="dots"><sc-for list="{{w.dots}}" as="dt"><span class="dot" style="{{dt.style}}; width: 10px; height: 10px"></span></sc-for></span>
+</button>
+<span class="keys" style="margin: 0 6px"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>{{w.key}}</kbd></span>
+<button class="icon-btn" aria-label="Rename {{w.name}}" title="Rename (F2)" onClick="{{w.onRename}}"><svg class="i" viewBox="0 0 16 16"><path d="M10.5 3l2.5 2.5L6 12.5H3.5V10z"></path></svg></button>
+<button class="icon-btn" aria-label="Delete {{w.name}}" title="Delete (Del)" onClick="{{w.onDelete}}"><svg class="i" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"></path></svg></button>
+</div>
+</sc-if>
+</sc-for>
+<sc-if value="{{wsNew}}" hint-placeholder-val="{{false}}">
+<div class="wsr on"><input class="inpt sans" value="{{wsNewName}}" onInput="{{onWsNewName}}" aria-label="New workspace name" style="flex: 1; margin: 4px"><button class="btn gh" onClick="{{toggleWsNew}}">Cancel</button><button class="btn pri" onClick="{{toggleWsNew}}">Create</button></div>
+</sc-if>
+</div>
+<div class="dlg-ft"><span class="hint">↑↓ move · Enter open · F2 rename · Del delete</span><button class="btn" onClick="{{toggleWsNew}}"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg>New workspace</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{mRemove}}" hint-placeholder-val="{{false}}">
+<div class="scrim">
+<div class="dlg w4" role="alertdialog" aria-modal="true" aria-labelledby="rm-t">
+<div class="dlg-hd"><h2 id="rm-t">Remove account “{{rm.name}}”?</h2></div>
+<div class="dlg-bd" style="gap: 14px">
+<p class="hint" style="font-size: 13px; color: var(--mu); margin: 0">{{rm.panesMsg}} The account is removed from Wraithgrid.</p>
+<div class="trow">
+<span class="tx"><span style="font-weight: 600">Also delete its config dir</span><span class="hint mono">{{rm.dir}}</span><span class="hint">Deletes the login, settings and history. This cannot be undone.</span></span>
+<button class="sw {{rmDelCls}}" role="switch" aria-checked="{{rmDelP}}" aria-label="Also delete config dir" onClick="{{toggleRmDel}}"></button>
+</div>
+</div>
+<div class="dlg-ft"><button class="btn gh" onClick="{{closeModal}}">Cancel</button><button class="btn dng" onClick="{{closeModal}}">{{rmBtn}}</button></div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":944}}'>
+class Component extends DCLogic {
+  state = {
+    tab: 'main', screen: 'main', modal: null, ws: 'api', layout: '4', focus: 'api', zoomId: 'api',
+    sidebar: true, closing: null, closed: [], accVar: 'list', renameId: null, removeId: 'acme', rmDel: false,
+    npAcc: 'personal', npFolder: '~/proj/api', npArgs: '', npShell: false,
+    accName: 'freelance', accColor: '#2dd4bf', theme: 'dark', font: 'JetBrains Mono', size: 13,
+    defAcc: 'personal', defDir: '~/proj', binOverride: '', wsDel: null, wsRename: null, wsNew: false, wsNewName: 'release-week',
+    vp: 'lg', restarted: false, loginStarted: false
+  };
+
+  go(tab) {
+    const map = { newpane: ['main', 'newpane'], workspaces: ['main', 'workspaces'], shortcuts: ['main', 'shortcuts'], empty: ['main', null], stress: ['main', null] };
+    const pair = map[tab] || [tab, null];
+    const patch = { tab: tab, screen: pair[0], modal: pair[1], closing: null, closed: [], renameId: null, wsDel: null, wsRename: null, wsNew: false, sidebar: true };
+    if (pair[0] === 'main') { patch.ws = 'api'; patch.layout = '4'; patch.focus = 'api'; }
+    if (tab === 'empty') { patch.ws = 'scratch'; }
+    if (tab === 'stress') { patch.ws = 'full'; patch.layout = '8'; patch.sidebar = false; patch.focus = 'web'; }
+    if (tab === 'zoom') { patch.zoomId = 'api'; }
+    if (tab === 'states') { patch.restarted = false; patch.loginStarted = false; patch.closing = 'web'; patch.focus = 'api'; }
+    if (tab === 'accounts') { patch.accVar = 'list'; }
+    this.setState(patch);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const set = (o) => () => this.setState(o);
+    const val = (k) => (e) => this.setState({ [k]: e.target.value });
+
+    const ACC = {
+      personal: { id: 'personal', name: 'personal', color: '#7c5cff', cname: 'violet', dir: '~/.claude', note: 'imported', signed: true },
+      work: { id: 'work', name: 'work', color: '#2dd4bf', cname: 'teal', dir: '~/.wraithgrid/accounts/work', note: '', signed: true },
+      acme: { id: 'acme', name: 'acme', color: '#f5a524', cname: 'amber', dir: '~/.wraithgrid/accounts/acme', note: '', signed: true },
+      oss: { id: 'oss', name: 'oss', color: '#f43f5e', cname: 'rose', dir: '~/.wraithgrid/accounts/oss', note: '', signed: false }
+    };
+    const accList = s.accVar === 'empty' ? [] : Object.values(ACC);
+
+    const L = (...a) => ({ lc: '', segs: a.map((x) => Array.isArray(x) ? { c: x[0], t: x[1] } : { c: '', t: x }) });
+    const B = (lc, ...a) => Object.assign(L(...a), { lc: lc });
+    const PROMPT = B('inp', ['a', '> '], ['cur', ' ']);
+
+    const P = {
+      api: { title: 'api', acc: 'personal', cwd: '~/proj/api', status: 'running', pid: 48113, lines: [
+        L(['a', '> '], ['u', 'add rate limiting to POST /auth/login, 5 attempts per minute per IP']),
+        L(''),
+        L(['b', '● '], "I'll check how the auth module is wired first."),
+        L(['g', '● '], ['b', 'Read'], ['d', '(src/auth/auth.module.ts)']),
+        L(['d', '  ⎿  Read 42 lines']),
+        L(['g', '● '], ['b', 'Update'], ['d', '(src/auth/auth.controller.ts)']),
+        L(['d', '  ⎿  Updated '], ['p', 'src/auth/auth.controller.ts'], ['d', ' with 3 additions and 1 removal']),
+        B('lnum', "      12   import { Controller, Post, Body } from '@nestjs/common';"),
+        B('ladd', "      13 + import { Throttle } from '@nestjs/throttler';"),
+        B('ldel', "      27 - @Post('login')"),
+        B('ladd', '      27 + @Throttle({ default: { limit: 5, ttl: 60_000 } })'),
+        B('ladd', "      28 + @Post('login')"),
+        L(['g', '● '], ['b', 'Bash'], ['d', '(pnpm test auth)']),
+        L(['d', '  ⎿  '], ['g', 'PASS'], ['d', ' src/auth/auth.controller.spec.ts (4 tests, 1.8s)']),
+        L(''),
+        L(['a', '✻ Running e2e suite… '], ['d', '(14s · esc to interrupt)'])
+      ] },
+      web: { title: 'web', acc: 'work', cwd: '~/proj/web', status: 'approval', pid: 48213, lines: [
+        L(['a', '> '], ['u', 'migrate the dashboard fetches to react-query']),
+        L(''),
+        L(['g', '● '], ['b', 'Read'], ['d', '(app/dashboard/page.tsx)']),
+        L(['d', '  ⎿  Read 118 lines']),
+        L(['g', '● '], ['b', 'Grep'], ['d', '("useEffect\\(.*fetch", path: app/)']),
+        L(['d', '  ⎿  Found 6 files']),
+        L(['b', '● '], 'The package is missing, so I need to install it before touching the hooks.'),
+        B('bxt', ['w', 'Bash command']),
+        B('bx', ''),
+        B('bx', ['b', '  pnpm add @tanstack/react-query']),
+        B('bx', ['d', '  Install react-query for data fetching']),
+        B('bx', ''),
+        B('bx', 'Do you want to proceed?'),
+        B('bx', ['a', '❯ 1. Yes']),
+        B('bx', ['d', "  2. Yes, and don't ask again for pnpm add commands in ~/proj/web"]),
+        B('bxb', ['d', '  3. No, and tell Claude what to do differently (esc)'])
+      ] },
+      mobile: { title: 'mobile', acc: 'personal', cwd: '~/proj/mobile', status: 'idle', pid: 48320, lines: [
+        L(['a', '> '], ['u', 'why does the Android build fail on release only?']),
+        L(''),
+        L(['b', '● '], 'Found it: R8 strips the Hermes JSI bindings in release builds.'),
+        L(['g', '● '], ['b', 'Update'], ['d', '(android/app/proguard-rules.pro)']),
+        L(['d', '  ⎿  Updated with 2 additions']),
+        B('ladd', '       8 + -keep class com.facebook.hermes.unicode.** { *; }'),
+        B('ladd', '       9 + -keep class com.facebook.jni.** { *; }'),
+        L(['g', '● '], ['b', 'Bash'], ['d', '(cd android && ./gradlew assembleRelease)']),
+        L(['d', '  ⎿  '], ['g', 'BUILD SUCCESSFUL'], ['d', ' in 1m 42s']),
+        L(['d', '     418 actionable tasks: 37 executed, 381 up-to-date']),
+        L(''),
+        L(['b', '● '], 'Release build passes. APK: '),
+        L(['p', '  android/app/build/outputs/apk/release/app-release.apk']),
+        PROMPT
+      ] },
+      infra: { title: 'infra', acc: 'work', cwd: '~/proj/infra', status: 'running', pid: 48441, lines: [
+        L(['a', '> '], ['u', "plan the new staging redis cluster, don't apply"]),
+        L(''),
+        L(['g', '● '], ['b', 'Read'], ['d', '(terraform/staging/main.tf)']),
+        L(['d', '  ⎿  Read 206 lines']),
+        L(['g', '● '], ['b', 'Write'], ['d', '(terraform/staging/redis.tf)']),
+        L(['d', '  ⎿  Wrote 38 lines to '], ['p', 'terraform/staging/redis.tf']),
+        L(['g', '● '], ['b', 'Bash'], ['d', '(terraform plan -out=tfplan)']),
+        L(['d', '  ⎿  aws_elasticache_subnet_group.staging: Refreshing state...']),
+        L(['g', '     + '], 'aws_elasticache_replication_group.redis_staging'),
+        L(['g', '     + '], 'aws_security_group.redis_staging'),
+        L(['w', '     ~ '], 'aws_security_group_rule.app_egress'),
+        L(['b', '     Plan: '], ['g', '2 to add'], ', ', ['w', '1 to change'], ', 0 to destroy.'),
+        L(''),
+        L(['a', '✻ Summarizing plan… '], ['d', '(6s · esc to interrupt)'])
+      ] },
+      docs: { title: 'docs', acc: 'acme', cwd: '~/clients/acme/docs', status: 'idle', pid: 49002, lines: [
+        L(['a', '> '], ['u', 'update the webhook docs for the v2 payload']),
+        L(''),
+        L(['g', '● '], ['b', 'Read'], ['d', '(src/webhooks/v2/payload.ts)']),
+        L(['d', '  ⎿  Read 57 lines']),
+        L(['g', '● '], ['b', 'Update'], ['d', '(docs/webhooks.md)']),
+        L(['d', '  ⎿  Updated '], ['p', 'docs/webhooks.md'], ['d', ' with 14 additions and 6 removals']),
+        L(''),
+        L(['b', '● '], 'Done. The payload table now lists event_id and delivered_at, and the retry section matches the v2 backoff.'),
+        PROMPT
+      ] },
+      worker: { title: 'worker', acc: 'acme', cwd: '~/clients/acme/worker', status: 'running', pid: 49017, lines: [
+        L(['a', '> '], ['u', 'the invoice job retries forever on 422s, fix it']),
+        L(''),
+        L(['g', '● '], ['b', 'Grep'], ['d', '("retry", path: src/jobs)']),
+        L(['d', '  ⎿  Found 3 files']),
+        L(['g', '● '], ['b', 'Read'], ['d', '(src/jobs/invoice.job.ts)']),
+        L(['d', '  ⎿  Read 91 lines']),
+        L(['g', '● '], ['b', 'Update'], ['d', '(src/jobs/invoice.job.ts)']),
+        B('ldel', '      44 -   throw err;'),
+        B('ladd', '      44 +   if (err.status >= 400 && err.status < 500) {'),
+        B('ladd', '      45 +     return job.discard(`non-retryable ${err.status}`);'),
+        B('ladd', '      46 +   }'),
+        L(''),
+        L(['a', '✻ Thinking… '], ['d', '(3s · esc to interrupt)'])
+      ] },
+      shell: { title: 'shell', acc: 'acme', cwd: '~/clients/acme/worker', shell: true, status: 'idle', pid: 49030, lines: [
+        L(['g', 'mnor@arch'], ' ', ['p', '~/clients/acme/worker'], ['a', ' (main)'], ' $ git status -sb'),
+        L(['g', '## main'], '...', ['r', 'origin/main'], ' [ahead 1]'),
+        L(['r', ' M'], ' src/jobs/invoice.job.ts'),
+        L(['r', ' M'], ' src/jobs/invoice.job.spec.ts'),
+        L(['g', 'mnor@arch'], ' ', ['p', '~/clients/acme/worker'], ['a', ' (main)'], ' $ pnpm test invoice'),
+        L(['g', ' PASS '], ' src/jobs/invoice.job.spec.ts'),
+        L(['d', ' Tests: 9 passed, 9 total · 2.41 s']),
+        L(['g', 'mnor@arch'], ' ', ['p', '~/clients/acme/worker'], ['a', ' (main)'], ' $ ', ['cur', ' '])
+      ] },
+      landing: { title: 'landing', acc: 'personal', cwd: '~/oss/landing', status: 'running', pid: 49101, lines: [
+        L(['a', '> '], ['u', 'make the hero section responsive below 768px']),
+        L(''),
+        L(['g', '● '], ['b', 'Read'], ['d', '(src/components/Hero.astro)']),
+        L(['d', '  ⎿  Read 64 lines']),
+        L(['g', '● '], ['b', 'Update'], ['d', '(src/components/Hero.astro)']),
+        L(['d', '  ⎿  Updated with 9 additions and 3 removals']),
+        L(['g', '● '], ['b', 'Bash'], ['d', '(pnpm astro check)']),
+        L(['d', '  ⎿  0 errors, 0 warnings, 2 hints']),
+        L(''),
+        L(['a', '✻ Checking the 375px breakpoint… '], ['d', '(9s · esc to interrupt)'])
+      ] },
+      login: { title: 'cli-docs', acc: 'oss', cwd: '~/oss/cli-docs', status: 'login', pid: 49220, login: true, lines: s.loginStarted ? [
+        L(['a', '> '], ['u', '/login']),
+        L(''),
+        L(['b', ' Select login method:']),
+        L(''),
+        L(['a', ' ❯ 1. '], ['u', 'Claude account with subscription']),
+        L(['d', '   2. Anthropic Console account']),
+        L(''),
+        L(['d', ' Opening your browser to finish signing in…']),
+        L(['d', ' If it does not open, visit the link printed below.'])
+      ] : [
+        L(['a', '✻ '], ['b', 'Welcome!']),
+        L(''),
+        L(['d', '  cwd: ~/oss/cli-docs']),
+        L(['w', '  Not logged in.'], ['d', ' Run /login to sign in.']),
+        L(''),
+        PROMPT
+      ] }
+    };
+
+    const WS = [
+      { id: 'api', name: 'api-sprint', panes: ['api', 'web', 'mobile', 'infra'], key: 1, layout: '4' },
+      { id: 'acme', name: 'client-acme', panes: ['docs', 'worker', 'shell'], key: 2, layout: '3' },
+      { id: 'oss', name: 'oss-weekend', panes: ['landing', 'login'], key: 3, layout: '2' },
+      { id: 'full', name: 'full-stack', panes: ['api', 'web', 'mobile', 'infra', 'docs', 'worker', 'shell', 'landing'], key: 4, layout: '8' },
+      { id: 'scratch', name: 'scratch', panes: [], key: 5, layout: '4' }
+    ];
+    const cur = WS.find((w) => w.id === s.ws) || WS[0];
+    const STL = { running: 'running', idle: 'idle', approval: 'needs approval', exited: 'exited', login: 'login needed' };
+    const uniq = (arr) => arr.filter((x, i) => arr.indexOf(x) === i);
+
+    const dense = s.screen === 'main' && s.layout === '8';
+    const mk = (id, o) => {
+      o = o || {};
+      const p = Object.assign({}, P[id], o);
+      const a = ACC[p.acc];
+      const st = p.status;
+      const zoomed = s.screen === 'zoom';
+      return {
+        key: id, real: true, slot: false, title: p.title, cwd: p.cwd, pid: p.pid, lines: p.lines,
+        accName: a.name, accId: a.id,
+        dotStyle: 'background:' + a.color, stripStyle: 'background:' + a.color,
+        cwdLabel: p.shell ? p.cwd + ' · zsh' : p.cwd,
+        focusCls: (s.focus === id && s.screen !== 'zoom') || zoomed ? 'focused' : '',
+        statusCls: 'st-' + st, statusLabel: STL[st],
+        termCls: [dense ? 'sm' : '', zoomed ? 'lg' : '', o.exited ? 'dim' : ''].join(' '),
+        aria: p.title + ' pane, account ' + a.name + ', ' + STL[st],
+        isZoomed: zoomed, notZoomed: !zoomed,
+        zoomAria: zoomed ? 'Back to grid (Ctrl+Shift+Z)' : 'Zoom pane (Ctrl+Shift+Z)',
+        onZoom: zoomed ? set({ screen: 'main', modal: null }) : set({ screen: 'zoom', zoomId: id, focus: id }),
+        onFocus: set({ focus: id }),
+        onClose: (st === 'running' || st === 'approval') ? set({ closing: id, focus: id }) : set({ closed: s.closed.concat([id]) }),
+        confirmClose: set({ closing: null, closed: s.closed.concat([id]) }),
+        closing: s.closing === id,
+        exited: !!o.exited, login: !!p.login, loginIdle: !s.loginStarted,
+        loginTitle: s.loginStarted ? 'Finish signing in in your browser' : a.name + ' is not signed in yet',
+        loginText: s.loginStarted ? ' This pane picks up the session when you are done. Other panes are not affected.' : ' Type /login in this pane. Sign-in finishes in your browser and stays in ' + a.dir + '.',
+        onNew: set({ modal: 'newpane' })
+      };
+    };
+
+    // which panes
+    let panes = [], gridStyle = '';
+    const GS = {
+      '1': 'grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr)',
+      '2': 'grid-template-columns: repeat(2, minmax(0,1fr)); grid-template-rows: minmax(0,1fr)',
+      '4': 'grid-template-columns: repeat(2, minmax(0,1fr)); grid-template-rows: repeat(2, minmax(0,1fr))',
+      '3': 'grid-template-columns: repeat(3, minmax(0,1fr)); grid-template-rows: minmax(0,1fr)',
+      '8': 'grid-template-columns: repeat(4, minmax(0,1fr)); grid-template-rows: repeat(2, minmax(0,1fr))'
+    };
+    const live = cur.panes.filter((i) => s.closed.indexOf(i) < 0);
+    const isEmpty = s.screen === 'main' && live.length === 0;
+    if (s.screen === 'main' && !isEmpty) {
+      const n = s.layout === '8' ? live.length : Number(s.layout);
+      const ids = live.slice(0, n);
+      panes = ids.map((i) => mk(i));
+      if (s.layout !== '8') { for (let k = ids.length; k < n; k++) panes.push({ key: 'slot' + k, slot: true, real: false, onNew: set({ modal: 'newpane' }), lines: [] }); }
+      gridStyle = GS[s.layout];
+    } else if (s.screen === 'zoom') {
+      panes = [mk(s.zoomId)];
+      gridStyle = GS['1'];
+    } else if (s.screen === 'states') {
+      panes = [
+        mk('api'),
+        s.restarted ? mk('mobile', { status: 'idle', lines: [L(['d', '— restarted 14:36 · claude -c —']), L(''), L(['b', '● '], 'Resumed the previous conversation in ~/proj/mobile.'), PROMPT] }) : mk('mobile', { status: 'exited', exited: true }),
+        mk('web', { status: 'running' }),
+        mk('login')
+      ];
+      gridStyle = GS['4'];
+    }
+    const showGrid = panes.length > 0;
+
+    // status bar
+    const shown = panes.filter((p) => p.real);
+    const sbPaneIds = showGrid ? shown : live.map((i) => ({ accId: P[i].acc }));
+    const sbPanes = showGrid ? shown.length : (s.screen === 'main' ? 0 : live.length);
+    const sbAccs = uniq(sbPaneIds.map((p) => p.accId)).length;
+
+    // tabs
+    const TABS = [['main', 'Workspace'], ['empty', 'Empty'], ['newpane', 'New pane'], ['accounts', 'Accounts'], ['zoom', 'Zoomed'], ['states', 'Pane states'], ['workspaces', 'Switcher'], ['settings', 'Settings'], ['shortcuts', 'Shortcuts'], ['stress', '8 panes']];
+    const tabs = TABS.map((t, i) => ({ n: i + 1, label: t[1], cls: s.tab === t[0] ? 'on' : '', pressed: s.tab === t[0] ? 'true' : 'false', pick: () => this.go(t[0]) }));
+    const AV = [['list', 'List'], ['empty', 'Empty'], ['add', 'Add form'], ['remove', 'Remove confirm']];
+    const curVar = s.modal === 'removeAcc' ? 'remove' : s.accVar;
+    const accVars = AV.map((v) => ({ label: v[1], cls: curVar === v[0] ? 'on' : '', pressed: curVar === v[0] ? 'true' : 'false', pick: set({ accVar: v[0] === 'remove' ? 'list' : v[0], modal: v[0] === 'remove' ? 'removeAcc' : null, removeId: 'acme', rmDel: false }) }));
+
+    // sidebar
+    const wsItems = WS.map((w) => {
+      const accs = uniq(w.panes.map((i) => P[i].acc));
+      const on = w.id === s.ws && (s.screen === 'main' || s.screen === 'zoom');
+      return {
+        name: w.name, key: w.key, count: w.panes.length, cls: on ? 'on' : '', current: on ? 'true' : 'false', curTag: w.id === s.ws ? 'current' : '',
+        meta: w.panes.length === 0 ? 'No panes' : w.panes.length + ' panes · ' + accs.map((x) => ACC[x].name).join(', '),
+        dots: accs.map((x) => ({ style: 'background:' + ACC[x].color })),
+        pick: set({ ws: w.id, screen: 'main', modal: null, tab: w.id === 'scratch' ? 'empty' : (w.id === 'full' ? 'stress' : 'main'), layout: w.layout, focus: w.panes[0] || null, closing: null, closed: [] }),
+        deleting: s.wsDel === w.id, renaming: s.wsRename === w.id, plain: s.wsDel !== w.id && s.wsRename !== w.id,
+        onDelete: set({ wsDel: w.id, wsRename: null }), onRename: set({ wsRename: w.id, wsDel: null })
+      };
+    });
+    const accSide = Object.values(ACC).map((a) => ({ name: a.name, dotStyle: 'background:' + a.color, sub: a.signed ? 'signed in' : 'login needed', subCls: a.signed ? '' : 'warn' }));
+
+    // top bar
+    let topTitle = cur.name, topSub = live.length + ' panes', showBack = false, backLabel = 'Back to grid', showPresets = false, showZoomBar = false;
+    if (s.screen === 'main') { showPresets = !isEmpty; topSub = isEmpty ? 'No panes yet' : (s.layout === '8' ? live.length + ' panes · 4×2 custom layout' : live.length + ' panes'); }
+    if (s.screen === 'zoom') { const z = P[s.zoomId]; topTitle = z.title; topSub = 'zoomed · ' + cur.name; showZoomBar = true; }
+    if (s.screen === 'states') { topTitle = 'Pane states'; topSub = 'running · exited · close confirmation · login needed'; }
+    if (s.screen === 'accounts') { topTitle = 'Accounts'; topSub = ''; showBack = true; backLabel = cur.name; }
+    if (s.screen === 'settings') { topTitle = 'Settings'; topSub = ''; showBack = true; backLabel = cur.name; }
+    const miniN = Math.max(1, Math.min(cur.panes.length, 8));
+    const miniCols = miniN >= 5 ? 4 : (miniN === 3 ? 3 : Math.min(miniN, 2));
+    const miniCells = (cur.panes.length ? cur.panes : [s.zoomId]).slice(0, 8).map((i) => ({ cls: i === s.zoomId ? 'on' : '' }));
+    const miniStyle = 'grid-template-columns: repeat(' + miniCols + ', 1fr)';
+    const pr = (k) => (s.screen === 'main' && s.layout === k);
+
+    // accounts screen
+    const uses = (id) => uniq(WS.reduce((acc, w) => acc.concat(w.panes), [])).filter((i) => P[i].acc === id).length;
+    const accRows = accList.map((a) => ({
+      name: a.name, dir: a.dir, dirNote: a.note ? 'Imported existing config dir' : '', dotStyle: 'background:' + a.color,
+      signed: a.signed, unsigned: !a.signed, signedLabel: a.signed ? 'Signed in' : 'Not signed in', badgeCls: a.signed ? '' : 'warn',
+      uses: uses(a.id), renaming: s.renameId === a.id, notRenaming: s.renameId !== a.id,
+      loginCls: a.signed ? 'gh' : 'pri',
+      onRename: set({ renameId: a.id }), onRenameDone: set({ renameId: null }),
+      onRemove: set({ modal: 'removeAcc', removeId: a.id, rmDel: false }),
+      onLogin: set({ screen: 'zoom', zoomId: 'login', tab: 'zoom', modal: null, loginStarted: false, ws: 'oss' })
+    }));
+    const COLORS = [['violet', '#7c5cff'], ['teal', '#2dd4bf'], ['amber', '#f5a524'], ['rose', '#f43f5e']];
+    const colorOpts = COLORS.map((c) => ({ name: c[0], style: 'background:' + c[1], on: s.accColor === c[1], cls: s.accColor === c[1] ? 'on' : '', checked: s.accColor === c[1] ? 'true' : 'false', pick: set({ accColor: c[1] }) }));
+    const rmA = ACC[s.removeId] || ACC.acme;
+    const rmUses = uses(rmA.id);
+
+    // new pane
+    const npAccOpts = Object.values(ACC).map((a) => ({
+      name: a.name, dotStyle: 'background:' + a.color, on: s.npAcc === a.id, cls: s.npAcc === a.id ? 'on' : '', checked: s.npAcc === a.id ? 'true' : 'false',
+      sub: a.signed ? a.dir : 'Not signed in · run /login in the pane', subCls: a.signed ? '' : 'warn', pick: set({ npAcc: a.id })
+    }));
+    const RECENT = ['~/proj/api', '~/proj/web', '~/proj/mobile', '~/proj/infra', '~/clients/acme/worker'];
+    const recentOpts = RECENT.map((r) => ({ path: r, cls: s.npFolder === r ? 'on' : '', pick: set({ npFolder: r }) }));
+    const npA = ACC[s.npAcc];
+    const npCmd = s.npShell ? 'cd ' + s.npFolder + ' && $SHELL' : 'CLAUDE_CONFIG_DIR=' + npA.dir + ' claude' + (s.npArgs ? ' ' + s.npArgs : '') + '   (in ' + s.npFolder + ')';
+
+    // settings
+    const FONTS = ['JetBrains Mono', 'Fira Code', 'IBM Plex Mono', 'Source Code Pro'];
+    const fontOpts = FONTS.map((f) => ({ name: f, style: "font-family:'" + f + "',monospace", cls: s.font === f ? 'on' : '', checked: s.font === f ? 'true' : 'false', pick: set({ font: f }) }));
+    const defAccOpts = Object.values(ACC).map((a) => ({ name: a.name, dotStyle: 'background:' + a.color, cls: s.defAcc === a.id ? 'on' : '', checked: s.defAcc === a.id ? 'true' : 'false', pick: set({ defAcc: a.id }) }));
+    const light = s.screen === 'settings' && s.theme === 'light';
+
+    const W = s.vp === 'sm' ? [1100, 700] : [1440, 900];
+
+    return {
+      tabs: tabs, accVars: accVars, showAccVar: s.tab === 'accounts',
+      vpLg: set({ vp: 'lg' }), vpSm: set({ vp: 'sm' }), vpLgCls: s.vp === 'lg' ? 'on' : '', vpSmCls: s.vp === 'sm' ? 'on' : '',
+      vpLgP: s.vp === 'lg' ? 'true' : 'false', vpSmP: s.vp === 'sm' ? 'true' : 'false', isSm: s.vp === 'sm',
+      winStyle: 'width:' + W[0] + 'px;height:' + W[1] + 'px', themeCls: light ? 'light' : '',
+      tbTitle: s.screen === 'settings' ? 'Settings' : (s.screen === 'accounts' ? 'Accounts' : cur.name),
+
+      sideCls: s.sidebar ? '' : 'col', sideOpen: s.sidebar, sideClosed: !s.sidebar,
+      sideAria: s.sidebar ? 'Collapse sidebar' : 'Expand sidebar', toggleSide: set({ sidebar: !s.sidebar }),
+      wsItems: wsItems, accSide: accSide,
+      goAccounts: () => this.go('accounts'),
+      goAddAccount: set({ tab: 'accounts', screen: 'accounts', accVar: 'add', modal: null }),
+      goImport: set({ tab: 'accounts', screen: 'accounts', accVar: 'import', modal: null }),
+      goSettings: () => this.go('settings'),
+      openNew: set({ modal: 'newpane' }), openWs: set({ modal: 'workspaces' }), openShortcuts: set({ modal: 'shortcuts' }),
+      closeModal: set({ modal: null, wsDel: null, wsRename: null, wsNew: false }),
+
+      showBack: showBack, backLabel: backLabel, goBack: set({ screen: 'main', modal: null, tab: s.ws === 'scratch' ? 'empty' : (s.ws === 'full' ? 'stress' : 'main') }),
+      topTitle: topTitle, topSub: topSub, showPresets: showPresets, showZoomBar: showZoomBar, miniCells: miniCells, miniStyle: miniStyle,
+      p1: set({ layout: '1' }), p2: set({ layout: '2' }), p4: set({ layout: '4' }), p3: set({ layout: '3' }),
+      p1Cls: pr('1') ? 'on' : '', p2Cls: pr('2') ? 'on' : '', p4Cls: pr('4') ? 'on' : '', p3Cls: pr('3') ? 'on' : '',
+      p1P: pr('1') ? 'true' : 'false', p2P: pr('2') ? 'true' : 'false', p4P: pr('4') ? 'true' : 'false', p3P: pr('3') ? 'true' : 'false',
+      zoomFocused: set({ screen: 'zoom', zoomId: (live.indexOf(s.focus) >= 0 ? s.focus : live[0]) }),
+
+      showGrid: showGrid, gridStyle: gridStyle, panes: panes,
+      cancelClose: set({ closing: null }), restart: set({ restarted: true }), startLogin: set({ loginStarted: true }),
+      showEmpty: isEmpty, emptyTitle: cur.name + ' has no panes yet',
+
+      showAccounts: s.screen === 'accounts',
+      accShowForm: s.accVar === 'add', accShowImport: s.accVar === 'import',
+      accShowList: accList.length > 0, accShowEmpty: accList.length === 0,
+      accRows: accRows, accName: s.accName, accNameShown: (s.accName || '<name>').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
+      onAccName: val('accName'), colorOpts: colorOpts, accFormCancel: set({ accVar: 'list' }),
+      noop: () => {},
+
+      showSettings: s.screen === 'settings',
+      binOverride: s.binOverride, onBin: val('binOverride'), clearBin: set({ binOverride: '' }),
+      fontOpts: fontOpts, size: s.size, sizeDec: set({ size: Math.max(10, s.size - 1) }), sizeInc: set({ size: Math.min(20, s.size + 1) }),
+      prevStyle: "font-family:'" + s.font + "',monospace;font-size:" + s.size + 'px',
+      thDark: set({ theme: 'dark' }), thLight: set({ theme: 'light' }),
+      thDarkCls: s.theme === 'dark' ? 'on' : '', thLightCls: s.theme === 'light' ? 'on' : '',
+      thDarkP: s.theme === 'dark' ? 'true' : 'false', thLightP: s.theme === 'light' ? 'true' : 'false',
+      themeNote: s.theme === 'light' ? 'Light preview: this prototype re-skins the Settings screen only.' : 'Dark is the default.',
+      defAccOpts: defAccOpts, defDir: s.defDir, onDefDir: val('defDir'),
+
+      sbPanes: sbPanes, sbAccs: sbAccs, sbWs: cur.name,
+
+      mNew: s.modal === 'newpane', mShortcuts: s.modal === 'shortcuts', mWs: s.modal === 'workspaces', mRemove: s.modal === 'removeAcc',
+      npAccOpts: npAccOpts, recentOpts: recentOpts, npFolder: s.npFolder, onNpFolder: val('npFolder'),
+      npArgs: s.npArgs, onNpArgs: val('npArgs'), argResume: set({ npArgs: '--resume' }), argC: set({ npArgs: '-c' }),
+      npShell: s.npShell, npShellCls: s.npShell ? 'on' : '', npShellP: s.npShell ? 'true' : 'false', toggleShell: set({ npShell: !s.npShell }),
+      npCmd: npCmd,
+      cancelWsDel: set({ wsDel: null }), cancelWsRename: set({ wsRename: null }),
+      wsNew: s.wsNew, wsNewName: s.wsNewName, onWsNewName: val('wsNewName'), toggleWsNew: set({ wsNew: !s.wsNew }),
+      rm: { name: rmA.name, dir: rmA.dir, panesMsg: rmUses ? rmUses + ' pane' + (rmUses > 1 ? 's use' : ' uses') + ' this account and will close.' : 'No panes use this account.' },
+      rmDelCls: s.rmDel ? 'on' : '', rmDelP: s.rmDel ? 'true' : 'false', toggleRmDel: set({ rmDel: !s.rmDel }),
+      rmBtn: s.rmDel ? 'Remove and delete dir' : 'Remove account'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+import os from 'node:os'
+import path from 'node:path'
+import { app, BrowserWindow, Menu, session, shell } from 'electron'
+import { spawn } from 'node-pty'
+import { IPC } from '@shared/ipc-channels'
+import type { PtyDataEvent, PtyExitEvent } from '@shared/ipc-contract'
+import { ConfigStore } from './config-store'
+import { registerIpc } from './ipc'
+import { configFilePath } from './paths'
+import { PtyManager } from './pty-manager'
+
+// Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
+// WRAITHGRID_USER_DATA_DIR lets tests run against a throwaway config dir.
+app.setPath(
+  'userData',
+  process.env.WRAITHGRID_USER_DATA_DIR || path.join(app.getPath('appData'), 'wraithgrid')
+)
+
+// Two instances would overwrite each other's config; focus the first one instead.
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+}
+
+const homeDir = os.homedir()
+const store = new ConfigStore(configFilePath(app.getPath('userData')))
+let mainWindow: BrowserWindow | null = null
+
+function send(channel: string, payload: PtyDataEvent | PtyExitEvent): void {
+  const wc = mainWindow?.webContents
+  if (wc && !wc.isDestroyed()) wc.send(channel, payload)
+}
+
+const ptys = new PtyManager({
+  spawn,
+  onData: (paneId, data) => send(IPC.ptyData, { paneId, data }),
+  onExit: (e) => send(IPC.ptyExit, e)
+})
+
+function createWindow(): void {
+  const theme = store.get().settings.theme
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 700,
+    frame: false,
+    show: false,
+    title: 'Wraithgrid',
+    backgroundColor: theme === 'light' ? '#f5f4fa' : '#0a0a12',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false
+    }
+  })
+  mainWindow = win
+
+  win.once('ready-to-show', () => win.show())
+
+  // A crashed renderer takes its terminals with it; kill the processes and reload
+  // so panes restart cleanly instead of leaving orphans.
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.warn(`[wraithgrid] renderer gone (${details.reason}); restarting panes`)
+    void ptys.killAll().then(() => {
+      if (!win.isDestroyed()) win.webContents.reload()
+    })
+  })
+
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
+
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+    void win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  } else {
+    void win.loadFile(path.join(__dirname, '../renderer/index.html'))
+  }
+  if (process.env.WRAITHGRID_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
+}
+
+function hardenSessions(): void {
+  const allowed = new Set(['clipboard-read', 'clipboard-sanitized-write'])
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) =>
+    cb(allowed.has(permission))
+  )
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission))
+
+  app.on('web-contents-created', (_e, contents) => {
+    // The app never navigates; links open in the system browser (http/https only).
+    contents.on('will-navigate', (e, url) => {
+      if (url !== contents.getURL()) e.preventDefault()
+    })
+    contents.setWindowOpenHandler(({ url }) => {
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+      return { action: 'deny' }
+    })
+  })
+}
+
+// ---- Shutdown: no orphan processes -------------------------------------------------
+
+let cleanedUp = false
+let cleaning: Promise<void> | null = null
+
+function cleanup(): Promise<void> {
+  cleaning ??= Promise.allSettled([ptys.killAll(), store.flush()]).then(() => {
+    cleanedUp = true
+  })
+  return cleaning
+}
+
+app.on('before-quit', (e) => {
+  if (cleanedUp) return
+  e.preventDefault()
+  void cleanup().then(() => app.quit())
+})
+
+app.on('window-all-closed', () => {
+  void cleanup().then(() => app.quit())
+})
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.on(signal, () => {
+    void cleanup().then(() => app.exit(0))
+  })
+}
+
+app.on('second-instance', () => {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+})
+
+void app.whenReady().then(() => {
+  store.load()
+  Menu.setApplicationMenu(null)
+  hardenSessions()
+  registerIpc({ getWindow: () => mainWindow, store, ptys, homeDir })
+  createWindow()
+})

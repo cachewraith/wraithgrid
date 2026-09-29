@@ -1,0 +1,65 @@
+/* Design tokens, copied from the approved prototype (.win / .win.light). */
+:root {
+  --bg: #0a0a12;
+  --bg2: #0e0e18;
+  --panel: #11111c;
+  --raise: #171727;
+  --line: #232338;
+  --line2: #30304c;
+  --tx: #e7e6f2;
+  --mu: #aeadc6;
+  --fa: #8a89a8;
+  --acc: #7c5cff;
+  --acct: #a996ff;
+  --accf: #6a4cf0;
+  --term: #0c0c15;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --err: #fb7185;
+  --cy: #7dd3fc;
+  --addbg: rgba(74, 222, 128, 0.1);
+  --delbg: rgba(251, 113, 133, 0.1);
+  --scrim: rgba(5, 5, 12, 0.72);
+  --sel: #1b1833;
+  --selr: #3a2f7a;
+  --hover-line: #55557c;
+  --banner-bg: #1c1707;
+  --banner-line: rgba(251, 191, 36, 0.5);
+  --banner-title: #fde68a;
+  --logo-line: #6d6c8c;
+  --empty-line: #3a3a5c;
+  --mini-hover: #4a3aa0;
+
+  --font-ui: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f5f4fa;
+  --bg2: #ecebf4;
+  --panel: #ffffff;
+  --raise: #ffffff;
+  --line: #dcdae8;
+  --line2: #c3c0d8;
+  --tx: #17162a;
+  --mu: #43415c;
+  --fa: #585673;
+  --acct: #5a3de0;
+  --term: #fbfaff;
+  --ok: #15803d;
+  --warn: #a16207;
+  --err: #be123c;
+  --cy: #0369a1;
+  --scrim: rgba(20, 18, 40, 0.35);
+  --sel: #e6e1ff;
+  --selr: #b9aaf5;
+  --hover-line: #9b97bd;
+  --banner-bg: #fef7e0;
+  --banner-line: rgba(161, 98, 7, 0.45);
+  --banner-title: #854d0e;
+  --logo-line: #9b97bd;
+  --empty-line: #c3c0d8;
+  --mini-hover: #b9aaf5;
+  color-scheme: light;
+}

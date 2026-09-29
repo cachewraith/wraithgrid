@@ -1,0 +1,61 @@
+import type { DraggableSyntheticListeners } from '@dnd-kit/core'
+import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
+import { SHORTCUT_HINT } from '../app/shortcuts'
+import { IconClose, IconUnzoom, IconZoom } from './icons'
+
+interface Props {
+  title: string
+  accountName: string | null
+  accountColor: string | null
+  cwdLabel: string
+  status: PaneStatus
+  zoomed: boolean
+  setDragHandle: (el: HTMLElement | null) => void
+  dragListeners: DraggableSyntheticListeners
+  onFocus: () => void
+  onZoom: () => void
+  onClose: () => void
+}
+
+export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
+  const zoomLabel = zoomed(p.zoomed)
+  return (
+    <div className="ph" ref={setDragHandle} {...dragListeners}>
+      <button
+        className="ph-title"
+        onClick={p.onFocus}
+        title={`${p.title} — focus pane (${SHORTCUT_HINT.focus})`}
+      >
+        {p.title}
+      </button>
+      {p.accountName ? (
+        <span className="chip">
+          <span className="dot" style={{ background: p.accountColor ?? 'var(--fa)' }} />
+          {p.accountName}
+        </span>
+      ) : null}
+      <span className="cwd" title={p.cwdLabel}>
+        {p.cwdLabel}
+      </span>
+      <span className={`st st-${p.status}`}>
+        <span className="sd" />
+        {PANE_STATUS_LABEL[p.status]}
+      </span>
+      <button className="icon-btn sm" aria-label={zoomLabel} title={zoomLabel} onClick={p.onZoom}>
+        {p.zoomed ? <IconUnzoom small /> : <IconZoom small />}
+      </button>
+      <button
+        className="icon-btn sm"
+        aria-label={`Close pane (${SHORTCUT_HINT.closePane})`}
+        title={`Close pane (${SHORTCUT_HINT.closePane})`}
+        onClick={p.onClose}
+      >
+        <IconClose small />
+      </button>
+    </div>
+  )
+}
+
+function zoomed(isZoomed: boolean): string {
+  return isZoomed ? `Back to grid (${SHORTCUT_HINT.zoom})` : `Zoom pane (${SHORTCUT_HINT.zoom})`
+}
