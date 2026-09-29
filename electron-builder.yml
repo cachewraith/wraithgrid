@@ -1,0 +1,38 @@
+appId: dev.cachewraith.wraithgrid
+productName: Wraithgrid
+copyright: Copyright © 2026 cachewraith
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asarUnpack:
+  - node_modules/node-pty/**
+npmRebuild: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: build/icon.png
+  executableName: wraithgrid
+  syncDesktopName: true
+  synopsis: Many claude CLI sessions side by side
+  description: Run several claude CLI sessions in one window, each with its own account (CLAUDE_CONFIG_DIR) and project folder.
+  artifactName: ${name}-${version}-${arch}.${ext}
+deb:
+  packageCategory: devel
+  depends:
+    - libgtk-3-0
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+publish: null

@@ -1,6 +1,7 @@
 {
   "name": "wraithgrid",
   "productName": "Wraithgrid",
+  "desktopName": "wraithgrid.desktop",
   "version": "1.0.0",
   "description": "Run many claude CLI sessions side by side, each with its own account and project folder.",
   "main": "./out/main/index.js",
@@ -31,7 +32,6 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "devDependencies": {
-    "@electron/rebuild": "4.2.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.19.0",

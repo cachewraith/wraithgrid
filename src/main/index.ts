@@ -62,6 +62,7 @@ function createWindow(): void {
   // A crashed renderer takes its terminals with it; kill the processes and reload
   // so panes restart cleanly instead of leaving orphans.
   win.webContents.on('render-process-gone', (_e, details) => {
+    if (cleaning || details.reason === 'clean-exit') return
     console.warn(`[wraithgrid] renderer gone (${details.reason}); restarting panes`)
     void ptys.killAll().then(() => {
       if (!win.isDestroyed()) win.webContents.reload()
@@ -76,6 +77,14 @@ function createWindow(): void {
     void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
     void win.loadFile(path.join(__dirname, '../renderer/index.html'))
+  }
+  if (!app.isPackaged) {
+    // Surface renderer errors (CSP violations, exceptions) in the dev terminal.
+    win.webContents.on('console-message', (e) => {
+      if (e.level === 'error' || e.level === 'warning')
+        console.warn(`[renderer:${e.level}] ${e.message}`)
+    })
+    win.setIcon(path.join(__dirname, '../../build/icon.png'))
   }
   if (process.env.WRAITHGRID_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
 }
