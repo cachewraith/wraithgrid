@@ -10,13 +10,13 @@
     "email": "somonorhong011@gmail.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/cachewraith-labs/wraithgrid",
+  "homepage": "https://github.com/cachewraith/wraithgrid",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cachewraith-labs/wraithgrid.git"
+    "url": "git+https://github.com/cachewraith/wraithgrid.git"
   },
   "bugs": {
-    "url": "https://github.com/cachewraith-labs/wraithgrid/issues"
+    "url": "https://github.com/cachewraith/wraithgrid/issues"
   },
   "private": true,
   "scripts": {

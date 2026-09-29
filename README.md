@@ -15,7 +15,7 @@ Wayland, including tiling compositors such as Hyprland.
 ## Install
 
 Download a release from
-[github.com/cachewraith-labs/wraithgrid](https://github.com/cachewraith-labs/wraithgrid),
+[github.com/cachewraith/wraithgrid](https://github.com/cachewraith/wraithgrid),
 or build one yourself (see below).
 
 | System                          | Package                                                      |
@@ -104,6 +104,20 @@ If `pnpm i` asks you to approve build scripts, allow `electron`, `esbuild` and
 | `pnpm dist:linux`          | AppImage, .deb, .rpm and pacman package, on this machine    |
 | `pnpm dist:linux:portable` | the same, built in an Ubuntu 22.04 container (needs Docker) |
 | `pnpm dist:win`            | NSIS installer for Windows                                  |
+
+## Releasing
+
+Pushing a version tag publishes a GitHub release
+(`.github/workflows/release.yml`). The workflow checks that the tag matches
+`package.json`, runs the tests, builds the Linux packages (on Ubuntu 22.04) and the
+Windows installer, then attaches all of them and a `SHA256SUMS.txt` to the release.
+
+```sh
+npm version patch -m "chore: release %s"   # or minor / major; bumps package.json, commits, tags v1.0.1
+git push --follow-tags
+```
+
+A tag with a suffix, such as `v1.1.0-beta.1`, is published as a pre-release.
 
 ## Usage
 
