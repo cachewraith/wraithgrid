@@ -18,6 +18,7 @@ import {
   claudeDetectArgs,
   openExternalArgs,
   sharedApplyArgs,
+  updateCheckArgs,
   pickPathArgs,
   ptyCreateArgs,
   ptyKillArgs,
@@ -28,7 +29,8 @@ import {
   type PtyCreateResult,
   type SharedApplyResult,
   type SharedReportEntry,
-  type SimpleResult
+  type SimpleResult,
+  type UpdateCheckResult
 } from '@shared/ipc-contract'
 import { access } from 'node:fs/promises'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
@@ -39,6 +41,7 @@ import { accountsRoot, isStrictlyInside, resolveUserPath } from './paths'
 import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
 import { ensureSource, linkShared, unlinkShared, type ItemResult } from './shared-config'
 import type { PtyManager } from './pty-manager'
+import type { UpdateChecker } from './update-check'
 
 export interface IpcDeps {
   getWindow: () => BrowserWindow | null
@@ -48,6 +51,9 @@ export interface IpcDeps {
   desktop: DesktopInfo
   /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
   envReady: Promise<void>
+  updates: UpdateChecker
+  /** Launch-time update checks only run in packaged builds. */
+  isPackaged: boolean
   /** Called after a valid config replaced the old one. */
   onConfigChanged?: (prev: Config, next: Config) => void
 }
@@ -347,6 +353,27 @@ export function registerIpc(deps: IpcDeps): void {
       return { ok: true }
     },
     fail('Could not open the link')
+  )
+
+  // ---- Updates ---------------------------------------------------------------------
+
+  handle(
+    IPC.updateCheck,
+    updateCheckArgs,
+    async (a): Promise<UpdateCheckResult> => {
+      if (a.reason === 'launch' && !deps.isPackaged) {
+        return { status: 'skipped', current: app.getVersion() }
+      }
+      const r = await deps.updates.check()
+      if (r.status === 'error') log(`update check failed: ${r.error}`)
+      return r
+    },
+    {
+      status: 'error',
+      current: app.getVersion(),
+      error: 'The update check failed.',
+      checkedAt: Date.now()
+    }
   )
 
   // ---- App info --------------------------------------------------------------------

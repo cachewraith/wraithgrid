@@ -12,7 +12,8 @@ import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher'
 import { useApp, useServices } from './services'
 import { matchShortcut } from './shortcuts'
 import { paneIds } from '../layout/tree'
-import { DENSE_PANE_COUNT, activeWorkspace } from './store'
+import { terminalTheme } from '../lib/term-theme'
+import { DENSE_PANE_COUNT, activeWorkspace, currentTheme } from './store'
 
 /** App shortcuts, caught in the capture phase so a focused terminal never sees them. */
 function useGlobalShortcuts(): void {
@@ -66,6 +67,32 @@ function useDenseSidebar(): void {
   }, [dense, store])
 }
 
+/** Theme, accent and terminal palette, applied to the document as tokens. */
+function useAppearance(): void {
+  const { store } = useServices()
+  const theme = useApp(currentTheme)
+  const accent = useApp((s) => s.config.settings.accent)
+  const palette = useApp((s) => s.config.settings.terminalPalette)
+
+  // Tracked always, so switching to `system` is instant.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const sync = (): void => store.getState().setSystemTheme(mq.matches ? 'dark' : 'light')
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [store])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = theme
+    root.dataset.accent = accent
+    // A fixed terminal palette also colors the pane around the terminal.
+    if (palette === 'match') root.style.removeProperty('--term-bg')
+    else root.style.setProperty('--term-bg', terminalTheme(palette, theme, accent).background!)
+  }, [theme, accent, palette])
+}
+
 function Modals() {
   const modal = useApp((s) => s.modal)
   if (!modal) return null
@@ -83,14 +110,10 @@ function Modals() {
 
 export function App() {
   const ready = useApp((s) => s.ready)
-  const theme = useApp((s) => s.config.settings.theme)
   const view = useApp((s) => s.view)
   useGlobalShortcuts()
   useDenseSidebar()
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+  useAppearance()
 
   if (!ready) return <div className="app" />
   return (

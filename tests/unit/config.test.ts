@@ -46,6 +46,30 @@ describe('config schema', () => {
     expect(r.ok && r.config.recentFolders).toEqual([])
   })
 
+  it('gives a 1.0 config the new appearance and update settings', () => {
+    const raw = JSON.parse(JSON.stringify(sample()))
+    raw.settings = { fontSize: 14, theme: 'light' }
+    const r = parseConfig(raw)
+    expect(r.ok && r.config.settings).toMatchObject({
+      fontSize: 14,
+      theme: 'light',
+      accent: 'violet',
+      terminalPalette: 'match',
+      checkUpdatesOnLaunch: true
+    })
+  })
+
+  it('accepts the system theme and rejects unknown appearance values', () => {
+    const withSettings = (patch: object) => ({
+      ...sample(),
+      settings: { ...sample().settings, ...patch }
+    })
+    expect(parseConfig(withSettings({ theme: 'system' })).ok).toBe(true)
+    expect(parseConfig(withSettings({ theme: 'sepia' })).ok).toBe(false)
+    expect(parseConfig(withSettings({ accent: 'chartreuse' })).ok).toBe(false)
+    expect(parseConfig(withSettings({ terminalPalette: 'url(x)' })).ok).toBe(false)
+  })
+
   it('rejects bad values', () => {
     const bad = { ...sample(), settings: { ...sample().settings, fontSize: 99 } }
     expect(parseConfig(bad).ok).toBe(false)

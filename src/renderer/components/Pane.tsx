@@ -132,7 +132,6 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
             focused={focused}
             fontFamily={settings.fontFamily}
             fontSize={dense ? Math.min(settings.fontSize, DENSE_FONT_SIZE) : settings.fontSize}
-            theme={settings.theme}
           />
         </PaneErrorBoundary>
       </div>

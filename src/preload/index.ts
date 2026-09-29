@@ -46,6 +46,9 @@ const api: WraithApi = {
   },
   app: {
     info: () => ipcRenderer.invoke(IPC.appInfo)
+  },
+  update: {
+    check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason })
   }
 }
 

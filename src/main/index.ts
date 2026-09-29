@@ -1,9 +1,10 @@
 import os from 'node:os'
 import path from 'node:path'
-import { app, BrowserWindow, Menu, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, nativeTheme, net, session, shell } from 'electron'
 import { spawn } from 'node-pty'
 import { IPC } from '@shared/ipc-channels'
 import type { PtyDataEvent, PtyExitEvent } from '@shared/ipc-contract'
+import { resolveTheme, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
 import { registerIpc } from './ipc'
 import { configFilePath } from './paths'
@@ -16,6 +17,7 @@ import {
   titleBarOverlayFor
 } from './platform'
 import { PtyManager } from './pty-manager'
+import { UpdateChecker } from './update-check'
 
 // Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
 // WRAITHGRID_USER_DATA_DIR lets tests run against a throwaway config dir.
@@ -59,8 +61,12 @@ const ptys = new PtyManager({
   onExit: (e) => send(IPC.ptyExit, e)
 })
 
+/** The theme being drawn right now; `system` follows the OS. */
+const currentTheme = (): ThemeName =>
+  resolveTheme(store.get().settings.theme, nativeTheme.shouldUseDarkColors)
+
 function createWindow(): void {
-  const theme = store.get().settings.theme
+  const theme = currentTheme()
   const min = minimumWindowSize(desktop.chrome)
   const win = new BrowserWindow({
     width: 1440,
@@ -180,10 +186,23 @@ void app.whenReady().then(() => {
     homeDir,
     desktop,
     envReady,
+    updates: new UpdateChecker({
+      currentVersion: app.getVersion(),
+      fetch: (url, init) => net.fetch(url, init)
+    }),
+    isPackaged: app.isPackaged,
     onConfigChanged: (prev, next) => {
-      if (desktop.chrome === 'overlay' && prev.settings.theme !== next.settings.theme) {
-        mainWindow?.setTitleBarOverlay(titleBarOverlayFor(next.settings.theme))
+      const dark = nativeTheme.shouldUseDarkColors
+      const theme = resolveTheme(next.settings.theme, dark)
+      if (desktop.chrome === 'overlay' && resolveTheme(prev.settings.theme, dark) !== theme) {
+        mainWindow?.setTitleBarOverlay(titleBarOverlayFor(theme))
       }
+    }
+  })
+  // The OS switched light/dark: the caption buttons follow when the theme is `system`.
+  nativeTheme.on('updated', () => {
+    if (desktop.chrome === 'overlay' && store.get().settings.theme === 'system') {
+      mainWindow?.setTitleBarOverlay(titleBarOverlayFor(currentTheme()))
     }
   })
   createWindow()

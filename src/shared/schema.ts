@@ -1,10 +1,12 @@
 import { z } from 'zod'
 import {
+  ACCENTS,
   ACCOUNT_COLORS,
   CONFIG_VERSION,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   TERMINAL_FONTS,
+  TERMINAL_PALETTES,
   type Config,
   type LayoutNode
 } from './types'
@@ -61,11 +63,14 @@ export const workspaceSchema = z.object({
 export const settingsSchema = z.object({
   fontFamily: z.enum(TERMINAL_FONTS).default('JetBrains Mono'),
   fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(13),
-  theme: z.enum(['dark', 'light']).default('dark'),
+  theme: z.enum(['system', 'dark', 'light']).default('dark'),
+  accent: z.enum(ACCENTS).default('violet'),
+  terminalPalette: z.enum(TERMINAL_PALETTES).default('match'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
   sidebarCollapsed: z.boolean().default(false),
-  sharedSourceAccountId: idSchema.nullable().default(null)
+  sharedSourceAccountId: idSchema.nullable().default(null),
+  checkUpdatesOnLaunch: z.boolean().default(true)
 })
 
 export const configSchema = z.object({

@@ -12,6 +12,8 @@
   --acc: #7c5cff;
   --acct: #a996ff;
   --accf: #6a4cf0;
+  --accf-h: #5a3de0;
+  --on-acc: #ffffff;
   --term: #0c0c15;
   --ok: #4ade80;
   --warn: #fbbf24;
@@ -62,4 +64,77 @@
   --empty-line: #c3c0d8;
   --mini-hover: #b9aaf5;
   color-scheme: light;
+}
+
+/* ---- Accents ---------------------------------------------------------------------
+   Violet is the default above. Each accent sets its dark values, then overrides the
+   ones that change on the light theme (text and selection tints). --on-acc is the text
+   color on a filled accent button, dark for the light-colored accents. */
+
+:root[data-accent='blue'] {
+  --acc: #3b82f6;
+  --acct: #93c5fd;
+  --accf: #2563eb;
+  --accf-h: #1d4ed8;
+  --on-acc: #ffffff;
+  --sel: #111a33;
+  --selr: #1e3a7a;
+  --mini-hover: #1e40af;
+}
+:root[data-theme='light'][data-accent='blue'] {
+  --acct: #1d4ed8;
+  --sel: #dbeafe;
+  --selr: #93c5fd;
+  --mini-hover: #93c5fd;
+}
+
+:root[data-accent='teal'] {
+  --acc: #14b8a6;
+  --acct: #5eead4;
+  --accf: #0f766e;
+  --accf-h: #115e59;
+  --on-acc: #ffffff;
+  --sel: #0b1f24;
+  --selr: #115e59;
+  --mini-hover: #0f766e;
+}
+:root[data-theme='light'][data-accent='teal'] {
+  --acct: #0f766e;
+  --sel: #ccfbf1;
+  --selr: #5eead4;
+  --mini-hover: #99f6e4;
+}
+
+:root[data-accent='amber'] {
+  --acc: #f59e0b;
+  --acct: #fcd34d;
+  --accf: #f59e0b;
+  --accf-h: #d97706;
+  --on-acc: #1c1403;
+  --sel: #231a07;
+  --selr: #6b4a0b;
+  --mini-hover: #92600a;
+}
+:root[data-theme='light'][data-accent='amber'] {
+  --acct: #b45309;
+  --sel: #fef3c7;
+  --selr: #fcd34d;
+  --mini-hover: #fde68a;
+}
+
+:root[data-accent='rose'] {
+  --acc: #f43f5e;
+  --acct: #fda4af;
+  --accf: #e11d48;
+  --accf-h: #be123c;
+  --on-acc: #ffffff;
+  --sel: #2a0f18;
+  --selr: #7a1f36;
+  --mini-hover: #9f1239;
+}
+:root[data-theme='light'][data-accent='rose'] {
+  --acct: #be123c;
+  --sel: #ffe4e6;
+  --selr: #fda4af;
+  --mini-hover: #fecdd3;
 }

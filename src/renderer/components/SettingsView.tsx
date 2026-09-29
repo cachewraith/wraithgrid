@@ -1,9 +1,294 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { contractHome } from '@shared/paths'
-import { FONT_SIZE_MAX, FONT_SIZE_MIN, TERMINAL_FONTS } from '@shared/types'
+import {
+  ACCENTS,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  TERMINAL_FONTS,
+  TERMINAL_PALETTES,
+  type AccentName,
+  type ThemePreference
+} from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
-import { terminalFontStack } from '../lib/term-theme'
-import { IconCheck, IconFolder, IconMoon, IconSun, IconWarn } from './icons'
+import { currentTheme } from '../app/store'
+import { PALETTE_LABEL, terminalFontStack, terminalTheme } from '../lib/term-theme'
+import {
+  IconCheck,
+  IconFolder,
+  IconImport,
+  IconMonitor,
+  IconMoon,
+  IconRestart,
+  IconSun,
+  IconWarn
+} from './icons'
+
+/** Swatch color per accent, the same value as --acc in tokens.css. */
+const ACCENT_SWATCH: Record<AccentName, string> = {
+  violet: '#7c5cff',
+  blue: '#3b82f6',
+  teal: '#14b8a6',
+  amber: '#f59e0b',
+  rose: '#f43f5e'
+}
+
+const THEME_OPTIONS: { id: ThemePreference; label: string; icon: ReactNode }[] = [
+  { id: 'system', label: 'System', icon: <IconMonitor small /> },
+  { id: 'dark', label: 'Dark', icon: <IconMoon small /> },
+  { id: 'light', label: 'Light', icon: <IconSun small /> }
+]
+
+function ThemeRow() {
+  const actions = useActions()
+  const pref = useApp((s) => s.config.settings.theme)
+  const systemTheme = useApp((s) => s.systemTheme)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="theme-h">Theme</h3>
+        <p className="ex">System follows your desktop's light or dark setting as it changes.</p>
+      </div>
+      <div className="ctl">
+        <div
+          className="seg"
+          role="radiogroup"
+          aria-labelledby="theme-h"
+          style={{ width: 'max-content' }}
+        >
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`seg-btn${pref === o.id ? ' on' : ''}`}
+              role="radio"
+              aria-checked={pref === o.id}
+              onClick={() => actions.updateSettings({ theme: o.id })}
+              style={{ padding: '0 14px' }}
+            >
+              {o.icon}
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <span className="theme-note">
+          {pref === 'system'
+            ? `Your desktop is using ${systemTheme} right now.`
+            : pref === 'dark'
+              ? 'Dark is the default.'
+              : 'Light theme is on for the whole app.'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function AccentRow() {
+  const actions = useActions()
+  const accent = useApp((s) => s.config.settings.accent)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="accent-h">Accent color</h3>
+        <p className="ex">Buttons, selection, focus rings and the terminal cursor.</p>
+      </div>
+      <div className="ctl">
+        <div className="accents" role="radiogroup" aria-labelledby="accent-h">
+          {ACCENTS.map((a) => (
+            <button
+              key={a}
+              className={`accent${accent === a ? ' on' : ''}`}
+              role="radio"
+              aria-checked={accent === a}
+              aria-label={a}
+              title={a[0]!.toUpperCase() + a.slice(1)}
+              style={{ '--sw': ACCENT_SWATCH[a] } as CSSProperties}
+              onClick={() => actions.updateSettings({ accent: a })}
+            >
+              {accent === a ? <IconCheck small /> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PaletteRow() {
+  const actions = useActions()
+  const palette = useApp((s) => s.config.settings.terminalPalette)
+  const theme = useApp(currentTheme)
+  const accent = useApp((s) => s.config.settings.accent)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="palette-h">Terminal colors</h3>
+        <p className="ex">
+          Match app follows the theme and accent. The others keep their own colors in both themes.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="palettes" role="radiogroup" aria-labelledby="palette-h">
+          {TERMINAL_PALETTES.map((p) => {
+            const t = terminalTheme(p, theme, accent)
+            return (
+              <button
+                key={p}
+                className={`palette${palette === p ? ' on' : ''}`}
+                role="radio"
+                aria-checked={palette === p}
+                onClick={() => actions.updateSettings({ terminalPalette: p })}
+              >
+                <span
+                  className="pal-prev"
+                  style={{ background: t.background, color: t.foreground }}
+                >
+                  <span style={{ color: t.cursor }}>&gt;</span> claude
+                  <span className="pal-dots">
+                    {[t.red, t.green, t.yellow, t.blue, t.magenta, t.cyan].map((c, i) => (
+                      <span key={i} style={{ background: c }} />
+                    ))}
+                  </span>
+                </span>
+                <span className="pal-name">{PALETTE_LABEL[p]}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? null
+    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+/**
+ * Release notes are shown as text, never as HTML: headings and bullets get a light
+ * touch, everything else stays as GitHub wrote it.
+ */
+function ReleaseNotes({ notes }: { notes: string }) {
+  return (
+    <div className="relnotes" aria-label="Release notes">
+      {notes.split('\n').map((line, i) => {
+        const h = /^#{1,6}\s+(.*)$/.exec(line)
+        if (h) return <b key={i}>{h[1]}</b>
+        const li = /^\s*[*-]\s+(.*)$/.exec(line)
+        if (li)
+          return (
+            <span key={i} className="li">
+              {li[1]}
+            </span>
+          )
+        return line.trim() ? <span key={i}>{line}</span> : null
+      })}
+    </div>
+  )
+}
+
+function UpdatesRow() {
+  const { api } = useServices()
+  const actions = useActions()
+  const version = useApp((s) => s.info.version)
+  const onLaunch = useApp((s) => s.config.settings.checkUpdatesOnLaunch)
+  const { checking, result } = useApp((s) => s.update)
+  const anchor = useApp((s) => s.settingsAnchor)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (anchor !== 'updates') return
+    ref.current?.scrollIntoView({ block: 'center' })
+    actions.clearSettingsAnchor()
+  }, [anchor, actions])
+
+  const status = checking ? (
+    <span>Checking GitHub for a newer release…</span>
+  ) : !result || result.status === 'skipped' ? (
+    <span>Not checked yet.</span>
+  ) : result.status === 'error' ? (
+    <>
+      <span style={{ color: 'var(--warn)', display: 'flex' }}>
+        <IconWarn small />
+      </span>
+      <span>{result.error}</span>
+    </>
+  ) : result.status === 'current' ? (
+    <>
+      <span style={{ color: 'var(--ok)', display: 'flex' }}>
+        <IconCheck small />
+      </span>
+      <span>You have the latest version.</span>
+    </>
+  ) : (
+    <span>
+      <b style={{ color: 'var(--tx)' }}>Wraithgrid {result.latest.version}</b> is available
+      {formatDate(result.latest.publishedAt)
+        ? ` (released ${formatDate(result.latest.publishedAt)})`
+        : ''}
+      .
+    </span>
+  )
+
+  return (
+    <div className="srow" id="updates" ref={ref}>
+      <div>
+        <h3>Updates</h3>
+        <p className="ex">
+          Checks the releases on GitHub. Nothing is downloaded or installed for you: Download opens
+          the release page, where you pick the package for your system.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="det">
+          <span>
+            Version{' '}
+            <span className="mono" style={{ color: 'var(--tx)' }}>
+              {version}
+            </span>
+          </span>
+        </div>
+        <div className="det" role="status" aria-live="polite">
+          {status}
+        </div>
+        <div className="inrow">
+          <button
+            className="btn"
+            disabled={checking}
+            onClick={() => void actions.checkForUpdates('manual')}
+          >
+            <IconRestart />
+            {checking ? 'Checking…' : 'Check for updates'}
+          </button>
+          {result?.status === 'available' ? (
+            <button
+              className="btn pri"
+              onClick={() => void api.shell.openExternal(result.latest.url)}
+            >
+              <IconImport />
+              Download {result.latest.version}
+            </button>
+          ) : null}
+        </div>
+        {result?.status === 'available' && result.latest.notes ? (
+          <ReleaseNotes notes={result.latest.notes} />
+        ) : null}
+        <div className="swrow">
+          <button
+            className={`sw${onLaunch ? ' on' : ''}`}
+            role="switch"
+            aria-checked={onLaunch}
+            aria-labelledby="upd-launch"
+            onClick={() => actions.updateSettings({ checkUpdatesOnLaunch: !onLaunch })}
+          />
+          <span id="upd-launch">Check when Wraithgrid starts</span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ClaudeBinaryRow() {
   const { api } = useServices()
@@ -194,6 +479,9 @@ export function SettingsView() {
   const configPath = useApp((s) => s.info.configPath)
   const home = useApp((s) => s.info.homeDir)
   const [defDir, setDefDir] = useState(settings.defaultCwd)
+  const term = useApp((s) =>
+    terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
+  )
 
   const setDefaultCwd = (v: string): void => {
     setDefDir(v)
@@ -216,125 +504,8 @@ export function SettingsView() {
           </div>
         </div>
 
+        <h2 className="sgrp">General</h2>
         <ClaudeBinaryRow />
-
-        <div className="srow">
-          <div>
-            <h3 id="font-h">Terminal font</h3>
-            <p className="ex">
-              Applies to every pane. Monospace fonts only; a font that is not installed falls back
-              to your system monospace.
-            </p>
-          </div>
-          <div className="ctl">
-            <div className="fonts" role="radiogroup" aria-labelledby="font-h">
-              {TERMINAL_FONTS.map((f) => (
-                <button
-                  key={f}
-                  className={`fopt${settings.fontFamily === f ? ' on' : ''}`}
-                  role="radio"
-                  aria-checked={settings.fontFamily === f}
-                  style={{ fontFamily: terminalFontStack(f) }}
-                  onClick={() => actions.updateSettings({ fontFamily: f })}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="lbl">Size</span>
-              <div className="step">
-                <button
-                  aria-label="Decrease font size"
-                  disabled={settings.fontSize <= FONT_SIZE_MIN}
-                  onClick={() =>
-                    actions.updateSettings({
-                      fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1)
-                    })
-                  }
-                >
-                  −
-                </button>
-                <span aria-live="polite">{settings.fontSize} px</span>
-                <button
-                  aria-label="Increase font size"
-                  disabled={settings.fontSize >= FONT_SIZE_MAX}
-                  onClick={() =>
-                    actions.updateSettings({
-                      fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1)
-                    })
-                  }
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div
-              className="prev"
-              style={{
-                fontFamily: terminalFontStack(settings.fontFamily),
-                fontSize: settings.fontSize
-              }}
-              aria-label="Font preview"
-            >
-              <span className="a">&gt; </span>
-              <span className="b">fix the failing auth test</span>
-              {'\n'}
-              <span className="g">● </span>
-              <span className="b">Bash</span>
-              <span className="d">(pnpm test auth)</span>
-              {'\n'}
-              <span className="d">{'  ⎿  '}</span>
-              <span className="g">PASS</span>
-              <span className="d"> src/auth/auth.controller.spec.ts</span>
-              {'\n'}
-              <span className="ladd">{"  13 + import { Throttle } from '@nestjs/throttler';"}</span>
-              {'\n'}
-              <span className="d">{'  0O 1lI {}[] => !== ─│╭╮ ✻ ⎿'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="srow">
-          <div>
-            <h3 id="theme-h">Theme</h3>
-            <p className="ex">Terminal colors follow the theme.</p>
-          </div>
-          <div className="ctl">
-            <div
-              className="seg"
-              role="radiogroup"
-              aria-labelledby="theme-h"
-              style={{ width: 'max-content' }}
-            >
-              <button
-                className={`seg-btn${settings.theme === 'dark' ? ' on' : ''}`}
-                role="radio"
-                aria-checked={settings.theme === 'dark'}
-                onClick={() => actions.updateSettings({ theme: 'dark' })}
-                style={{ padding: '0 14px' }}
-              >
-                <IconMoon small />
-                Dark
-              </button>
-              <button
-                className={`seg-btn${settings.theme === 'light' ? ' on' : ''}`}
-                role="radio"
-                aria-checked={settings.theme === 'light'}
-                onClick={() => actions.updateSettings({ theme: 'light' })}
-                style={{ padding: '0 14px' }}
-              >
-                <IconSun small />
-                Light
-              </button>
-            </div>
-            <span className="theme-note">
-              {settings.theme === 'dark'
-                ? 'Dark is the default.'
-                : 'Light theme is on for the whole app.'}
-            </span>
-          </div>
-        </div>
 
         <div className="srow">
           <div>
@@ -396,6 +567,97 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <h2 className="sgrp">Appearance</h2>
+        <ThemeRow />
+        <AccentRow />
+        <PaletteRow />
+        <div className="srow">
+          <div>
+            <h3 id="font-h">Terminal font</h3>
+            <p className="ex">
+              Applies to every pane. Monospace fonts only; a font that is not installed falls back
+              to your system monospace.
+            </p>
+          </div>
+          <div className="ctl">
+            <div className="fonts" role="radiogroup" aria-labelledby="font-h">
+              {TERMINAL_FONTS.map((f) => (
+                <button
+                  key={f}
+                  className={`fopt${settings.fontFamily === f ? ' on' : ''}`}
+                  role="radio"
+                  aria-checked={settings.fontFamily === f}
+                  style={{ fontFamily: terminalFontStack(f) }}
+                  onClick={() => actions.updateSettings({ fontFamily: f })}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="lbl">Size</span>
+              <div className="step">
+                <button
+                  aria-label="Decrease font size"
+                  disabled={settings.fontSize <= FONT_SIZE_MIN}
+                  onClick={() =>
+                    actions.updateSettings({
+                      fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1)
+                    })
+                  }
+                >
+                  −
+                </button>
+                <span aria-live="polite">{settings.fontSize} px</span>
+                <button
+                  aria-label="Increase font size"
+                  disabled={settings.fontSize >= FONT_SIZE_MAX}
+                  onClick={() =>
+                    actions.updateSettings({
+                      fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1)
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div
+              className="prev"
+              style={
+                {
+                  fontFamily: terminalFontStack(settings.fontFamily),
+                  fontSize: settings.fontSize,
+                  '--pv-bg': term.background,
+                  '--pv-fg': term.foreground,
+                  '--pv-dim': term.brightBlack,
+                  '--pv-acc': term.cursor,
+                  '--pv-ok': term.green
+                } as CSSProperties
+              }
+              aria-label="Font preview"
+            >
+              <span className="a">&gt; </span>
+              <span className="b">fix the failing auth test</span>
+              {'\n'}
+              <span className="g">● </span>
+              <span className="b">Bash</span>
+              <span className="d">(pnpm test auth)</span>
+              {'\n'}
+              <span className="d">{'  ⎿  '}</span>
+              <span className="g">PASS</span>
+              <span className="d"> src/auth/auth.controller.spec.ts</span>
+              {'\n'}
+              <span className="ladd">{"  13 + import { Throttle } from '@nestjs/throttler';"}</span>
+              {'\n'}
+              <span className="d">{'  0O 1lI {}[] => !== ─│╭╮ ✻ ⎿'}</span>
+            </div>
+          </div>
+        </div>
+
+        <h2 className="sgrp">About</h2>
+        <UpdatesRow />
       </div>
     </div>
   )

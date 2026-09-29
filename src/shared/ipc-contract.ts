@@ -39,6 +39,8 @@ export const accountDeleteDirArgs = z.object({
 })
 export const openExternalArgs = z.object({ url: z.string().max(8192) })
 export const sharedApplyArgs = z.object({ sourceAccountId: idSchema.nullable() })
+/** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
+export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
 
 export interface SharedReportEntry {
   account: string
@@ -85,6 +87,22 @@ export interface AppInfo {
   desktop: string | null
 }
 
+export interface ReleaseInfo {
+  /** Without the leading `v`, e.g. "1.2.0". */
+  version: string
+  /** The release page on GitHub, built by main from the tag, never taken from the response. */
+  url: string
+  /** Release notes as plain text (Markdown source), trimmed. */
+  notes: string
+  publishedAt: string | null
+}
+
+export type UpdateCheckResult =
+  | { status: 'available'; current: string; latest: ReleaseInfo; checkedAt: number }
+  | { status: 'current'; current: string; latest: ReleaseInfo; checkedAt: number }
+  | { status: 'skipped'; current: string }
+  | { status: 'error'; current: string; error: string; checkedAt: number }
+
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
@@ -127,5 +145,9 @@ export interface WraithApi {
   }
   app: {
     info(): Promise<AppInfo>
+  }
+  update: {
+    /** Asks GitHub Releases whether a newer version than this one is published. */
+    check(reason: 'launch' | 'manual'): Promise<UpdateCheckResult>
   }
 }

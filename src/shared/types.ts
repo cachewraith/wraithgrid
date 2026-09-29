@@ -1,6 +1,28 @@
 // Domain model shared by main, preload and renderer. Persisted shape lives in schema.ts.
 
+/** The theme actually drawn. */
 export type ThemeName = 'dark' | 'light'
+/** What the user picked; `system` follows the OS light/dark setting. */
+export type ThemePreference = ThemeName | 'system'
+
+export function resolveTheme(pref: ThemePreference, systemDark: boolean): ThemeName {
+  return pref === 'system' ? (systemDark ? 'dark' : 'light') : pref
+}
+
+export const ACCENTS = ['violet', 'blue', 'teal', 'amber', 'rose'] as const
+export type AccentName = (typeof ACCENTS)[number]
+
+/** `match` follows the app theme and accent; the rest are fixed terminal color schemes. */
+export const TERMINAL_PALETTES = [
+  'match',
+  'dracula',
+  'nord',
+  'tokyo-night',
+  'gruvbox-dark',
+  'solarized-dark',
+  'solarized-light'
+] as const
+export type TerminalPalette = (typeof TERMINAL_PALETTES)[number]
 
 export const TERMINAL_FONTS = [
   'JetBrains Mono',
@@ -60,7 +82,9 @@ export interface Workspace {
 export interface Settings {
   fontFamily: TerminalFont
   fontSize: number
-  theme: ThemeName
+  theme: ThemePreference
+  accent: AccentName
+  terminalPalette: TerminalPalette
   defaultAccountId: string | null
   defaultCwd: string
   sidebarCollapsed: boolean
@@ -69,6 +93,8 @@ export interface Settings {
    * null keeps each account's own.
    */
   sharedSourceAccountId: string | null
+  /** Ask GitHub for a newer release once at startup. */
+  checkUpdatesOnLaunch: boolean
 }
 
 export const CONFIG_VERSION = 1

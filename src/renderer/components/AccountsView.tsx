@@ -325,7 +325,7 @@ export function AccountsView() {
         ) : mode === 'list' ? (
           <div className="emptyc">
             <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
-              <circle cx="22" cy="16" r="7" fill="none" stroke="#7c5cff" strokeWidth="2" />
+              <circle cx="22" cy="16" r="7" fill="none" stroke="var(--acc)" strokeWidth="2" />
               <path
                 d="M9 37c2-7 7-10 13-10s11 3 13 10"
                 fill="none"

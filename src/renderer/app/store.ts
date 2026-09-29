@@ -4,6 +4,7 @@ import type {
   ClaudeDetectResult,
   PtyExitEvent,
   SharedReportEntry,
+  UpdateCheckResult,
   WraithApi
 } from '@shared/ipc-contract'
 import { baseName, slugify } from '@shared/paths'
@@ -15,7 +16,9 @@ import {
   type LayoutNode,
   type Pane,
   type PaneStatus,
+  resolveTheme,
   type Settings,
+  type ThemeName,
   type Workspace
 } from '@shared/types'
 import { neighborInDirection, type Direction } from '../layout/focus'
@@ -89,6 +92,11 @@ export interface AppState {
   closingPaneId: string | null
   /** Workspaces whose panes have been started this session. */
   activated: Record<string, true>
+  /** The OS light/dark setting, used when the theme is `system`. */
+  systemTheme: ThemeName
+  update: { checking: boolean; result: UpdateCheckResult | null }
+  /** A Settings section to scroll to once, then cleared. */
+  settingsAnchor: 'updates' | null
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -131,6 +139,8 @@ export interface AppState {
   updateSettings(patch: Partial<Settings>): void
   setClaudePath(path: string): void
   detectClaude(): Promise<void>
+  setSystemTheme(theme: ThemeName): void
+  checkForUpdates(reason: 'launch' | 'manual'): Promise<void>
 
   // ui
   setView(view: View): void
@@ -138,6 +148,9 @@ export interface AppState {
   openModal(modal: Modal): void
   closeModal(): void
   toggleSidebar(): void
+  /** Opens Settings at the updates section. */
+  showUpdates(): void
+  clearSettingsAnchor(): void
 }
 
 export interface StoreDeps {
@@ -160,6 +173,11 @@ export function findPane(config: Config, paneId: string): { ws: Workspace; pane:
     if (pane) return { ws, pane }
   }
   return null
+}
+
+/** The theme being drawn: the user's pick, or the OS setting for `system`. */
+export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): ThemeName {
+  return resolveTheme(s.config.settings.theme, s.systemTheme === 'dark')
 }
 
 export function accountById(config: Config, id: string | null): Account | undefined {
@@ -403,6 +421,9 @@ export function createAppStore({
       zoomedPaneId: null,
       closingPaneId: null,
       activated: {},
+      systemTheme: 'dark',
+      update: { checking: false, result: null },
+      settingsAnchor: null,
 
       async init() {
         const [raw, info] = await Promise.all([api.config.get(), api.app.info()])
@@ -424,6 +445,7 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
       },
 
       updateConfig(fn) {
@@ -725,6 +747,23 @@ export function createAppStore({
         set({ claude })
       },
 
+      setSystemTheme(theme) {
+        if (theme !== get().systemTheme) set({ systemTheme: theme })
+      },
+
+      async checkForUpdates(reason) {
+        if (get().update.checking) return
+        set({ update: { ...get().update, checking: true } })
+        const result = await api.update.check(reason)
+        // A skipped launch check keeps whatever an earlier check found.
+        set({
+          update: {
+            checking: false,
+            result: result.status === 'skipped' ? get().update.result : result
+          }
+        })
+      },
+
       // ---- ui ------------------------------------------------------------------
 
       setView(view) {
@@ -745,6 +784,14 @@ export function createAppStore({
 
       toggleSidebar() {
         get().updateSettings({ sidebarCollapsed: !get().config.settings.sidebarCollapsed })
+      },
+
+      showUpdates() {
+        set({ view: 'settings', modal: null, accountsMode: 'list', settingsAnchor: 'updates' })
+      },
+
+      clearSettingsAnchor() {
+        set({ settingsAnchor: null })
       }
     }
   })

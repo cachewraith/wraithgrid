@@ -34,7 +34,7 @@ export function EmptyState() {
           height="26"
           rx="6"
           fill="none"
-          stroke="#7c5cff"
+          stroke="var(--acc)"
           strokeWidth="2"
           strokeDasharray="4 4"
         />
@@ -68,7 +68,7 @@ export function EmptyState() {
           stroke="var(--empty-line)"
           strokeWidth="2"
         />
-        <path d="M17 12v10M12 17h10" stroke="#a996ff" strokeWidth="2" strokeLinecap="round" />
+        <path d="M17 12v10M12 17h10" stroke="var(--acct)" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <h1>{name} has no panes yet</h1>
       <p>

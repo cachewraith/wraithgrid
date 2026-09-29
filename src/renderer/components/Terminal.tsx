@@ -4,10 +4,10 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import type { ThemeName } from '@shared/types'
 import { matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
-import { TERMINAL_THEMES, terminalFontStack } from '../lib/term-theme'
+import { currentTheme } from '../app/store'
+import { terminalFontStack, terminalTheme } from '../lib/term-theme'
 
 interface Props {
   paneId: string
@@ -15,7 +15,6 @@ interface Props {
   focused: boolean
   fontFamily: string
   fontSize: number
-  theme: ThemeName
 }
 
 const RESIZE_DEBOUNCE_MS = 50
@@ -24,11 +23,15 @@ const RESIZE_DEBOUNCE_MS = 50
  * One xterm instance bound to one pane process. It stays mounted while hidden (zoom,
  * other workspace, other view) so scrollback is never lost.
  */
-export function Terminal({ paneId, visible, focused, fontFamily, fontSize, theme }: Props) {
+export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Props) {
   const { bus, api, store } = useServices()
   const hostRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  // Cached by terminalTheme, so this is a stable reference between unrelated renders.
+  const theme = useApp((s) =>
+    terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
+  )
   const canTakeFocus = useApp(
     (s) => s.view === 'grid' && s.modal === null && s.closingPaneId !== paneId
   )
@@ -44,7 +47,7 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize, theme
       fontFamily: terminalFontStack(fontFamily),
       fontSize,
       lineHeight: 1.15,
-      theme: TERMINAL_THEMES[theme],
+      theme,
       cursorBlink: true,
       allowProposedApi: true, // unicode11
       drawBoldTextInBrightColors: false,
@@ -138,7 +141,7 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize, theme
   }, [fontFamily, fontSize, bus, paneId])
 
   useEffect(() => {
-    if (termRef.current) termRef.current.options.theme = TERMINAL_THEMES[theme]
+    if (termRef.current) termRef.current.options.theme = theme
   }, [theme])
 
   useEffect(() => {

@@ -6,6 +6,9 @@ export function StatusBar() {
   const actions = useActions()
   const ws = useApp(activeWorkspace)
   const accountCount = new Set(ws.panes.flatMap((p) => (p.accountId ? [p.accountId] : []))).size
+  const update = useApp((s) =>
+    s.update.result?.status === 'available' ? s.update.result.latest.version : null
+  )
 
   return (
     <footer className="sbar">
@@ -19,6 +22,11 @@ export function StatusBar() {
         workspace <b>{ws.name}</b>
       </span>
       <span className="sp" />
+      {update ? (
+        <button className="upd" onClick={actions.showUpdates}>
+          Update available: {update}
+        </button>
+      ) : null}
       <span>{SHORTCUT_HINT.focus} focus</span>
       <button onClick={() => actions.openModal({ kind: 'shortcuts' })}>
         <kbd>{SHORTCUT_HINT.shortcuts}</kbd>All shortcuts
