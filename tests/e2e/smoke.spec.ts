@@ -46,6 +46,9 @@ async function paneText(win: Page, title: string): Promise<string> {
 
 const squash = (s: string): string => s.replace(/\s+/g, '')
 
+// Uses a bash stand-in for claude and pgrep; Windows is covered by unit tests and CI builds.
+test.skip(process.platform === 'win32', 'POSIX-only fixture')
+
 test('accounts are isolated, the layout is restored, and no process outlives the app', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-e2e-'))
   const home = path.join(tmp, 'home')

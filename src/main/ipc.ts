@@ -17,6 +17,7 @@ import {
   accountDeleteDirArgs,
   claudeDetectArgs,
   openExternalArgs,
+  sharedApplyArgs,
   pickPathArgs,
   ptyCreateArgs,
   ptyKillArgs,
@@ -25,12 +26,18 @@ import {
   type AppInfo,
   type CreateDirResult,
   type PtyCreateResult,
+  type SharedApplyResult,
+  type SharedReportEntry,
   type SimpleResult
 } from '@shared/ipc-contract'
-import { detectClaude, resolveClaudePath } from './claude-detect'
+import { access } from 'node:fs/promises'
+import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
+import type { Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
 import { accountsRoot, isStrictlyInside, resolveUserPath } from './paths'
+import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
+import { ensureSource, linkShared, unlinkShared, type ItemResult } from './shared-config'
 import type { PtyManager } from './pty-manager'
 
 export interface IpcDeps {
@@ -38,6 +45,11 @@ export interface IpcDeps {
   store: ConfigStore
   ptys: PtyManager
   homeDir: string
+  desktop: DesktopInfo
+  /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
+  envReady: Promise<void>
+  /** Called after a valid config replaced the old one. */
+  onConfigChanged?: (prev: Config, next: Config) => void
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -94,6 +106,24 @@ export function registerIpc(deps: IpcDeps): void {
   }
 
   const fail = (error: string): { ok: false; error: string } => ({ ok: false, error })
+  const dirOf = (acc: { configDir: string }): string => resolveUserPath(acc.configDir, homeDir)
+
+  /** Links the shared CLAUDE.md and skills into one account, if sharing is on. */
+  const syncShared = async (accountId: string): Promise<void> => {
+    const cfg = store.get()
+    const source = cfg.accounts.find((x) => x.id === cfg.settings.sharedSourceAccountId)
+    const account = cfg.accounts.find((x) => x.id === accountId)
+    if (!source || !account || source.id === account.id) return
+    try {
+      await ensureSource(dirOf(source))
+      const failed = (await linkShared(dirOf(source), dirOf(account))).filter(
+        (r) => r.outcome === 'failed'
+      )
+      failed.forEach((r) => log(`could not link shared ${r.item} for ${account.name}: ${r.error}`))
+    } catch (err) {
+      log(`could not share CLAUDE.md and skills with ${account.name}: ${(err as Error).message}`)
+    }
+  }
 
   // ---- PTY -------------------------------------------------------------------------
 
@@ -116,9 +146,20 @@ export function registerIpc(deps: IpcDeps): void {
         return fail(`Folder not found: ${a.cwd}`)
       }
 
+      await deps.envReady
+      if (!a.shell && a.accountId) await syncShared(a.accountId)
       let file: string
       if (a.shell) {
-        file = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
+        file = await resolveDefaultShell(
+          process.platform,
+          process.env,
+          (name) => findOnPath(name),
+          (f) =>
+            access(f).then(
+              () => true,
+              () => false
+            )
+        )
       } else {
         const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
         if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -130,11 +171,18 @@ export function registerIpc(deps: IpcDeps): void {
         file = resolved.path
       }
 
+      const cmd = spawnCommandFor(
+        process.platform,
+        file,
+        a.shell ? [] : a.args,
+        process.env.ComSpec
+      )
+      if (!cmd.ok) return fail(cmd.error)
       const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, configDir, homeDir })
       return ptys.create({
         paneId: a.paneId,
-        file,
-        args: a.shell ? [] : a.args,
+        file: cmd.file,
+        args: cmd.args,
         cwd,
         env,
         cols: a.cols,
@@ -153,8 +201,10 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle(IPC.configGet, (e) => (trusted(e) ? store.get() : null))
   ipcMain.handle(IPC.configSet, (e, raw: unknown): SimpleResult => {
     if (!trusted(e)) return fail('Refused')
+    const prev = store.get()
     const result = store.set(raw)
     if (!result.ok) log('refused config:set: validation failed')
+    else deps.onConfigChanged?.(prev, store.get())
     return result
   })
 
@@ -195,7 +245,10 @@ export function registerIpc(deps: IpcDeps): void {
   handle(
     IPC.claudeDetect,
     claudeDetectArgs,
-    (a) => detectClaude(a.override ?? store.get().claudePath, homeDir),
+    async (a) => {
+      await deps.envReady
+      return detectClaude(a.override ?? store.get().claudePath, homeDir)
+    },
     { path: null, source: null, version: null, ok: false, error: 'Detection failed' }
   )
 
@@ -240,6 +293,42 @@ export function registerIpc(deps: IpcDeps): void {
     fail('Could not delete the config dir')
   )
 
+  // ---- Shared CLAUDE.md and skills ---------------------------------------------------
+
+  handle(
+    IPC.sharedApply,
+    sharedApplyArgs,
+    async (a): Promise<SharedApplyResult> => {
+      const cfg = store.get()
+      const next = a.sourceAccountId
+        ? cfg.accounts.find((x) => x.id === a.sourceAccountId)
+        : undefined
+      if (a.sourceAccountId && !next) return fail('That account no longer exists')
+      const prev = cfg.accounts.find((x) => x.id === cfg.settings.sharedSourceAccountId)
+      const report: SharedReportEntry[] = []
+      const add = (account: string, results: ItemResult[]): void => {
+        results.forEach((r) => report.push({ account, ...r }))
+      }
+      // Switching or stopping: take the old links out first, restoring what they replaced.
+      if (prev && prev.id !== next?.id) {
+        for (const acc of cfg.accounts) add(acc.name, await unlinkShared(dirOf(prev), dirOf(acc)))
+      }
+      if (next) {
+        await ensureSource(dirOf(next))
+        for (const acc of cfg.accounts) {
+          if (acc.id !== next.id) add(acc.name, await linkShared(dirOf(next), dirOf(acc)))
+        }
+      }
+      log(
+        next
+          ? `sharing CLAUDE.md and skills from ${next.name} with ${cfg.accounts.length - 1} accounts`
+          : 'stopped sharing CLAUDE.md and skills'
+      )
+      return { ok: true, report }
+    },
+    fail('Could not update the shared CLAUDE.md and skills')
+  )
+
   // ---- External links --------------------------------------------------------------
 
   handle(
@@ -268,7 +357,9 @@ export function registerIpc(deps: IpcDeps): void {
           homeDir,
           platform: process.platform,
           configPath: contractHome(store.file, homeDir),
-          version: app.getVersion()
+          version: app.getVersion(),
+          chrome: deps.desktop.chrome,
+          desktop: deps.desktop.desktop
         }
       : null
   )

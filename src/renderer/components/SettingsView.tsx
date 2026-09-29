@@ -93,6 +93,99 @@ function ClaudeBinaryRow() {
   )
 }
 
+function SharedRow() {
+  const actions = useActions()
+  const accounts = useApp((s) => s.config.accounts)
+  const sourceId = useApp((s) => s.config.settings.sharedSourceAccountId)
+  const report = useApp((s) => s.sharedReport)
+  const home = useApp((s) => s.info.homeDir)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const choose = async (id: string | null): Promise<void> => {
+    if (id === sourceId) return
+    setBusy(true)
+    setError(await actions.setSharedSource(id))
+    setBusy(false)
+  }
+
+  // One line per account that changed, e.g. "work: linked CLAUDE.md, skills".
+  const lines = Object.entries(
+    (report ?? []).reduce<Record<string, string[]>>((acc, r) => {
+      if (r.outcome === 'already-linked') return acc
+      const what =
+        r.outcome === 'failed'
+          ? `could not link ${r.item} (${r.error})`
+          : r.outcome === 'linked' && r.backup
+            ? `linked ${r.item}, kept the old one as ${contractHome(r.backup, home)}`
+            : r.outcome === 'restored'
+              ? `restored its own ${r.item}`
+              : `${r.outcome} ${r.item}`
+      ;(acc[r.account] ??= []).push(what)
+      return acc
+    }, {})
+  )
+
+  const chip = (id: string | null, label: string, color?: string) => (
+    <button
+      key={id ?? 'off'}
+      className={`rchip${sourceId === id ? ' on' : ''}`}
+      role="radio"
+      aria-checked={sourceId === id}
+      disabled={busy}
+      onClick={() => void choose(id)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontFamily: 'inherit',
+        fontSize: 12.5,
+        height: 30
+      }}
+    >
+      {color ? <span className="dot" style={{ background: color }} /> : null}
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="shared-h">Shared CLAUDE.md and skills</h3>
+        <p className="ex">
+          One CLAUDE.md and one skills folder for every account, taken from the account you pick.
+          Logins, settings and history stay separate.
+        </p>
+      </div>
+      <div className="ctl">
+        {accounts.length < 2 ? (
+          <span className="hint">Add a second account to share between them.</span>
+        ) : (
+          <div className="recent" role="radiogroup" aria-labelledby="shared-h">
+            {chip(null, 'Off (each account its own)')}
+            {accounts.map((a) => chip(a.id, a.name, a.color))}
+          </div>
+        )}
+        <span className="hint">
+          The other accounts get links to its <span className="mono">CLAUDE.md</span> and{' '}
+          <span className="mono">skills/</span>. A file they already had is kept as{' '}
+          <span className="mono">…wraithgrid-backup</span> and comes back when you turn this off.
+        </span>
+        {error ? <span className="hint err">{error}</span> : null}
+        {lines.length ? (
+          <div className="note" role="status" style={{ flexDirection: 'column', gap: 2 }}>
+            {lines.map(([account, whats]) => (
+              <span key={account}>
+                <b>{account}</b>: {whats.join('; ')}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 export function SettingsView() {
   const { api } = useServices()
   const actions = useActions()
@@ -277,6 +370,8 @@ export function SettingsView() {
             )}
           </div>
         </div>
+
+        <SharedRow />
 
         <div className="srow">
           <div>

@@ -170,6 +170,14 @@ function ImportAccountForm() {
 
 function AccountRow({ account, uses }: { account: Account; uses: number }) {
   const actions = useActions()
+  const sharedFrom = useApp((s) =>
+    s.config.accounts.find((a) => a.id === s.config.settings.sharedSourceAccountId)
+  )
+  const sharedNote = !sharedFrom
+    ? null
+    : sharedFrom.id === account.id
+      ? 'Source of the shared CLAUDE.md and skills'
+      : `Uses the CLAUDE.md and skills of ${sharedFrom.name}`
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(account.name)
 
@@ -210,6 +218,7 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
       <span className="dir" role="cell" title={account.configDir}>
         {account.configDir}
         {account.imported ? <small>Imported existing config dir</small> : null}
+        {sharedNote ? <small>{sharedNote}</small> : null}
       </span>
       <span className={`badge${account.signedIn ? '' : ' warn'}`} role="cell">
         {account.signedIn ? <IconCheck small /> : <IconWarn small />}
@@ -280,7 +289,7 @@ export function AccountsView() {
             <h1>Accounts</h1>
             <p>
               Each account is its own <code>CLAUDE_CONFIG_DIR</code>, with its own login, settings
-              and history. Wraithgrid only sets the variable and never reads files inside it.
+              and history. Wraithgrid never reads files inside it.
             </p>
           </div>
           <div className="acts">
@@ -349,6 +358,7 @@ export function RemoveAccountDialog({ accountId }: { accountId: string }) {
   const actions = useActions()
   const account = useApp((s) => s.config.accounts.find((a) => a.id === accountId))
   const workspaces = useApp((s) => s.config.workspaces)
+  const isSharedSource = useApp((s) => s.config.settings.sharedSourceAccountId === accountId)
   const [deleteDir, setDeleteDir] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -379,6 +389,12 @@ export function RemoveAccountDialog({ accountId }: { accountId: string }) {
         <p className="hint" style={{ fontSize: 13, color: 'var(--mu)', margin: 0 }}>
           {panesMsg} The account is removed from Wraithgrid.
         </p>
+        {isSharedSource ? (
+          <p className="hint" style={{ margin: 0 }}>
+            Its CLAUDE.md and skills are shared with your other accounts. Sharing stops, and each
+            account gets back the files it had before.
+          </p>
+        ) : null}
         <div className="trow">
           <span className="tx">
             <span style={{ fontWeight: 600 }}>Also delete its config dir</span>

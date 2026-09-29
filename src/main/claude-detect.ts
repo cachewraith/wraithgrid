@@ -4,6 +4,7 @@ import { access, stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { ClaudeDetectResult } from '@shared/ipc-contract'
 import { resolveUserPath } from './paths'
+import { spawnCommandFor } from './platform'
 
 const VERSION_TIMEOUT_MS = 3000
 
@@ -49,11 +50,14 @@ export async function resolveClaudePath(
 }
 
 function runVersion(bin: string): Promise<string> {
+  const cmd = spawnCommandFor(process.platform, bin, ['--version'], process.env.ComSpec)
+  if (!cmd.ok) return Promise.reject(new Error(cmd.error))
+  const verbatim = typeof cmd.args === 'string'
   return new Promise((resolve, reject) => {
     execFile(
-      bin,
-      ['--version'],
-      { timeout: VERSION_TIMEOUT_MS, windowsHide: true },
+      cmd.file,
+      verbatim ? [cmd.args as string] : (cmd.args as string[]),
+      { timeout: VERSION_TIMEOUT_MS, windowsHide: true, windowsVerbatimArguments: verbatim },
       (err, stdout) => {
         if (err) reject(err)
         else resolve(stdout.toString().trim().split('\n')[0] ?? '')

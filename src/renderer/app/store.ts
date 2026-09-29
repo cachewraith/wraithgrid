@@ -1,5 +1,11 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import type { AppInfo, ClaudeDetectResult, PtyExitEvent, WraithApi } from '@shared/ipc-contract'
+import type {
+  AppInfo,
+  ClaudeDetectResult,
+  PtyExitEvent,
+  SharedReportEntry,
+  WraithApi
+} from '@shared/ipc-contract'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
 import {
@@ -72,6 +78,8 @@ export interface AppState {
   config: Config
   info: AppInfo
   claude: ClaudeDetectResult | null
+  /** What the last change to CLAUDE.md/skills sharing did, for Settings to show. */
+  sharedReport: SharedReportEntry[] | null
   runtime: Record<string, PaneRuntime>
   view: View
   accountsMode: AccountsMode
@@ -115,6 +123,8 @@ export interface AppState {
   renameAccount(id: string, name: string): void
   removeAccount(id: string, deleteDir: boolean): Promise<string | null>
   markSignedIn(id: string): void
+  /** Shares this account's CLAUDE.md and skills with all others (null: each keeps its own). */
+  setSharedSource(id: string | null): Promise<string | null>
   loginAccount(id: string): void
 
   // settings
@@ -375,8 +385,16 @@ export function createAppStore({
     return {
       ready: false,
       config: defaultConfig(),
-      info: { homeDir: '', platform: '', configPath: '', version: '' },
+      info: {
+        homeDir: '',
+        platform: '',
+        configPath: '',
+        version: '',
+        chrome: 'custom',
+        desktop: null
+      },
       claude: null,
+      sharedReport: null,
       runtime: {},
       view: 'grid',
       accountsMode: 'list',
@@ -635,6 +653,11 @@ export function createAppStore({
         const s = get()
         const account = accountById(s.config, id)
         if (!account) return null
+        // The other accounts must not keep links into a dir that is going away.
+        if (s.config.settings.sharedSourceAccountId === id) {
+          const err = await get().setSharedSource(null)
+          if (err) return err
+        }
         // Panes first: a running claude must not keep writing into a dir being deleted.
         s.config.workspaces
           .flatMap((w) => w.panes)
@@ -653,6 +676,14 @@ export function createAppStore({
               c.settings.defaultAccountId === id ? null : c.settings.defaultAccountId
           }
         }))
+        return null
+      },
+
+      async setSharedSource(id) {
+        const res = await api.shared.apply(id)
+        if (!res.ok) return res.error
+        get().updateSettings({ sharedSourceAccountId: id })
+        set({ sharedReport: res.report })
         return null
       },
 

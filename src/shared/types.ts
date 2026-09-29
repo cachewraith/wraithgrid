@@ -64,6 +64,11 @@ export interface Settings {
   defaultAccountId: string | null
   defaultCwd: string
   sidebarCollapsed: boolean
+  /**
+   * The account whose CLAUDE.md and skills/ every other account links to.
+   * null keeps each account's own.
+   */
+  sharedSourceAccountId: string | null
 }
 
 export const CONFIG_VERSION = 1

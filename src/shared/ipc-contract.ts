@@ -38,6 +38,18 @@ export const accountDeleteDirArgs = z.object({
   confirm: z.literal(true)
 })
 export const openExternalArgs = z.object({ url: z.string().max(8192) })
+export const sharedApplyArgs = z.object({ sourceAccountId: idSchema.nullable() })
+
+export interface SharedReportEntry {
+  account: string
+  item: string
+  outcome: 'linked' | 'already-linked' | 'unlinked' | 'restored' | 'failed'
+  /** Where an existing file was moved to (linking) or restored from (unlinking). */
+  backup?: string
+  error?: string
+}
+export type SharedApplyResult =
+  { ok: true; report: SharedReportEntry[] } | { ok: false; error: string }
 
 export type PtyCreateResult = { ok: true; pid: number } | { ok: false; error: string }
 
@@ -68,6 +80,9 @@ export interface AppInfo {
   platform: string
   configPath: string
   version: string
+  /** custom: our title bar; overlay: Windows caption buttons; tiling: tiling compositor. */
+  chrome: 'custom' | 'overlay' | 'tiling'
+  desktop: string | null
 }
 
 export type SimpleResult = { ok: true } | { ok: false; error: string }
@@ -105,6 +120,10 @@ export interface WraithApi {
   }
   shell: {
     openExternal(url: string): Promise<SimpleResult>
+  }
+  shared: {
+    /** Points every other account at this account's CLAUDE.md and skills (null: stop sharing). */
+    apply(sourceAccountId: string | null): Promise<SharedApplyResult>
   }
   app: {
     info(): Promise<AppInfo>

@@ -7,6 +7,14 @@ import type { PtyDataEvent, PtyExitEvent } from '@shared/ipc-contract'
 import { ConfigStore } from './config-store'
 import { registerIpc } from './ipc'
 import { configFilePath } from './paths'
+import {
+  detectDesktop,
+  extraBinDirs,
+  loginShellPath,
+  mergePath,
+  minimumWindowSize,
+  titleBarOverlayFor
+} from './platform'
 import { PtyManager } from './pty-manager'
 
 // Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
@@ -23,7 +31,22 @@ if (!app.requestSingleInstanceLock()) {
 
 const homeDir = os.homedir()
 const store = new ConfigStore(configFilePath(app.getPath('userData')))
+const desktop = detectDesktop(process.platform, process.env)
 let mainWindow: BrowserWindow | null = null
+
+// A launcher-started session (Hyprland exec, a .desktop file, the Start menu) often lacks
+// the PATH a login shell sets up, so claude and the tools it runs would not be found.
+// Started from a terminal (TERM set), PATH is already right and this is skipped.
+const envReady: Promise<void> = (async () => {
+  const shellPath =
+    process.platform !== 'win32' && !process.env.TERM ? await loginShellPath(process.env) : null
+  process.env.PATH = mergePath(
+    path.delimiter,
+    shellPath ?? undefined,
+    process.env.PATH,
+    extraBinDirs(process.platform, homeDir, process.env).join(path.delimiter)
+  )
+})()
 
 function send(channel: string, payload: PtyDataEvent | PtyExitEvent): void {
   const wc = mainWindow?.webContents
@@ -38,12 +61,16 @@ const ptys = new PtyManager({
 
 function createWindow(): void {
   const theme = store.get().settings.theme
+  const min = minimumWindowSize(desktop.chrome)
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 1100,
-    minHeight: 700,
-    frame: false,
+    minWidth: min.width,
+    minHeight: min.height,
+    // Windows keeps its native caption buttons (and snap layouts) over our title bar.
+    ...(desktop.chrome === 'overlay'
+      ? { titleBarStyle: 'hidden' as const, titleBarOverlay: titleBarOverlayFor(theme) }
+      : { frame: false }),
     show: false,
     title: 'Wraithgrid',
     backgroundColor: theme === 'light' ? '#f5f4fa' : '#0a0a12',
@@ -84,7 +111,7 @@ function createWindow(): void {
       if (e.level === 'error' || e.level === 'warning')
         console.warn(`[renderer:${e.level}] ${e.message}`)
     })
-    win.setIcon(path.join(__dirname, '../../build/icon.png'))
+    if (process.platform !== 'darwin') win.setIcon(path.join(__dirname, '../../build/icon.png'))
   }
   if (process.env.WRAITHGRID_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
 }
@@ -146,6 +173,18 @@ void app.whenReady().then(() => {
   store.load()
   Menu.setApplicationMenu(null)
   hardenSessions()
-  registerIpc({ getWindow: () => mainWindow, store, ptys, homeDir })
+  registerIpc({
+    getWindow: () => mainWindow,
+    store,
+    ptys,
+    homeDir,
+    desktop,
+    envReady,
+    onConfigChanged: (prev, next) => {
+      if (desktop.chrome === 'overlay' && prev.settings.theme !== next.settings.theme) {
+        mainWindow?.setTitleBarOverlay(titleBarOverlayFor(next.settings.theme))
+      }
+    }
+  })
   createWindow()
 })

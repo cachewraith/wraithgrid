@@ -12,6 +12,8 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const settings = useApp((s) => s.config.settings)
   const recent = useApp((s) => s.config.recentFolders)
   const home = useApp((s) => s.info.homeDir)
+  const windows = useApp((s) => s.info.platform === 'win32')
+  const shellName = windows ? 'PowerShell' : '$SHELL'
 
   const initialAccount =
     accounts.find((a) => a.id === settings.defaultAccountId)?.id ?? accounts[0]?.id ?? null
@@ -24,7 +26,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const args = parseArgs(argsText)
   const canCreate = folder.trim() !== '' && (shell || !!account)
   const willRun = shell
-    ? `cd ${folder || '<folder>'} && $SHELL`
+    ? `cd ${folder || '<folder>'} && ${windows ? 'pwsh' : '$SHELL'}`
     : `CLAUDE_CONFIG_DIR=${account?.configDir ?? '<account>'} claude${args.length ? ` ${formatArgs(args)}` : ''}   (in ${folder || '<folder>'})`
 
   const browse = async (): Promise<void> => {
@@ -194,7 +196,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
             <span className="tx">
               <span style={{ fontWeight: 600 }}>Open a plain shell instead</span>
               <span className="hint">
-                Runs <span className="mono">$SHELL</span> in the same folder, no{' '}
+                Runs <span className="mono">{shellName}</span> in the same folder, no{' '}
                 <span className="mono">claude</span>.
               </span>
             </span>

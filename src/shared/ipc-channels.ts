@@ -17,5 +17,6 @@ export const IPC = {
   accountCreateDir: 'account:createDir',
   accountDeleteDir: 'account:deleteDir',
   shellOpenExternal: 'shell:openExternal',
+  sharedApply: 'shared:apply',
   appInfo: 'app:info'
 } as const

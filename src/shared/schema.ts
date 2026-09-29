@@ -64,7 +64,8 @@ export const settingsSchema = z.object({
   theme: z.enum(['dark', 'light']).default('dark'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
-  sidebarCollapsed: z.boolean().default(false)
+  sidebarCollapsed: z.boolean().default(false),
+  sharedSourceAccountId: idSchema.nullable().default(null)
 })
 
 export const configSchema = z.object({
@@ -165,11 +166,15 @@ export function sanitizeConfig(cfg: Config): Config {
     cfg.settings.defaultAccountId && accountIds.has(cfg.settings.defaultAccountId)
       ? cfg.settings.defaultAccountId
       : null
+  const sharedSourceAccountId =
+    cfg.settings.sharedSourceAccountId && accountIds.has(cfg.settings.sharedSourceAccountId)
+      ? cfg.settings.sharedSourceAccountId
+      : null
   return {
     ...cfg,
     workspaces,
     activeWorkspace,
-    settings: { ...cfg.settings, defaultAccountId }
+    settings: { ...cfg.settings, defaultAccountId, sharedSourceAccountId }
   }
 }
 

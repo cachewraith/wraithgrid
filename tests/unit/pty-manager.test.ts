@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IPty } from 'node-pty'
 import type { PtyExitEvent } from '@shared/ipc-contract'
-import { PtyManager, type KillFn, type SpawnFn } from '../../src/main/pty-manager'
+import { PtyManager, type KillPolicy, type SpawnFn } from '../../src/main/pty-manager'
 
 type Listener<T> = (e: T) => void
 
@@ -44,7 +44,7 @@ describe('PtyManager', () => {
   let ptys: FakePty[]
   let data: [string, string][]
   let exits: PtyExitEvent[]
-  let kills: [number, string, boolean | undefined][]
+  let kills: [string, number][]
   let mgr: PtyManager
 
   beforeEach(() => {
@@ -58,10 +58,14 @@ describe('PtyManager', () => {
       ptys.push(p)
       return p as unknown as IPty
     }
-    const kill: KillFn = (pid, sig, groupOnly) => kills.push([pid, sig, groupOnly])
+    const killPolicy: KillPolicy = {
+      soft: (pty) => kills.push(['soft', pty.pid]),
+      hard: (pid) => kills.push(['hard', pid]),
+      sweep: (pid) => kills.push(['sweep', pid])
+    }
     mgr = new PtyManager({
       spawn,
-      kill,
+      killPolicy,
       onData: (id, d) => data.push([id, d]),
       onExit: (e) => exits.push(e)
     })
@@ -113,16 +117,16 @@ describe('PtyManager', () => {
     expect(failing.create(req('a'))).toEqual({ ok: false, error: 'ENOENT: no such file' })
   })
 
-  it('kill sends SIGHUP, then SIGKILL after the grace period, without an exit event', async () => {
+  it('kill stops softly, then hard after the grace period, without an exit event', async () => {
     mgr.create(req('a'))
     const pid = ptys[0]!.pid
     const done = mgr.kill('a')
-    expect(kills).toEqual([[pid, 'SIGHUP', undefined]])
+    expect(kills).toEqual([['soft', pid]])
     vi.advanceTimersByTime(2000)
     await done
     expect(kills).toEqual([
-      [pid, 'SIGHUP', undefined],
-      [pid, 'SIGKILL', undefined]
+      ['soft', pid],
+      ['hard', pid]
     ])
     expect(exits).toEqual([])
   })
@@ -134,8 +138,8 @@ describe('PtyManager', () => {
     ptys[0]!.exit(0, 1)
     await done
     expect(kills).toEqual([
-      [pid, 'SIGHUP', undefined],
-      [pid, 'SIGKILL', true]
+      ['soft', pid],
+      ['sweep', pid]
     ])
     expect(exits).toEqual([])
   })
@@ -147,7 +151,7 @@ describe('PtyManager', () => {
     ptys.forEach((p) => p.exit(0))
     await done
     expect(mgr.size).toBe(0)
-    expect(kills.filter(([, s]) => s === 'SIGHUP').map(([pid]) => pid)).toEqual(
+    expect(kills.filter(([k]) => k === 'soft').map(([, pid]) => pid)).toEqual(
       ptys.map((p) => p.pid)
     )
   })

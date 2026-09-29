@@ -1,26 +1,83 @@
+import { execFile } from 'node:child_process'
 import type { IDisposable, IPty, IPtyForkOptions } from 'node-pty'
 import type { PtyExitEvent } from '@shared/ipc-contract'
 
-export type SpawnFn = (file: string, args: string[], options: IPtyForkOptions) => IPty
-/** `groupOnly` skips the single-pid fallback, for when the leader pid may be reused. */
-export type KillFn = (pid: number, signal: NodeJS.Signals, groupOnly?: boolean) => void
+/** On Windows `args` may be a prebuilt command line (used for .cmd shims). */
+export type SpawnFn = (file: string, args: string[] | string, options: IPtyForkOptions) => IPty
+
+/**
+ * How a pane's process tree is stopped. Strategy: POSIX signals a process group,
+ * Windows kills the ConPTY console's process list. Picked once per platform.
+ */
+export interface KillPolicy {
+  /** Ask the tree to stop (SIGHUP on POSIX). */
+  soft(pty: IPty): void
+  /** Force it once the grace period has passed. */
+  hard(pid: number): void
+  /** After the leader exited: remove anything it left behind. */
+  sweep(pid: number): void
+}
+
+function signalGroup(pid: number, signal: NodeJS.Signals, groupOnly = false): void {
+  try {
+    process.kill(-pid, signal)
+    return
+  } catch {
+    // The group may already be gone while the leader lingers.
+  }
+  if (groupOnly) return // the leader pid may already belong to another process
+  try {
+    process.kill(pid, signal)
+  } catch {
+    // Already exited.
+  }
+}
+
+/**
+ * node-pty's spawn uses setsid, so each pane's pid leads its own process group.
+ * Signalling the group also reaches the tools claude started (MCP servers, shells).
+ */
+export const posixKillPolicy: KillPolicy = {
+  soft: (pty) => signalGroup(pty.pid, 'SIGHUP'),
+  hard: (pid) => signalGroup(pid, 'SIGKILL'),
+  sweep: (pid) => signalGroup(pid, 'SIGKILL', true)
+}
+
+/** node-pty's Windows kill() ends every process attached to the pane's console. */
+export const windowsKillPolicy: KillPolicy = {
+  soft: (pty) => {
+    try {
+      pty.kill()
+    } catch {
+      // Already gone.
+    }
+  },
+  hard: (pid) => {
+    execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => {})
+  },
+  sweep: () => {}
+}
+
+export function killPolicyFor(platform: NodeJS.Platform): KillPolicy {
+  return platform === 'win32' ? windowsKillPolicy : posixKillPolicy
+}
 
 export interface PtyManagerDeps {
   spawn: SpawnFn
   onData: (paneId: string, data: string) => void
   onExit: (event: PtyExitEvent) => void
-  /** Defaults to signalling the whole process group, then the pid alone. */
-  kill?: KillFn
+  /** Defaults to the policy for the running platform. */
+  killPolicy?: KillPolicy
   /** Output coalescing window. 16 ms keeps 8 busy panes smooth (NFR-1). */
   flushMs?: number
-  /** Grace period between SIGHUP and SIGKILL. */
+  /** Grace period between the soft and the hard stop. */
   killGraceMs?: number
 }
 
 export interface SpawnRequest {
   paneId: string
   file: string
-  args: string[]
+  args: string[] | string
   cwd: string
   env: Record<string, string>
   cols: number
@@ -40,38 +97,17 @@ interface Entry {
 
 const MAX_BUFFER = 256 * 1024
 
-/**
- * node-pty's spawn uses setsid, so each pane's pid leads its own process group.
- * Signalling the group also reaches the tools claude started (MCP servers, shells).
- */
-export const killProcessGroup: KillFn = (pid, signal, groupOnly = false) => {
-  if (process.platform !== 'win32') {
-    try {
-      process.kill(-pid, signal)
-      return
-    } catch {
-      // Fall through: the group may already be gone while the leader lingers.
-    }
-  }
-  if (groupOnly) return
-  try {
-    process.kill(pid, signal)
-  } catch {
-    // Already exited.
-  }
-}
-
 /** Owns every pane process: paneId → IPty. One pane's failure never touches another. */
 export class PtyManager {
   private readonly ptys = new Map<string, Entry>()
   private readonly flushMs: number
   private readonly killGraceMs: number
-  private readonly killFn: KillFn
+  private readonly killPolicy: KillPolicy
 
   constructor(private readonly deps: PtyManagerDeps) {
     this.flushMs = deps.flushMs ?? 16
     this.killGraceMs = deps.killGraceMs ?? 2000
-    this.killFn = deps.kill ?? killProcessGroup
+    this.killPolicy = deps.killPolicy ?? killPolicyFor(process.platform)
   }
 
   get size(): number {
@@ -168,16 +204,16 @@ export class PtyManager {
 
   private terminate(entry: Entry): Promise<void> {
     const pid = entry.pty.pid
-    this.killFn(pid, 'SIGHUP')
+    this.killPolicy.soft(entry.pty)
     return new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
-        this.killFn(pid, 'SIGKILL')
+        this.killPolicy.hard(pid)
         resolve()
       }, this.killGraceMs)
       void entry.exited.then(() => {
         clearTimeout(timer)
         // The leader is gone; make sure nothing it started survives it.
-        this.killFn(pid, 'SIGKILL', true)
+        this.killPolicy.sweep(pid)
         resolve()
       })
     })

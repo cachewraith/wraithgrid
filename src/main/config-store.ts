@@ -20,11 +20,20 @@ export async function writeFileAtomic(file: string, data: string): Promise<void>
   } finally {
     await handle.close()
   }
-  try {
-    await fs.promises.rename(tmp, file)
-  } catch (err) {
-    await fs.promises.rm(tmp, { force: true })
-    throw err
+  // Windows refuses the rename while antivirus or the indexer holds the target open.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.promises.rename(tmp, file)
+      return
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (attempt < 5 && (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES')) {
+        await new Promise((r) => setTimeout(r, 50 * (attempt + 1)))
+        continue
+      }
+      await fs.promises.rm(tmp, { force: true })
+      throw err
+    }
   }
 }
 

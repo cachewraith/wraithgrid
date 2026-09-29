@@ -119,6 +119,10 @@ kbd,
 .tb button {
   -webkit-app-region: no-drag;
 }
+/* Windows draws its caption buttons over the right end of the bar. */
+.tb.tb-overlay {
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)) + 6px);
+}
 .tb-name {
   font-weight: 600;
   letter-spacing: 0.01em;
