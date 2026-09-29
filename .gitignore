@@ -1,8 +1,50 @@
-node_modules
-out
-dist
-test-results
-playwright-report
-*.log
-.DS_Store
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+out/
+dist/
+squashfs-root/
 *.tsbuildinfo
+
+# Release artifacts, wherever they end up
+*.AppImage
+*.deb
+*.rpm
+*.pacman
+*.pkg.tar.*
+*.exe
+*.msi
+*.blockmap
+
+# Tests
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Logs and caches
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.eslintcache
+.vite/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local Wraithgrid data (e.g. a WRAITHGRID_USER_DATA_DIR pointed inside the repo)
+/config.json
+/config.bad-*.json
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
