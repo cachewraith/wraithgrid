@@ -2,7 +2,7 @@
 
 ## Purpose
 Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows + Linux. v1.2.0.
+each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows + Linux. v1.3.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -82,4 +82,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
 
 ## Current focus
-v1.2.0 released (overall ~/.claude sharing, folders + icons, Shift+Enter, font-size keys, running animation, release notification). Open: Claude mascot animation report (needs repro).
+v1.3.0 released (in-app update & restart, animated sidebar collapse, right-click folder/workspace menus). Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

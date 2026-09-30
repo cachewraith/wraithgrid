@@ -6,7 +6,7 @@
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
-- Release v1.3.0 (first release with in-app updates); install it by hand once, then test 1.3.0 → 1.3.1 in-app
+- Test an in-app update 1.3.0 → 1.3.1 (1.3.0 is the first release with it; install 1.3.0 by hand once)
 
 ## Later
 - macOS support (REQUIREMENTS §4 lists it; only Windows + Linux ship today)

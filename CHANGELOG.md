@@ -2,6 +2,7 @@
 
 ## 2026-09-30
 
+- [release] v1.3.0 (files: package.json)
 - [sidebar] Collapse/expand animates the width (220 ms; content is revealed/clipped, not reflowed, and fades in; off under reduced motion) (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/base.css)
 - [sidebar] Right-click a folder (rename, collapse, new folder, delete) or a workspace (rename, change icon, two-step delete) via a new keyboard-accessible `ContextMenu`; icon popover split out as `IconPopover`; both portal to <body> (files: src/renderer/components/{ContextMenu,IconPicker,Sidebar,SidebarAccounts}.tsx, src/renderer/styles/base.css, tests/e2e/sidebar-menus.spec.ts)
 - [updates] Settings "Update & restart" downloads the new release, installs it over this one (pacman/deb/rpm via pkexec, AppImage, silent NSIS) and relaunches; the new-release notification opens Settings instead of the browser. Works from v1.3.0 on (files: src/main/update-install.ts, src/main/{index,ipc,update-notify}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/app/store.ts, src/renderer/components/SettingsView.tsx, electron-builder.yml, package.json, .github/workflows/build.yml, tests/unit/update-install.test.ts)
