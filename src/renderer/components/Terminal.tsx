@@ -60,9 +60,30 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     term.unicode.activeVersion = '11'
     term.loadAddon(new WebLinksAddon((_e, uri) => open(uri)))
 
+    const isShellPane = (): boolean =>
+      store
+        .getState()
+        .config.workspaces.some((w) => w.panes.some((p) => p.id === paneId && p.shell))
+
     // App shortcuts never reach the process; everything else (Ctrl+C, arrows) does.
     term.attachCustomKeyEventHandler((e) => {
       if (matchShortcut(e)) return false
+      // Shift+Enter sends ESC CR, which claude reads as "new line" (what /terminal-setup
+      // configures in other terminals). Plain Enter still submits; shells are left alone.
+      if (
+        e.shiftKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.key === 'Enter' &&
+        !isShellPane()
+      ) {
+        if (e.type === 'keydown') {
+          e.preventDefault()
+          bus.input(paneId, '\x1b\r')
+        }
+        return false
+      }
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyC') {
         if (e.type === 'keydown') {
           e.preventDefault()

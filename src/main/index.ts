@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { app, BrowserWindow, Menu, nativeTheme, net, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, nativeTheme, net, Notification, session, shell } from 'electron'
 import { spawn } from 'node-pty'
 import { IPC } from '@shared/ipc-channels'
 import type { PtyDataEvent, PtyExitEvent } from '@shared/ipc-contract'
@@ -18,6 +18,7 @@ import {
 } from './platform'
 import { PtyManager } from './pty-manager'
 import { UpdateChecker } from './update-check'
+import { notifyIfNew, type UpdateNotice } from './update-notify'
 
 // Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
 // WRAITHGRID_USER_DATA_DIR lets tests run against a throwaway config dir.
@@ -25,6 +26,12 @@ app.setPath(
   'userData',
   process.env.WRAITHGRID_USER_DATA_DIR || path.join(app.getPath('appData'), 'wraithgrid')
 )
+
+// Windows only shows toasts for an app with an AppUserModelID (matches electron-builder appId).
+if (process.platform === 'win32') app.setAppUserModelId('dev.cachewraith.wraithgrid')
+
+/** While the app stays open, look for a new release this often (GitHub allows 60/h). */
+const UPDATE_RECHECK_MS = 6 * 60 * 60 * 1000
 
 // Two instances would overwrite each other's config; focus the first one instead.
 if (!app.requestSingleInstanceLock()) {
@@ -175,8 +182,42 @@ app.on('second-instance', () => {
   mainWindow.focus()
 })
 
+/** A native notification; clicking it opens the release page and brings the window back. */
+function showUpdateNotice(notice: UpdateNotice): void {
+  if (!Notification.isSupported()) return
+  const n = new Notification({
+    title: notice.title,
+    body: notice.body,
+    icon: path.join(__dirname, '../../build/icon.png')
+  })
+  n.on('click', () => {
+    void shell.openExternal(notice.url)
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+  n.show()
+}
+
 void app.whenReady().then(() => {
   store.load()
+  const updates = new UpdateChecker({
+    currentVersion: app.getVersion(),
+    fetch: (url, init) => net.fetch(url, init)
+  })
+  const notifyDeps = {
+    stateFile: path.join(app.getPath('userData'), 'update-notified.json'),
+    show: showUpdateNotice
+  }
+  const notify = (r: Parameters<typeof notifyIfNew>[0]): void =>
+    void notifyIfNew(r, notifyDeps).catch(() => {})
+  if (app.isPackaged) {
+    setInterval(() => {
+      if (!store.get().settings.checkUpdatesOnLaunch) return
+      void updates.check().then(notify)
+    }, UPDATE_RECHECK_MS).unref()
+  }
   Menu.setApplicationMenu(null)
   hardenSessions()
   registerIpc({
@@ -186,10 +227,8 @@ void app.whenReady().then(() => {
     homeDir,
     desktop,
     envReady,
-    updates: new UpdateChecker({
-      currentVersion: app.getVersion(),
-      fetch: (url, init) => net.fetch(url, init)
-    }),
+    updates,
+    onLaunchUpdateCheck: notify,
     isPackaged: app.isPackaged,
     onConfigChanged: (prev, next) => {
       const dark = nativeTheme.shouldUseDarkColors

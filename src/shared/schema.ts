@@ -2,9 +2,12 @@ import { z } from 'zod'
 import {
   ACCENTS,
   ACCOUNT_COLORS,
+  ACCOUNT_ICON_MAX,
   CONFIG_VERSION,
+  FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  SHARED_MODES,
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type Config,
@@ -41,7 +44,16 @@ export const accountSchema = z.object({
   configDir: pathSchema,
   color: colorSchema,
   signedIn: z.boolean().default(false),
-  imported: z.boolean().default(false)
+  imported: z.boolean().default(false),
+  // Rendered as text only, never as HTML.
+  icon: z.string().max(ACCOUNT_ICON_MAX).default(''),
+  folderId: idSchema.nullable().default(null)
+})
+
+export const accountFolderSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1).max(64),
+  collapsed: z.boolean().default(false)
 })
 
 export const paneSchema = z.object({
@@ -56,20 +68,21 @@ export const paneSchema = z.object({
 export const workspaceSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(64),
+  icon: z.string().max(ACCOUNT_ICON_MAX).default(''),
   panes: z.array(paneSchema).max(64),
   layout: layoutNodeSchema.nullable()
 })
 
 export const settingsSchema = z.object({
   fontFamily: z.enum(TERMINAL_FONTS).default('JetBrains Mono'),
-  fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(13),
+  fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(FONT_SIZE_DEFAULT),
   theme: z.enum(['system', 'dark', 'light']).default('dark'),
   accent: z.enum(ACCENTS).default('violet'),
   terminalPalette: z.enum(TERMINAL_PALETTES).default('match'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
   sidebarCollapsed: z.boolean().default(false),
-  sharedSourceAccountId: idSchema.nullable().default(null),
+  sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true)
 })
 
@@ -77,6 +90,7 @@ export const configSchema = z.object({
   version: z.literal(CONFIG_VERSION),
   claudePath: z.string().max(4096).default(''),
   accounts: z.array(accountSchema).max(64),
+  accountFolders: z.array(accountFolderSchema).max(32).default([]),
   workspaces: z.array(workspaceSchema).min(1).max(32),
   activeWorkspace: idSchema,
   recentFolders: z.array(pathSchema).max(20).default([]),
@@ -93,7 +107,8 @@ export function defaultConfig(): Config {
     version: CONFIG_VERSION,
     claudePath: '',
     accounts: [],
-    workspaces: [{ id: 'ws-default', name: 'default', panes: [], layout: null }],
+    accountFolders: [],
+    workspaces: [{ id: 'ws-default', name: 'default', icon: '', panes: [], layout: null }],
     activeWorkspace: 'ws-default',
     recentFolders: [],
     settings: settingsSchema.parse({})
@@ -148,6 +163,7 @@ export function migrateConfig(raw: unknown): unknown {
       signedIn: typeof a.signedIn === 'boolean' ? a.signedIn : true,
       imported: typeof a.imported === 'boolean' ? a.imported : false
     })),
+    accountFolders: [],
     workspaces: migratedWorkspaces.length ? migratedWorkspaces : defaultConfig().workspaces,
     activeWorkspace: migratedWorkspaces[0]?.id ?? 'ws-default',
     recentFolders: [],
@@ -157,6 +173,10 @@ export function migrateConfig(raw: unknown): unknown {
 
 /** Repairs cross-references that zod cannot express. Never throws. */
 export function sanitizeConfig(cfg: Config): Config {
+  const folderIds = new Set(cfg.accountFolders.map((f) => f.id))
+  const accounts = cfg.accounts.map((a) =>
+    a.folderId && !folderIds.has(a.folderId) ? { ...a, folderId: null } : a
+  )
   const accountIds = new Set(cfg.accounts.map((a) => a.id))
   const workspaces = cfg.workspaces.map((w) => ({
     ...w,
@@ -171,15 +191,12 @@ export function sanitizeConfig(cfg: Config): Config {
     cfg.settings.defaultAccountId && accountIds.has(cfg.settings.defaultAccountId)
       ? cfg.settings.defaultAccountId
       : null
-  const sharedSourceAccountId =
-    cfg.settings.sharedSourceAccountId && accountIds.has(cfg.settings.sharedSourceAccountId)
-      ? cfg.settings.sharedSourceAccountId
-      : null
   return {
     ...cfg,
+    accounts,
     workspaces,
     activeWorkspace,
-    settings: { ...cfg.settings, defaultAccountId, sharedSourceAccountId }
+    settings: { ...cfg.settings, defaultAccountId }
   }
 }
 

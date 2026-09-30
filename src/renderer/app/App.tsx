@@ -14,6 +14,7 @@ import { matchShortcut } from './shortcuts'
 import { paneIds } from '../layout/tree'
 import { terminalTheme } from '../lib/term-theme'
 import { DENSE_PANE_COUNT, activeWorkspace, currentTheme } from './store'
+import { FONT_SIZE_DEFAULT, FONT_SIZE_MAX, FONT_SIZE_MIN } from '@shared/types'
 
 /** App shortcuts, caught in the capture phase so a focused terminal never sees them. */
 function useGlobalShortcuts(): void {
@@ -47,6 +48,16 @@ function useGlobalShortcuts(): void {
           if (s.modal) s.closeModal()
           else s.openModal({ kind: 'shortcuts' })
           break
+        case 'fontSize': {
+          const size = s.config.settings.fontSize
+          s.updateSettings({
+            fontSize:
+              action.delta === 0
+                ? FONT_SIZE_DEFAULT
+                : Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, size + action.delta))
+          })
+          break
+        }
       }
     }
     window.addEventListener('keydown', onKey, true)

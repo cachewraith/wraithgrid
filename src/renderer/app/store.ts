@@ -11,6 +11,7 @@ import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
 import {
   ACCOUNT_COLORS,
+  ACCOUNT_ICON_MAX,
   type Account,
   type Config,
   type LayoutNode,
@@ -18,6 +19,7 @@ import {
   type PaneStatus,
   resolveTheme,
   type Settings,
+  type SharedMode,
   type ThemeName,
   type Workspace
 } from '@shared/types'
@@ -123,16 +125,29 @@ export interface AppState {
   switchWorkspaceIndex(index: number): void
   createWorkspace(name: string): void
   renameWorkspace(id: string, name: string): void
+  /** An emoji, or '' for the first letter. */
+  setWorkspaceIcon(id: string, icon: string): void
   deleteWorkspace(id: string): void
 
   // accounts
   addAccount(name: string, color: string): Promise<string | null>
   importAccount(dir: string): string | null
   renameAccount(id: string, name: string): void
+  /** An emoji, or '' for the color dot. */
+  setAccountIcon(id: string, icon: string): void
+  /** null moves the account out of any folder. */
+  moveAccountToFolder(id: string, folderId: string | null): void
+  createFolder(name: string): string | null
+  renameFolder(id: string, name: string): void
+  toggleFolder(id: string): void
+  /** The folder's accounts move to the top level; none are removed. */
+  deleteFolder(id: string): void
   removeAccount(id: string, deleteDir: boolean): Promise<string | null>
   markSignedIn(id: string): void
-  /** Shares this account's CLAUDE.md and skills with all others (null: each keeps its own). */
-  setSharedSource(id: string | null): Promise<string | null>
+  /** 'overall' links ~/.claude into every account; 'per-account' takes the links out. */
+  setSharedMode(mode: SharedMode): Promise<string | null>
+  /** Restarts every started claude pane, e.g. so a new CLAUDE.md or skill is picked up. */
+  restartClaudePanes(): number
   loginAccount(id: string): void
 
   // settings
@@ -582,7 +597,7 @@ export function createAppStore({
       createWorkspace(name) {
         const trimmed = name.trim().slice(0, 64)
         if (!trimmed) return
-        const ws: Workspace = { id: newId('ws'), name: trimmed, panes: [], layout: null }
+        const ws: Workspace = { id: newId('ws'), name: trimmed, icon: '', panes: [], layout: null }
         const s = get()
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)
@@ -627,7 +642,9 @@ export function createAppStore({
           configDir: res.dir,
           color,
           signedIn: false,
-          imported: false
+          imported: false,
+          icon: '',
+          folderId: null
         }
         get().updateConfig((c) => ({
           ...c,
@@ -652,7 +669,9 @@ export function createAppStore({
           configDir: trimmed,
           color: nextFreeColor(s.config.accounts),
           signedIn: true,
-          imported: true
+          imported: true,
+          icon: '',
+          folderId: null
         }
         get().updateConfig((c) => ({
           ...c,
@@ -660,6 +679,69 @@ export function createAppStore({
           settings: { ...c.settings, defaultAccountId: c.settings.defaultAccountId ?? account.id }
         }))
         return null
+      },
+
+      setWorkspaceIcon(id, icon) {
+        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+        get().updateConfig((c) => ({
+          ...c,
+          workspaces: c.workspaces.map((w) => (w.id === id ? { ...w, icon: trimmed } : w))
+        }))
+      },
+
+      setAccountIcon(id, icon) {
+        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+        get().updateConfig((c) => ({
+          ...c,
+          accounts: c.accounts.map((a) => (a.id === id ? { ...a, icon: trimmed } : a))
+        }))
+      },
+
+      moveAccountToFolder(id, folderId) {
+        get().updateConfig((c) => {
+          if (folderId && !c.accountFolders.some((f) => f.id === folderId)) return c
+          return {
+            ...c,
+            accounts: c.accounts.map((a) => (a.id === id ? { ...a, folderId } : a))
+          }
+        })
+      },
+
+      createFolder(name) {
+        const trimmed = name.trim().slice(0, 64)
+        if (!trimmed || get().config.accountFolders.length >= 32) return null
+        const id = newId('f')
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: [...c.accountFolders, { id, name: trimmed, collapsed: false }]
+        }))
+        return id
+      },
+
+      renameFolder(id, name) {
+        const trimmed = name.trim().slice(0, 64)
+        if (!trimmed) return
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: c.accountFolders.map((f) => (f.id === id ? { ...f, name: trimmed } : f))
+        }))
+      },
+
+      toggleFolder(id) {
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: c.accountFolders.map((f) =>
+            f.id === id ? { ...f, collapsed: !f.collapsed } : f
+          )
+        }))
+      },
+
+      deleteFolder(id) {
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: c.accountFolders.filter((f) => f.id !== id),
+          accounts: c.accounts.map((a) => (a.folderId === id ? { ...a, folderId: null } : a))
+        }))
       },
 
       renameAccount(id, name) {
@@ -675,11 +757,6 @@ export function createAppStore({
         const s = get()
         const account = accountById(s.config, id)
         if (!account) return null
-        // The other accounts must not keep links into a dir that is going away.
-        if (s.config.settings.sharedSourceAccountId === id) {
-          const err = await get().setSharedSource(null)
-          if (err) return err
-        }
         // Panes first: a running claude must not keep writing into a dir being deleted.
         s.config.workspaces
           .flatMap((w) => w.panes)
@@ -701,12 +778,22 @@ export function createAppStore({
         return null
       },
 
-      async setSharedSource(id) {
-        const res = await api.shared.apply(id)
+      async setSharedMode(mode) {
+        const res = await api.shared.apply(mode)
         if (!res.ok) return res.error
-        get().updateSettings({ sharedSourceAccountId: id })
+        get().updateSettings({ sharedMode: mode })
         set({ sharedReport: res.report })
         return null
+      },
+
+      restartClaudePanes() {
+        const s = get()
+        const ids = s.config.workspaces
+          .flatMap((w) => w.panes)
+          .filter((p) => !p.shell && s.runtime[p.id]?.requested)
+          .map((p) => p.id)
+        ids.forEach((id) => get().restartPane(id))
+        return ids.length
       },
 
       markSignedIn(id) {

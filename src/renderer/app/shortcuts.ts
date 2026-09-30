@@ -7,6 +7,8 @@ export type ShortcutAction =
   | { type: 'focus'; dir: Direction }
   | { type: 'workspace'; index: number }
   | { type: 'shortcuts' }
+  /** +1 / -1 steps the terminal font size; 0 resets it. */
+  | { type: 'fontSize'; delta: -1 | 0 | 1 }
 
 export interface KeyLike {
   key: string
@@ -34,6 +36,16 @@ export function matchShortcut(e: KeyLike): ShortcutAction | null {
     const dir = ARROWS[e.key]
     return dir ? { type: 'focus', dir } : null
   }
+  // Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0, like a browser. Ctrl+Shift+- stays with the
+  // terminal: it is claude's undo (Ctrl+_).
+  if (e.ctrlKey && !e.altKey) {
+    if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.key === '+')
+      return { type: 'fontSize', delta: 1 }
+    if (!e.shiftKey && (e.code === 'Minus' || e.code === 'NumpadSubtract'))
+      return { type: 'fontSize', delta: -1 }
+    if (!e.shiftKey && (e.code === 'Digit0' || e.code === 'Numpad0'))
+      return { type: 'fontSize', delta: 0 }
+  }
   if (e.ctrlKey && e.shiftKey && !e.altKey) {
     switch (e.code) {
       case 'KeyN':
@@ -57,5 +69,6 @@ export const SHORTCUT_HINT = {
   zoom: 'Ctrl+Shift+Z',
   focus: 'Ctrl+Alt+Arrow',
   workspace: 'Ctrl+Shift+1…9',
-  shortcuts: 'Ctrl+Shift+/'
+  shortcuts: 'Ctrl+Shift+/',
+  fontSize: 'Ctrl+= / Ctrl+- / Ctrl+0'
 } as const

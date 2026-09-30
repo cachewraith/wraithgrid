@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { idSchema } from './schema'
-import type { Config } from './types'
+import { SHARED_MODES, type Config, type SharedMode } from './types'
 
 export { IPC } from './ipc-channels'
 
@@ -38,7 +38,7 @@ export const accountDeleteDirArgs = z.object({
   confirm: z.literal(true)
 })
 export const openExternalArgs = z.object({ url: z.string().max(8192) })
-export const sharedApplyArgs = z.object({ sourceAccountId: idSchema.nullable() })
+export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 /** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
 
@@ -141,7 +141,7 @@ export interface WraithApi {
   }
   shared: {
     /** Points every other account at this account's CLAUDE.md and skills (null: stop sharing). */
-    apply(sourceAccountId: string | null): Promise<SharedApplyResult>
+    apply(mode: SharedMode): Promise<SharedApplyResult>
   }
   app: {
     info(): Promise<AppInfo>

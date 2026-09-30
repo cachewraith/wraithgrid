@@ -15,13 +15,17 @@ const sample = (): Config => ({
       configDir: '~/.claude',
       color: '#7c5cff',
       signedIn: true,
-      imported: true
+      imported: true,
+      icon: '🦊',
+      folderId: 'f1'
     }
   ],
+  accountFolders: [{ id: 'f1', name: 'Work', collapsed: false }],
   workspaces: [
     {
       id: 'ws1',
       name: 'default',
+      icon: '🚀',
       panes: [
         { id: 'p1', accountId: 'a1', cwd: '~/proj', args: ['-c'], shell: false, title: 'proj' }
       ],
@@ -35,6 +39,12 @@ describe('config schema', () => {
   it('accepts a valid config unchanged', () => {
     const cfg = sample()
     expect(parseConfig(JSON.parse(JSON.stringify(cfg)))).toEqual({ ok: true, config: cfg })
+  })
+
+  it('drops a folder reference to a folder that does not exist', () => {
+    const cfg = { ...sample(), accountFolders: [] }
+    const res = parseConfig(JSON.parse(JSON.stringify(cfg)))
+    expect(res.ok && res.config.accounts[0]!.folderId).toBeNull()
   })
 
   it('fills defaults for missing optional fields', () => {

@@ -1,7 +1,7 @@
 # TODO
 
 ## Now
-- (none)
+- Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
 - (none recorded)

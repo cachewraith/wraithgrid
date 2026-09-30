@@ -32,8 +32,12 @@ export const TERMINAL_FONTS = [
 ] as const
 export type TerminalFont = (typeof TERMINAL_FONTS)[number]
 
+export const SHARED_MODES = ['overall', 'per-account'] as const
+export type SharedMode = (typeof SHARED_MODES)[number]
+
 export const FONT_SIZE_MIN = 10
 export const FONT_SIZE_MAX = 20
+export const FONT_SIZE_DEFAULT = 13
 export const DENSE_FONT_SIZE = 11
 
 export const ACCOUNT_COLORS = [
@@ -52,7 +56,47 @@ export interface Account {
   /** Wraithgrid's own flag. It is never derived from files inside configDir. */
   signedIn: boolean
   imported: boolean
+  /** An emoji shown instead of the color dot. Empty string: the dot. */
+  icon: string
+  /** The sidebar folder it sits in, or null for the top level. */
+  folderId: string | null
 }
+
+/** A sidebar folder that groups accounts. One level deep. */
+export interface AccountFolder {
+  id: string
+  name: string
+  collapsed: boolean
+}
+
+/** Quick picks for an account icon; any emoji can be typed in as well. */
+export const ACCOUNT_ICONS = [
+  '🤖',
+  '👾',
+  '🦊',
+  '🐙',
+  '🐳',
+  '🦉',
+  '🐝',
+  '🌵',
+  '🔥',
+  '⚡',
+  '🌙',
+  '⭐',
+  '🚀',
+  '🛠️',
+  '💼',
+  '🏠',
+  '🎓',
+  '🧪',
+  '🎨',
+  '📚',
+  '💡',
+  '🔒',
+  '🧠',
+  '👻'
+] as const
+export const ACCOUNT_ICON_MAX = 16
 
 export interface Pane {
   id: string
@@ -74,6 +118,8 @@ export type LayoutNode =
 export interface Workspace {
   id: string
   name: string
+  /** An emoji shown next to the name. Empty string: the first letter. */
+  icon: string
   /** Every pane in the workspace. Panes missing from `layout` are hidden, not closed. */
   panes: Pane[]
   layout: LayoutNode | null
@@ -89,10 +135,10 @@ export interface Settings {
   defaultCwd: string
   sidebarCollapsed: boolean
   /**
-   * The account whose CLAUDE.md and skills/ every other account links to.
-   * null keeps each account's own.
+   * 'overall': every account links to the machine's ~/.claude CLAUDE.md, settings,
+   * skills and plugins. 'per-account': each account keeps its own.
    */
-  sharedSourceAccountId: string | null
+  sharedMode: SharedMode
   /** Ask GitHub for a newer release once at startup. */
   checkUpdatesOnLaunch: boolean
 }
@@ -104,6 +150,7 @@ export interface Config {
   /** Override for the claude binary. Empty string means auto-detect from PATH. */
   claudePath: string
   accounts: Account[]
+  accountFolders: AccountFolder[]
   workspaces: Workspace[]
   activeWorkspace: string
   recentFolders: string[]
