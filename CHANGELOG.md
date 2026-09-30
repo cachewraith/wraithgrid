@@ -2,6 +2,7 @@
 
 ## 2026-09-30
 
+- [ci] Build installers only on release tags; push/PR runs checks only, docs-only changes skip CI (files: .github/workflows/build.yml, .github/workflows/release.yml)
 - [docs] Add the AI Working Agreement and context files (files: CLAUDE.md, CHANGELOG.md, docs/CONTEXT.md, docs/ARCHITECTURE.md, docs/DECISIONS.md, docs/TODO.md)
 
 ## 2026-09-29

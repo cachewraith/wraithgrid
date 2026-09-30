@@ -45,7 +45,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/styles/`: design tokens + base CSS
 - `tests/unit/`, `tests/e2e/`, `tests/fixtures/fake-claude.sh`: tests + fake CLI
 - `scripts/`: Docker Linux build, multi-distro package smoke test
-- `build/`: icons; `.github/workflows/`: build.yml (CI), release.yml (tag → release)
+- `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
 ## Conventions
@@ -70,6 +70,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Sandboxed preload can't require node_modules: preload is bundled (`externalizeDeps: false`).
 - Single-instance lock: a second launch exits.
 - Tests use `WRAITHGRID_USER_DATA_DIR` for a throwaway config dir.
+- CI skips pushes touching only `*.md`/`docs/**`; installers build only on a `v*.*.*` tag.
 - AppImage on Ubuntu 24.04+/Kali blocked by AppArmor; prefer .deb.
 
 ## Current focus

@@ -13,3 +13,4 @@ Entries dated 2026-09-29 are reconstructed from the code and commit history duri
 - 2026-09-29 | Update check reports only, from a hardcoded GitHub URL | Works for every package type; no SSRF from config | Auto-updater (electron-updater)
 - 2026-09-29 | Platform logic as pure functions of `(platform, env)` | Unit-testable on any OS | Branching on `process.platform` inline
 - 2026-09-30 | Adopt the AI Working Agreement (`CLAUDE.md`) + docs context files | Cut per-session re-exploration | None
+- 2026-09-30 | CI builds installers only for release tags; docs-only pushes skip CI | Avoid rebuilding downloads on every push/doc edit | Separate package workflow (more files); manual workflow_dispatch packaging (not needed)
