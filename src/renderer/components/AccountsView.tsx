@@ -173,7 +173,7 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
   const actions = useActions()
   const sharedNote = useApp((s) =>
     s.config.settings.sharedMode === 'overall'
-      ? 'Uses the CLAUDE.md, settings, skills and plugins of ~/.claude'
+      ? 'Shares ~/.claude (CLAUDE.md, skills, plugins)'
       : null
   )
   const [renaming, setRenaming] = useState(false)
