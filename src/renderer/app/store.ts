@@ -5,6 +5,7 @@ import type {
   PtyExitEvent,
   SharedReportEntry,
   UpdateCheckResult,
+  UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
 import { baseName, slugify } from '@shared/paths'
@@ -96,7 +97,13 @@ export interface AppState {
   activated: Record<string, true>
   /** The OS light/dark setting, used when the theme is `system`. */
   systemTheme: ThemeName
-  update: { checking: boolean; result: UpdateCheckResult | null }
+  update: {
+    checking: boolean
+    result: UpdateCheckResult | null
+    /** An in-app install in progress, and the last one's error. */
+    install: UpdateProgress
+    installError: { error: string; manual: boolean } | null
+  }
   /** A Settings section to scroll to once, then cleared. */
   settingsAnchor: 'updates' | null
 
@@ -156,6 +163,8 @@ export interface AppState {
   detectClaude(): Promise<void>
   setSystemTheme(theme: ThemeName): void
   checkForUpdates(reason: 'launch' | 'manual'): Promise<void>
+  /** Downloads and installs the newest release, then the app restarts. */
+  installUpdate(): Promise<void>
 
   // ui
   setView(view: View): void
@@ -437,7 +446,7 @@ export function createAppStore({
       closingPaneId: null,
       activated: {},
       systemTheme: 'dark',
-      update: { checking: false, result: null },
+      update: { checking: false, result: null, install: { phase: 'idle' }, installError: null },
       settingsAnchor: null,
 
       async init() {
@@ -452,6 +461,8 @@ export function createAppStore({
           if (account && !account.signedIn) get().markSignedIn(account.id)
         })
         setInterval(refreshStatuses, 500)
+        api.update.onProgress((install) => set({ update: { ...get().update, install } }))
+        api.update.onShow(() => get().showUpdates())
         set({
           config,
           info,
@@ -845,10 +856,27 @@ export function createAppStore({
         // A skipped launch check keeps whatever an earlier check found.
         set({
           update: {
+            ...get().update,
             checking: false,
             result: result.status === 'skipped' ? get().update.result : result
           }
         })
+      },
+
+      async installUpdate() {
+        if (get().update.install.phase !== 'idle') return
+        set({ update: { ...get().update, installError: null } })
+        const r = await api.update.install()
+        // On success the app is quitting; there is nothing left to show.
+        if (!r.ok) {
+          set({
+            update: {
+              ...get().update,
+              install: { phase: 'idle' },
+              installError: { error: r.error, manual: r.manual }
+            }
+          })
+        }
       },
 
       // ---- ui ------------------------------------------------------------------
