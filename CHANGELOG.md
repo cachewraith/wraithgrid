@@ -2,6 +2,9 @@
 
 ## 2026-09-30
 
+- [release] v1.2.0 (files: package.json)
+- [docs] Refresh README screenshots and text for sharing, folders, icons, shortcuts and update alerts (files: README.md, docs/screenshots/)
+- [ui] Shorter per-account sharing note; font options stay on one row (files: src/renderer/components/AccountsView.tsx, src/renderer/styles/base.css)
 - [ui] Clean-up pass: letter/emoji badges (`Avatar`) for every account and workspace, one header per sidebar section, workspace shortcut digits on hover, only "login needed" shown as account status, balanced Accounts table, wrapped claude version, untruncated font names, shorter sharing copy; icon picker returns focus after a pick (files: src/renderer/components/{AccountIcon,IconPicker,Sidebar,SidebarAccounts,AccountsView,SettingsView,NewPaneDialog,PaneHeader}.tsx, src/renderer/styles/base.css)
 - [workspaces] Custom emoji icon per workspace, set from the workspace switcher (files: src/shared/{types,schema}.ts, src/renderer/app/store.ts, src/renderer/components/WorkspaceSwitcher.tsx, tests/e2e/account-folders.spec.ts)
 - [updates] A new release raises an OS notification once per version (launch check + every 6 h while open, packaged builds only); click opens the release page (files: src/main/update-notify.ts, src/main/index.ts, src/main/ipc.ts, tests/unit/update-notify.test.ts)

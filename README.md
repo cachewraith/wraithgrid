@@ -19,7 +19,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/grid-light.png" />
-  <img src="docs/screenshots/grid-dark.png" alt="Wraithgrid showing four claude sessions in a 2×2 grid, each under a different account and project folder" />
+  <img src="docs/screenshots/grid-dark.png" alt="Wraithgrid showing four claude sessions in a 2×2 grid, each under a different account and project folder, with accounts grouped in a sidebar folder" />
 </picture>
 
 ## Why Wraithgrid
@@ -39,8 +39,10 @@ reads, copies or proxies anything inside those folders.
 | **Many accounts at once**     | Personal, work and client accounts run side by side, each with its own login, settings and history.          |
 | **Flexible layouts**          | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.           |
 | **Workspaces**                | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                   |
-| **Live pane status**          | Each pane shows whether `claude` is running, idle or waiting for your approval.                              |
-| **Shared CLAUDE.md & skills** | Optionally link one `CLAUDE.md` and one `skills/` folder into every account.                                 |
+| **Folders & icons**           | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.        |
+| **Live pane status**          | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                   |
+| **Shared CLAUDE.md & skills** | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.          |
+| **Update alerts**             | A desktop notification tells you once when a new version is released.                                        |
 | **Survives restarts**         | Workspaces, layouts, accounts and folders come back on the next launch.                                      |
 | **Themes**                    | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.      |
 | **Native everywhere**         | Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
@@ -55,14 +57,14 @@ reads, copies or proxies anything inside those folders.
       <p align="center"><b>New pane</b>: pick an account, a folder and launch args</p>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/accounts.png" alt="Accounts view listing four accounts with their config dirs and login state" />
-      <p align="center"><b>Accounts</b>: one <code>CLAUDE_CONFIG_DIR</code> per account</p>
+      <img src="docs/screenshots/accounts.png" alt="Accounts view listing four accounts with icons, their config dirs, shared ~/.claude and login state" />
+      <p align="center"><b>Accounts</b>: one <code>CLAUDE_CONFIG_DIR</code> per account, each with its own icon</p>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/settings.png" alt="Appearance settings with theme, accent color, terminal palette and font" />
-      <p align="center"><b>Appearance</b>: theme, accent, terminal colors and font</p>
+      <img src="docs/screenshots/settings.png" alt="Settings with shared ~/.claude mode, theme, accent color, terminal palette and font" />
+      <p align="center"><b>Settings</b>: shared <code>~/.claude</code>, theme, accent, terminal colors and font</p>
     </td>
     <td width="50%">
       <img src="docs/screenshots/grid-light.png" alt="The pane grid in the light theme with a teal accent" />
@@ -144,17 +146,23 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
      back.
 5. **Workspaces.** Keep separate sets of panes (the sidebar, or **Manage** to create, rename
    and delete them) and switch with `Ctrl+Shift+1…9`.
-6. **Share one CLAUDE.md and one set of skills.** Each account normally has its own
-   `CLAUDE.md` and `skills/`, because they live in its config dir. In **Settings → Shared
-   CLAUDE.md and skills**, pick the account that holds the real ones. Every other account then
-   gets links to them. Logins, settings and history stay separate per account.
-   - An account's own `CLAUDE.md` or `skills/` is not deleted: it is renamed to
-     `CLAUDE.md.wraithgrid-backup` / `skills.wraithgrid-backup`, and put back when you pick
-     **Off**.
+6. **One claude setup for every account.** By default (**Settings → Shared CLAUDE.md and
+   skills → Overall**) every account uses the `CLAUDE.md`, `settings.json`, `skills/`,
+   `plugins/`, `agents/` and `commands/` of your normal `~/.claude`, so your instructions and
+   installed plugins work in every account. Logins and history stay separate per account.
+   Pick **Each account its own** to turn it off.
+   - An account's own files are not deleted: they are renamed to `…wraithgrid-backup` and put
+     back when you switch to **Each account its own**.
    - Accounts added later are linked the first time a pane starts for them.
-   - On Windows, `skills` is a junction. `CLAUDE.md` is a symlink with Developer Mode on,
-     otherwise a hard link. Editors that save by replacing the file break a hard link, so edit
-     `CLAUDE.md` in the source account.
+   - A running `claude` reads these files when it starts: use **Restart claude panes** after
+     switching.
+   - On Windows, folders are junctions. Files are symlinks with Developer Mode on, otherwise
+     hard links. Editors that save by replacing the file break a hard link, so edit them in
+     `~/.claude`.
+7. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
+   to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
+   Click an account's badge on the Accounts page, or a workspace's badge in **Manage**, to
+   give it an emoji icon.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
 **Restart** button. Quitting Wraithgrid ends every pane's processes. On the next launch your
@@ -171,6 +179,9 @@ where you left off.
 | Zoom pane / back to grid            | `Ctrl+Shift+Z`       |
 | Move focus left / up / right / down | `Ctrl+Alt+Arrow`     |
 | Switch workspace                    | `Ctrl+Shift+1` … `9` |
+| New line in claude                  | `Shift+Enter`        |
+| Terminal text bigger / smaller      | `Ctrl+=` / `Ctrl+-`  |
+| Reset terminal text size            | `Ctrl+0`             |
 | Copy / paste in a terminal          | `Ctrl+Shift+C` / `V` |
 | All shortcuts                       | `Ctrl+Shift+/`       |
 | Close a dialog                      | `Esc`                |
@@ -188,10 +199,11 @@ never saves terminal content.
 
 - the `claude` binary: auto-detected from `PATH`, with an optional override
 - the default account and the default working directory
-- shared `CLAUDE.md` and skills
+- sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - theme (dark, light or system), accent color and terminal color palette
 - the terminal font and size
-- update checks against GitHub releases (nothing is downloaded or installed for you)
+- update checks against GitHub releases, with a desktop notification once per new version
+  (nothing is downloaded or installed for you)
 
 ## Privacy and security
 
@@ -199,9 +211,9 @@ never saves terminal content.
   (http and https only), and the optional release check, which you can turn off.
 - **Sandboxed renderer.** The UI runs sandboxed with context isolation. It reaches the system
   only through a fixed, validated IPC surface.
-- **Account folders are off-limits.** Sharing CLAUDE.md and skills is opt-in. It is the only
-  time Wraithgrid writes into account config dirs, and it only places links and renames what
-  was in the way. It never reads the files.
+- **Account folders are off-limits.** Sharing `~/.claude` is the only time Wraithgrid writes
+  into account config dirs, and it only places links and renames what was in the way. It never
+  reads the files. Logins (`.credentials.json`, `.claude.json`) are never linked.
 - **Guarded deletes.** Deleting an account's config dir is opt-in, needs confirmation, and only
   works on the folder that account points to inside your home directory.
 
