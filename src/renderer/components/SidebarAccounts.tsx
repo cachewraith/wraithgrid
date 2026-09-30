@@ -1,5 +1,5 @@
 // The sidebar's account list: one level of folders, and drag an account onto a folder
-// (or onto the list itself, for the top level) to move it.
+// (or onto the list itself, for the top level) to move it. Right-click a folder to edit it.
 import { useState } from 'react'
 import {
   DndContext,
@@ -16,7 +16,8 @@ import {
 import type { Account, AccountFolder } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { AccountIcon } from './AccountIcon'
-import { IconClose, IconPlus } from './icons'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
+import { IconClose, IconFolder, IconPlus, IconRename, IconTrash } from './icons'
 
 const ROOT = 'folder:root'
 // The zone under the pointer; if none, the one the dragged row overlaps.
@@ -54,16 +55,28 @@ function AccountRow({ account }: { account: Account }) {
 function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Account[] }) {
   const actions = useActions()
   const { setNodeRef, isOver } = useDroppable({ id: folderDropId(folder.id) })
+  const folderCount = useApp((s) => s.config.accountFolders.length)
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(folder.name)
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
   const save = (): void => {
     actions.renameFolder(folder.id, name)
     setRenaming(false)
   }
+  const startRename = (): void => {
+    setName(folder.name)
+    setRenaming(true)
+  }
 
   return (
     <div ref={setNodeRef} className={`fold${isOver ? ' over' : ''}`}>
-      <div className="fold-hd">
+      <div
+        className="fold-hd"
+        onContextMenu={(e) => {
+          e.preventDefault()
+          setMenu(menuPoint(e))
+        }}
+      >
         <button
           className="fold-tg"
           aria-expanded={!folder.collapsed}
@@ -95,11 +108,8 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
         ) : (
           <span
             className="fold-nm"
-            title="Double-click to rename"
-            onDoubleClick={() => {
-              setName(folder.name)
-              setRenaming(true)
-            }}
+            title="Double-click or right-click to rename"
+            onDoubleClick={startRename}
           >
             {folder.name}
           </span>
@@ -114,6 +124,33 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
           <IconClose small />
         </button>
       </div>
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          label={`Folder ${folder.name}`}
+          onClose={() => setMenu(null)}
+          items={[
+            { label: 'Rename', icon: <IconRename small />, onSelect: startRename },
+            {
+              label: folder.collapsed ? 'Expand' : 'Collapse',
+              icon: <IconFolder small />,
+              onSelect: () => actions.toggleFolder(folder.id)
+            },
+            {
+              label: 'New folder',
+              icon: <IconPlus small />,
+              disabled: folderCount >= 32,
+              onSelect: () => void actions.createFolder(`Folder ${folderCount + 1}`)
+            },
+            {
+              label: 'Delete folder (accounts stay)',
+              icon: <IconTrash small />,
+              danger: true,
+              onSelect: () => actions.deleteFolder(folder.id)
+            }
+          ]}
+        />
+      ) : null}
       {folder.collapsed ? null : (
         <div className="fold-bd">
           {accounts.length === 0 ? <div className="side-empty">Drop accounts here.</div> : null}

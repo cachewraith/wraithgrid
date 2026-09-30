@@ -2031,3 +2031,112 @@ kbd,
   flex: 1;
   min-width: 0;
 }
+
+/* ---- Sidebar motion + right-click menus ------------------------------------------ */
+
+/* Collapse/expand slides the edge; the content keeps its own width, so it is revealed or
+   clipped instead of reflowing, and the newly shown content fades in. */
+.side {
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.side.moving {
+  overflow: hidden;
+}
+.side.moving:not(.col) > * {
+  min-width: 235px;
+}
+.side.col {
+  align-items: stretch;
+}
+/* The header (its divider) spans the moving edge; the rest stays in the 51px rail. */
+.side.col > :not(.side-hd) {
+  width: 51px;
+}
+.side > :not(.side-hd) {
+  animation: side-fade 200ms ease-out;
+}
+@keyframes side-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.ws-row.menu {
+  background: var(--raise);
+  color: var(--tx);
+}
+.ws-in {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  font-size: 13px;
+}
+
+.cm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.cm {
+  position: fixed;
+  z-index: 41;
+  min-width: 190px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  animation: cm-in 110ms ease-out;
+  transform-origin: top left;
+}
+@keyframes cm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+.cm-it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--tx);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+}
+.cm-it:hover:not(:disabled),
+.cm-it:focus {
+  background: var(--raise);
+  outline: none;
+}
+.cm-it:disabled {
+  color: var(--fa);
+}
+.cm-it.danger:not(:disabled) {
+  color: var(--err);
+}
+.cm-ic {
+  width: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--mu);
+}
+.cm-it.danger .cm-ic {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side {
+    transition: none;
+  }
+  .side > *,
+  .cm {
+    animation: none;
+  }
+}

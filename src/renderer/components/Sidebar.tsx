@@ -1,8 +1,19 @@
-import type { Config } from '@shared/types'
+import { useEffect, useRef, useState } from 'react'
+import type { Config, Workspace } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { AccountIcon, Avatar } from './AccountIcon'
-import { IconGrid4, IconPlus, IconSidebar, IconUserPlus } from './icons'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
+import { IconPopover } from './IconPicker'
+import {
+  IconGrid4,
+  IconPlus,
+  IconRename,
+  IconSidebar,
+  IconSun,
+  IconTrash,
+  IconUserPlus
+} from './icons'
 import { SidebarAccounts } from './SidebarAccounts'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
@@ -12,18 +23,164 @@ export function accountColorsFor(config: Config, wsId: string): string[] {
   return ids.flatMap((id) => config.accounts.find((a) => a.id === id)?.color ?? [])
 }
 
+/** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
+const SIDE_MOVE_MS = 260
+
+/** One workspace in the sidebar: click to switch, right-click to rename, re-icon or delete. */
+function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
+  const actions = useActions()
+  const config = useApp((s) => s.config)
+  const on = useApp((s) => s.config.activeWorkspace === w.id && s.view === 'grid')
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [iconAt, setIconAt] = useState<{ top: number; left: number } | null>(null)
+  const rowRef = useRef<HTMLButtonElement>(null)
+  const key = index < 9 ? index + 1 : null
+  const canDelete = config.workspaces.length > 1
+  const panes = w.panes.length
+
+  const saveRename = (): void => {
+    if (renaming?.trim()) actions.renameWorkspace(w.id, renaming)
+    setRenaming(null)
+  }
+
+  if (renaming !== null) {
+    return (
+      <div className="ws-row on">
+        <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
+        <input
+          className="inpt sans ws-in"
+          value={renaming}
+          maxLength={64}
+          aria-label="Workspace name"
+          autoFocus
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setRenaming(e.target.value)}
+          onBlur={saveRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveRename()
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              setRenaming(null)
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <button
+        ref={rowRef}
+        className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
+        aria-current={on ? 'true' : undefined}
+        title={key ? `Switch to ${w.name} (Ctrl+Shift+${key})` : `Switch to ${w.name}`}
+        onClick={() => actions.switchWorkspace(w.id)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          setConfirmDelete(false)
+          setMenu(menuPoint(e))
+        }}
+      >
+        <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
+        <span className="ws-name">{w.name}</span>
+        <span className="dots">
+          {accountColorsFor(config, w.id).map((c) => (
+            <span key={c} className="dot" style={{ background: c }} />
+          ))}
+        </span>
+        <span
+          className="cnt"
+          aria-label={`${panes} panes`}
+          title={`${panes} ${panes === 1 ? 'pane' : 'panes'}`}
+        >
+          {panes}
+        </span>
+        {key ? <kbd className="ws-key">{key}</kbd> : null}
+      </button>
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          label={`Workspace ${w.name}`}
+          onClose={() => setMenu(null)}
+          items={[
+            { label: 'Rename', icon: <IconRename small />, onSelect: () => setRenaming(w.name) },
+            {
+              label: 'Change icon',
+              icon: <IconSun small />,
+              // The icon grid opens under the row.
+              onSelect: () => {
+                const r = rowRef.current?.getBoundingClientRect()
+                if (r) setIconAt({ top: r.bottom + 6, left: r.left + 8 })
+              }
+            },
+            {
+              label: !canDelete
+                ? 'Delete (last workspace)'
+                : confirmDelete
+                  ? panes
+                    ? `Click again: closes ${panes} ${panes === 1 ? 'pane' : 'panes'}`
+                    : 'Click again to delete'
+                  : 'Delete workspace',
+              icon: <IconTrash small />,
+              danger: true,
+              disabled: !canDelete,
+              onSelect: () => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true)
+                  return false
+                }
+                actions.deleteWorkspace(w.id)
+              }
+            }
+          ]}
+        />
+      ) : null}
+      {iconAt ? (
+        <IconPopover
+          at={iconAt}
+          icon={w.icon}
+          name={w.name}
+          onPick={(icon) => {
+            actions.setWorkspaceIcon(w.id, icon)
+            setIconAt(null)
+          }}
+          onClose={() => setIconAt(null)}
+        />
+      ) : null}
+    </>
+  )
+}
+
 export function Sidebar() {
   const actions = useActions()
   const collapsed = useApp((s) => s.config.settings.sidebarCollapsed)
-  const view = useApp((s) => s.view)
   const config = useApp((s) => s.config)
-  const { workspaces, accounts, activeWorkspace: activeId } = config
+  const { workspaces, accounts } = config
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+  // While the width animates, the content keeps a fixed width (`.moving`) so it is revealed
+  // or clipped instead of reflowing. Only then: at rest it must fit beside a scrollbar.
+  const [shown, setShown] = useState(collapsed)
+  const [moving, setMoving] = useState(false)
+  if (shown !== collapsed) {
+    setShown(collapsed)
+    setMoving(true)
+  }
+  useEffect(() => {
+    if (!moving) return
+    const t = setTimeout(() => setMoving(false), SIDE_MOVE_MS)
+    return () => clearTimeout(t)
+  }, [moving, collapsed])
 
   const newPane = (): void => actions.openModal({ kind: 'newPane', slotId: null })
 
   return (
-    <aside className={`side${collapsed ? ' col' : ''}`} aria-label="Sidebar">
+    <aside
+      className={`side${collapsed ? ' col' : ''}${moving ? ' moving' : ''}`}
+      aria-label="Sidebar"
+    >
       <div className="side-hd">
         {collapsed ? null : <span />}
         <button
@@ -77,35 +234,9 @@ export function Sidebar() {
               <span>Workspaces</span>
               <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
             </div>
-            {workspaces.map((w, i) => {
-              const on = w.id === activeId && view === 'grid'
-              const key = i < 9 ? i + 1 : null
-              return (
-                <button
-                  key={w.id}
-                  className={`ws-row${on ? ' on' : ''}`}
-                  aria-current={on ? 'true' : undefined}
-                  title={key ? `Switch to ${w.name} (Ctrl+Shift+${key})` : `Switch to ${w.name}`}
-                  onClick={() => actions.switchWorkspace(w.id)}
-                >
-                  <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
-                  <span className="ws-name">{w.name}</span>
-                  <span className="dots">
-                    {accountColorsFor(config, w.id).map((c) => (
-                      <span key={c} className="dot" style={{ background: c }} />
-                    ))}
-                  </span>
-                  <span
-                    className="cnt"
-                    aria-label={`${w.panes.length} panes`}
-                    title={`${w.panes.length} ${w.panes.length === 1 ? 'pane' : 'panes'}`}
-                  >
-                    {w.panes.length}
-                  </span>
-                  {key ? <kbd className="ws-key">{key}</kbd> : null}
-                </button>
-              )
-            })}
+            {workspaces.map((w, i) => (
+              <WorkspaceRow key={w.id} w={w} index={i} />
+            ))}
           </div>
           <SidebarAccounts />
           <div className="side-ft">

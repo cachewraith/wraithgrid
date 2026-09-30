@@ -41,7 +41,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges; IconPicker)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges; IconPicker/IconPopover; ContextMenu = right-click menus)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling
 - `src/renderer/styles/`: design tokens + base CSS
@@ -78,6 +78,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - claude only has a "new line" key via ESC CR; the terminal maps Shift+Enter to it for claude panes.
 - Running claude reads CLAUDE.md/skills/plugins at start: a sharing change needs a pane restart.
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
+- Popovers/menus must portal to <body>: sidebar sections animate opacity (own stacking context) and the sidebar clips.
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
 
 ## Current focus
