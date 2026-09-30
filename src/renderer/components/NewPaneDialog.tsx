@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome } from '@shared/paths'
+import { AccountIcon } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { Dialog } from './Dialog'
 import { IconCheck, IconClose, IconFolder } from './icons'
@@ -100,10 +101,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                       disabled={shell}
                       onClick={() => setAccountId(a.id)}
                     >
-                      <span
-                        className="dot"
-                        style={{ background: a.color, width: 10, height: 10 }}
-                      />
+                      <AccountIcon account={a} size={22} />
                       <span className="tx">
                         <span className="nm">{a.name}</span>
                         <span className={`sb${a.signedIn ? '' : ' warn'}`}>

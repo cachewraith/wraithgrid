@@ -39,7 +39,13 @@ import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
 import { accountsRoot, isStrictlyInside, resolveUserPath } from './paths'
 import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
-import { ensureSource, linkShared, unlinkShared, type ItemResult } from './shared-config'
+import {
+  ensureSource,
+  linkShared,
+  overallSourceDir,
+  unlinkShared,
+  type ItemResult
+} from './shared-config'
 import type { PtyManager } from './pty-manager'
 import type { UpdateChecker } from './update-check'
 
@@ -54,6 +60,8 @@ export interface IpcDeps {
   updates: UpdateChecker
   /** Launch-time update checks only run in packaged builds. */
   isPackaged: boolean
+  /** Sees every launch-time check result (e.g. to raise an OS notification). */
+  onLaunchUpdateCheck?: (result: UpdateCheckResult) => void
   /** Called after a valid config replaced the old one. */
   onConfigChanged?: (prev: Config, next: Config) => void
 }
@@ -114,15 +122,16 @@ export function registerIpc(deps: IpcDeps): void {
   const fail = (error: string): { ok: false; error: string } => ({ ok: false, error })
   const dirOf = (acc: { configDir: string }): string => resolveUserPath(acc.configDir, homeDir)
 
-  /** Links the shared CLAUDE.md and skills into one account, if sharing is on. */
+  const sharedSource = overallSourceDir(homeDir)
+
+  /** Links the machine's CLAUDE.md, settings, skills and plugins into one account, if sharing is overall. */
   const syncShared = async (accountId: string): Promise<void> => {
     const cfg = store.get()
-    const source = cfg.accounts.find((x) => x.id === cfg.settings.sharedSourceAccountId)
     const account = cfg.accounts.find((x) => x.id === accountId)
-    if (!source || !account || source.id === account.id) return
+    if (cfg.settings.sharedMode !== 'overall' || !account) return
     try {
-      await ensureSource(dirOf(source))
-      const failed = (await linkShared(dirOf(source), dirOf(account))).filter(
+      await ensureSource(sharedSource)
+      const failed = (await linkShared(sharedSource, dirOf(account))).filter(
         (r) => r.outcome === 'failed'
       )
       failed.forEach((r) => log(`could not link shared ${r.item} for ${account.name}: ${r.error}`))
@@ -292,6 +301,8 @@ export function registerIpc(deps: IpcDeps): void {
       const realHome = await realpath(homeDir)
       if (!isStrictlyInside(real, realHome))
         return fail('Refusing to delete a folder outside your home directory')
+      // Drop the links to ~/.claude first so a recursive delete can never reach through them.
+      await unlinkShared(sharedSource, real)
       await rm(real, { recursive: true, force: true })
       log(`deleted account config dir ${contractHome(target, homeDir)} at the user's request`)
       return { ok: true }
@@ -306,29 +317,21 @@ export function registerIpc(deps: IpcDeps): void {
     sharedApplyArgs,
     async (a): Promise<SharedApplyResult> => {
       const cfg = store.get()
-      const next = a.sourceAccountId
-        ? cfg.accounts.find((x) => x.id === a.sourceAccountId)
-        : undefined
-      if (a.sourceAccountId && !next) return fail('That account no longer exists')
-      const prev = cfg.accounts.find((x) => x.id === cfg.settings.sharedSourceAccountId)
       const report: SharedReportEntry[] = []
       const add = (account: string, results: ItemResult[]): void => {
         results.forEach((r) => report.push({ account, ...r }))
       }
-      // Switching or stopping: take the old links out first, restoring what they replaced.
-      if (prev && prev.id !== next?.id) {
-        for (const acc of cfg.accounts) add(acc.name, await unlinkShared(dirOf(prev), dirOf(acc)))
-      }
-      if (next) {
-        await ensureSource(dirOf(next))
-        for (const acc of cfg.accounts) {
-          if (acc.id !== next.id) add(acc.name, await linkShared(dirOf(next), dirOf(acc)))
-        }
+      if (a.mode === 'overall') {
+        await ensureSource(sharedSource)
+        for (const acc of cfg.accounts) add(acc.name, await linkShared(sharedSource, dirOf(acc)))
+      } else {
+        // Take the links out, restoring what they replaced.
+        for (const acc of cfg.accounts) add(acc.name, await unlinkShared(sharedSource, dirOf(acc)))
       }
       log(
-        next
-          ? `sharing CLAUDE.md and skills from ${next.name} with ${cfg.accounts.length - 1} accounts`
-          : 'stopped sharing CLAUDE.md and skills'
+        a.mode === 'overall'
+          ? `sharing ~/.claude with ${cfg.accounts.length} accounts`
+          : 'stopped sharing ~/.claude'
       )
       return { ok: true, report }
     },
@@ -366,6 +369,7 @@ export function registerIpc(deps: IpcDeps): void {
       }
       const r = await deps.updates.check()
       if (r.status === 'error') log(`update check failed: ${r.error}`)
+      if (a.reason === 'launch') deps.onLaunchUpdateCheck?.(r)
       return r
     },
     {

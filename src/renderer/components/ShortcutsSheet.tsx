@@ -8,6 +8,8 @@ const ROWS: { label: string; keys: string[] }[] = [
   { label: 'Zoom pane / back to grid', keys: ['Ctrl', 'Shift', 'Z'] },
   { label: 'Focus pane left / up / right / down', keys: ['Ctrl', 'Alt', '←', '↑', '→', '↓'] },
   { label: 'Switch workspace', keys: ['Ctrl', 'Shift', '1', '…', '9'] },
+  { label: 'Terminal text bigger / smaller / reset', keys: ['Ctrl', '+', '-', '0'] },
+  { label: 'New line in claude', keys: ['Shift', 'Enter'] },
   { label: 'Copy / paste in a terminal', keys: ['Ctrl', 'Shift', 'C', '/', 'V'] },
   { label: 'Show this sheet', keys: ['Ctrl', 'Shift', '/'] }
 ]

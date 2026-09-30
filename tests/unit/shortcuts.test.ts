@@ -56,4 +56,15 @@ describe('matchShortcut', () => {
       matchShortcut(key({ key: 'ArrowLeft', ctrlKey: true, altKey: true, shiftKey: true }))
     ).toBeNull()
   })
+
+  it('maps Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 to font size, leaving Ctrl+_ to the terminal', () => {
+    const ctrl = (code: string, k: string, shiftKey = false): KeyLike =>
+      key({ code, key: k, ctrlKey: true, shiftKey })
+    expect(matchShortcut(ctrl('Equal', '='))).toEqual({ type: 'fontSize', delta: 1 })
+    expect(matchShortcut(ctrl('Equal', '+', true))).toEqual({ type: 'fontSize', delta: 1 })
+    expect(matchShortcut(ctrl('NumpadAdd', '+'))).toEqual({ type: 'fontSize', delta: 1 })
+    expect(matchShortcut(ctrl('Minus', '-'))).toEqual({ type: 'fontSize', delta: -1 })
+    expect(matchShortcut(ctrl('Digit0', '0'))).toEqual({ type: 'fontSize', delta: 0 })
+    expect(matchShortcut(ctrl('Minus', '_', true))).toBeNull()
+  })
 })

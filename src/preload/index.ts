@@ -42,7 +42,7 @@ const api: WraithApi = {
     openExternal: (url) => ipcRenderer.invoke(IPC.shellOpenExternal, { url })
   },
   shared: {
-    apply: (sourceAccountId) => ipcRenderer.invoke(IPC.sharedApply, { sourceAccountId })
+    apply: (mode) => ipcRenderer.invoke(IPC.sharedApply, { mode })
   },
   app: {
     info: () => ipcRenderer.invoke(IPC.appInfo)

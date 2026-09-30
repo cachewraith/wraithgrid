@@ -1,12 +1,14 @@
 import type { DraggableSyntheticListeners } from '@dnd-kit/core'
 import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
 import { SHORTCUT_HINT } from '../app/shortcuts'
+import { AccountIcon } from './AccountIcon'
 import { IconClose, IconUnzoom, IconZoom } from './icons'
 
 interface Props {
   title: string
   accountName: string | null
   accountColor: string | null
+  accountIcon: string
   cwdLabel: string
   status: PaneStatus
   zoomed: boolean
@@ -30,7 +32,14 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       </button>
       {p.accountName ? (
         <span className="chip">
-          <span className="dot" style={{ background: p.accountColor ?? 'var(--fa)' }} />
+          <AccountIcon
+            account={{
+              color: p.accountColor ?? 'var(--fa)',
+              icon: p.accountIcon,
+              name: p.accountName
+            }}
+            size={16}
+          />
           {p.accountName}
         </span>
       ) : null}

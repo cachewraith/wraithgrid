@@ -1,7 +1,9 @@
 import type { Config } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { SHORTCUT_HINT } from '../app/shortcuts'
+import { AccountIcon, Avatar } from './AccountIcon'
 import { IconGrid4, IconPlus, IconSidebar, IconUserPlus } from './icons'
+import { SidebarAccounts } from './SidebarAccounts'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
   const ws = config.workspaces.find((w) => w.id === wsId)
@@ -23,7 +25,7 @@ export function Sidebar() {
   return (
     <aside className={`side${collapsed ? ' col' : ''}`} aria-label="Sidebar">
       <div className="side-hd">
-        {collapsed ? null : <b>Workspaces</b>}
+        {collapsed ? null : <span />}
         <button
           className="icon-btn"
           aria-label={toggleLabel}
@@ -40,12 +42,13 @@ export function Sidebar() {
             {accounts.map((a) => (
               <span
                 key={a.id}
-                className="dot"
                 role="img"
-                style={{ background: a.color }}
                 title={`${a.name} — ${a.signedIn ? 'signed in' : 'login needed'}`}
                 aria-label={`${a.name}, ${a.signedIn ? 'signed in' : 'login needed'}`}
-              />
+                style={{ display: 'inline-flex' }}
+              >
+                <AccountIcon account={a} size={20} />
+              </span>
             ))}
           </div>
           <div className="side-ft">
@@ -71,7 +74,7 @@ export function Sidebar() {
         <>
           <div className="sec">
             <div className="sec-hd">
-              <span>{SHORTCUT_HINT.workspace}</span>
+              <span>Workspaces</span>
               <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
             </div>
             {workspaces.map((w, i) => {
@@ -85,36 +88,26 @@ export function Sidebar() {
                   title={key ? `Switch to ${w.name} (Ctrl+Shift+${key})` : `Switch to ${w.name}`}
                   onClick={() => actions.switchWorkspace(w.id)}
                 >
+                  <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
                   <span className="ws-name">{w.name}</span>
                   <span className="dots">
                     {accountColorsFor(config, w.id).map((c) => (
                       <span key={c} className="dot" style={{ background: c }} />
                     ))}
                   </span>
-                  <span className="cnt" aria-label={`${w.panes.length} panes`}>
+                  <span
+                    className="cnt"
+                    aria-label={`${w.panes.length} panes`}
+                    title={`${w.panes.length} ${w.panes.length === 1 ? 'pane' : 'panes'}`}
+                  >
                     {w.panes.length}
                   </span>
-                  {key ? <kbd>{key}</kbd> : null}
+                  {key ? <kbd className="ws-key">{key}</kbd> : null}
                 </button>
               )
             })}
           </div>
-          <div className="sec">
-            <div className="sec-hd">
-              <span>Accounts</span>
-              <button onClick={() => actions.setView('accounts')}>Manage</button>
-            </div>
-            {accounts.length === 0 ? <div className="side-empty">No accounts yet.</div> : null}
-            {accounts.map((a) => (
-              <div key={a.id} className="acc-row">
-                <span className="dot" style={{ background: a.color }} />
-                <span className="nm">{a.name}</span>
-                <span className={`acc-sub${a.signedIn ? '' : ' warn'}`}>
-                  {a.signedIn ? 'signed in' : 'login needed'}
-                </span>
-              </div>
-            ))}
-          </div>
+          <SidebarAccounts />
           <div className="side-ft">
             <button
               className="btn pri full"

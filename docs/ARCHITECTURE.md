@@ -16,8 +16,9 @@
 | `config-store.ts` | `ConfigStore`: parse/migrate/sanitize, atomic write, quarantine to `config.bad-<ts>.json` |
 | `claude-detect.ts` | Locate `claude` on PATH or via override; read version |
 | `platform.ts` | Desktop/window-chrome detection, default shell, extra bin dirs, spawn command, login-shell PATH |
-| `shared-config.ts` | Symlink/junction/hardlink shared CLAUDE.md + skills; backups, never deletes |
+| `shared-config.ts` | Symlink/junction/hardlink ~/.claude's CLAUDE.md, settings.json, skills, plugins, agents, commands into accounts; backs up real files, replaces stale links |
 | `update-check.ts` | `UpdateChecker`: GitHub Releases API, cached, report only |
+| `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens the release page |
 | `paths.ts` | Config file path, accounts root, `~` resolution, `isStrictlyInside` guard |
 
 ## Renderer

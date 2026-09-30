@@ -9,11 +9,11 @@ const FAKE_CLAUDE = path.join(ROOT, 'tests/fixtures/fake-claude.sh')
 
 test.skip(process.platform === 'win32', 'POSIX-only fixture')
 
-test('all accounts share one CLAUDE.md and skills folder', async () => {
+test('overall mode links every account to ~/.claude', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-shared-e2e-'))
   const home = path.join(tmp, 'home')
   const userData = path.join(tmp, 'userdata')
-  const personal = path.join(home, '.claude')
+  const personal = path.join(home, '.claude') // the machine's own claude setup
   const work = path.join(home, '.wraithgrid/accounts/work')
   const late = path.join(home, '.wraithgrid/accounts/late')
   fs.mkdirSync(path.join(personal, 'skills', 'deploy'), { recursive: true })
@@ -35,14 +35,11 @@ test('all accounts share one CLAUDE.md and skills folder', async () => {
     JSON.stringify({
       version: 1,
       claudePath: FAKE_CLAUDE,
-      accounts: [
-        account('a-personal', 'personal', '~/.claude', '#7c5cff'),
-        account('a-work', 'work', '~/.wraithgrid/accounts/work', '#2dd4bf')
-      ],
+      accounts: [account('a-work', 'work', '~/.wraithgrid/accounts/work', '#2dd4bf')],
       workspaces: [{ id: 'ws', name: 'main', panes: [], layout: null }],
       activeWorkspace: 'ws',
       recentFolders: [],
-      settings: {}
+      settings: { sharedMode: 'per-account' }
     })
   )
 
@@ -55,8 +52,8 @@ test('all accounts share one CLAUDE.md and skills folder', async () => {
     await win.getByRole('button', { name: 'Settings' }).click()
     const group = win.getByRole('radiogroup', { name: 'Shared CLAUDE.md and skills' })
 
-    // Share from "personal": work links to it, and its own file is kept aside.
-    await group.getByRole('radio', { name: 'personal' }).click()
+    // Overall: work links to ~/.claude, and its own file is kept aside.
+    await group.getByRole('radio', { name: /^Overall/ }).click()
     // "work: " is the report line; a bare "work" also matches CI paths like /home/runner/work.
     await expect(win.getByRole('status').filter({ hasText: 'work: ' })).toContainText(
       'kept the old one'
@@ -64,6 +61,7 @@ test('all accounts share one CLAUDE.md and skills folder', async () => {
     expect(fs.readlinkSync(path.join(work, 'CLAUDE.md'))).toBe(path.join(personal, 'CLAUDE.md'))
     expect(fs.readFileSync(path.join(work, 'CLAUDE.md'), 'utf8')).toBe('# one set of rules\n')
     expect(fs.existsSync(path.join(work, 'skills', 'deploy'))).toBe(true)
+    expect(fs.readlinkSync(path.join(work, 'plugins'))).toBe(path.join(personal, 'plugins'))
     expect(fs.readFileSync(path.join(work, 'CLAUDE.md.wraithgrid-backup'), 'utf8')).toBe(
       '# work only\n'
     )
@@ -82,9 +80,9 @@ test('all accounts share one CLAUDE.md and skills folder', async () => {
       )
       .toBe(path.join(personal, 'CLAUDE.md'))
 
-    // Off: links go, and work gets its own CLAUDE.md back.
+    // Each account its own: links go, and work gets its own CLAUDE.md back.
     await win.getByRole('button', { name: 'Settings' }).click()
-    await group.getByRole('radio', { name: /^Off/ }).click()
+    await group.getByRole('radio', { name: 'Each account its own' }).click()
     await expect.poll(() => fs.lstatSync(path.join(work, 'CLAUDE.md')).isSymbolicLink()).toBe(false)
     expect(fs.readFileSync(path.join(work, 'CLAUDE.md'), 'utf8')).toBe('# work only\n')
     expect(fs.existsSync(path.join(work, 'skills'))).toBe(false)

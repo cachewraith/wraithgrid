@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useActions, useApp } from '../app/services'
+import { IconPicker } from './IconPicker'
 import { Dialog } from './Dialog'
 import { IconPlus, IconRename, IconSearch, IconTrash } from './icons'
 
@@ -150,6 +151,13 @@ export function WorkspaceSwitcher() {
                 className={`wsr${selected?.w.id === w.id ? ' on' : ''}`}
                 onMouseEnter={() => setCursor(i)}
               >
+                <IconPicker
+                  icon={w.icon}
+                  name={w.name}
+                  color="var(--acc)"
+                  size={26}
+                  onPick={(icon) => actions.setWorkspaceIcon(w.id, icon)}
+                />
                 <button
                   className="go"
                   role="option"

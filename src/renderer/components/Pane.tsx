@@ -108,11 +108,15 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
       aria-hidden={rect ? undefined : true}
       onMouseDownCapture={() => actions.focusPane(paneId)}
     >
-      <div className="strip" style={{ background: account?.color ?? 'var(--line2)' }} />
+      <div
+        className={`strip${status === 'running' ? ' running' : ''}`}
+        style={{ background: account?.color ?? 'var(--line2)' }}
+      />
       <PaneHeader
         title={pane.title}
         accountName={account?.name ?? (pane.shell ? null : 'no account')}
         accountColor={account?.color ?? null}
+        accountIcon={account?.icon ?? ''}
         cwdLabel={pane.shell ? `${cwd} · shell` : cwd}
         status={status}
         zoomed={zoomed}

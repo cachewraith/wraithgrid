@@ -1,15 +1,26 @@
-// One CLAUDE.md and one skills folder for every account. The source account keeps the
-// real files; every other account's config dir gets links to them. Nothing inside a
-// config dir is ever read: only link metadata is inspected, and anything in the way is
-// renamed to a backup, never deleted.
+// "Overall" sharing: every account uses the machine's own claude setup (~/.claude) for
+// CLAUDE.md, settings, skills, plugins, agents and commands. The source keeps the real
+// files; each account's config dir gets links to them. Logins (.credentials.json,
+// .claude.json) and history stay per account. Nothing inside a config dir is ever read:
+// only link metadata is inspected, and a real file in the way is renamed to a backup,
+// never deleted.
 import type { Stats } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
 export const SHARED_ITEMS = [
-  { name: 'CLAUDE.md', kind: 'file' },
-  { name: 'skills', kind: 'dir' }
+  { name: 'CLAUDE.md', kind: 'file', initial: '' },
+  { name: 'settings.json', kind: 'file', initial: '{}\n' },
+  { name: 'skills', kind: 'dir' },
+  { name: 'plugins', kind: 'dir' },
+  { name: 'agents', kind: 'dir' },
+  { name: 'commands', kind: 'dir' }
 ] as const
+
+/** The machine's default claude config dir: the source of "overall" sharing. */
+export function overallSourceDir(homeDir: string): string {
+  return path.join(homeDir, '.claude')
+}
 
 export type LinkOutcome = 'linked' | 'already-linked' | 'unlinked' | 'restored' | 'failed'
 
@@ -58,15 +69,21 @@ async function backupPathFor(p: string, now: Date): Promise<string> {
   return `${plain}-${now.toISOString().replace(/[:.]/g, '-')}`
 }
 
-/** Makes sure the source has something to link to (an empty CLAUDE.md, an empty skills/). */
+/** Makes sure the source has something to link to for every item. Never overwrites. */
 export async function ensureSource(sourceDir: string): Promise<void> {
-  await fs.mkdir(path.join(sourceDir, 'skills'), { recursive: true, mode: 0o700 })
-  try {
-    // 'wx' creates the file only if it does not exist; an existing CLAUDE.md is untouched.
-    const handle = await fs.open(path.join(sourceDir, 'CLAUDE.md'), 'wx', 0o600)
-    await handle.close()
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+  await fs.mkdir(sourceDir, { recursive: true, mode: 0o700 })
+  for (const item of SHARED_ITEMS) {
+    const p = path.join(sourceDir, item.name)
+    if (item.kind === 'dir') {
+      await fs.mkdir(p, { recursive: true, mode: 0o700 })
+      continue
+    }
+    try {
+      // 'wx' creates the file only if it does not exist; an existing file is untouched.
+      await fs.writeFile(p, item.initial, { flag: 'wx', mode: 0o600 })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+    }
   }
 }
 
@@ -108,7 +125,11 @@ export async function linkShared(
         continue
       }
       let backup: string | undefined
-      if (await lstatOrNull(dst)) {
+      const existing = await lstatOrNull(dst)
+      if (existing?.isSymbolicLink()) {
+        // A link to somewhere else (e.g. an older source) holds no data of its own.
+        await fs.unlink(dst)
+      } else if (existing) {
         backup = await backupPathFor(dst, now())
         await fs.rename(dst, backup)
       }

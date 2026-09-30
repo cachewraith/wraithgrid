@@ -7,8 +7,10 @@ import {
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type AccentName,
+  type SharedMode,
   type ThemePreference
 } from '@shared/types'
+import { AccountIcon } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { currentTheme } from '../app/store'
 import { PALETTE_LABEL, terminalFontStack, terminalTheme } from '../lib/term-theme'
@@ -336,7 +338,7 @@ function ClaudeBinaryRow() {
               <span className="mono" style={{ color: 'var(--tx)' }} title={claude.path}>
                 {contractHome(claude.path, home)}
               </span>
-              {claude.version ? <span className="hint">({claude.version})</span> : null}
+              {claude.version ? <span className="det-ver">{claude.version}</span> : null}
             </>
           ) : (
             <>
@@ -380,17 +382,18 @@ function ClaudeBinaryRow() {
 
 function SharedRow() {
   const actions = useActions()
-  const accounts = useApp((s) => s.config.accounts)
-  const sourceId = useApp((s) => s.config.settings.sharedSourceAccountId)
+  const mode = useApp((s) => s.config.settings.sharedMode)
   const report = useApp((s) => s.sharedReport)
   const home = useApp((s) => s.info.homeDir)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [restarted, setRestarted] = useState<number | null>(null)
 
-  const choose = async (id: string | null): Promise<void> => {
-    if (id === sourceId) return
+  const choose = async (next: SharedMode): Promise<void> => {
+    if (next === mode) return
     setBusy(true)
-    setError(await actions.setSharedSource(id))
+    setRestarted(null)
+    setError(await actions.setSharedMode(next))
     setBusy(false)
   }
 
@@ -411,24 +414,16 @@ function SharedRow() {
     }, {})
   )
 
-  const chip = (id: string | null, label: string, color?: string) => (
+  const chip = (value: SharedMode, label: string) => (
     <button
-      key={id ?? 'off'}
-      className={`rchip${sourceId === id ? ' on' : ''}`}
+      key={value}
+      className={`rchip${mode === value ? ' on' : ''}`}
       role="radio"
-      aria-checked={sourceId === id}
+      aria-checked={mode === value}
       disabled={busy}
-      onClick={() => void choose(id)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontFamily: 'inherit',
-        fontSize: 12.5,
-        height: 30
-      }}
+      onClick={() => void choose(value)}
+      style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
     >
-      {color ? <span className="dot" style={{ background: color }} /> : null}
       {label}
     </button>
   )
@@ -438,23 +433,20 @@ function SharedRow() {
       <div>
         <h3 id="shared-h">Shared CLAUDE.md and skills</h3>
         <p className="ex">
-          One CLAUDE.md and one skills folder for every account, taken from the account you pick.
-          Logins, settings and history stay separate.
+          Overall gives every account, including new ones, your normal claude setup. Logins and
+          history always stay separate.
         </p>
       </div>
       <div className="ctl">
-        {accounts.length < 2 ? (
-          <span className="hint">Add a second account to share between them.</span>
-        ) : (
-          <div className="recent" role="radiogroup" aria-labelledby="shared-h">
-            {chip(null, 'Off (each account its own)')}
-            {accounts.map((a) => chip(a.id, a.name, a.color))}
-          </div>
-        )}
+        <div className="recent" role="radiogroup" aria-labelledby="shared-h">
+          {chip('overall', 'Overall (~/.claude)')}
+          {chip('per-account', 'Each account its own')}
+        </div>
         <span className="hint">
-          The other accounts get links to its <span className="mono">CLAUDE.md</span> and{' '}
-          <span className="mono">skills/</span>. A file they already had is kept as{' '}
-          <span className="mono">…wraithgrid-backup</span> and comes back when you turn this off.
+          Links <span className="mono">CLAUDE.md</span>, <span className="mono">settings.json</span>
+          , <span className="mono">skills</span>, <span className="mono">plugins</span>,{' '}
+          <span className="mono">agents</span> and <span className="mono">commands</span> from{' '}
+          <span className="mono">~/.claude</span>. Files an account already had are kept as backups.
         </span>
         {error ? <span className="hint err">{error}</span> : null}
         {lines.length ? (
@@ -465,6 +457,19 @@ function SharedRow() {
               </span>
             ))}
           </div>
+        ) : null}
+        {report ? (
+          <span className="hint">
+            Running claude panes read these files at start.{' '}
+            <button
+              className="btn gh"
+              style={{ height: 26, fontSize: 12 }}
+              onClick={() => setRestarted(actions.restartClaudePanes())}
+            >
+              Restart claude panes
+            </button>
+            {restarted !== null ? ` Restarted ${restarted}.` : null}
+          </span>
         ) : null}
       </div>
     </div>
@@ -533,7 +538,7 @@ export function SettingsView() {
                       height: 30
                     }}
                   >
-                    <span className="dot" style={{ background: a.color }} />
+                    <AccountIcon account={a} size={16} />
                     {a.name}
                   </button>
                 ))}
