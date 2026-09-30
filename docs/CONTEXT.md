@@ -45,7 +45,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling
 - `src/renderer/styles/`: design tokens + base CSS
-- `tests/unit/`, `tests/e2e/`, `tests/fixtures/fake-claude.sh`: tests + fake CLI
+- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex)
 - `scripts/`: Docker Linux build, multi-distro package smoke test
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
@@ -78,6 +78,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - claude only has a "new line" key via ESC CR; the terminal maps Shift+Enter to it for claude panes.
 - Running claude reads CLAUDE.md/skills/plugins at start: a sharing change needs a pane restart.
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
+- e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
 
 ## Current focus
 v1.2.0 released (overall ~/.claude sharing, folders + icons, Shift+Enter, font-size keys, running animation, release notification). Open: Claude mascot animation report (needs repro).
