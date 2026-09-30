@@ -2,7 +2,7 @@
 
 ## Purpose
 Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows + Linux. v1.1.0.
+each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows + Linux. v1.2.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -78,4 +78,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Running claude reads CLAUDE.md/skills/plugins at start: a sharing change needs a pane restart.
 
 ## Current focus
-v1.1.0 released. Unreleased: overall sharing via ~/.claude, Shift+Enter newline, Ctrl+=/-/0 font size, account folders, account + workspace icons, UI clean-up, running animation, new-release OS notification. Open: Claude mascot animation report (needs repro).
+v1.2.0 released (overall ~/.claude sharing, folders + icons, Shift+Enter, font-size keys, running animation, release notification). Open: Claude mascot animation report (needs repro).
