@@ -19,6 +19,7 @@ import {
   openExternalArgs,
   sharedApplyArgs,
   updateCheckArgs,
+  updateInstallArgs,
   pickPathArgs,
   ptyCreateArgs,
   ptyKillArgs,
@@ -30,7 +31,8 @@ import {
   type SharedApplyResult,
   type SharedReportEntry,
   type SimpleResult,
-  type UpdateCheckResult
+  type UpdateCheckResult,
+  type UpdateInstallResult
 } from '@shared/ipc-contract'
 import { access } from 'node:fs/promises'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
@@ -48,6 +50,7 @@ import {
 } from './shared-config'
 import type { PtyManager } from './pty-manager'
 import type { UpdateChecker } from './update-check'
+import type { UpdateInstaller } from './update-install'
 
 export interface IpcDeps {
   getWindow: () => BrowserWindow | null
@@ -58,6 +61,7 @@ export interface IpcDeps {
   /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
   envReady: Promise<void>
   updates: UpdateChecker
+  installer: UpdateInstaller
   /** Launch-time update checks only run in packaged builds. */
   isPackaged: boolean
   /** Sees every launch-time check result (e.g. to raise an OS notification). */
@@ -378,6 +382,13 @@ export function registerIpc(deps: IpcDeps): void {
       error: 'The update check failed.',
       checkedAt: Date.now()
     }
+  )
+
+  handle(
+    IPC.updateInstall,
+    updateInstallArgs,
+    (): Promise<UpdateInstallResult> => deps.installer.install(),
+    { ok: false, error: 'The update could not be installed.', manual: false }
   )
 
   // ---- App info --------------------------------------------------------------------

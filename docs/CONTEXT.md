@@ -28,7 +28,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/claude-detect.ts`: finds the `claude` binary and version
 - `src/main/platform.ts`: OS/desktop differences as pure functions (chrome, shell, PATH, spawn)
 - `src/main/shared-config.ts`: link ~/.claude's CLAUDE.md, settings.json, skills/, plugins/, agents/, commands/ into every account ("overall" mode)
-- `src/main/update-check.ts`: GitHub Releases check (fixed URL, report only)
+- `src/main/update-check.ts`: GitHub Releases check (fixed URL) for the Settings/status-bar notice
+- `src/main/update-install.ts`: in-app update facade over electron-updater (check → download → install + relaunch)
 - `src/main/update-notify.ts`: OS notification for a new release, once per version (`update-notified.json` in userData)
 - `src/main/paths.ts`: config/account paths, `isStrictlyInside` guard
 - `src/preload/index.ts`: typed bridge; renderer never sees ipcRenderer
@@ -76,6 +77,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - AppImage on Ubuntu 24.04+/Kali blocked by AppArmor; prefer .deb.
 - claude only has a "new line" key via ESC CR; the terminal maps Shift+Enter to it for claude panes.
 - Running claude reads CLAUDE.md/skills/plugins at start: a sharing change needs a pane restart.
+- In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
 
 ## Current focus
 v1.2.0 released (overall ~/.claude sharing, folders + icons, Shift+Enter, font-size keys, running animation, release notification). Open: Claude mascot animation report (needs repro).

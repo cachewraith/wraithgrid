@@ -196,7 +196,8 @@ function UpdatesRow() {
   const actions = useActions()
   const version = useApp((s) => s.info.version)
   const onLaunch = useApp((s) => s.config.settings.checkUpdatesOnLaunch)
-  const { checking, result } = useApp((s) => s.update)
+  const { checking, result, install, installError } = useApp((s) => s.update)
+  const busy = install.phase !== 'idle'
   const anchor = useApp((s) => s.settingsAnchor)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -206,7 +207,22 @@ function UpdatesRow() {
     actions.clearSettingsAnchor()
   }, [anchor, actions])
 
-  const status = checking ? (
+  const status = busy ? (
+    <span>
+      {install.phase === 'checking'
+        ? 'Preparing the update…'
+        : install.phase === 'downloading'
+          ? `Downloading ${install.version}… ${install.percent}%`
+          : `Installing ${install.version}. Wraithgrid restarts when it is done.`}
+    </span>
+  ) : installError ? (
+    <>
+      <span style={{ color: 'var(--warn)', display: 'flex' }}>
+        <IconWarn small />
+      </span>
+      <span>{installError.error}</span>
+    </>
+  ) : checking ? (
     <span>Checking GitHub for a newer release…</span>
   ) : !result || result.status === 'skipped' ? (
     <span>Not checked yet.</span>
@@ -239,8 +255,8 @@ function UpdatesRow() {
       <div>
         <h3>Updates</h3>
         <p className="ex">
-          Checks the releases on GitHub. Nothing is downloaded or installed for you: Download opens
-          the release page, where you pick the package for your system.
+          Checks the releases on GitHub. Update &amp; restart downloads the new version, replaces
+          this one and reopens Wraithgrid; running panes close. On Linux your password is asked for.
         </p>
       </div>
       <div className="ctl">
@@ -258,19 +274,29 @@ function UpdatesRow() {
         <div className="inrow">
           <button
             className="btn"
-            disabled={checking}
+            disabled={checking || busy}
             onClick={() => void actions.checkForUpdates('manual')}
           >
             <IconRestart />
             {checking ? 'Checking…' : 'Check for updates'}
           </button>
-          {result?.status === 'available' ? (
+          {result?.status === 'available' && !installError?.manual ? (
+            <button
+              className="btn pri"
+              disabled={busy}
+              onClick={() => void actions.installUpdate()}
+            >
+              <IconImport />
+              {busy ? 'Updating…' : `Update to ${result.latest.version} & restart`}
+            </button>
+          ) : null}
+          {result?.status === 'available' && installError?.manual ? (
             <button
               className="btn pri"
               onClick={() => void api.shell.openExternal(result.latest.url)}
             >
               <IconImport />
-              Download {result.latest.version}
+              Open release page
             </button>
           ) : null}
         </div>

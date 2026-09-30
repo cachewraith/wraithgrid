@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { PtyDataEvent, PtyExitEvent, WraithApi } from '@shared/ipc-contract'
+import type { PtyDataEvent, PtyExitEvent, UpdateProgress, WraithApi } from '@shared/ipc-contract'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, payload: T): void => cb(payload)
@@ -48,7 +48,10 @@ const api: WraithApi = {
     info: () => ipcRenderer.invoke(IPC.appInfo)
   },
   update: {
-    check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason })
+    check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason }),
+    install: () => ipcRenderer.invoke(IPC.updateInstall, {}),
+    onProgress: (cb) => subscribe<UpdateProgress>(IPC.updateProgress, cb),
+    onShow: (cb) => subscribe<void>(IPC.updateShow, () => cb())
   }
 }
 

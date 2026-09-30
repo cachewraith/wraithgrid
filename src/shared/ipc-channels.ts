@@ -19,5 +19,8 @@ export const IPC = {
   shellOpenExternal: 'shell:openExternal',
   sharedApply: 'shared:apply',
   appInfo: 'app:info',
-  updateCheck: 'update:check'
+  updateCheck: 'update:check',
+  updateInstall: 'update:install',
+  updateProgress: 'update:progress',
+  updateShow: 'update:show'
 } as const

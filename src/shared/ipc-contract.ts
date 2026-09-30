@@ -41,6 +41,7 @@ export const openExternalArgs = z.object({ url: z.string().max(8192) })
 export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 /** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
+export const updateInstallArgs = z.object({})
 
 export interface SharedReportEntry {
   account: string
@@ -103,6 +104,18 @@ export type UpdateCheckResult =
   | { status: 'skipped'; current: string }
   | { status: 'error'; current: string; error: string; checkedAt: number }
 
+/** Where an in-app update is; sent from main while it downloads and installs. */
+export type UpdateProgress =
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'downloading'; version: string; percent: number }
+  | { phase: 'installing'; version: string }
+
+export type UpdateInstallResult =
+  | { ok: true }
+  /** `manual`: this build can't update itself (e.g. a tarball); offer the release page. */
+  | { ok: false; error: string; manual: boolean }
+
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
@@ -149,5 +162,10 @@ export interface WraithApi {
   update: {
     /** Asks GitHub Releases whether a newer version than this one is published. */
     check(reason: 'launch' | 'manual'): Promise<UpdateCheckResult>
+    /** Downloads the newest release, installs it over this one and restarts the app. */
+    install(): Promise<UpdateInstallResult>
+    onProgress(cb: (p: UpdateProgress) => void): () => void
+    /** The user clicked the new-release notification: show the updates section. */
+    onShow(cb: () => void): () => void
   }
 }

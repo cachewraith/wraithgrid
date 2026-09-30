@@ -18,7 +18,8 @@
 | `platform.ts` | Desktop/window-chrome detection, default shell, extra bin dirs, spawn command, login-shell PATH |
 | `shared-config.ts` | Symlink/junction/hardlink ~/.claude's CLAUDE.md, settings.json, skills, plugins, agents, commands into accounts; backs up real files, replaces stale links |
 | `update-check.ts` | `UpdateChecker`: GitHub Releases API, cached, report only |
-| `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens the release page |
+| `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens Settings → Updates |
+| `update-install.ts` | `UpdateInstaller`: facade over electron-updater; check, download (progress events), install and relaunch |
 | `paths.ts` | Config file path, accounts root, `~` resolution, `isStrictlyInside` guard |
 
 ## Renderer
@@ -40,10 +41,11 @@
 ## IPC surface
 Full list in `src/shared/ipc-channels.ts`; schemas in `src/shared/ipc-contract.ts`. Groups: pty,
 config, dialog, window, claude detect, account dir create/delete, openExternal (http/https only),
-shared apply, app info, update check.
+shared apply, app info, update check/install (+ `update:progress`, `update:show` events).
 
 ## External services
 - GitHub Releases API for `cachewraith/wraithgrid` (optional update check; fixed URL).
+- GitHub release assets `latest.yml` / `latest-linux.yml` + installers, read by electron-updater (repo fixed in `resources/app-update.yml`).
 - Nothing else. No telemetry.
 
 ## Persistence

@@ -8,7 +8,7 @@ import { RELEASES_REPO } from './update-check'
 export interface UpdateNotice {
   title: string
   body: string
-  /** The release page; only ever a page of RELEASES_REPO on github.com. */
+  /** The release page, opened when no window is left to show; only RELEASES_REPO pages. */
   url: string
 }
 
@@ -37,7 +37,7 @@ export async function notifyIfNew(result: UpdateCheckResult, deps: NotifyDeps): 
   if ((await lastNotified(deps.stateFile)) === version) return false
   deps.show({
     title: `Wraithgrid ${version} is available`,
-    body: `You have ${result.current}. Click to open the release page and download it.`,
+    body: `You have ${result.current}. Click to update from Settings.`,
     url
   })
   try {

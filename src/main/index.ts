@@ -2,8 +2,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { app, BrowserWindow, Menu, nativeTheme, net, Notification, session, shell } from 'electron'
 import { spawn } from 'node-pty'
+import { autoUpdater, type ProgressInfo } from 'electron-updater'
 import { IPC } from '@shared/ipc-channels'
-import type { PtyDataEvent, PtyExitEvent } from '@shared/ipc-contract'
+import type { PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
 import { resolveTheme, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
 import { registerIpc } from './ipc'
@@ -18,6 +19,7 @@ import {
 } from './platform'
 import { PtyManager } from './pty-manager'
 import { UpdateChecker } from './update-check'
+import { UpdateInstaller } from './update-install'
 import { notifyIfNew, type UpdateNotice } from './update-notify'
 
 // Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
@@ -57,7 +59,7 @@ const envReady: Promise<void> = (async () => {
   )
 })()
 
-function send(channel: string, payload: PtyDataEvent | PtyExitEvent): void {
+function send(channel: string, payload?: PtyDataEvent | PtyExitEvent | UpdateProgress): void {
   const wc = mainWindow?.webContents
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
 }
@@ -182,7 +184,7 @@ app.on('second-instance', () => {
   mainWindow.focus()
 })
 
-/** A native notification; clicking it opens the release page and brings the window back. */
+/** A native notification; clicking it brings the window back at Settings → Updates. */
 function showUpdateNotice(notice: UpdateNotice): void {
   if (!Notification.isSupported()) return
   const n = new Notification({
@@ -191,13 +193,56 @@ function showUpdateNotice(notice: UpdateNotice): void {
     icon: path.join(__dirname, '../../build/icon.png')
   })
   n.on('click', () => {
-    void shell.openExternal(notice.url)
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      void shell.openExternal(notice.url)
+      return
     }
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    send(IPC.updateShow)
   })
   n.show()
+}
+
+/** In-app updates through electron-updater, which picks the installer for this package type. */
+function createInstaller(): UpdateInstaller {
+  // Downloads start only from the Settings button, and nothing installs on a plain quit:
+  // on Linux that would raise a password prompt out of nowhere.
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+  autoUpdater.logger = null
+  // An 'error' event with no listener throws; the promises below already carry each error.
+  autoUpdater.on('error', () => {})
+  return new UpdateInstaller({
+    currentVersion: app.getVersion(),
+    check: async () => (await autoUpdater.checkForUpdates())?.updateInfo.version ?? null,
+    download: async (onPercent) => {
+      const listener = (p: ProgressInfo): void => onPercent(p.percent)
+      autoUpdater.on('download-progress', listener)
+      try {
+        await autoUpdater.downloadUpdate()
+      } finally {
+        autoUpdater.off('download-progress', listener)
+      }
+    },
+    // Linux installs synchronously here (pkexec pacman/apt/dnf) and reports failure as an
+    // 'error' event, e.g. a cancelled password prompt; on success the app quits and relaunches.
+    install: () => {
+      let failed: string | null = null
+      const onError = (e: Error): void => {
+        failed = e.message
+      }
+      autoUpdater.on('error', onError)
+      try {
+        autoUpdater.quitAndInstall(true, true)
+      } finally {
+        autoUpdater.off('error', onError)
+      }
+      return Promise.resolve(failed)
+    },
+    report: (p) => send(IPC.updateProgress, p),
+    log: (msg) => console.warn(`[wraithgrid] ${msg}`)
+  })
 }
 
 void app.whenReady().then(() => {
@@ -228,6 +273,7 @@ void app.whenReady().then(() => {
     desktop,
     envReady,
     updates,
+    installer: createInstaller(),
     onLaunchUpdateCheck: notify,
     isPackaged: app.isPackaged,
     onConfigChanged: (prev, next) => {
