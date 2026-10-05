@@ -39,3 +39,7 @@ Entries dated 2026-09-29 are reconstructed from the code and commit history duri
 - 2026-10-05 | macOS app shortcuts use ⌘; all Ctrl chords go to the terminal; copy/paste via the menu's Edit roles | Mac convention, and claude/readline need Ctrl (Ctrl+C, Ctrl+R, Ctrl+_) | Ctrl+Shift on macOS too (un-Mac-like); handling ⌘C/V in the key handler as well (double paste risk)
 - 2026-10-05 | macOS app menu has no Close Window (⌘W) item | ⌘W would close the window and kill every pane | Default `windowMenu` role
 - 2026-10-05 | Login probe prints `printenv PATH` instead of `env -0` | Older macOS `env` has no `-0`; printenv is on every POSIX system and prints fish's PATH colon-joined | `env -0` everywhere
+- 2026-10-05 | Icon library = bundled Material Symbols (filled rounded only, + plain aliases) and Lucide, via Iconify JSON trimmed at build time, lazily loaded | Offline, no network fetches, consistent look; full Material is 8.9 MB of six styles | Iconify API at runtime (network, CSP, privacy); full Material set; one set only
+- 2026-10-05 | Icons stored as `set:name` strings in the existing `icon` field | Old emoji values keep working; no migration | Separate iconSet/iconName fields
+- 2026-10-05 | Icon/tint fields `.catch('')` in the schema | Cosmetic; a hand-edited bad value shouldn't quarantine the whole config | Strict validation like other fields
+- 2026-10-05 | Account tint changes the account color; workspaces/folders get their own `color` ('' = neutral) | Accounts already have a color that marks their panes | Separate account icon tint

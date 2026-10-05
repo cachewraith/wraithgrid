@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
+import { iconSets } from './scripts/icon-sets'
 
 const alias = { '@shared': resolve(__dirname, 'src/shared') }
 
@@ -15,6 +16,6 @@ export default defineConfig({
   },
   renderer: {
     resolve: { alias },
-    plugins: [react()]
+    plugins: [react(), iconSets()]
   }
 })

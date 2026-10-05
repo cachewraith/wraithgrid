@@ -37,6 +37,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@iconify-json/lucide": "1.2.135",
+    "@iconify-json/material-symbols": "1.2.94",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.19.0",
     "@types/react": "19.3.0",

@@ -64,6 +64,7 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
     const review = side.locator('.ws-row', { hasText: 'review' })
     await review.click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Change icon' }).click()
+    await win.getByRole('tab', { name: 'Emoji' }).click()
     await win.getByRole('button', { name: 'Use 🚀' }).click()
     await expect.poll(() => saved().workspaces[1].icon).toBe('🚀')
 

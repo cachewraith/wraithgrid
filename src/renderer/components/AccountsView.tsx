@@ -4,6 +4,10 @@ import { ACCOUNT_COLORS, type Account } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
 import { nextFreeColor } from '../app/store'
 import { IconPicker } from './IconPicker'
+import { ICON_COLORS } from '@shared/icons'
+
+/** Accounts always have a color (it marks their panes), so no neutral choice. */
+const ACCOUNT_TINTS = ICON_COLORS.filter((c) => c !== '')
 import { Dialog } from './Dialog'
 import {
   IconCheck,
@@ -195,7 +199,8 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
           icon={account.icon}
           name={account.name}
           color={account.color}
-          onPick={(icon) => actions.setAccountIcon(account.id, icon)}
+          colors={ACCOUNT_TINTS}
+          onPick={(c) => actions.setAccountIcon(account.id, c.icon, c.color)}
         />
         {renaming ? (
           <input

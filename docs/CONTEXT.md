@@ -38,16 +38,17 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/shared/ipc-contract.ts`: zod schemas for IPC args/events
 - `src/shared/schema.ts`: persisted config schema, migrate/sanitize/parse
 - `src/shared/types.ts`: domain types, themes, accents, palettes, fonts
+- `src/shared/icons.ts`: icon value format (`''` letter, `material:x`/`lucide:x`, else emoji), tints
 - `src/shared/args.ts`, `src/shared/paths.ts`: launch-args parsing, pure path helpers
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges; IconPicker/IconPopover; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
 - `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars)
-- `scripts/`: Docker Linux build, multi-distro package smoke test
+- `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide)
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
@@ -87,6 +88,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
 - `pnpm exec …` can hang in this environment; call `./node_modules/.bin/<tool>` directly.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
+- Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect pnpm's minimumReleaseAge (pin an older version rather than adding an exclude).
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 

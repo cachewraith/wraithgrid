@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ICON_COLORS } from '@shared/icons'
 import { PANE_STATUS_LABEL, type Config, type Pane, type Workspace } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { accountById } from '../app/store'
@@ -87,7 +88,7 @@ function WorkspaceRow({
   if (renaming !== null) {
     return (
       <div className="ws-row on">
-        <Avatar icon={w.icon} name={w.name} color="var(--fa)" />
+        <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
         <input
           className="inpt sans ws-in"
           value={renaming}
@@ -135,7 +136,7 @@ function WorkspaceRow({
             setMenu(menuPoint(e))
           }}
         >
-          <Avatar icon={w.icon} name={w.name} color="var(--fa)" />
+          <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
           <span className="ws-name">{w.name}</span>
           <span className="dots">
             {accountColorsFor(config, w.id).map((c) => (
@@ -201,10 +202,12 @@ function WorkspaceRow({
         <IconPopover
           at={iconAt}
           icon={w.icon}
+          color={w.color}
+          colors={ICON_COLORS}
           name={w.name}
-          onPick={(icon) => {
-            actions.setWorkspaceIcon(w.id, icon)
-            setIconAt(null)
+          onPick={(c, done) => {
+            actions.setWorkspaceIcon(w.id, c.icon, c.color)
+            if (done) setIconAt(null)
           }}
           onClose={() => setIconAt(null)}
         />

@@ -131,7 +131,7 @@ function buildItems(s: AppState): Item[] {
       group: 'Workspaces',
       label: w.name,
       sub: `${w.panes.length} ${w.panes.length === 1 ? 'pane' : 'panes'}`,
-      icon: <Avatar icon={w.icon} name={w.name} color="var(--fa)" />,
+      icon: <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />,
       hint: i < 9 ? SHORTCUT_HINT.workspaceN(i + 1) : undefined,
       run: () => s.switchWorkspace(w.id)
     })

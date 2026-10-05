@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import {
   ACCENTS,
-  ACCOUNT_ICON_MAX,
   ACCOUNT_COLORS,
   CONFIG_VERSION,
   FONT_SIZE_DEFAULT,
@@ -13,6 +12,7 @@ import {
   type Config,
   type LayoutNode
 } from './types'
+import { ICON_MAX } from './icons'
 
 export const idSchema = z
   .string()
@@ -22,6 +22,13 @@ export const idSchema = z
 
 const pathSchema = z.string().min(1).max(4096)
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+/** An icon tint; '' means neutral. Cosmetic, so a bad value resets instead of failing the file. */
+const tintSchema = z.union([z.literal(''), colorSchema]).catch('')
+/**
+ * An icon id ("material:rocket-launch") or an emoji; rendered as text or looked up in the
+ * bundled sets, never as HTML. Cosmetic, so a bad value resets to the letter.
+ */
+const iconSchema = z.string().max(ICON_MAX).catch('')
 
 export const layoutNodeSchema: z.ZodType<LayoutNode> = z.lazy(() =>
   z.discriminatedUnion('type', [
@@ -45,15 +52,16 @@ export const accountSchema = z.object({
   color: colorSchema,
   signedIn: z.boolean().default(false),
   imported: z.boolean().default(false),
-  // Rendered as text only, never as HTML.
-  icon: z.string().max(ACCOUNT_ICON_MAX).default(''),
+  icon: iconSchema,
   folderId: idSchema.nullable().default(null)
 })
 
 export const accountFolderSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(64),
-  collapsed: z.boolean().default(false)
+  collapsed: z.boolean().default(false),
+  icon: iconSchema,
+  color: tintSchema
 })
 
 export const paneSchema = z.object({
@@ -68,7 +76,8 @@ export const paneSchema = z.object({
 export const workspaceSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(64),
-  icon: z.string().max(ACCOUNT_ICON_MAX).default(''),
+  icon: iconSchema,
+  color: tintSchema,
   panes: z.array(paneSchema).max(64),
   layout: layoutNodeSchema.nullable()
 })
@@ -119,7 +128,9 @@ export function defaultConfig(): Config {
     claudePath: '',
     accounts: [],
     accountFolders: [],
-    workspaces: [{ id: 'ws-default', name: 'default', icon: '', panes: [], layout: null }],
+    workspaces: [
+      { id: 'ws-default', name: 'default', icon: '', color: '', panes: [], layout: null }
+    ],
     activeWorkspace: 'ws-default',
     recentFolders: [],
     settings: settingsSchema.parse({})

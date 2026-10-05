@@ -224,6 +224,27 @@ Wraithgrid now runs on macOS 12 and later, on Apple Silicon and Intel Macs.
 > The macOS build is new and has been checked by tests, not yet on a real Mac. If something
 > looks wrong, please report which Mac (Apple Silicon or Intel) and macOS version.
 
+## 9. Icons from a library
+
+Accounts, workspaces and **account folders** can now use real icons, not only emoji.
+
+- **Where:** click the badge next to an account (Accounts page) or a workspace (workspace
+  switcher), or right-click a workspace or folder in the sidebar → **Change icon**.
+- **Search** thousands of icons by name (`rocket`, `git branch`, `database`, `cat`…):
+  - **Material**: Google's Material Symbols, about 4,600 icons in one consistent style
+    (filled, rounded). Familiar names such as `smartphone` work too.
+  - **Lucide**: about 1,900 clean outline icons.
+  - Filter with **All / Material / Lucide**. Before you type, a starter grid shows common
+    picks for projects and accounts.
+- **Emoji** are still there in their own tab, and you can type any emoji.
+- **Colors:** pick a tint for the icon. For workspaces and folders it only colors the icon
+  (or choose neutral grey). For an account it sets the account's color, which also marks
+  its panes.
+- **Letter** goes back to the first letter of the name.
+
+The icons ship with the app and work offline. They load the first time an icon is shown,
+so startup isn't slowed down.
+
 ## Keyboard shortcuts added
 
 | Shortcut | Action |

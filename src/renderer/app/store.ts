@@ -9,11 +9,11 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
+import { ICON_MAX } from '@shared/icons'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
 import {
   ACCOUNT_COLORS,
-  ACCOUNT_ICON_MAX,
   type Account,
   type Config,
   type LayoutNode,
@@ -142,16 +142,18 @@ export interface AppState {
   switchWorkspaceIndex(index: number): void
   createWorkspace(name: string): void
   renameWorkspace(id: string, name: string): void
-  /** An emoji, or '' for the first letter. */
-  setWorkspaceIcon(id: string, icon: string): void
+  /** An icon id or emoji ('' for the first letter), and optionally a tint ('' = neutral). */
+  setWorkspaceIcon(id: string, icon: string, color?: string): void
   deleteWorkspace(id: string): void
 
   // accounts
   addAccount(name: string, color: string): Promise<string | null>
   importAccount(dir: string): string | null
   renameAccount(id: string, name: string): void
-  /** An emoji, or '' for the color dot. */
-  setAccountIcon(id: string, icon: string): void
+  /** An icon id or emoji ('' for the first letter); a color also recolors the account. */
+  setAccountIcon(id: string, icon: string, color?: string): void
+  /** An icon id or emoji ('' for the folder glyph) and a tint ('' = neutral). */
+  setFolderIcon(id: string, icon: string, color?: string): void
   /** null moves the account out of any folder. */
   moveAccountToFolder(id: string, folderId: string | null): void
   createFolder(name: string): string | null
@@ -244,6 +246,11 @@ function uniqueSlug(base: string, taken: Set<string>): string {
   let slug = base || 'account'
   for (let i = 2; taken.has(slug); i++) slug = `${base || 'account'}-${i}`
   return slug
+}
+
+/** A picked tint: '#rrggbb' or '' (neutral); undefined or anything else keeps `current`. */
+function tint(color: string | undefined, current: string): string {
+  return color === '' || (color && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : current
 }
 
 function freshRuntime(extra: Partial<PaneRuntime> = {}): PaneRuntime {
@@ -708,7 +715,14 @@ export function createAppStore({
       createWorkspace(name) {
         const trimmed = name.trim().slice(0, 64)
         if (!trimmed) return
-        const ws: Workspace = { id: newId('ws'), name: trimmed, icon: '', panes: [], layout: null }
+        const ws: Workspace = {
+          id: newId('ws'),
+          name: trimmed,
+          icon: '',
+          color: '',
+          panes: [],
+          layout: null
+        }
         const s = get()
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)
@@ -792,19 +806,34 @@ export function createAppStore({
         return null
       },
 
-      setWorkspaceIcon(id, icon) {
-        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+      setWorkspaceIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
         get().updateConfig((c) => ({
           ...c,
-          workspaces: c.workspaces.map((w) => (w.id === id ? { ...w, icon: trimmed } : w))
+          workspaces: c.workspaces.map((w) =>
+            w.id === id ? { ...w, icon: trimmed, color: tint(color, w.color) } : w
+          )
         }))
       },
 
-      setAccountIcon(id, icon) {
-        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+      setAccountIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
         get().updateConfig((c) => ({
           ...c,
-          accounts: c.accounts.map((a) => (a.id === id ? { ...a, icon: trimmed } : a))
+          accounts: c.accounts.map((a) =>
+            // An account always has a color (it marks its panes): '' keeps the current one.
+            a.id === id ? { ...a, icon: trimmed, color: tint(color, a.color) || a.color } : a
+          )
+        }))
+      },
+
+      setFolderIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: c.accountFolders.map((f) =>
+            f.id === id ? { ...f, icon: trimmed, color: tint(color, f.color) } : f
+          )
         }))
       },
 
@@ -824,7 +853,10 @@ export function createAppStore({
         const id = newId('f')
         get().updateConfig((c) => ({
           ...c,
-          accountFolders: [...c.accountFolders, { id, name: trimmed, collapsed: false }]
+          accountFolders: [
+            ...c.accountFolders,
+            { id, name: trimmed, collapsed: false, icon: '', color: '' }
+          ]
         }))
         return id
       },

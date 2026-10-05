@@ -2548,3 +2548,128 @@ kbd,
 .tb.tb-mac {
   padding-left: 78px;
 }
+
+/* ---- Icon library picker --------------------------------------------------------- */
+
+.icp-pop {
+  border-radius: 14px;
+  border-color: var(--line);
+  padding: 12px;
+  gap: 10px;
+}
+.icp-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.icp-nm {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.icp-hd .seg-btn {
+  height: 24px;
+  font-size: 12px;
+}
+.icp-srch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  color: var(--fa);
+}
+.icp-srch:focus-within {
+  border-color: var(--hover-line);
+}
+.icp-srch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--tx);
+  font: inherit;
+  font-size: 13px;
+}
+.icp-sets {
+  display: flex;
+  gap: 4px;
+}
+.icp-glyphs {
+  height: 252px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-auto-rows: 38px;
+  gap: 2px;
+  align-content: start;
+}
+.icp-glyph {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mu);
+  padding: 0;
+}
+.icp-glyph:hover {
+  background: var(--raise);
+  color: var(--tx);
+}
+.icp-glyph.on {
+  background: var(--sel);
+  box-shadow: inset 0 0 0 1px var(--line2);
+}
+.icp-empty {
+  grid-column: 1 / -1;
+  padding: 28px 8px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.icp-ft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.icp-colors {
+  display: flex;
+  gap: 6px;
+}
+.icp-sw {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+}
+.icp-sw.neutral {
+  background: var(--raise);
+  box-shadow: inset 0 0 0 1px var(--line2);
+}
+.icp-sw.on {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 3.5px var(--tx);
+}
+.avatar.glyph svg {
+  display: block;
+}
+.fold-ic {
+  display: inline-flex;
+  flex: none;
+}
+.icp-sets .rchip {
+  font-family: var(--font-ui);
+}

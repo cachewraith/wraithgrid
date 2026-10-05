@@ -32,6 +32,7 @@
 - `lib/scheduling.ts`: `StaggeredQueue` starts restored panes 150 ms apart (NFR-2).
 - Store polls `git:status` every 5 s for the active workspace (one call per folder) into `git[paneId]`;
   status transitions (→ approval, running ≥ 8 s → idle) raise `notify:pane` when the pane isn't in view.
+- Icons: `scripts/icon-sets.ts` (Vite plugin) builds `virtual:icon-sets` from `@iconify-json/material-symbols` (one style + aliases) and `@iconify-json/lucide`; `lib/icon-sets.ts` imports it lazily; `Avatar` looks names up with `iconBody`.
 - `lib/diff.ts` parses `git diff` for `DiffPanel`; `lib/search.ts` matches palette queries.
 
 ## Data flow
