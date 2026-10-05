@@ -89,6 +89,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `pnpm exec …` can hang in this environment; call `./node_modules/.bin/<tool>` directly.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
 - Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect pnpm's minimumReleaseAge (pin an older version rather than adding an exclude).
+- Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 

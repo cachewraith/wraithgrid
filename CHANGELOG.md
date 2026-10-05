@@ -2,6 +2,7 @@
 
 ## 2026-10-05
 
+- [tests] Real-repo git test uses an empty temp gitconfig instead of os.devNull, which git can't open on Windows (`\\.\nul`); v1.4.0's Windows build failed on it (files: tests/unit/git.test.ts)
 - [release] v1.4.0 (files: package.json)
 - [icons] Icon library picker: search ~4,600 Material Symbols (one style: filled, rounded) and ~1,900 Lucide icons, filter by set, starter grid, Emoji tab, color tints; for accounts, workspaces and now account folders (right-click → Change icon). Icon data is trimmed at build time (`virtual:icon-sets`) and loads lazily as its own chunk; icons are stored as ids like `material:rocket-launch` and looked up, never rendered from config (files: scripts/icon-sets.ts, electron.vite.config.ts, tsconfig.node.json, src/shared/icons.ts, src/renderer/lib/{icon-search,icon-sets}.ts, src/renderer/virtual-modules.d.ts, src/renderer/components/{IconPicker,AccountIcon,SidebarAccounts,Sidebar,WorkspaceSwitcher,AccountsView,CommandPalette}.tsx, src/renderer/styles/base.css, package.json)
 - [config] Workspaces get `color`; folders get `icon` + `color`; icon values up to 64 chars; bad icons/tints reset instead of failing the file (files: src/shared/{types,schema}.ts, src/renderer/app/store.ts)

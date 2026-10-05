@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -16,6 +17,11 @@ import {
 import { parsePatch } from '../../src/renderer/lib/diff'
 import { matches } from '../../src/renderer/lib/search'
 
+// An empty global git config, so the user's own config can't change results. Not
+// os.devNull: on Windows that is \\.\nul, which git refuses to open.
+const EMPTY_GITCONFIG = path.join(os.tmpdir(), `wg-empty-gitconfig-${process.pid}`)
+writeFileSync(EMPTY_GITCONFIG, '')
+
 const realGit: GitRunner = (args, cwd) =>
   new Promise((resolve, reject) => {
     execFile(
@@ -30,7 +36,7 @@ const realGit: GitRunner = (args, cwd) =>
           GIT_COMMITTER_NAME: 't',
           GIT_COMMITTER_EMAIL: 't@t',
           GIT_CONFIG_NOSYSTEM: '1',
-          GIT_CONFIG_GLOBAL: os.devNull,
+          GIT_CONFIG_GLOBAL: EMPTY_GITCONFIG,
           LC_ALL: 'C'
         }
       },
