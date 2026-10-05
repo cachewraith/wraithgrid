@@ -198,6 +198,8 @@ function UpdatesRow() {
   const actions = useActions()
   const version = useApp((s) => s.info.version)
   const onLaunch = useApp((s) => s.config.settings.checkUpdatesOnLaunch)
+  // macOS builds can't replace themselves (not Developer ID signed): straight to the page.
+  const manualOnly = useApp((s) => s.info.platform === 'darwin')
   const { checking, result, install, installError } = useApp((s) => s.update)
   const busy = install.phase !== 'idle'
   const anchor = useApp((s) => s.settingsAnchor)
@@ -282,7 +284,7 @@ function UpdatesRow() {
             <IconRestart />
             {checking ? 'Checking…' : 'Check for updates'}
           </button>
-          {result?.status === 'available' && !installError?.manual ? (
+          {result?.status === 'available' && !installError?.manual && !manualOnly ? (
             <button
               className="btn pri"
               disabled={busy}
@@ -292,7 +294,7 @@ function UpdatesRow() {
               {busy ? 'Updating…' : `Update to ${result.latest.version} & restart`}
             </button>
           ) : null}
-          {result?.status === 'available' && installError?.manual ? (
+          {result?.status === 'available' && (installError?.manual || manualOnly) ? (
             <button
               className="btn pri"
               onClick={() => void api.shell.openExternal(result.latest.url)}

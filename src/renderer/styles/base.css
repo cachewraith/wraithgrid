@@ -2543,3 +2543,8 @@ kbd,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* macOS: the traffic lights sit at the left of our title bar; double-click zooms natively. */
+.tb.tb-mac {
+  padding-left: 78px;
+}

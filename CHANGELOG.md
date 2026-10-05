@@ -2,6 +2,12 @@
 
 ## 2026-10-05
 
+- [macos] macOS support: traffic lights inset in our title bar (`chrome: 'mac'`), an app menu (About/Hide/Quit, Edit with copy/paste, Window; no ⌘W), Homebrew bin dirs, zsh as the fallback shell, `en_US.UTF-8` locale fallback; in-app update opens the release page (ad-hoc signed apps can't replace themselves) (files: src/main/{index,platform,pane-env}.ts, src/shared/ipc-contract.ts, src/renderer/components/{TitleBar,SettingsView}.tsx, src/renderer/styles/base.css)
+- [macos] App shortcuts use ⌘ on macOS (⌘⇧N, ⌘⇧P, ⌘⌥+arrows, ⌘=/-/0…); every Ctrl chord goes to the terminal; ⌘C/⌘V copy and paste; hints show ⌘⇧ glyphs (files: src/renderer/app/shortcuts.ts, src/renderer/components/{Terminal,ShortcutsSheet,WorkspaceSwitcher,Sidebar,CommandPalette}.tsx)
+- [shells] Login PATH probe uses `printenv PATH` (macOS's BSD `env` may lack `-0`); parser reads both formats (files: src/main/platform.ts)
+- [build] macOS dmg + zip for arm64 and x64, ad-hoc signed, not notarized; `pnpm dist:mac`; CI builds them on macos-latest for releases and runs checks there (files: electron-builder.yml, package.json, .github/workflows/build.yml)
+- [docs] README: macOS install, Gatekeeper first launch, keys, file locations, build (files: README.md)
+- [tests] macOS shortcuts, chord hints, darwin desktop/bin dirs/shell, printenv probe parsing, mac locale (files: tests/unit/{shortcuts,platform,shells}.test.ts)
 - [shells] Settings → General "Shell for plain panes": Automatic, any detected shell (/etc/shells + PATH: bash, zsh, fish, nu, pwsh, xonsh, elvish, tcsh, ksh, dash; Windows: PowerShell 7/5, cmd, Git Bash with --login -i, WSL, nushell) or a custom path/name with arguments; a missing pick is reported, not swapped (files: src/main/{platform,ipc}.ts, src/shared/{types,schema,ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/components/{SettingsView,NewPaneDialog}.tsx, src/renderer/styles/base.css)
 - [shells] Login-shell PATH probe uses each shell's own flags (csh/tcsh plain -c, nushell externals, pwsh -Login) and falls back to `/bin/sh -l` (files: src/main/platform.ts)
 - [terminal] Panes drop variables of the terminal Wraithgrid was started from (COLUMNS/LINES, TERM_PROGRAM, VSCODE__, TMUX, KITTY__, WT_SESSION, CLAUDECODE, …) so claude's screen keeps its real size and terminal type; LANG=C.UTF-8 when no locale is set (POSIX) (files: src/main/pane-env.ts)

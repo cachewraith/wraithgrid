@@ -2,7 +2,7 @@
 
 ## Purpose
 Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows + Linux. v1.3.0.
+each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS (unreleased). v1.3.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -16,7 +16,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `pnpm test` — Vitest unit tests (`tests/unit`)
 - `pnpm test:e2e` — build, then Playwright (`tests/e2e`; needs a display, CI uses xvfb-run)
 - `pnpm build` — production build into `out/`
-- `pnpm dist:linux:portable` — Linux packages in Ubuntu 22.04 Docker; `pnpm dist:win` on Windows
+- `pnpm dist:linux:portable` — Linux packages in Ubuntu 22.04 Docker; `pnpm dist:win` on Windows; `pnpm dist:mac` on a Mac
 - Release: `npm version <patch|minor|major> -m "chore: release %s" && git push --follow-tags`
 
 ## Directory map
@@ -78,6 +78,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - dnd-kit measures drop zones async after drag start: e2e drags must move in paced steps.
 - CI skips pushes touching only `*.md`/`docs/**`; installers build only on a `v*.*.*` tag.
 - AppImage on Ubuntu 24.04+/Kali blocked by AppArmor; prefer .deb.
+- macOS: app shortcuts are ⌘ (`matchShortcut(e, mac)`; tests must pass `mac` explicitly since Node on a Mac reports a Mac platform); Ctrl always goes to the terminal; ⌘C/V work through the app menu's Edit roles, so never drop that menu on darwin.
+- macOS builds are ad-hoc signed (`identity: '-'`, hardened runtime off) and not notarized: Gatekeeper asks on first launch; in-app update falls back to the release page until a Developer ID exists.
 - claude only has a "new line" key via ESC CR; the terminal maps Shift+Enter to it for claude panes.
 - Running claude reads CLAUDE.md/skills/plugins at start: a sharing change needs a pane restart.
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
@@ -89,4 +91,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 
 ## Current focus
-Unreleased: T3 Code–inspired pass (restyle, sidebar pane list, palette, git chip + Changes panel, worktree panes, notifications), any-shell support. Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+Unreleased: T3 Code–inspired pass (restyle, sidebar pane list, palette, git chip + Changes panel, worktree panes, notifications), any-shell support, macOS support (untested on real Mac hardware so far). Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

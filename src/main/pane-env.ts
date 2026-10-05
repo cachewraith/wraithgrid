@@ -41,7 +41,7 @@ export function isTerminalVar(key: string): boolean {
   return TERMINAL_VARS.has(k) || TERMINAL_PREFIXES.some((p) => k.startsWith(p))
 }
 
-/** UTF-8 is needed for claude's box drawing and spinners in tools it runs; C.UTF-8 is everywhere. */
+/** UTF-8 is needed for claude's box drawing and spinners in the tools it runs. */
 function hasLocale(env: Record<string, string>): boolean {
   return ['LC_ALL', 'LC_CTYPE', 'LANG'].some((k) => !!env[k])
 }
@@ -77,7 +77,9 @@ export function buildPaneEnv({
   // What xterm.js is: every shell (bash, zsh, fish, nu, PowerShell…) and claude read these.
   env.TERM = 'xterm-256color'
   env.COLORTERM = 'truecolor'
-  if (platform !== 'win32' && !hasLocale(env)) env.LANG = 'C.UTF-8'
+  // macOS apps opened from the Dock get no locale; older macOS has no C.UTF-8.
+  if (platform !== 'win32' && !hasLocale(env))
+    env.LANG = platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
   if (!shell && configDir) {
     env.CLAUDE_CONFIG_DIR = path.resolve(expandHome(configDir, homeDir))
   }

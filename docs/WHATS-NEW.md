@@ -182,12 +182,54 @@ are started as interactive login shells; csh and tcsh get plain `-c` because the
 allow `-l` with other flags; nushell and PowerShell get their own commands. If your shell
 still can't answer, Wraithgrid asks `/bin/sh -l`, which reads `~/.profile`.
 
+## 8. macOS
+
+Wraithgrid now runs on macOS 12 and later, on Apple Silicon and Intel Macs.
+
+- **Install:** open `Wraithgrid-<version>-mac-arm64.dmg` (Apple Silicon) or `-mac-x64.dmg`
+  (Intel) and drag Wraithgrid to Applications.
+- **First launch:** the app isn't notarized yet (that needs a paid Apple Developer ID), so
+  macOS blocks the first launch. Right-click Wraithgrid in Applications → **Open** → **Open**.
+  You only do this once. Or run:
+  `xattr -dr com.apple.quarantine /Applications/Wraithgrid.app`
+- **Window:** the usual red/yellow/green buttons sit in Wraithgrid's own title bar.
+  Double-clicking the bar zooms the window, as in other Mac apps.
+- **Menu:** Wraithgrid → About, Hide, Quit (⌘Q); Edit → copy, paste, select all; Window →
+  minimize, zoom, full screen. There is no ⌘W, so a stray keystroke can't close every pane.
+- **Keys:** app shortcuts use **⌘** where Linux and Windows use Ctrl:
+
+  | Action | macOS | Linux / Windows |
+  |---|---|---|
+  | Search | ⌘⇧P | Ctrl+Shift+P |
+  | New pane | ⌘⇧N | Ctrl+Shift+N |
+  | Close pane | ⌘⇧W | Ctrl+Shift+W |
+  | Zoom pane | ⌘⇧Z | Ctrl+Shift+Z |
+  | Changes panel | ⌘⇧D | Ctrl+Shift+D |
+  | Move focus | ⌘⌥ + arrows | Ctrl+Alt + arrows |
+  | Workspace 1–9 | ⌘⇧1…9 | Ctrl+Shift+1…9 |
+  | Text size | ⌘= / ⌘- / ⌘0 | Ctrl+= / Ctrl+- / Ctrl+0 |
+  | Copy / paste in a pane | ⌘C / ⌘V | Ctrl+Shift+C / V |
+
+  **Every Ctrl key goes to the terminal**, so Ctrl+C, Ctrl+R and Ctrl+_ reach claude the
+  same way they do in Terminal.app. The shortcut hints in the app show ⌘⇧ symbols on a Mac.
+- **Finding claude:** apps opened from the Dock or Finder don't get your shell's PATH, so
+  Wraithgrid asks your login shell (zsh by default) once, and also looks in Homebrew
+  (`/opt/homebrew/bin`, `/usr/local/bin`) and `~/.local/bin`.
+- **Updates:** **Settings → Updates** still tells you when a new version is out, but on a Mac
+  it opens the release page instead of installing in place. macOS only lets an app replace
+  itself when it's signed with a Developer ID.
+- **Files:** settings live in `~/Library/Application Support/wraithgrid/`; accounts stay in
+  `~/.wraithgrid/accounts/`.
+
+> The macOS build is new and has been checked by tests, not yet on a real Mac. If something
+> looks wrong, please report which Mac (Apple Silicon or Intel) and macOS version.
+
 ## Keyboard shortcuts added
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+Shift+P | Search panes and commands |
-| Ctrl+Shift+D | Show or hide the Changes panel |
+| Ctrl+Shift+P (⌘⇧P on macOS) | Search panes and commands |
+| Ctrl+Shift+D (⌘⇧D on macOS) | Show or hide the Changes panel |
 
 Every shortcut is listed in the app with **Ctrl+Shift+/**.
 

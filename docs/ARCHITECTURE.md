@@ -9,7 +9,7 @@
 ## Main modules
 | Module | Role |
 |---|---|
-| `index.ts` | App lifecycle, BrowserWindow, single-instance lock, PATH merge, composition root |
+| `index.ts` | App lifecycle, BrowserWindow (frameless / Windows overlay / macOS inset traffic lights), macOS app menu, single-instance lock, PATH merge, composition root |
 | `ipc.ts` | `registerIpc(deps)`: one handler per channel, zod-validated input |
 | `pty-manager.ts` | `PtyManager`: spawn/write/resize/kill; `KillPolicy` strategy (POSIX group signal vs Windows ConPTY list) |
 | `pane-env.ts` | Pane environment; `CLAUDE_CONFIG_DIR` only for claude panes; drops the launching terminal's vars (COLUMNS/LINES, TERM_PROGRAM, VSCODE_*, TMUX, KITTY_*, WT_SESSION, CLAUDECODE…); `LANG=C.UTF-8` if no locale |
@@ -54,7 +54,7 @@ git status/diff/worktreeAdd, `shell:list`, `notify:pane` (+ `pane:reveal` event 
 - Nothing else. No telemetry.
 
 ## Persistence
-- `config.json` in userData: `~/.config/wraithgrid/` (Linux), `%APPDATA%\wraithgrid\` (Windows).
+- `config.json` in userData: `~/.config/wraithgrid/` (Linux), `~/Library/Application Support/wraithgrid/` (macOS), `%APPDATA%\wraithgrid\` (Windows).
 - Account config dirs default under `~/.wraithgrid/accounts/`. Wraithgrid does not read inside them.
 - Worktrees made from New pane: `~/.wraithgrid/worktrees/<repo>/<branch with / → ->`.
 
@@ -64,8 +64,8 @@ git status/diff/worktreeAdd, `shell:list`, `notify:pane` (+ `pane:reveal` event 
 - Set by app: `CLAUDE_CONFIG_DIR` (per claude pane), `WRAITHGRID_RESOLVING_ENVIRONMENT=1`
   (during login-shell PATH probe), `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C` (git calls).
 - Tests: `WRAITHGRID_E2E_SHOTS` (optional screenshot dir for `git-palette.spec.ts`).
-- Build scripts: `WRAITHGRID_BUILD_IMAGE`, `WRAITHGRID_NODE_VERSION` (`scripts/dist-linux-docker.sh`).
+- Build scripts: `WRAITHGRID_BUILD_IMAGE`, `WRAITHGRID_NODE_VERSION` (`scripts/dist-linux-docker.sh`); CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false` for the mac build.
 
 ## CI/CD
-- `build.yml`: push/PR → typecheck, lint, unit, e2e (Linux, xvfb), package (Ubuntu 22.04 + Windows).
+- `build.yml`: push/PR → typecheck, lint, unit on Ubuntu 22.04, Windows and macOS; e2e on Linux (xvfb); release → package (Linux, Windows NSIS, macOS dmg/zip arm64+x64).
 - `release.yml`: `v*.*.*` tag → verify tag = package.json → build → SHA256SUMS → `gh release create`.

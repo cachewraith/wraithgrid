@@ -15,6 +15,7 @@ import {
   detectDesktop,
   extraBinDirs,
   loginShellPath,
+  MAC_TRAFFIC_LIGHTS,
   mergePath,
   minimumWindowSize,
   titleBarOverlayFor
@@ -87,10 +88,13 @@ function createWindow(): void {
     height: 900,
     minWidth: min.width,
     minHeight: min.height,
-    // Windows keeps its native caption buttons (and snap layouts) over our title bar.
+    // Windows keeps its native caption buttons (and snap layouts) over our title bar;
+    // macOS keeps its traffic lights, inset into it.
     ...(desktop.chrome === 'overlay'
       ? { titleBarStyle: 'hidden' as const, titleBarOverlay: titleBarOverlayFor(theme) }
-      : { frame: false }),
+      : desktop.chrome === 'mac'
+        ? { titleBarStyle: 'hidden' as const, trafficLightPosition: MAC_TRAFFIC_LIGHTS }
+        : { frame: false }),
     show: false,
     title: 'Wraithgrid',
     backgroundColor: theme === 'light' ? '#ffffff' : '#1c1c1c',
@@ -245,6 +249,49 @@ const runGit: GitRunner = (args, cwd) =>
     )
   })
 
+/**
+ * macOS only works with an application menu: without one, Cmd+Q, Cmd+H and Cmd+C/V in text
+ * fields do nothing. Kept minimal; there is no Cmd+W item, since that would close the
+ * window and every pane with it.
+ */
+function macMenu(): Menu {
+  return Menu.buildFromTemplate([
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { role: 'togglefullscreen' },
+        { role: 'front' }
+      ]
+    }
+  ])
+}
+
 /** In-app updates through electron-updater, which picks the installer for this package type. */
 function createInstaller(): UpdateInstaller {
   // Downloads start only from the Settings button, and nothing installs on a plain quit:
@@ -256,7 +303,12 @@ function createInstaller(): UpdateInstaller {
   autoUpdater.on('error', () => {})
   return new UpdateInstaller({
     currentVersion: app.getVersion(),
-    check: async () => (await autoUpdater.checkForUpdates())?.updateInfo.version ?? null,
+    // macOS builds are ad-hoc signed; Squirrel.Mac only installs updates signed by the same
+    // Developer ID, so there the release page is offered instead (null = manual).
+    check: async () =>
+      process.platform === 'darwin'
+        ? null
+        : ((await autoUpdater.checkForUpdates())?.updateInfo.version ?? null),
     download: async (onPercent) => {
       const listener = (p: ProgressInfo): void => onPercent(p.percent)
       autoUpdater.on('download-progress', listener)
@@ -304,7 +356,7 @@ void app.whenReady().then(() => {
       void updates.check().then(notify)
     }, UPDATE_RECHECK_MS).unref()
   }
-  Menu.setApplicationMenu(null)
+  Menu.setApplicationMenu(process.platform === 'darwin' ? macMenu() : null)
   hardenSessions()
   registerIpc({
     getWindow: () => mainWindow,

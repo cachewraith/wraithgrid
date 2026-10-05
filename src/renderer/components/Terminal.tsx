@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import { matchShortcut } from '../app/shortcuts'
+import { IS_MAC, matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
 import { currentTheme } from '../app/store'
 import { terminalFontStack, terminalTheme } from '../lib/term-theme'
@@ -84,6 +84,10 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
         }
         return false
       }
+      // Ctrl+Shift+C / V copy and paste on Linux and Windows. On macOS that is ⌘C / ⌘V,
+      // done by the Edit menu (xterm handles the copy and paste events), and every Ctrl
+      // chord goes to the process.
+      if (IS_MAC) return true
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyC') {
         if (e.type === 'keydown') {
           e.preventDefault()

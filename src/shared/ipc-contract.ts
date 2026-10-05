@@ -95,8 +95,11 @@ export interface AppInfo {
   platform: string
   configPath: string
   version: string
-  /** custom: our title bar; overlay: Windows caption buttons; tiling: tiling compositor. */
-  chrome: 'custom' | 'overlay' | 'tiling'
+  /**
+   * custom: our title bar; overlay: Windows caption buttons; tiling: tiling compositor;
+   * mac: macOS traffic lights inset at the left.
+   */
+  chrome: 'custom' | 'overlay' | 'tiling' | 'mac'
   desktop: string | null
 }
 

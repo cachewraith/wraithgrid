@@ -39,6 +39,14 @@ jobs:
               dist/*.exe
               dist/*.exe.blockmap
               dist/latest.yml
+          # Apple Silicon runner; electron-builder also builds the Intel (x64) app there.
+          - os: macos-latest
+            dist: dist:mac
+            artifacts: |
+              dist/*.dmg
+              dist/*.zip
+              dist/*.blockmap
+              dist/latest-mac.yml
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,6 +67,9 @@ jobs:
         run: xvfb-run -a pnpm test:e2e
       - if: inputs.package
         run: pnpm ${{ matrix.dist }}
+        env:
+          # No Developer ID: never pick up a random certificate from the runner's keychain.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - if: inputs.package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -125,7 +125,9 @@ function WorkspaceRow({
           ref={rowRef}
           className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
           aria-current={on ? 'true' : undefined}
-          title={key ? `Switch to ${w.name} (Ctrl+Shift+${key})` : `Switch to ${w.name}`}
+          title={
+            key ? `Switch to ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Switch to ${w.name}`
+          }
           onClick={() => actions.switchWorkspace(w.id)}
           onContextMenu={(e) => {
             e.preventDefault()

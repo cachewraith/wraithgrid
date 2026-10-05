@@ -8,7 +8,7 @@ export function TitleBar() {
   const wsName = useApp((s) => activeWorkspace(s).name)
   const view = useApp((s) => s.view)
   // custom: our min/max/close. tiling (Hyprland, sway, …): the compositor owns size and
-  // minimize, so only close. overlay (Windows): native caption buttons sit on top.
+  // minimize, so only close. overlay (Windows) and mac: the OS draws its own buttons.
   const chrome = useApp((s) => s.info.chrome)
   const subtitle = view === 'settings' ? 'Settings' : view === 'accounts' ? 'Accounts' : wsName
 
@@ -26,7 +26,7 @@ export function TitleBar() {
       <Logo />
       <span className="tb-name">Wraithgrid</span>
       <span className="tb-ws">— {subtitle}</span>
-      {chrome === 'overlay' ? null : (
+      {chrome === 'overlay' || chrome === 'mac' ? null : (
         <div className="wc">
           {chrome === 'custom' ? (
             <>

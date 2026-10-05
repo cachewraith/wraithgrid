@@ -43,7 +43,7 @@ describe('login probe flags per shell', () => {
   it('uses nushell externals and PowerShell flags', () => {
     const nu = loginProbeArgs('/usr/bin/nu')
     expect(nu.slice(0, 3)).toEqual(['-l', '-i', '-c'])
-    expect(nu[3]).toContain('^env -0')
+    expect(nu[3]).toContain('^printenv PATH')
     expect(loginProbeArgs('/usr/bin/pwsh').slice(0, 2)).toEqual(['-Login', '-NoLogo'])
     expect(loginProbeArgs('/usr/bin/xonsh').slice(0, 3)).toEqual(['-l', '-i', '-c'])
   })
@@ -232,6 +232,10 @@ describe('pane environment for any shell', () => {
       platform: 'linux'
     })
     expect(linux.LANG).toBe('C.UTF-8')
+    expect(
+      buildPaneEnv({ baseEnv: {}, shell: true, configDir: null, homeDir: home, platform: 'darwin' })
+        .LANG
+    ).toBe('en_US.UTF-8')
     const keep = buildPaneEnv({
       baseEnv: { LC_ALL: 'de_DE.UTF-8' },
       shell: true,

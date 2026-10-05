@@ -10,8 +10,9 @@ import path from 'node:path'
  * - `custom`: our own title bar with min/max/close (GNOME, KDE, Xfce, …)
  * - `overlay`: our title bar with Windows' native caption buttons over it (snap layouts)
  * - `tiling`: a tiling compositor (Hyprland, sway, i3, …) manages size; only close shows
+ * - `mac`: our title bar with macOS's own traffic lights inset at its left end
  */
-export type WindowChrome = 'custom' | 'overlay' | 'tiling'
+export type WindowChrome = 'custom' | 'overlay' | 'tiling' | 'mac'
 
 export interface DesktopInfo {
   chrome: WindowChrome
@@ -38,6 +39,7 @@ const TILING_DESKTOPS = new Set([
 
 export function detectDesktop(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): DesktopInfo {
   if (platform === 'win32') return { chrome: 'overlay', desktop: 'Windows', wayland: false }
+  if (platform === 'darwin') return { chrome: 'mac', desktop: 'macOS', wayland: false }
   const names = [env.XDG_CURRENT_DESKTOP, env.XDG_SESSION_DESKTOP, env.DESKTOP_SESSION]
     .filter((x): x is string => !!x)
     .flatMap((x) => x.toLowerCase().split(/[:;]/))
@@ -59,6 +61,9 @@ export function detectDesktop(platform: NodeJS.Platform, env: NodeJS.ProcessEnv)
 export function minimumWindowSize(chrome: WindowChrome): { width: number; height: number } {
   return chrome === 'tiling' ? { width: 640, height: 420 } : { width: 1100, height: 700 }
 }
+
+/** Where the traffic lights sit so they center in our 36 px title bar. */
+export const MAC_TRAFFIC_LIGHTS = { x: 12, y: 11 } as const
 
 /** Caption-button colors for Windows' title bar overlay, from the theme tokens. */
 export function titleBarOverlayFor(theme: 'dark' | 'light'): {
@@ -86,7 +91,12 @@ export async function resolveDefaultShell(
   if (platform === 'win32') {
     return (await find('pwsh')) ?? (await find('powershell')) ?? env.ComSpec ?? 'cmd.exe'
   }
-  for (const candidate of [env.SHELL, '/bin/bash', '/usr/bin/bash', '/bin/zsh', '/bin/sh']) {
+  // macOS's default shell is zsh (since 10.15); Linux's is usually bash.
+  const fallbacks =
+    platform === 'darwin'
+      ? ['/bin/zsh', '/bin/bash', '/bin/sh']
+      : ['/bin/bash', '/usr/bin/bash', '/bin/zsh', '/bin/sh']
+  for (const candidate of [env.SHELL, ...fallbacks]) {
     if (candidate && (await exists(candidate))) return candidate
   }
   return '/bin/sh'
@@ -219,6 +229,8 @@ export function extraBinDirs(
   return [
     p.join(home, '.local', 'bin'),
     p.join(home, '.claude', 'local'),
+    // Homebrew: Apple Silicon, then Intel (/usr/local/bin below).
+    ...(platform === 'darwin' ? ['/opt/homebrew/bin', '/opt/homebrew/sbin'] : []),
     p.join(home, '.npm-global', 'bin'),
     p.join(home, '.bun', 'bin'),
     p.join(home, '.volta', 'bin'),
@@ -275,22 +287,33 @@ export function spawnCommandFor(
 
 const ENV_MARK = '__WRAITHGRID_ENV__'
 
-/** Pulls PATH out of `env -0` output framed by markers (shell noise before or after is ignored). */
+/**
+ * Pulls PATH out of the probe's output framed by markers (shell noise before or after is
+ * ignored): either `printenv PATH` (one line) or an `env -0` dump (NUL-separated).
+ */
 export function parsePathFromEnvDump(output: string): string | null {
   const start = output.indexOf(ENV_MARK)
   const end = output.lastIndexOf(ENV_MARK)
   if (start < 0 || end <= start) return null
   const body = output.slice(start + ENV_MARK.length, end)
-  for (const entry of body.split('\0')) {
-    if (entry.startsWith('PATH=')) return entry.slice(5) || null
+  if (body.includes('\0')) {
+    for (const entry of body.split('\0')) {
+      if (entry.startsWith('PATH=')) return entry.slice(5) || null
+    }
+    return null
   }
-  return null
+  const line = body.trim()
+  return line && !line.includes('\n') ? line : null
 }
 
-/** The probe script for most shells: POSIX sh, bash, zsh, fish, ksh, csh, xonsh, elvish, pwsh. */
-const PROBE = `printf '%s' ${ENV_MARK}; env -0; printf '%s' ${ENV_MARK}`
-/** nushell has no `printf` and its own `env`; `^` runs the external programs. */
-const PROBE_NU = `^printf '%s' ${ENV_MARK}; ^env -0; ^printf '%s' ${ENV_MARK}`
+/**
+ * The probe for most shells: POSIX sh, bash, zsh, fish, ksh, csh, xonsh, elvish, pwsh.
+ * `printenv` exists on Linux, macOS and BSD (macOS's older `env` has no `-0`), and prints
+ * PATH colon-joined even in fish, where `$PATH` is a list.
+ */
+const PROBE = `printf '%s' ${ENV_MARK}; printenv PATH; printf '%s' ${ENV_MARK}`
+/** nushell has no `printf` and its own `printenv`-less env; `^` runs the external programs. */
+const PROBE_NU = `^printf '%s' ${ENV_MARK}; ^printenv PATH; ^printf '%s' ${ENV_MARK}`
 
 /**
  * How to run the probe as a login, interactive shell of this kind, so it reads the same
