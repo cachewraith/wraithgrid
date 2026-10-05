@@ -14,7 +14,12 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const recent = useApp((s) => s.config.recentFolders)
   const home = useApp((s) => s.info.homeDir)
   const windows = useApp((s) => s.info.platform === 'win32')
-  const shellName = windows ? 'PowerShell' : '$SHELL'
+  const shellPath = useApp((s) => s.config.settings.shellPath)
+  const shellName = shellPath
+    ? (shellPath.split(/[\\/]/).pop() ?? shellPath)
+    : windows
+      ? 'PowerShell'
+      : '$SHELL'
 
   const initialAccount =
     accounts.find((a) => a.id === settings.defaultAccountId)?.id ?? accounts[0]?.id ?? null
@@ -33,7 +38,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
     folder.trim() !== '' && (shell || !!account) && (!worktree || branch.trim() !== '') && !busy
   const runIn = worktree && branch.trim() ? `~/.wraithgrid/worktrees/…/${branch.trim()}` : folder
   const willRun = shell
-    ? `cd ${folder || '<folder>'} && ${windows ? 'pwsh' : '$SHELL'}`
+    ? `cd ${folder || '<folder>'} && ${shellName}`
     : `CLAUDE_CONFIG_DIR=${account?.configDir ?? '<account>'} claude${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
 
   const browse = async (): Promise<void> => {

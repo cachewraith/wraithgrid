@@ -23,10 +23,10 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/index.ts`: app entry; window, PATH resolution, wires ConfigStore/PtyManager/IPC
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
 - `src/main/pty-manager.ts`: spawns/kills pane processes; per-OS KillPolicy
-- `src/main/pane-env.ts`: builds a pane's env (sets `CLAUDE_CONFIG_DIR` for claude panes)
+- `src/main/pane-env.ts`: builds a pane's env (`CLAUDE_CONFIG_DIR` for claude panes; strips the launching terminal's vars; UTF-8 locale fallback)
 - `src/main/config-store.ts`: config.json load/save, atomic write, bad-file quarantine
 - `src/main/claude-detect.ts`: finds the `claude` binary and version
-- `src/main/platform.ts`: OS/desktop differences as pure functions (chrome, shell, PATH, spawn)
+- `src/main/platform.ts`: OS/desktop differences as pure functions (chrome, shell pick/detection, login-shell PATH probe per shell, spawn)
 - `src/main/shared-config.ts`: link ~/.claude's CLAUDE.md, settings.json, skills/, plugins/, agents/, commands/ into every account ("overall" mode)
 - `src/main/update-check.ts`: GitHub Releases check (fixed URL) for the Settings/status-bar notice
 - `src/main/update-install.ts`: in-app update facade over electron-updater (check → download → install + relaunch)
@@ -46,7 +46,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
-- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex)
+- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars)
 - `scripts/`: Docker Linux build, multi-distro package smoke test
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
@@ -69,7 +69,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 
 ## Known gotchas
 - node-pty compiles against the host glibc: ship Linux builds from Ubuntu 22.04 (portable script / CI).
-- Launcher-started app lacks shell PATH: main asks the login shell once (skipped when `TERM` set).
+- Launcher-started app lacks shell PATH: main asks the login shell once with flags per shell kind (csh/tcsh can't take `-l -c`), then `/bin/sh -l` (skipped when `TERM` set).
+- claude panes never go through the user's shell; their screen breaks only via inherited env (COLUMNS, TERM_PROGRAM, TMUX…): add new terminal vars to `TERMINAL_VARS` in pane-env.ts.
 - Windows `claude.cmd` runs through cmd.exe: args with `& | < > ^ % "` are refused.
 - Sandboxed preload can't require node_modules: preload is bundled (`externalizeDeps: false`).
 - Single-instance lock: a second launch exits.
@@ -88,4 +89,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 
 ## Current focus
-Unreleased: T3 Code–inspired pass (restyle, sidebar pane list, palette, git chip + Changes panel, worktree panes, notifications). Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+Unreleased: T3 Code–inspired pass (restyle, sidebar pane list, palette, git chip + Changes panel, worktree panes, notifications), any-shell support. Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

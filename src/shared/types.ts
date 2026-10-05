@@ -143,6 +143,10 @@ export interface Settings {
   checkUpdatesOnLaunch: boolean
   /** OS notification when a pane you aren't looking at finishes or needs approval. */
   notifyPanes: boolean
+  /** The shell plain shell panes run: a path or a name on PATH. Empty: automatic. */
+  shellPath: string
+  /** Arguments for `shellPath`, e.g. `--login -i` for Git Bash. */
+  shellArgs: string[]
 }
 
 export const CONFIG_VERSION = 1

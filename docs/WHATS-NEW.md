@@ -18,6 +18,7 @@ worktree panes and notifications.
 | Pane on its own branch | **Ctrl+Shift+N** → turn on *Work on a new branch (git worktree)* |
 | Jump to a pane | Expand a workspace in the sidebar → click the pane |
 | Notifications | On by default; **Settings → Notifications** to turn off |
+| Shell for plain panes | **Settings → General → Shell for plain panes** |
 
 ---
 
@@ -137,6 +138,49 @@ straight to the pane.** Plain shell panes never send notifications.
 Turn this off in **Settings → Notifications**.
 
 ---
+
+## 7. Works with any shell
+
+### Pick the shell for plain panes
+
+**Settings → General → Shell for plain panes** offers:
+
+- **Automatic**: your login shell (`$SHELL`) on Linux; PowerShell 7, then Windows
+  PowerShell, then cmd on Windows.
+- **The shells found on this machine**: anything in `/etc/shells`, plus bash, zsh, fish,
+  nushell, PowerShell, xonsh, elvish, tcsh, ksh and dash if they're on your PATH. On
+  Windows: PowerShell 7, Windows PowerShell, Command Prompt, **Git Bash** (started with
+  `--login -i`), **WSL** and nushell.
+- **Custom…**: any other shell, as a path or a name on your PATH, with arguments
+  (for example `C:\msys64\usr\bin\zsh.exe` or `nu --no-history`).
+
+If the shell you picked is removed later, the pane says *Shell not found* and points you
+back to Settings, instead of quietly opening a different shell.
+
+### claude's screen never breaks because of your shell
+
+claude panes don't go through your shell at all: claude is started directly. What used to
+be able to garble its screen was environment carried over from the terminal you started
+Wraithgrid from. Panes now drop those variables:
+
+| Variable | What it did to claude |
+|---|---|
+| `COLUMNS`, `LINES` | Fixed width and height: lines wrapped wrong, boxes broke |
+| `TERM_PROGRAM`, `VSCODE_*` | claude acted as if it ran inside VS Code (IDE hooks, keys) |
+| `TMUX`, `STY`, `KITTY_*`, `WEZTERM_*`, `WT_SESSION`… | Wrong terminal assumed for keys and graphics |
+| `CLAUDECODE` | claude thought it was nested in another claude session |
+
+Every pane gets `TERM=xterm-256color` and `COLORTERM=truecolor`, which is what the built-in
+terminal really is. On Linux, `LANG=C.UTF-8` is set when no locale is set at all, so
+spinners and box drawing in tools claude runs don't turn into `?`.
+
+### Finding claude, whatever your login shell
+
+When Wraithgrid is started from a launcher, it asks your login shell for `PATH` so it can
+find `claude`. It now uses the right flags for each shell: bash, zsh, fish, ksh and dash
+are started as interactive login shells; csh and tcsh get plain `-c` because they don't
+allow `-l` with other flags; nushell and PowerShell get their own commands. If your shell
+still can't answer, Wraithgrid asks `/bin/sh -l`, which reads `~/.profile`.
 
 ## Keyboard shortcuts added
 

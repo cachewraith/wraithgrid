@@ -84,7 +84,17 @@ export const settingsSchema = z.object({
   sidebarCollapsed: z.boolean().default(false),
   sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true),
-  notifyPanes: z.boolean().default(true)
+  notifyPanes: z.boolean().default(true),
+  shellPath: z.string().max(4096).default(''),
+  shellArgs: z
+    .array(
+      z
+        .string()
+        .max(1000)
+        .refine((s) => !s.includes('\0'))
+    )
+    .max(32)
+    .default([])
 })
 
 export const configSchema = z.object({

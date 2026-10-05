@@ -12,10 +12,10 @@
 | `index.ts` | App lifecycle, BrowserWindow, single-instance lock, PATH merge, composition root |
 | `ipc.ts` | `registerIpc(deps)`: one handler per channel, zod-validated input |
 | `pty-manager.ts` | `PtyManager`: spawn/write/resize/kill; `KillPolicy` strategy (POSIX group signal vs Windows ConPTY list) |
-| `pane-env.ts` | Pane environment; `CLAUDE_CONFIG_DIR` only for claude panes |
+| `pane-env.ts` | Pane environment; `CLAUDE_CONFIG_DIR` only for claude panes; drops the launching terminal's vars (COLUMNS/LINES, TERM_PROGRAM, VSCODE_*, TMUX, KITTY_*, WT_SESSION, CLAUDECODE…); `LANG=C.UTF-8` if no locale |
 | `config-store.ts` | `ConfigStore`: parse/migrate/sanitize, atomic write, quarantine to `config.bad-<ts>.json` |
 | `claude-detect.ts` | Locate `claude` on PATH or via override; read version |
-| `platform.ts` | Desktop/window-chrome detection, default shell, extra bin dirs, spawn command, login-shell PATH |
+| `platform.ts` | Desktop/window-chrome detection, default/picked shell (`resolvePaneShell`), installed shells (`listShells`), extra bin dirs, spawn command, login-shell PATH (`loginProbeArgs` per shell, `/bin/sh -l` fallback) |
 | `shared-config.ts` | Symlink/junction/hardlink ~/.claude's CLAUDE.md, settings.json, skills, plugins, agents, commands into accounts; backs up real files, replaces stale links |
 | `update-check.ts` | `UpdateChecker`: GitHub Releases API, cached, report only |
 | `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens Settings → Updates |
@@ -46,7 +46,7 @@
 Full list in `src/shared/ipc-channels.ts`; schemas in `src/shared/ipc-contract.ts`. Groups: pty,
 config, dialog, window, claude detect, account dir create/delete, openExternal (http/https only),
 shared apply, app info, update check/install (+ `update:progress`, `update:show` events),
-git status/diff/worktreeAdd, `notify:pane` (+ `pane:reveal` event on notification click).
+git status/diff/worktreeAdd, `shell:list`, `notify:pane` (+ `pane:reveal` event on notification click).
 
 ## External services
 - GitHub Releases API for `cachewraith/wraithgrid` (optional update check; fixed URL).

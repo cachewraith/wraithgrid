@@ -1,4 +1,4 @@
-import { stat, mkdir, realpath, rm } from 'node:fs/promises'
+import { readFile, stat, mkdir, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   app,
@@ -10,7 +10,7 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import type { z } from 'zod'
-import { contractHome } from '@shared/paths'
+import { contractHome, expandHome } from '@shared/paths'
 import {
   IPC,
   accountCreateDirArgs,
@@ -24,6 +24,7 @@ import {
   gitWorktreeAddArgs,
   notifyPaneArgs,
   pickPathArgs,
+  shellListArgs,
   ptyCreateArgs,
   ptyKillArgs,
   ptyResizeArgs,
@@ -36,6 +37,7 @@ import {
   type PtyCreateResult,
   type SharedApplyResult,
   type SharedReportEntry,
+  type ShellOption,
   type SimpleResult,
   type UpdateCheckResult,
   type UpdateInstallResult
@@ -47,7 +49,7 @@ import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
 import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
-import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
+import { listShells, resolvePaneShell, spawnCommandFor, type DesktopInfo } from './platform'
 import {
   ensureSource,
   linkShared,
@@ -81,6 +83,11 @@ export interface IpcDeps {
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
+const fileExists = (f: string): Promise<boolean> =>
+  access(f).then(
+    () => true,
+    () => false
+  )
 
 export function registerIpc(deps: IpcDeps): void {
   const { store, ptys, homeDir } = deps
@@ -178,17 +185,22 @@ export function registerIpc(deps: IpcDeps): void {
       await deps.envReady
       if (!a.shell && a.accountId) await syncShared(a.accountId)
       let file: string
+      let args = a.args
       if (a.shell) {
-        file = await resolveDefaultShell(
+        const picked = await resolvePaneShell(
           process.platform,
           process.env,
-          (name) => findOnPath(name),
-          (f) =>
-            access(f).then(
-              () => true,
-              () => false
-            )
+          findOnPath,
+          fileExists,
+          {
+            // A bare name stays bare: it is looked up on PATH.
+            path: expandHome(cfg.settings.shellPath.trim(), homeDir),
+            args: cfg.settings.shellArgs
+          }
         )
+        if (!picked.ok) return fail(picked.error)
+        file = picked.shell.file
+        args = picked.shell.args
       } else {
         const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
         if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -200,12 +212,7 @@ export function registerIpc(deps: IpcDeps): void {
         file = resolved.path
       }
 
-      const cmd = spawnCommandFor(
-        process.platform,
-        file,
-        a.shell ? [] : a.args,
-        process.env.ComSpec
-      )
+      const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
       if (!cmd.ok) return fail(cmd.error)
       const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, configDir, homeDir })
       return ptys.create({
@@ -454,6 +461,20 @@ export function registerIpc(deps: IpcDeps): void {
       return { ok: true, dir: contractHome(r.dir, homeDir) }
     },
     fail('Could not create the worktree')
+  )
+
+  // ---- Shells ----------------------------------------------------------------------
+
+  handle(
+    IPC.shellList,
+    shellListArgs,
+    async (): Promise<ShellOption[]> => {
+      await deps.envReady
+      return listShells(process.platform, process.env, findOnPath, fileExists, (f) =>
+        readFile(f, 'utf8').catch(() => null)
+      )
+    },
+    []
   )
 
   // ---- Pane notifications ----------------------------------------------------------

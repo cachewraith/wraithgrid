@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+- [shells] Settings → General "Shell for plain panes": Automatic, any detected shell (/etc/shells + PATH: bash, zsh, fish, nu, pwsh, xonsh, elvish, tcsh, ksh, dash; Windows: PowerShell 7/5, cmd, Git Bash with --login -i, WSL, nushell) or a custom path/name with arguments; a missing pick is reported, not swapped (files: src/main/{platform,ipc}.ts, src/shared/{types,schema,ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/components/{SettingsView,NewPaneDialog}.tsx, src/renderer/styles/base.css)
+- [shells] Login-shell PATH probe uses each shell's own flags (csh/tcsh plain -c, nushell externals, pwsh -Login) and falls back to `/bin/sh -l` (files: src/main/platform.ts)
+- [terminal] Panes drop variables of the terminal Wraithgrid was started from (COLUMNS/LINES, TERM_PROGRAM, VSCODE__, TMUX, KITTY__, WT_SESSION, CLAUDECODE, …) so claude's screen keeps its real size and terminal type; LANG=C.UTF-8 when no locale is set (POSIX) (files: src/main/pane-env.ts)
+- [tests] Shell flags, detection, fallback, real bash/fish probes, pane env; e2e for a custom shell and leaked variables (files: tests/unit/shells.test.ts, tests/e2e/shells.spec.ts, tests/fixtures/fake-shell.sh)
 - [docs] User-facing notes for the T3 Code–inspired update (files: docs/WHATS-NEW.md)
 - [ui] Neutral restyle in the spirit of Claude/ChatGPT: grey surfaces with no violet tint, monochrome primary buttons, quieter borders, no glows, sentence-case section labels, 12px pane corners; the accent now marks only focus, cursor and controls. Terminal "match" palette and window/caption colors follow (files: src/renderer/styles/{tokens,base}.css, src/renderer/lib/term-theme.ts, src/main/{index,platform}.ts)
 - [sidebar] ChatGPT-style layout: New pane + Search at the top, each workspace expands to its panes (status dot, account, loud states like "needs approval"); click a pane to jump to it (files: src/renderer/components/Sidebar.tsx, src/renderer/components/icons.tsx)

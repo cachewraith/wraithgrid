@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { formatArgs, parseArgs } from '@shared/args'
+import type { ShellOption } from '@shared/ipc-contract'
 import { contractHome } from '@shared/paths'
 import {
   ACCENTS,
@@ -318,6 +320,131 @@ function UpdatesRow() {
   )
 }
 
+/** Which shell plain shell panes run: automatic, one found on this machine, or a custom one. */
+function ShellRow() {
+  const { api } = useServices()
+  const actions = useActions()
+  const shellPath = useApp((s) => s.config.settings.shellPath)
+  const shellArgs = useApp((s) => s.config.settings.shellArgs)
+  const windows = useApp((s) => s.info.platform === 'win32')
+  const home = useApp((s) => s.info.homeDir)
+  const [found, setFound] = useState<ShellOption[] | null>(null)
+  const [custom, setCustom] = useState(false)
+  const [argsDraft, setArgsDraft] = useState(formatArgs(shellArgs))
+
+  useEffect(() => {
+    let live = true
+    void api.shells.list().then((list) => live && setFound(list))
+    return () => {
+      live = false
+    }
+  }, [api])
+
+  const known = found?.find((o) => o.path === shellPath)
+  const mode = !shellPath && !custom ? 'auto' : known && !custom ? known.path : 'custom'
+  const pick = (path: string, args: string[]): void => {
+    setCustom(false)
+    setArgsDraft(formatArgs(args))
+    actions.updateSettings({ shellPath: path, shellArgs: args })
+  }
+  const browse = async (): Promise<void> => {
+    const picked = await api.dialog.pickFile(shellPath || '~')
+    if (picked) actions.updateSettings({ shellPath: contractHome(picked, home) })
+  }
+
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="shell-h">Shell for plain panes</h3>
+        <p className="ex">
+          What <em>Open a plain shell</em> runs. claude panes don't use it: claude starts directly
+          and gets a clean terminal environment whichever shell you use.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="apick shells" role="radiogroup" aria-labelledby="shell-h">
+          <ShellOpt
+            on={mode === 'auto'}
+            name="Automatic"
+            sub={
+              windows ? 'PowerShell 7, Windows PowerShell, then cmd' : 'Your login shell ($SHELL)'
+            }
+            onPick={() => pick('', [])}
+          />
+          {(found ?? []).map((o) => (
+            <ShellOpt
+              key={o.path}
+              on={mode === o.path}
+              name={o.name}
+              sub={[contractHome(o.path, home), formatArgs(o.args)].filter(Boolean).join(' ')}
+              onPick={() => pick(o.path, o.args)}
+            />
+          ))}
+          <ShellOpt
+            on={mode === 'custom'}
+            name="Custom…"
+            sub="Any shell: a path or a name on PATH"
+            onPick={() => setCustom(true)}
+          />
+        </div>
+        {found === null ? <div className="det">Looking for installed shells…</div> : null}
+        {mode === 'custom' ? (
+          <>
+            <div className="inrow">
+              <input
+                className="inpt"
+                aria-label="Shell path"
+                value={shellPath}
+                placeholder={
+                  windows ? 'C:\\msys64\\usr\\bin\\zsh.exe or nu' : '/usr/bin/nu or elvish'
+                }
+                onChange={(e) => actions.updateSettings({ shellPath: e.target.value })}
+                spellCheck={false}
+              />
+              <button className="btn" onClick={() => void browse()}>
+                <IconFolder />
+                Browse…
+              </button>
+            </div>
+            <input
+              className="inpt"
+              aria-label="Shell arguments"
+              value={argsDraft}
+              placeholder="Arguments (optional), e.g. --login -i"
+              onChange={(e) => {
+                setArgsDraft(e.target.value)
+                actions.updateSettings({ shellArgs: parseArgs(e.target.value) })
+              }}
+              spellCheck={false}
+            />
+          </>
+        ) : null}
+        <p className="hint">Applies to shell panes started from now on.</p>
+      </div>
+    </div>
+  )
+}
+
+function ShellOpt(p: { on: boolean; name: string; sub: string; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`aopt${p.on ? ' on' : ''}`}
+      role="radio"
+      aria-checked={p.on}
+      onClick={p.onPick}
+    >
+      <span className="tx">
+        <span className="nm">{p.name}</span>
+        <span className="sb mono" title={p.sub}>
+          {p.sub}
+        </span>
+      </span>
+      {p.on ? <IconCheck className="ck" /> : null}
+    </button>
+  )
+}
+
 function NotifyRow() {
   const actions = useActions()
   const on = useApp((s) => s.config.settings.notifyPanes)
@@ -602,6 +729,7 @@ export function SettingsView() {
         </div>
 
         <SharedRow />
+        <ShellRow />
 
         <div className="srow">
           <div>

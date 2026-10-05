@@ -92,6 +92,113 @@ export async function resolveDefaultShell(
   return '/bin/sh'
 }
 
+/** `/usr/bin/fish` → `fish`, `C:\\x\\pwsh.exe` → `pwsh`: the shell's family, for its flags. */
+export function shellKind(file: string): string {
+  return (file.split(/[\\/]/).pop() ?? file).toLowerCase().replace(/\.exe$/, '')
+}
+
+export interface ShellChoice {
+  file: string
+  args: string[]
+}
+
+/**
+ * The shell a plain shell pane runs: the one picked in Settings (`pick`, '' for automatic),
+ * else the default. A picked shell that is gone is an error, not a silent swap.
+ */
+export async function resolvePaneShell(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  find: Finder,
+  exists: Exists,
+  pick: { path: string; args: string[] }
+): Promise<{ ok: true; shell: ShellChoice } | { ok: false; error: string }> {
+  if (!pick.path) {
+    return {
+      ok: true,
+      shell: { file: await resolveDefaultShell(platform, env, find, exists), args: [] }
+    }
+  }
+  const p = platform === 'win32' ? path.win32 : path.posix
+  // A bare name ("pwsh", "nu") is looked up on PATH.
+  const file = p.isAbsolute(pick.path) ? pick.path : await find(pick.path)
+  if (!file || !(await exists(file))) {
+    return {
+      ok: false,
+      error: `Shell not found: ${pick.path}. Pick another in Settings → General.`
+    }
+  }
+  return { ok: true, shell: { file, args: pick.args } }
+}
+
+export interface ShellOption {
+  name: string
+  path: string
+  args: string[]
+}
+
+/** Shells that are not in /etc/shells when installed by cargo, brew, pip or by hand. */
+const EXTRA_POSIX_SHELLS = [
+  'bash',
+  'zsh',
+  'fish',
+  'nu',
+  'pwsh',
+  'xonsh',
+  'elvish',
+  'tcsh',
+  'ksh',
+  'dash'
+]
+
+/**
+ * Installed shells for the Settings picker. POSIX: $SHELL, /etc/shells, then well-known
+ * names on PATH, one per name. Windows: PowerShell 7 and 5, cmd, Git Bash, WSL, nushell.
+ */
+export async function listShells(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  find: Finder,
+  exists: Exists,
+  readText: (file: string) => Promise<string | null>
+): Promise<ShellOption[]> {
+  const out: ShellOption[] = []
+  const add = (name: string, file: string | null, args: string[] = []): void => {
+    if (file && !out.some((o) => o.path === file || o.name === name))
+      out.push({ name, path: file, args })
+  }
+  if (platform === 'win32') {
+    add('PowerShell 7', await find('pwsh'))
+    add('Windows PowerShell', await find('powershell'))
+    add('Command Prompt', env.ComSpec ?? (await find('cmd')))
+    for (const base of [
+      env.ProgramFiles,
+      env['ProgramFiles(x86)'],
+      env.LOCALAPPDATA && path.win32.join(env.LOCALAPPDATA, 'Programs')
+    ]) {
+      if (!base) continue
+      const bash = path.win32.join(base, 'Git', 'bin', 'bash.exe')
+      if (await exists(bash)) add('Git Bash', bash, ['--login', '-i'])
+    }
+    add('WSL', await find('wsl'))
+    add('nushell', await find('nu'))
+    return out
+  }
+  const candidates: string[] = []
+  if (env.SHELL) candidates.push(env.SHELL)
+  for (const line of ((await readText('/etc/shells')) ?? '').split('\n')) {
+    const f = line.trim()
+    if (f.startsWith('/')) candidates.push(f)
+  }
+  for (const f of candidates) {
+    // Listed on some systems but not shells to work in.
+    if (/(nologin|false|git-shell|rbash|fallback-shell)$/.test(f) || !(await exists(f))) continue
+    add(shellKind(f), f)
+  }
+  for (const name of EXTRA_POSIX_SHELLS) add(name, await find(name))
+  return out
+}
+
 /**
  * Places `claude` is commonly installed that a GUI session's PATH often lacks
  * (the native installer, npm prefixes, bun, volta).
@@ -180,26 +287,79 @@ export function parsePathFromEnvDump(output: string): string | null {
   return null
 }
 
+/** The probe script for most shells: POSIX sh, bash, zsh, fish, ksh, csh, xonsh, elvish, pwsh. */
+const PROBE = `printf '%s' ${ENV_MARK}; env -0; printf '%s' ${ENV_MARK}`
+/** nushell has no `printf` and its own `env`; `^` runs the external programs. */
+const PROBE_NU = `^printf '%s' ${ENV_MARK}; ^env -0; ^printf '%s' ${ENV_MARK}`
+
+/**
+ * How to run the probe as a login, interactive shell of this kind, so it reads the same
+ * startup files as a terminal would. csh/tcsh only allow `-l` alone, so they get plain
+ * `-c` (their rc files set PATH anyway); unknown shells get `-c`, and if that yields
+ * nothing the caller falls back to `/bin/sh -l`.
+ */
+export function loginProbeArgs(shell: string): string[] {
+  const kind = shellKind(shell)
+  switch (kind) {
+    case 'bash':
+    case 'zsh':
+    case 'sh':
+    case 'dash':
+    case 'ash':
+    case 'ksh':
+    case 'mksh':
+    case 'oksh':
+    case 'yash':
+    case 'fish':
+      return ['-i', '-l', '-c', PROBE]
+    case 'xonsh':
+      return ['-l', '-i', '-c', PROBE]
+    case 'nu':
+      return ['-l', '-i', '-c', PROBE_NU]
+    case 'pwsh':
+      return ['-Login', '-NoLogo', '-Command', PROBE]
+    default:
+      return ['-c', PROBE]
+  }
+}
+
 /**
  * Apps started from a launcher (a Hyprland `exec`, a .desktop file) do not get the PATH
  * a login shell sets up, so `claude` in ~/.local/bin or an nvm prefix goes missing.
- * Asks the user's login shell once, like VS Code does. POSIX only; never throws.
+ * Asks the user's login shell once, like VS Code does; if that shell can't answer,
+ * `/bin/sh -l` (which reads ~/.profile) does. POSIX only; never throws.
  */
-export function loginShellPath(env: NodeJS.ProcessEnv, timeoutMs = 4000): Promise<string | null> {
+export async function loginShellPath(
+  env: NodeJS.ProcessEnv,
+  timeoutMs = 4000,
+  run: (file: string, args: string[]) => Promise<string> = (file, args) =>
+    runProbe(file, args, env, timeoutMs)
+): Promise<string | null> {
   const shell = env.SHELL
-  if (!shell) return Promise.resolve(null)
-  const script = `printf '%s' ${ENV_MARK}; env -0; printf '%s' ${ENV_MARK}`
+  if (shell) {
+    const found = parsePathFromEnvDump(await run(shell, loginProbeArgs(shell)))
+    if (found) return found
+  }
+  return parsePathFromEnvDump(await run('/bin/sh', ['-l', '-c', PROBE]))
+}
+
+function runProbe(
+  file: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number
+): Promise<string> {
   return new Promise((resolve) => {
     execFile(
-      shell,
-      ['-i', '-l', '-c', script],
+      file,
+      args,
       {
         timeout: timeoutMs,
         maxBuffer: 4 * 1024 * 1024,
         // Lets a user's rc file skip slow setup, as with VSCODE_RESOLVING_ENVIRONMENT.
         env: { ...env, WRAITHGRID_RESOLVING_ENVIRONMENT: '1' }
       },
-      (_err, stdout) => resolve(parsePathFromEnvDump(String(stdout ?? '')))
+      (_err, stdout) => resolve(String(stdout ?? ''))
     )
   })
 }

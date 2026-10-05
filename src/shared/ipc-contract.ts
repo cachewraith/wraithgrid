@@ -43,6 +43,7 @@ export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
 export const updateInstallArgs = z.object({})
 /** git runs in the pane's folder as main has it in its own config, never a renderer path. */
+export const shellListArgs = z.object({})
 export const gitPaneArgs = z.object({ paneId: idSchema })
 export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
@@ -144,6 +145,13 @@ export type GitDiffResult =
 
 export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: string }
 
+/** An installed shell offered in Settings; `args` are the ones it needs (Git Bash: login). */
+export interface ShellOption {
+  name: string
+  path: string
+  args: string[]
+}
+
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
@@ -201,6 +209,10 @@ export interface WraithApi {
     diff(paneId: string): Promise<GitDiffResult>
     /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
     addWorktree(cwd: string, branch: string): Promise<GitWorktreeResult>
+  }
+  shells: {
+    /** Shells installed on this machine, for the Settings picker. */
+    list(): Promise<ShellOption[]>
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

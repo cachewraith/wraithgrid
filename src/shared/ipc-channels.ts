@@ -27,5 +27,6 @@ export const IPC = {
   gitDiff: 'git:diff',
   gitWorktreeAdd: 'git:worktreeAdd',
   notifyPane: 'notify:pane',
+  shellList: 'shell:list',
   paneReveal: 'pane:reveal'
 } as const

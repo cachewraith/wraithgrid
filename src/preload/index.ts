@@ -58,6 +58,9 @@ const api: WraithApi = {
     diff: (paneId) => ipcRenderer.invoke(IPC.gitDiff, { paneId }),
     addWorktree: (cwd, branch) => ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch })
   },
+  shells: {
+    list: () => ipcRenderer.invoke(IPC.shellList, {})
+  },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),
     onReveal: (cb) => subscribe<string>(IPC.paneReveal, cb)
