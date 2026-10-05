@@ -9,7 +9,7 @@
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there
 - Test an in-app update 1.3.0 → 1.3.1 (1.3.0 is the first release with it; install 1.3.0 by hand once)
-- Refresh README screenshots for the neutral restyle (screens from `WRAITHGRID_E2E_SHOTS`), then release
+- Refresh README screenshots for the neutral restyle (screens from `WRAITHGRID_E2E_SHOTS`)
 - Changes panel: commit / push / open PR actions (T3's one-button flow), with a confirm step
 - Worktrees: remove one when its pane closes (ask first; it may hold uncommitted work)
 
