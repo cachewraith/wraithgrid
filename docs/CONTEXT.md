@@ -2,7 +2,7 @@
 
 ## Purpose
 Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS. v1.4.0.
+each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS. v1.4.1.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -94,4 +94,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 
 ## Current focus
-v1.4.0 released (neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+v1.4.1 released (1.4.0's build failed on Windows; neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

@@ -1,6 +1,6 @@
 # What's new: the T3 Code–inspired update
 
-*v1.4.0 · 2026-10-05*
+*v1.4.1 · 2026-10-05*
 
 Wraithgrid still runs the real `claude` CLI in every pane. This update borrows ideas from
 [T3 Code](https://t3.codes/) for everything around the panes: a calmer look, a sidebar that
