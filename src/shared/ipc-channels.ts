@@ -22,5 +22,10 @@ export const IPC = {
   updateCheck: 'update:check',
   updateInstall: 'update:install',
   updateProgress: 'update:progress',
-  updateShow: 'update:show'
+  updateShow: 'update:show',
+  gitStatus: 'git:status',
+  gitDiff: 'git:diff',
+  gitWorktreeAdd: 'git:worktreeAdd',
+  notifyPane: 'notify:pane',
+  paneReveal: 'pane:reveal'
 } as const

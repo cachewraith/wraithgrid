@@ -31,7 +31,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/update-check.ts`: GitHub Releases check (fixed URL) for the Settings/status-bar notice
 - `src/main/update-install.ts`: in-app update facade over electron-updater (check → download → install + relaunch)
 - `src/main/update-notify.ts`: OS notification for a new release, once per version (`update-notified.json` in userData)
-- `src/main/paths.ts`: config/account paths, `isStrictlyInside` guard
+- `src/main/paths.ts`: config/account/worktree paths, `isStrictlyInside` guard
+- `src/main/git.ts`: git status/diff for a pane's folder and worktree creation (execFile via injected runner)
 - `src/preload/index.ts`: typed bridge; renderer never sees ipcRenderer
 - `src/shared/ipc-channels.ts`: the complete IPC channel list
 - `src/shared/ipc-contract.ts`: zod schemas for IPC args/events
@@ -41,13 +42,14 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges; IconPicker/IconPopover; ContextMenu = right-click menus)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges; IconPicker/IconPopover; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
-- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling
-- `src/renderer/styles/`: design tokens + base CSS
+- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search
+- `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
 - `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex)
 - `scripts/`: Docker Linux build, multi-distro package smoke test
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
+- `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
 ## Conventions
@@ -80,6 +82,10 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
 - Popovers/menus must portal to <body>: sidebar sections animate opacity (own stacking context) and the sidebar clips.
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
+- `pnpm exec …` can hang in this environment; call `./node_modules/.bin/<tool>` directly.
+- git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
+- Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
+- Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
 
 ## Current focus
-v1.3.0 released (in-app update & restart, animated sidebar collapse, right-click folder/workspace menus). Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+Unreleased: T3 Code–inspired pass (restyle, sidebar pane list, palette, git chip + Changes panel, worktree panes, notifications). Open: default account icon + discoverable picker; Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

@@ -318,6 +318,34 @@ function UpdatesRow() {
   )
 }
 
+function NotifyRow() {
+  const actions = useActions()
+  const on = useApp((s) => s.config.settings.notifyPanes)
+  return (
+    <div className="srow">
+      <div>
+        <h3>Notifications</h3>
+        <p className="ex">
+          A desktop notification when a claude pane you aren't looking at finishes its work or asks
+          for approval. Click it to jump to the pane.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="swrow">
+          <button
+            className={`sw${on ? ' on' : ''}`}
+            role="switch"
+            aria-checked={on}
+            aria-labelledby="set-notify"
+            onClick={() => actions.updateSettings({ notifyPanes: !on })}
+          />
+          <span id="set-notify">Notify when a pane finishes or needs approval</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ClaudeBinaryRow() {
   const { api } = useServices()
   const actions = useActions()
@@ -686,6 +714,9 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <h2 className="sgrp">Notifications</h2>
+        <NotifyRow />
 
         <h2 className="sgrp">About</h2>
         <UpdatesRow />

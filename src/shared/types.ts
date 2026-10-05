@@ -141,6 +141,8 @@ export interface Settings {
   sharedMode: SharedMode
   /** Ask GitHub for a newer release once at startup. */
   checkUpdatesOnLaunch: boolean
+  /** OS notification when a pane you aren't looking at finishes or needs approval. */
+  notifyPanes: boolean
 }
 
 export const CONFIG_VERSION = 1

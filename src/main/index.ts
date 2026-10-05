@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { app, BrowserWindow, Menu, nativeTheme, net, Notification, session, shell } from 'electron'
@@ -5,6 +6,7 @@ import { spawn } from 'node-pty'
 import { autoUpdater, type ProgressInfo } from 'electron-updater'
 import { IPC } from '@shared/ipc-channels'
 import type { PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
+import type { GitRunner } from './git'
 import { resolveTheme, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
 import { registerIpc } from './ipc'
@@ -59,7 +61,10 @@ const envReady: Promise<void> = (async () => {
   )
 })()
 
-function send(channel: string, payload?: PtyDataEvent | PtyExitEvent | UpdateProgress): void {
+function send(
+  channel: string,
+  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | string
+): void {
   const wc = mainWindow?.webContents
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
 }
@@ -88,7 +93,7 @@ function createWindow(): void {
       : { frame: false }),
     show: false,
     title: 'Wraithgrid',
-    backgroundColor: theme === 'light' ? '#f5f4fa' : '#0a0a12',
+    backgroundColor: theme === 'light' ? '#ffffff' : '#1c1c1c',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -204,6 +209,42 @@ function showUpdateNotice(notice: UpdateNotice): void {
   n.show()
 }
 
+/** A pane finished or wants approval; clicking brings the window back at that pane. */
+function showPaneNotice(paneId: string, title: string, body: string): void {
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title, body, icon: path.join(__dirname, '../../build/icon.png') })
+  n.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    send(IPC.paneReveal, paneId)
+  })
+  n.show()
+}
+
+/**
+ * git without a shell. Optional locks off: status polling must never take index.lock
+ * while claude is committing in the same repo. No prompts: a credential ask would hang.
+ */
+const runGit: GitRunner = (args, cwd) =>
+  new Promise((resolve, reject) => {
+    execFile(
+      'git',
+      args,
+      {
+        cwd,
+        timeout: 15_000,
+        maxBuffer: 8 * 1024 * 1024,
+        windowsHide: true,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }
+      },
+      (err, stdout, stderr) => {
+        if (err) reject(Object.assign(err, { stderr: String(stderr) }))
+        else resolve(String(stdout))
+      }
+    )
+  })
+
 /** In-app updates through electron-updater, which picks the installer for this package type. */
 function createInstaller(): UpdateInstaller {
   // Downloads start only from the Settings button, and nothing installs on a plain quit:
@@ -276,6 +317,8 @@ void app.whenReady().then(() => {
     installer: createInstaller(),
     onLaunchUpdateCheck: notify,
     isPackaged: app.isPackaged,
+    git: runGit,
+    notifyPane: showPaneNotice,
     onConfigChanged: (prev, next) => {
       const dark = nativeTheme.shouldUseDarkColors
       const theme = resolveTheme(next.settings.theme, dark)

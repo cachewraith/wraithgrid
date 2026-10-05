@@ -7,6 +7,8 @@ export type ShortcutAction =
   | { type: 'focus'; dir: Direction }
   | { type: 'workspace'; index: number }
   | { type: 'shortcuts' }
+  | { type: 'palette' }
+  | { type: 'diff' }
   /** +1 / -1 steps the terminal font size; 0 resets it. */
   | { type: 'fontSize'; delta: -1 | 0 | 1 }
 
@@ -56,6 +58,10 @@ export function matchShortcut(e: KeyLike): ShortcutAction | null {
         return { type: 'toggleZoom' }
       case 'Slash':
         return { type: 'shortcuts' }
+      case 'KeyP':
+        return { type: 'palette' }
+      case 'KeyD':
+        return { type: 'diff' }
     }
     const digit = /^Digit([1-9])$/.exec(e.code)
     if (digit) return { type: 'workspace', index: Number(digit[1]) - 1 }
@@ -70,5 +76,7 @@ export const SHORTCUT_HINT = {
   focus: 'Ctrl+Alt+Arrow',
   workspace: 'Ctrl+Shift+1…9',
   shortcuts: 'Ctrl+Shift+/',
+  palette: 'Ctrl+Shift+P',
+  diff: 'Ctrl+Shift+D',
   fontSize: 'Ctrl+= / Ctrl+- / Ctrl+0'
 } as const

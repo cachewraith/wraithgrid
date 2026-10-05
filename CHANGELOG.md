@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-05
+
+- [docs] User-facing notes for the T3 Code–inspired update (files: docs/WHATS-NEW.md)
+- [ui] Neutral restyle in the spirit of Claude/ChatGPT: grey surfaces with no violet tint, monochrome primary buttons, quieter borders, no glows, sentence-case section labels, 12px pane corners; the accent now marks only focus, cursor and controls. Terminal "match" palette and window/caption colors follow (files: src/renderer/styles/{tokens,base}.css, src/renderer/lib/term-theme.ts, src/main/{index,platform}.ts)
+- [sidebar] ChatGPT-style layout: New pane + Search at the top, each workspace expands to its panes (status dot, account, loud states like "needs approval"); click a pane to jump to it (files: src/renderer/components/Sidebar.tsx, src/renderer/components/icons.tsx)
+- [palette] Ctrl+Shift+P search: jump to any pane in any workspace, switch workspace, open a claude pane as an account, run app commands (files: src/renderer/components/CommandPalette.tsx, src/renderer/lib/search.ts, src/renderer/app/{App.tsx,shortcuts.ts}, src/renderer/components/ShortcutsSheet.tsx)
+- [git] Pane header shows the folder's branch and change count (polled every 5 s, active workspace); clicking it or Ctrl+Shift+D opens a Changes panel with the folder's `git diff HEAD` and untracked files (files: src/main/git.ts, src/main/{ipc,index,paths}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/app/store.ts, src/renderer/components/{DiffPanel,PaneHeader,Pane}.tsx, src/renderer/lib/diff.ts)
+- [panes] New pane can create a git worktree on a new branch (`~/.wraithgrid/worktrees/<repo>/<branch>`) and open the pane there (files: src/renderer/components/NewPaneDialog.tsx, src/main/git.ts)
+- [notify] OS notification when a claude pane you aren't looking at needs approval or finishes (ran ≥ 8 s, then went quiet); click jumps to the pane; Settings → Notifications toggle (files: src/renderer/app/store.ts, src/main/{index,ipc}.ts, src/shared/{types,schema}.ts, src/renderer/components/SettingsView.tsx)
+- [tests] Unit tests for git status/diff/worktree (incl. a real repo), diff parsing and palette matching; e2e for the sidebar pane list, palette, git chip, diff panel and worktree panes (files: tests/unit/git.test.ts, tests/unit/shortcuts.test.ts, tests/e2e/git-palette.spec.ts)
+
 ## 2026-09-30
 
 - [release] v1.3.0 (files: package.json)

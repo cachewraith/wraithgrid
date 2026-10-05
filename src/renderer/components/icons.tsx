@@ -161,3 +161,25 @@ export function Logo() {
     </svg>
   )
 }
+
+export const IconBranch = make(
+  <>
+    <circle cx="5" cy="3.5" r="1.5" />
+    <circle cx="5" cy="12.5" r="1.5" />
+    <circle cx="11" cy="5" r="1.5" />
+    <path d="M5 5v6M11 6.5c0 2.5-2 3.5-6 4" />
+  </>
+)
+export const IconCompose = make(
+  <>
+    <path d="M13 9v3.5a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 2 12.5v-8A1.5 1.5 0 0 1 3.5 3H7" />
+    <path d="M11.5 2.5l2 2L8 10H6V8z" />
+  </>
+)
+export const IconDiff = make(
+  <>
+    <rect x="2.5" y="1.5" width="11" height="13" rx="2" />
+    <path d="M8 4v4M6 6h4M6 11h4" />
+  </>
+)
+export const IconChevron = make(<path d="M6 4l4 4-4 4" />)

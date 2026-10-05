@@ -19,6 +19,8 @@ describe('matchShortcut', () => {
     expect(matchShortcut(ctrlShift('KeyW', 'W'))).toEqual({ type: 'closePane' })
     expect(matchShortcut(ctrlShift('KeyZ', 'Z'))).toEqual({ type: 'toggleZoom' })
     expect(matchShortcut(ctrlShift('Slash', '?'))).toEqual({ type: 'shortcuts' })
+    expect(matchShortcut(ctrlShift('KeyP', 'P'))).toEqual({ type: 'palette' })
+    expect(matchShortcut(ctrlShift('KeyD', 'D'))).toEqual({ type: 'diff' })
   })
 
   it('maps Ctrl+Shift+1..9 to workspace indexes by physical key', () => {

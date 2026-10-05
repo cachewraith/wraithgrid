@@ -67,8 +67,8 @@ export function titleBarOverlayFor(theme: 'dark' | 'light'): {
   height: number
 } {
   return theme === 'light'
-    ? { color: '#ecebf4', symbolColor: '#43415c', height: 35 }
-    : { color: '#0e0e18', symbolColor: '#aeadc6', height: 35 }
+    ? { color: '#f9f9f8', symbolColor: '#4d4d4d', height: 35 }
+    : { color: '#171717', symbolColor: '#b4b4b4', height: 35 }
 }
 
 // ---- Shells and binaries ------------------------------------------------------------

@@ -55,6 +55,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const closing = useApp((s) => s.closingPaneId === paneId)
   const settings = useApp((s) => s.config.settings)
   const home = useApp((s) => s.info.homeDir)
+  const git = useApp((s) => s.git[paneId])
   const actions = useActions()
   const [bannerHidden, setBannerHidden] = useState(false)
 
@@ -120,11 +121,16 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         cwdLabel={pane.shell ? `${cwd} · shell` : cwd}
         status={status}
         zoomed={zoomed}
+        git={git}
         setDragHandle={drag.setActivatorNodeRef}
         dragListeners={drag.listeners}
         onFocus={() => actions.focusPane(paneId)}
         onZoom={() => actions.toggleZoom(paneId)}
         onClose={() => actions.closePane(paneId)}
+        onDiff={() => {
+          actions.focusPane(paneId)
+          actions.toggleDiff(true)
+        }}
       />
       <div
         className={`term-host${dense ? ' sm' : ''}${zoomed ? ' lg' : ''}${exited ? ' dim' : ''}`}

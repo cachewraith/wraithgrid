@@ -22,25 +22,43 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const [folder, setFolder] = useState(recent[0] ?? settings.defaultCwd)
   const [argsText, setArgsText] = useState('')
   const [shell, setShell] = useState(accounts.length === 0)
+  const [worktree, setWorktree] = useState(false)
+  const [branch, setBranch] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const account = accounts.find((a) => a.id === accountId)
   const args = parseArgs(argsText)
-  const canCreate = folder.trim() !== '' && (shell || !!account)
+  const canCreate =
+    folder.trim() !== '' && (shell || !!account) && (!worktree || branch.trim() !== '') && !busy
+  const runIn = worktree && branch.trim() ? `~/.wraithgrid/worktrees/…/${branch.trim()}` : folder
   const willRun = shell
     ? `cd ${folder || '<folder>'} && ${windows ? 'pwsh' : '$SHELL'}`
-    : `CLAUDE_CONFIG_DIR=${account?.configDir ?? '<account>'} claude${args.length ? ` ${formatArgs(args)}` : ''}   (in ${folder || '<folder>'})`
+    : `CLAUDE_CONFIG_DIR=${account?.configDir ?? '<account>'} claude${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
 
   const browse = async (): Promise<void> => {
     const picked = await api.dialog.pickFolder(folder || settings.defaultCwd)
     if (picked) setFolder(contractHome(picked, home))
   }
 
-  const submit = (e?: React.FormEvent): void => {
+  const submit = async (e?: React.FormEvent): Promise<void> => {
     e?.preventDefault()
     if (!canCreate) return
+    let cwd = folder.trim()
+    if (worktree) {
+      setBusy(true)
+      setError(null)
+      const r = await api.git.addWorktree(cwd, branch.trim())
+      setBusy(false)
+      if (!r.ok) {
+        setError(r.error)
+        return
+      }
+      cwd = r.dir
+    }
     actions.createPane({
       accountId: shell ? null : accountId,
-      cwd: folder.trim(),
+      cwd,
       args: shell ? [] : args,
       shell,
       slotId
@@ -49,7 +67,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
 
   return (
     <Dialog onClose={actions.closeModal} labelledBy="np-t">
-      <form onSubmit={submit}>
+      <form onSubmit={(e) => void submit(e)}>
         <div className="dlg-hd">
           <h2 id="np-t">New pane</h2>
           <button
@@ -192,6 +210,56 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
 
           <div className="trow">
             <span className="tx">
+              <span style={{ fontWeight: 600 }}>Work on a new branch (git worktree)</span>
+              <span className="hint">
+                A separate checkout, so this pane's edits don't collide with other panes in the same
+                repo.
+              </span>
+            </span>
+            <button
+              type="button"
+              className={`sw${worktree ? ' on' : ''}`}
+              role="switch"
+              aria-checked={worktree}
+              aria-label="Work on a new branch (git worktree)"
+              onClick={() => {
+                setWorktree((v) => !v)
+                setError(null)
+              }}
+            />
+          </div>
+          {worktree ? (
+            <div className="fld">
+              <label className="lbl" htmlFor="np-branch">
+                New branch
+              </label>
+              <input
+                id="np-branch"
+                className="inpt"
+                value={branch}
+                maxLength={100}
+                onChange={(e) => {
+                  setBranch(e.target.value)
+                  setError(null)
+                }}
+                placeholder="feat/rate-limit"
+                spellCheck={false}
+                autoFocus
+              />
+              <span className="hint">
+                Branches off the folder's current commit, in{' '}
+                <span className="mono">~/.wraithgrid/worktrees</span>.
+              </span>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="note" role="alert" style={{ color: 'var(--err)' }}>
+              {error}
+            </div>
+          ) : null}
+
+          <div className="trow">
+            <span className="tx">
               <span style={{ fontWeight: 600 }}>Open a plain shell instead</span>
               <span className="hint">
                 Runs <span className="mono">{shellName}</span> in the same folder, no{' '}
@@ -219,7 +287,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
             Cancel
           </button>
           <button type="submit" className="btn pri" disabled={!canCreate}>
-            Create pane
+            {busy ? 'Creating worktree…' : 'Create pane'}
           </button>
         </div>
       </form>

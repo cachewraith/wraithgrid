@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import {
   ACCENTS,
-  ACCOUNT_COLORS,
   ACCOUNT_ICON_MAX,
+  ACCOUNT_COLORS,
   CONFIG_VERSION,
   FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
@@ -83,7 +83,8 @@ export const settingsSchema = z.object({
   defaultCwd: pathSchema.default('~'),
   sidebarCollapsed: z.boolean().default(false),
   sharedMode: z.enum(SHARED_MODES).default('overall'),
-  checkUpdatesOnLaunch: z.boolean().default(true)
+  checkUpdatesOnLaunch: z.boolean().default(true),
+  notifyPanes: z.boolean().default(true)
 })
 
 export const configSchema = z.object({

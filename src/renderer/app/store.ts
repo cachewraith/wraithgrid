@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import type {
   AppInfo,
   ClaudeDetectResult,
+  GitStatus,
   PtyExitEvent,
   SharedReportEntry,
   UpdateCheckResult,
@@ -70,6 +71,7 @@ export type Modal =
   | { kind: 'shortcuts' }
   | { kind: 'workspaces' }
   | { kind: 'removeAccount'; accountId: string }
+  | { kind: 'palette' }
 
 export interface NewPaneInput {
   accountId: string | null
@@ -106,6 +108,10 @@ export interface AppState {
   }
   /** A Settings section to scroll to once, then cleared. */
   settingsAnchor: 'updates' | null
+  /** Branch and change count per pane, polled for the active workspace. */
+  git: Record<string, GitStatus>
+  /** The diff panel beside the grid, showing the focused pane's folder. */
+  diffOpen: boolean
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -120,6 +126,10 @@ export interface AppState {
   focusDirection(dir: Direction): void
   toggleZoom(paneId?: string): void
   runLogin(paneId: string): void
+  /** Switches to the pane's workspace, puts it in the grid if hidden, and focuses it. */
+  revealPane(paneId: string): void
+  refreshGit(): Promise<void>
+  toggleDiff(open?: boolean): void
 
   // layout
   applyPreset(id: PresetId): void
@@ -182,7 +192,14 @@ export interface StoreDeps {
   bus: PtyBus
   rects: RectRegistry
   now?: () => number
+  /** Whether the window has the user's attention; notifications only fire when it doesn't. */
+  windowFocused?: () => boolean
 }
+
+/** A pane must have worked this long before going quiet counts as "finished". */
+export const NOTIFY_MIN_RUN_MS = 8000
+/** Git status refresh for the active workspace's panes. */
+const GIT_POLL_MS = 5000
 
 // ---- Selectors ---------------------------------------------------------------------
 
@@ -267,9 +284,12 @@ export function createAppStore({
   api,
   bus,
   rects,
-  now = () => Date.now()
+  now = () => Date.now(),
+  windowFocused = () => typeof document === 'undefined' || document.hasFocus()
 }: StoreDeps): StoreApi<AppState> {
   const startQueue = new StaggeredQueue(150, now)
+  /** When each pane last started running, to tell real work from a brief redraw. */
+  const runningSince = new Map<string, number>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -401,6 +421,32 @@ export function createAppStore({
       set({ config: withWorkspace(s.config, ws.id, (w) => ({ ...w, layout: fn(w) })) })
     }
 
+    /** Is the user looking at this pane right now? Then no notification is needed. */
+    const attending = (paneId: string): boolean => {
+      const s = get()
+      return windowFocused() && s.view === 'grid' && visiblePaneIds(s).includes(paneId)
+    }
+
+    const maybeNotify = (paneId: string, from: PaneStatus, to: PaneStatus, t: number): void => {
+      if (to === 'running') {
+        if (from !== 'running') runningSince.set(paneId, t)
+        return
+      }
+      const since = runningSince.get(paneId)
+      runningSince.delete(paneId)
+      const asks = to === 'approval' && from !== 'approval'
+      const done =
+        to === 'idle' && from === 'running' && since !== undefined && t - since >= NOTIFY_MIN_RUN_MS
+      const s = get()
+      if ((!asks && !done) || !s.config.settings.notifyPanes || attending(paneId)) return
+      const found = findPane(s.config, paneId)
+      if (!found || found.pane.shell) return
+      const where = `${found.pane.title} · ${found.ws.name}`
+      if (asks)
+        api.notify.pane(paneId, `${where} needs approval`, 'claude is waiting for your answer.')
+      else api.notify.pane(paneId, `${where} is done`, 'claude finished and is waiting for you.')
+    }
+
     const refreshStatuses = (): void => {
       const s = get()
       const t = now()
@@ -419,7 +465,10 @@ export function createAppStore({
               now: t
             })
         runtime[paneId] = status === rt.status ? rt : { ...rt, status }
-        if (status !== rt.status) changed = true
+        if (status !== rt.status) {
+          changed = true
+          maybeNotify(paneId, rt.status, status, t)
+        }
       }
       if (changed) set({ runtime })
     }
@@ -448,6 +497,8 @@ export function createAppStore({
       systemTheme: 'dark',
       update: { checking: false, result: null, install: { phase: 'idle' }, installError: null },
       settingsAnchor: null,
+      git: {},
+      diffOpen: false,
 
       async init() {
         const [raw, info] = await Promise.all([api.config.get(), api.app.info()])
@@ -463,6 +514,8 @@ export function createAppStore({
         setInterval(refreshStatuses, 500)
         api.update.onProgress((install) => set({ update: { ...get().update, install } }))
         api.update.onShow(() => get().showUpdates())
+        api.notify.onReveal((paneId) => get().revealPane(paneId))
+        setInterval(() => void get().refreshGit(), GIT_POLL_MS)
         set({
           config,
           info,
@@ -471,6 +524,7 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        void get().refreshGit()
         if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
       },
 
@@ -548,6 +602,52 @@ export function createAppStore({
         if (target && ws.panes.some((p) => p.id === target)) {
           set({ zoomedPaneId: target, focusedPaneId: target, view: 'grid' })
         }
+      },
+
+      revealPane(paneId) {
+        const found = findPane(get().config, paneId)
+        if (!found) return
+        if (get().config.activeWorkspace !== found.ws.id) get().switchWorkspace(found.ws.id)
+        const ws = activeWorkspace(get())
+        if (!paneIds(ws.layout).includes(paneId)) {
+          updateActiveLayout((w) => placePane(w, paneId, null))
+        }
+        set({ focusedPaneId: paneId, view: 'grid', modal: null, zoomedPaneId: null })
+      },
+
+      async refreshGit() {
+        if (typeof document !== 'undefined' && document.hidden) return
+        const ws = activeWorkspace(get())
+        // One git call per folder: panes often share one.
+        const byCwd = new Map<string, string[]>()
+        for (const p of ws.panes) byCwd.set(p.cwd, [...(byCwd.get(p.cwd) ?? []), p.id])
+        const results = await Promise.all(
+          [...byCwd.values()].map(async (ids) => [ids, await api.git.status(ids[0]!)] as const)
+        )
+        const next = { ...get().git }
+        let changed = false
+        for (const [ids, st] of results) {
+          for (const id of ids) {
+            const cur = next[id]
+            if (
+              !cur ||
+              cur.repo !== st.repo ||
+              cur.branch !== st.branch ||
+              cur.changed !== st.changed ||
+              cur.ahead !== st.ahead ||
+              cur.behind !== st.behind
+            ) {
+              next[id] = st
+              changed = true
+            }
+          }
+        }
+        if (changed) set({ git: next })
+      },
+
+      toggleDiff(open) {
+        const diffOpen = open ?? !get().diffOpen
+        if (diffOpen !== get().diffOpen) set({ diffOpen })
       },
 
       runLogin(paneId) {

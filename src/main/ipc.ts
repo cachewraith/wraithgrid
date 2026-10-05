@@ -20,6 +20,9 @@ import {
   sharedApplyArgs,
   updateCheckArgs,
   updateInstallArgs,
+  gitPaneArgs,
+  gitWorktreeAddArgs,
+  notifyPaneArgs,
   pickPathArgs,
   ptyCreateArgs,
   ptyKillArgs,
@@ -27,6 +30,9 @@ import {
   ptyWriteArgs,
   type AppInfo,
   type CreateDirResult,
+  type GitDiffResult,
+  type GitStatus,
+  type GitWorktreeResult,
   type PtyCreateResult,
   type SharedApplyResult,
   type SharedReportEntry,
@@ -39,7 +45,8 @@ import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
 import type { Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
-import { accountsRoot, isStrictlyInside, resolveUserPath } from './paths'
+import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
+import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
 import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
 import {
   ensureSource,
@@ -68,6 +75,9 @@ export interface IpcDeps {
   onLaunchUpdateCheck?: (result: UpdateCheckResult) => void
   /** Called after a valid config replaced the old one. */
   onConfigChanged?: (prev: Config, next: Config) => void
+  git: GitRunner
+  /** Shows an OS notification about a pane; a click should bring that pane forward. */
+  notifyPane: (paneId: string, title: string, body: string) => void
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -390,6 +400,67 @@ export function registerIpc(deps: IpcDeps): void {
     (): Promise<UpdateInstallResult> => deps.installer.install(),
     { ok: false, error: 'The update could not be installed.', manual: false }
   )
+
+  // ---- Git -------------------------------------------------------------------------
+
+  /** The pane's folder from main's own config copy. */
+  const paneCwd = (paneId: string): string | null => {
+    for (const ws of store.get().workspaces) {
+      const pane = ws.panes.find((p) => p.id === paneId)
+      if (pane) return resolveUserPath(pane.cwd, homeDir)
+    }
+    return null
+  }
+  const noRepo: GitStatus = { repo: false, branch: null, ahead: 0, behind: 0, changed: 0 }
+
+  handle(
+    IPC.gitStatus,
+    gitPaneArgs,
+    async (a): Promise<GitStatus> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return noRepo
+      await deps.envReady
+      return gitStatus(deps.git, cwd)
+    },
+    noRepo
+  )
+
+  handle(
+    IPC.gitDiff,
+    gitPaneArgs,
+    async (a): Promise<GitDiffResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return gitDiff(deps.git, cwd)
+    },
+    fail('Could not read the diff')
+  )
+
+  handle(
+    IPC.gitWorktreeAdd,
+    gitWorktreeAddArgs,
+    async (a): Promise<GitWorktreeResult> => {
+      const cwd = resolveUserPath(a.cwd, homeDir)
+      try {
+        if (!(await stat(cwd)).isDirectory()) return fail(`Not a folder: ${a.cwd}`)
+      } catch {
+        return fail(`Folder not found: ${a.cwd}`)
+      }
+      await deps.envReady
+      const r = await addWorktree(deps.git, cwd, a.branch, worktreesRoot(homeDir))
+      if (!r.ok) return r
+      log(`created worktree ${contractHome(r.dir, homeDir)} on branch ${a.branch}`)
+      return { ok: true, dir: contractHome(r.dir, homeDir) }
+    },
+    fail('Could not create the worktree')
+  )
+
+  // ---- Pane notifications ----------------------------------------------------------
+
+  listen(IPC.notifyPane, notifyPaneArgs, (a) => {
+    if (paneCwd(a.paneId)) deps.notifyPane(a.paneId, a.title, a.body)
+  })
 
   // ---- App info --------------------------------------------------------------------
 

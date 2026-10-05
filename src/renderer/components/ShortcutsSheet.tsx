@@ -3,11 +3,13 @@ import { Dialog } from './Dialog'
 import { IconClose } from './icons'
 
 const ROWS: { label: string; keys: string[] }[] = [
+  { label: 'Search panes and commands', keys: ['Ctrl', 'Shift', 'P'] },
   { label: 'New pane', keys: ['Ctrl', 'Shift', 'N'] },
   { label: 'Close pane', keys: ['Ctrl', 'Shift', 'W'] },
   { label: 'Zoom pane / back to grid', keys: ['Ctrl', 'Shift', 'Z'] },
   { label: 'Focus pane left / up / right / down', keys: ['Ctrl', 'Alt', '←', '↑', '→', '↓'] },
   { label: 'Switch workspace', keys: ['Ctrl', 'Shift', '1', '…', '9'] },
+  { label: 'Show / hide the git diff', keys: ['Ctrl', 'Shift', 'D'] },
   { label: 'Terminal text bigger / smaller / reset', keys: ['Ctrl', '+', '-', '0'] },
   { label: 'New line in claude', keys: ['Shift', 'Enter'] },
   { label: 'Copy / paste in a terminal', keys: ['Ctrl', 'Shift', 'C', '/', 'V'] },
