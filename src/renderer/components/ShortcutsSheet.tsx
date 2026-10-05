@@ -1,17 +1,27 @@
 import { useActions } from '../app/services'
+import { IS_MAC, chordKeys } from '../app/shortcuts'
 import { Dialog } from './Dialog'
 import { IconClose } from './icons'
 
+// `mod` is Ctrl, or ⌘ on macOS.
 const ROWS: { label: string; keys: string[] }[] = [
-  { label: 'New pane', keys: ['Ctrl', 'Shift', 'N'] },
-  { label: 'Close pane', keys: ['Ctrl', 'Shift', 'W'] },
-  { label: 'Zoom pane / back to grid', keys: ['Ctrl', 'Shift', 'Z'] },
-  { label: 'Focus pane left / up / right / down', keys: ['Ctrl', 'Alt', '←', '↑', '→', '↓'] },
-  { label: 'Switch workspace', keys: ['Ctrl', 'Shift', '1', '…', '9'] },
-  { label: 'Terminal text bigger / smaller / reset', keys: ['Ctrl', '+', '-', '0'] },
+  { label: 'Search panes and commands', keys: chordKeys(['mod', 'shift', 'P']) },
+  { label: 'New pane', keys: chordKeys(['mod', 'shift', 'N']) },
+  { label: 'Close pane', keys: chordKeys(['mod', 'shift', 'W']) },
+  { label: 'Zoom pane / back to grid', keys: chordKeys(['mod', 'shift', 'Z']) },
+  {
+    label: 'Focus pane left / up / right / down',
+    keys: chordKeys(['mod', 'alt', '←', '↑', '→', '↓'])
+  },
+  { label: 'Switch workspace', keys: chordKeys(['mod', 'shift', '1', '…', '9']) },
+  { label: 'Show / hide the git diff', keys: chordKeys(['mod', 'shift', 'D']) },
+  { label: 'Terminal text bigger / smaller / reset', keys: chordKeys(['mod', '+', '-', '0']) },
   { label: 'New line in claude', keys: ['Shift', 'Enter'] },
-  { label: 'Copy / paste in a terminal', keys: ['Ctrl', 'Shift', 'C', '/', 'V'] },
-  { label: 'Show this sheet', keys: ['Ctrl', 'Shift', '/'] }
+  {
+    label: 'Copy / paste in a terminal',
+    keys: IS_MAC ? ['⌘', 'C', '/', 'V'] : ['Ctrl', 'Shift', 'C', '/', 'V']
+  },
+  { label: 'Show this sheet', keys: chordKeys(['mod', 'shift', '/']) }
 ]
 
 export function ShortcutsSheet() {

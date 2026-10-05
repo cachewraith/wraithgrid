@@ -56,7 +56,7 @@ export interface Account {
   /** Wraithgrid's own flag. It is never derived from files inside configDir. */
   signedIn: boolean
   imported: boolean
-  /** An emoji shown instead of the color dot. Empty string: the dot. */
+  /** An icon id or emoji (see shared/icons.ts). Empty string: the first letter. */
   icon: string
   /** The sidebar folder it sits in, or null for the top level. */
   folderId: string | null
@@ -67,6 +67,10 @@ export interface AccountFolder {
   id: string
   name: string
   collapsed: boolean
+  /** An icon id or emoji. Empty string: a plain folder glyph. */
+  icon: string
+  /** Icon tint, '#rrggbb', or '' for neutral. */
+  color: string
 }
 
 /** Quick picks for an account icon; any emoji can be typed in as well. */
@@ -96,7 +100,6 @@ export const ACCOUNT_ICONS = [
   '🧠',
   '👻'
 ] as const
-export const ACCOUNT_ICON_MAX = 16
 
 export interface Pane {
   id: string
@@ -118,8 +121,10 @@ export type LayoutNode =
 export interface Workspace {
   id: string
   name: string
-  /** An emoji shown next to the name. Empty string: the first letter. */
+  /** An icon id or emoji. Empty string: the first letter. */
   icon: string
+  /** Icon tint, '#rrggbb', or '' for neutral. */
+  color: string
   /** Every pane in the workspace. Panes missing from `layout` are hidden, not closed. */
   panes: Pane[]
   layout: LayoutNode | null
@@ -141,6 +146,12 @@ export interface Settings {
   sharedMode: SharedMode
   /** Ask GitHub for a newer release once at startup. */
   checkUpdatesOnLaunch: boolean
+  /** OS notification when a pane you aren't looking at finishes or needs approval. */
+  notifyPanes: boolean
+  /** The shell plain shell panes run: a path or a name on PATH. Empty: automatic. */
+  shellPath: string
+  /** Arguments for `shellPath`, e.g. `--login -i` for Git Bash. */
+  shellArgs: string[]
 }
 
 export const CONFIG_VERSION = 1

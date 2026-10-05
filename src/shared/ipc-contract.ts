@@ -42,6 +42,18 @@ export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 /** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
 export const updateInstallArgs = z.object({})
+/** git runs in the pane's folder as main has it in its own config, never a renderer path. */
+export const shellListArgs = z.object({})
+export const gitPaneArgs = z.object({ paneId: idSchema })
+export const gitWorktreeAddArgs = z.object({
+  cwd: z.string().min(1).max(4096),
+  branch: z.string().min(1).max(100)
+})
+export const notifyPaneArgs = z.object({
+  paneId: idSchema,
+  title: z.string().min(1).max(120),
+  body: z.string().max(300)
+})
 
 export interface SharedReportEntry {
   account: string
@@ -83,8 +95,11 @@ export interface AppInfo {
   platform: string
   configPath: string
   version: string
-  /** custom: our title bar; overlay: Windows caption buttons; tiling: tiling compositor. */
-  chrome: 'custom' | 'overlay' | 'tiling'
+  /**
+   * custom: our title bar; overlay: Windows caption buttons; tiling: tiling compositor;
+   * mac: macOS traffic lights inset at the left.
+   */
+  chrome: 'custom' | 'overlay' | 'tiling' | 'mac'
   desktop: string | null
 }
 
@@ -115,6 +130,30 @@ export type UpdateInstallResult =
   | { ok: true }
   /** `manual`: this build can't update itself (e.g. a tarball); offer the release page. */
   | { ok: false; error: string; manual: boolean }
+
+export interface GitStatus {
+  /** False when the folder is not inside a git work tree (or git is missing). */
+  repo: boolean
+  /** null on a detached HEAD. */
+  branch: string | null
+  ahead: number
+  behind: number
+  /** Changed, staged and untracked paths. */
+  changed: number
+}
+
+export type GitDiffResult =
+  | { ok: true; patch: string; truncated: boolean; untracked: string[] }
+  | { ok: false; error: string }
+
+export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: string }
+
+/** An installed shell offered in Settings; `args` are the ones it needs (Git Bash: login). */
+export interface ShellOption {
+  name: string
+  path: string
+  args: string[]
+}
 
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
@@ -167,5 +206,20 @@ export interface WraithApi {
     onProgress(cb: (p: UpdateProgress) => void): () => void
     /** The user clicked the new-release notification: show the updates section. */
     onShow(cb: () => void): () => void
+  }
+  git: {
+    status(paneId: string): Promise<GitStatus>
+    diff(paneId: string): Promise<GitDiffResult>
+    /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
+    addWorktree(cwd: string, branch: string): Promise<GitWorktreeResult>
+  }
+  shells: {
+    /** Shells installed on this machine, for the Settings picker. */
+    list(): Promise<ShellOption[]>
+  }
+  notify: {
+    /** An OS notification about a pane; clicking it brings the window back to that pane. */
+    pane(paneId: string, title: string, body: string): void
+    onReveal(cb: (paneId: string) => void): () => void
   }
 }

@@ -1,6 +1,6 @@
 // The sidebar's account list: one level of folders, and drag an account onto a folder
 // (or onto the list itself, for the top level) to move it. Right-click a folder to edit it.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
   PointerSensor,
@@ -13,11 +13,13 @@ import {
   type CollisionDetection,
   type DragEndEvent
 } from '@dnd-kit/core'
+import { ICON_COLORS } from '@shared/icons'
 import type { Account, AccountFolder } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { AccountIcon } from './AccountIcon'
+import { AccountIcon, Avatar } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
-import { IconClose, IconFolder, IconPlus, IconRename, IconTrash } from './icons'
+import { IconPopover } from './IconPicker'
+import { IconClose, IconFolder, IconPlus, IconRename, IconSun, IconTrash } from './icons'
 
 const ROOT = 'folder:root'
 // The zone under the pointer; if none, the one the dragged row overlaps.
@@ -59,6 +61,8 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(folder.name)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const [iconAt, setIconAt] = useState<{ top: number; left: number } | null>(null)
+  const headRef = useRef<HTMLDivElement>(null)
   const save = (): void => {
     actions.renameFolder(folder.id, name)
     setRenaming(false)
@@ -71,6 +75,7 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
   return (
     <div ref={setNodeRef} className={`fold${isOver ? ' over' : ''}`}>
       <div
+        ref={headRef}
         className="fold-hd"
         onContextMenu={(e) => {
           e.preventDefault()
@@ -87,6 +92,15 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
             ›
           </span>
         </button>
+        <span className="fold-ic">
+          {folder.icon ? (
+            <Avatar icon={folder.icon} name={folder.name} color={folder.color || 'var(--fa)'} />
+          ) : (
+            <span style={{ color: folder.color || 'var(--fa)', display: 'flex' }}>
+              <IconFolder small />
+            </span>
+          )}
+        </span>
         {renaming ? (
           <input
             className="inpt sans fold-in"
@@ -132,6 +146,14 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
           items={[
             { label: 'Rename', icon: <IconRename small />, onSelect: startRename },
             {
+              label: 'Change icon',
+              icon: <IconSun small />,
+              onSelect: () => {
+                const r = headRef.current?.getBoundingClientRect()
+                if (r) setIconAt({ top: r.bottom + 6, left: r.left + 8 })
+              }
+            },
+            {
               label: folder.collapsed ? 'Expand' : 'Collapse',
               icon: <IconFolder small />,
               onSelect: () => actions.toggleFolder(folder.id)
@@ -149,6 +171,20 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
               onSelect: () => actions.deleteFolder(folder.id)
             }
           ]}
+        />
+      ) : null}
+      {iconAt ? (
+        <IconPopover
+          at={iconAt}
+          icon={folder.icon}
+          color={folder.color}
+          colors={ICON_COLORS}
+          name={folder.name}
+          onPick={(c, done) => {
+            actions.setFolderIcon(folder.id, c.icon, c.color)
+            if (done) setIconAt(null)
+          }}
+          onClose={() => setIconAt(null)}
         />
       ) : null}
       {folder.collapsed ? null : (

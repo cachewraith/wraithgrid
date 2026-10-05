@@ -2,17 +2,18 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import type {
   AppInfo,
   ClaudeDetectResult,
+  GitStatus,
   PtyExitEvent,
   SharedReportEntry,
   UpdateCheckResult,
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
+import { ICON_MAX } from '@shared/icons'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
 import {
   ACCOUNT_COLORS,
-  ACCOUNT_ICON_MAX,
   type Account,
   type Config,
   type LayoutNode,
@@ -70,6 +71,7 @@ export type Modal =
   | { kind: 'shortcuts' }
   | { kind: 'workspaces' }
   | { kind: 'removeAccount'; accountId: string }
+  | { kind: 'palette' }
 
 export interface NewPaneInput {
   accountId: string | null
@@ -106,6 +108,10 @@ export interface AppState {
   }
   /** A Settings section to scroll to once, then cleared. */
   settingsAnchor: 'updates' | null
+  /** Branch and change count per pane, polled for the active workspace. */
+  git: Record<string, GitStatus>
+  /** The diff panel beside the grid, showing the focused pane's folder. */
+  diffOpen: boolean
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -120,6 +126,10 @@ export interface AppState {
   focusDirection(dir: Direction): void
   toggleZoom(paneId?: string): void
   runLogin(paneId: string): void
+  /** Switches to the pane's workspace, puts it in the grid if hidden, and focuses it. */
+  revealPane(paneId: string): void
+  refreshGit(): Promise<void>
+  toggleDiff(open?: boolean): void
 
   // layout
   applyPreset(id: PresetId): void
@@ -132,16 +142,18 @@ export interface AppState {
   switchWorkspaceIndex(index: number): void
   createWorkspace(name: string): void
   renameWorkspace(id: string, name: string): void
-  /** An emoji, or '' for the first letter. */
-  setWorkspaceIcon(id: string, icon: string): void
+  /** An icon id or emoji ('' for the first letter), and optionally a tint ('' = neutral). */
+  setWorkspaceIcon(id: string, icon: string, color?: string): void
   deleteWorkspace(id: string): void
 
   // accounts
   addAccount(name: string, color: string): Promise<string | null>
   importAccount(dir: string): string | null
   renameAccount(id: string, name: string): void
-  /** An emoji, or '' for the color dot. */
-  setAccountIcon(id: string, icon: string): void
+  /** An icon id or emoji ('' for the first letter); a color also recolors the account. */
+  setAccountIcon(id: string, icon: string, color?: string): void
+  /** An icon id or emoji ('' for the folder glyph) and a tint ('' = neutral). */
+  setFolderIcon(id: string, icon: string, color?: string): void
   /** null moves the account out of any folder. */
   moveAccountToFolder(id: string, folderId: string | null): void
   createFolder(name: string): string | null
@@ -182,7 +194,14 @@ export interface StoreDeps {
   bus: PtyBus
   rects: RectRegistry
   now?: () => number
+  /** Whether the window has the user's attention; notifications only fire when it doesn't. */
+  windowFocused?: () => boolean
 }
+
+/** A pane must have worked this long before going quiet counts as "finished". */
+export const NOTIFY_MIN_RUN_MS = 8000
+/** Git status refresh for the active workspace's panes. */
+const GIT_POLL_MS = 5000
 
 // ---- Selectors ---------------------------------------------------------------------
 
@@ -229,6 +248,11 @@ function uniqueSlug(base: string, taken: Set<string>): string {
   return slug
 }
 
+/** A picked tint: '#rrggbb' or '' (neutral); undefined or anything else keeps `current`. */
+function tint(color: string | undefined, current: string): string {
+  return color === '' || (color && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : current
+}
+
 function freshRuntime(extra: Partial<PaneRuntime> = {}): PaneRuntime {
   return {
     requested: false,
@@ -267,9 +291,12 @@ export function createAppStore({
   api,
   bus,
   rects,
-  now = () => Date.now()
+  now = () => Date.now(),
+  windowFocused = () => typeof document === 'undefined' || document.hasFocus()
 }: StoreDeps): StoreApi<AppState> {
   const startQueue = new StaggeredQueue(150, now)
+  /** When each pane last started running, to tell real work from a brief redraw. */
+  const runningSince = new Map<string, number>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -401,6 +428,32 @@ export function createAppStore({
       set({ config: withWorkspace(s.config, ws.id, (w) => ({ ...w, layout: fn(w) })) })
     }
 
+    /** Is the user looking at this pane right now? Then no notification is needed. */
+    const attending = (paneId: string): boolean => {
+      const s = get()
+      return windowFocused() && s.view === 'grid' && visiblePaneIds(s).includes(paneId)
+    }
+
+    const maybeNotify = (paneId: string, from: PaneStatus, to: PaneStatus, t: number): void => {
+      if (to === 'running') {
+        if (from !== 'running') runningSince.set(paneId, t)
+        return
+      }
+      const since = runningSince.get(paneId)
+      runningSince.delete(paneId)
+      const asks = to === 'approval' && from !== 'approval'
+      const done =
+        to === 'idle' && from === 'running' && since !== undefined && t - since >= NOTIFY_MIN_RUN_MS
+      const s = get()
+      if ((!asks && !done) || !s.config.settings.notifyPanes || attending(paneId)) return
+      const found = findPane(s.config, paneId)
+      if (!found || found.pane.shell) return
+      const where = `${found.pane.title} · ${found.ws.name}`
+      if (asks)
+        api.notify.pane(paneId, `${where} needs approval`, 'claude is waiting for your answer.')
+      else api.notify.pane(paneId, `${where} is done`, 'claude finished and is waiting for you.')
+    }
+
     const refreshStatuses = (): void => {
       const s = get()
       const t = now()
@@ -419,7 +472,10 @@ export function createAppStore({
               now: t
             })
         runtime[paneId] = status === rt.status ? rt : { ...rt, status }
-        if (status !== rt.status) changed = true
+        if (status !== rt.status) {
+          changed = true
+          maybeNotify(paneId, rt.status, status, t)
+        }
       }
       if (changed) set({ runtime })
     }
@@ -448,6 +504,8 @@ export function createAppStore({
       systemTheme: 'dark',
       update: { checking: false, result: null, install: { phase: 'idle' }, installError: null },
       settingsAnchor: null,
+      git: {},
+      diffOpen: false,
 
       async init() {
         const [raw, info] = await Promise.all([api.config.get(), api.app.info()])
@@ -463,6 +521,8 @@ export function createAppStore({
         setInterval(refreshStatuses, 500)
         api.update.onProgress((install) => set({ update: { ...get().update, install } }))
         api.update.onShow(() => get().showUpdates())
+        api.notify.onReveal((paneId) => get().revealPane(paneId))
+        setInterval(() => void get().refreshGit(), GIT_POLL_MS)
         set({
           config,
           info,
@@ -471,6 +531,7 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        void get().refreshGit()
         if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
       },
 
@@ -550,6 +611,52 @@ export function createAppStore({
         }
       },
 
+      revealPane(paneId) {
+        const found = findPane(get().config, paneId)
+        if (!found) return
+        if (get().config.activeWorkspace !== found.ws.id) get().switchWorkspace(found.ws.id)
+        const ws = activeWorkspace(get())
+        if (!paneIds(ws.layout).includes(paneId)) {
+          updateActiveLayout((w) => placePane(w, paneId, null))
+        }
+        set({ focusedPaneId: paneId, view: 'grid', modal: null, zoomedPaneId: null })
+      },
+
+      async refreshGit() {
+        if (typeof document !== 'undefined' && document.hidden) return
+        const ws = activeWorkspace(get())
+        // One git call per folder: panes often share one.
+        const byCwd = new Map<string, string[]>()
+        for (const p of ws.panes) byCwd.set(p.cwd, [...(byCwd.get(p.cwd) ?? []), p.id])
+        const results = await Promise.all(
+          [...byCwd.values()].map(async (ids) => [ids, await api.git.status(ids[0]!)] as const)
+        )
+        const next = { ...get().git }
+        let changed = false
+        for (const [ids, st] of results) {
+          for (const id of ids) {
+            const cur = next[id]
+            if (
+              !cur ||
+              cur.repo !== st.repo ||
+              cur.branch !== st.branch ||
+              cur.changed !== st.changed ||
+              cur.ahead !== st.ahead ||
+              cur.behind !== st.behind
+            ) {
+              next[id] = st
+              changed = true
+            }
+          }
+        }
+        if (changed) set({ git: next })
+      },
+
+      toggleDiff(open) {
+        const diffOpen = open ?? !get().diffOpen
+        if (diffOpen !== get().diffOpen) set({ diffOpen })
+      },
+
       runLogin(paneId) {
         bus.input(paneId, '/login\r')
         patchRuntime(paneId, { loginStarted: true })
@@ -608,7 +715,14 @@ export function createAppStore({
       createWorkspace(name) {
         const trimmed = name.trim().slice(0, 64)
         if (!trimmed) return
-        const ws: Workspace = { id: newId('ws'), name: trimmed, icon: '', panes: [], layout: null }
+        const ws: Workspace = {
+          id: newId('ws'),
+          name: trimmed,
+          icon: '',
+          color: '',
+          panes: [],
+          layout: null
+        }
         const s = get()
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)
@@ -692,19 +806,34 @@ export function createAppStore({
         return null
       },
 
-      setWorkspaceIcon(id, icon) {
-        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+      setWorkspaceIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
         get().updateConfig((c) => ({
           ...c,
-          workspaces: c.workspaces.map((w) => (w.id === id ? { ...w, icon: trimmed } : w))
+          workspaces: c.workspaces.map((w) =>
+            w.id === id ? { ...w, icon: trimmed, color: tint(color, w.color) } : w
+          )
         }))
       },
 
-      setAccountIcon(id, icon) {
-        const trimmed = icon.trim().slice(0, ACCOUNT_ICON_MAX)
+      setAccountIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
         get().updateConfig((c) => ({
           ...c,
-          accounts: c.accounts.map((a) => (a.id === id ? { ...a, icon: trimmed } : a))
+          accounts: c.accounts.map((a) =>
+            // An account always has a color (it marks its panes): '' keeps the current one.
+            a.id === id ? { ...a, icon: trimmed, color: tint(color, a.color) || a.color } : a
+          )
+        }))
+      },
+
+      setFolderIcon(id, icon, color) {
+        const trimmed = icon.trim().slice(0, ICON_MAX)
+        get().updateConfig((c) => ({
+          ...c,
+          accountFolders: c.accountFolders.map((f) =>
+            f.id === id ? { ...f, icon: trimmed, color: tint(color, f.color) } : f
+          )
         }))
       },
 
@@ -724,7 +853,10 @@ export function createAppStore({
         const id = newId('f')
         get().updateConfig((c) => ({
           ...c,
-          accountFolders: [...c.accountFolders, { id, name: trimmed, collapsed: false }]
+          accountFolders: [
+            ...c.accountFolders,
+            { id, name: trimmed, collapsed: false, icon: '', color: '' }
+          ]
         }))
         return id
       },

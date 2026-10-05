@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Config, Workspace } from '@shared/types'
+import { ICON_COLORS } from '@shared/icons'
+import { PANE_STATUS_LABEL, type Config, type Pane, type Workspace } from '@shared/types'
 import { useActions, useApp } from '../app/services'
+import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { AccountIcon, Avatar } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { IconPopover } from './IconPicker'
 import {
+  IconChevron,
+  IconCompose,
   IconGrid4,
-  IconPlus,
   IconRename,
+  IconSearch,
   IconSidebar,
   IconSun,
   IconTrash,
@@ -26,8 +30,44 @@ export function accountColorsFor(config: Config, wsId: string): string[] {
 /** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
 const SIDE_MOVE_MS = 260
 
+/** A pane under its workspace, like a chat in a chat app's history: click to jump to it. */
+function PaneRow({ pane }: { pane: Pane }) {
+  const actions = useActions()
+  const account = useApp((s) => accountById(s.config, pane.accountId))
+  const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
+  const on = useApp((s) => s.focusedPaneId === pane.id && s.view === 'grid')
+  const branch = useApp((s) => s.git[pane.id]?.branch ?? null)
+  const loud = status === 'approval' || status === 'login' || status === 'exited'
+  return (
+    <button
+      className={`pn-row${on ? ' on' : ''}`}
+      aria-current={on ? 'true' : undefined}
+      title={`${pane.title}${account ? ` · ${account.name}` : ' · shell'}${branch ? ` · ${branch}` : ''}`}
+      onClick={() => actions.revealPane(pane.id)}
+    >
+      <span className={`pn-dot st-${status ?? 'idle'}`} aria-hidden="true" />
+      <span className="pn-name">{pane.title}</span>
+      {status && loud ? (
+        <span className={`pn-st st-${status}`}>{PANE_STATUS_LABEL[status]}</span>
+      ) : (
+        <span className="pn-acc">{account?.name ?? 'shell'}</span>
+      )}
+    </button>
+  )
+}
+
 /** One workspace in the sidebar: click to switch, right-click to rename, re-icon or delete. */
-function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
+function WorkspaceRow({
+  w,
+  index,
+  expanded,
+  onToggle
+}: {
+  w: Workspace
+  index: number
+  expanded: boolean
+  onToggle: () => void
+}) {
   const actions = useActions()
   const config = useApp((s) => s.config)
   const on = useApp((s) => s.config.activeWorkspace === w.id && s.view === 'grid')
@@ -48,7 +88,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   if (renaming !== null) {
     return (
       <div className="ws-row on">
-        <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
+        <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
         <input
           className="inpt sans ws-in"
           value={renaming}
@@ -72,34 +112,54 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
 
   return (
     <>
-      <button
-        ref={rowRef}
-        className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
-        aria-current={on ? 'true' : undefined}
-        title={key ? `Switch to ${w.name} (Ctrl+Shift+${key})` : `Switch to ${w.name}`}
-        onClick={() => actions.switchWorkspace(w.id)}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          setConfirmDelete(false)
-          setMenu(menuPoint(e))
-        }}
-      >
-        <Avatar icon={w.icon} name={w.name} color="var(--acc)" />
-        <span className="ws-name">{w.name}</span>
-        <span className="dots">
-          {accountColorsFor(config, w.id).map((c) => (
-            <span key={c} className="dot" style={{ background: c }} />
-          ))}
-        </span>
-        <span
-          className="cnt"
-          aria-label={`${panes} panes`}
-          title={`${panes} ${panes === 1 ? 'pane' : 'panes'}`}
+      <div className="ws-wrap">
+        <button
+          className="ws-tg"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Hide' : 'Show'} panes of ${w.name}`}
+          disabled={panes === 0}
+          onClick={onToggle}
         >
-          {panes}
-        </span>
-        {key ? <kbd className="ws-key">{key}</kbd> : null}
-      </button>
+          <IconChevron small className={`chev-i${expanded ? ' open' : ''}`} />
+        </button>
+        <button
+          ref={rowRef}
+          className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
+          aria-current={on ? 'true' : undefined}
+          title={
+            key ? `Switch to ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Switch to ${w.name}`
+          }
+          onClick={() => actions.switchWorkspace(w.id)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setConfirmDelete(false)
+            setMenu(menuPoint(e))
+          }}
+        >
+          <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
+          <span className="ws-name">{w.name}</span>
+          <span className="dots">
+            {accountColorsFor(config, w.id).map((c) => (
+              <span key={c} className="dot" style={{ background: c }} />
+            ))}
+          </span>
+          <span
+            className="cnt"
+            aria-label={`${panes} panes`}
+            title={`${panes} ${panes === 1 ? 'pane' : 'panes'}`}
+          >
+            {panes}
+          </span>
+          {key ? <kbd className="ws-key">{key}</kbd> : null}
+        </button>
+      </div>
+      {expanded && panes ? (
+        <div className="pn-list">
+          {w.panes.map((p) => (
+            <PaneRow key={p.id} pane={p} />
+          ))}
+        </div>
+      ) : null}
       {menu ? (
         <ContextMenu
           at={menu}
@@ -142,10 +202,12 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
         <IconPopover
           at={iconAt}
           icon={w.icon}
+          color={w.color}
+          colors={ICON_COLORS}
           name={w.name}
-          onPick={(icon) => {
-            actions.setWorkspaceIcon(w.id, icon)
-            setIconAt(null)
+          onPick={(c, done) => {
+            actions.setWorkspaceIcon(w.id, c.icon, c.color)
+            if (done) setIconAt(null)
           }}
           onClose={() => setIconAt(null)}
         />
@@ -175,6 +237,11 @@ export function Sidebar() {
   }, [moving, collapsed])
 
   const newPane = (): void => actions.openModal({ kind: 'newPane', slotId: null })
+  const search = (): void => actions.openModal({ kind: 'palette' })
+  // Which workspaces show their panes: the active one opens by default; UI state only.
+  const activeId = config.activeWorkspace
+  const [toggled, setToggled] = useState<Record<string, boolean>>({})
+  const isExpanded = (id: string): boolean => toggled[id] ?? id === activeId
 
   return (
     <aside
@@ -182,7 +249,6 @@ export function Sidebar() {
       aria-label="Sidebar"
     >
       <div className="side-hd">
-        {collapsed ? null : <span />}
         <button
           className="icon-btn"
           aria-label={toggleLabel}
@@ -191,6 +257,16 @@ export function Sidebar() {
         >
           <IconSidebar />
         </button>
+        {collapsed ? null : (
+          <button
+            className="icon-btn"
+            aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
+            title={`New pane (${SHORTCUT_HINT.newPane})`}
+            onClick={newPane}
+          >
+            <IconCompose />
+          </button>
+        )}
       </div>
 
       {collapsed ? (
@@ -215,7 +291,15 @@ export function Sidebar() {
               title={`New pane (${SHORTCUT_HINT.newPane})`}
               onClick={newPane}
             >
-              <IconPlus />
+              <IconCompose />
+            </button>
+            <button
+              className="icon-btn"
+              aria-label={`Search (${SHORTCUT_HINT.palette})`}
+              title={`Search (${SHORTCUT_HINT.palette})`}
+              onClick={search}
+            >
+              <IconSearch />
             </button>
             <button
               className="icon-btn"
@@ -229,25 +313,43 @@ export function Sidebar() {
         </>
       ) : (
         <>
+          <nav className="side-nav" aria-label="Quick actions">
+            <button
+              className="nav-row"
+              onClick={newPane}
+              title={`New pane (${SHORTCUT_HINT.newPane})`}
+            >
+              <IconCompose />
+              <span>New pane</span>
+              <kbd>{SHORTCUT_HINT.newPane}</kbd>
+            </button>
+            <button
+              className="nav-row"
+              onClick={search}
+              title={`Search (${SHORTCUT_HINT.palette})`}
+            >
+              <IconSearch />
+              <span>Search</span>
+              <kbd>{SHORTCUT_HINT.palette}</kbd>
+            </button>
+          </nav>
           <div className="sec">
             <div className="sec-hd">
               <span>Workspaces</span>
               <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
             </div>
             {workspaces.map((w, i) => (
-              <WorkspaceRow key={w.id} w={w} index={i} />
+              <WorkspaceRow
+                key={w.id}
+                w={w}
+                index={i}
+                expanded={isExpanded(w.id)}
+                onToggle={() => setToggled((t) => ({ ...t, [w.id]: !isExpanded(w.id) }))}
+              />
             ))}
           </div>
           <SidebarAccounts />
           <div className="side-ft">
-            <button
-              className="btn pri full"
-              onClick={newPane}
-              title={`New pane (${SHORTCUT_HINT.newPane})`}
-            >
-              <IconPlus />
-              New pane<kbd>{SHORTCUT_HINT.newPane}</kbd>
-            </button>
             <button className="btn gh full" onClick={() => actions.setAccountsMode('add')}>
               <IconUserPlus />
               New account

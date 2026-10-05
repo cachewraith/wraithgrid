@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useActions, useApp } from '../app/services'
+import { chordKeys } from '../app/shortcuts'
+import { ICON_COLORS } from '@shared/icons'
 import { IconPicker } from './IconPicker'
 import { Dialog } from './Dialog'
 import { IconPlus, IconRename, IconSearch, IconTrash } from './icons'
@@ -154,9 +156,10 @@ export function WorkspaceSwitcher() {
                 <IconPicker
                   icon={w.icon}
                   name={w.name}
-                  color="var(--acc)"
+                  color={w.color}
+                  colors={ICON_COLORS}
                   size={26}
-                  onPick={(icon) => actions.setWorkspaceIcon(w.id, icon)}
+                  onPick={(c) => actions.setWorkspaceIcon(w.id, c.icon, c.color)}
                 />
                 <button
                   className="go"
@@ -182,9 +185,9 @@ export function WorkspaceSwitcher() {
                 </button>
                 {index < 9 ? (
                   <span className="keys" style={{ margin: '0 6px' }}>
-                    <kbd>Ctrl</kbd>
-                    <kbd>Shift</kbd>
-                    <kbd>{index + 1}</kbd>
+                    {chordKeys(['mod', 'shift', String(index + 1)]).map((k) => (
+                      <kbd key={k}>{k}</kbd>
+                    ))}
                   </span>
                 ) : null}
                 <button

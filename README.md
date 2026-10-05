@@ -8,7 +8,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/cachewraith/wraithgrid/build.yml?branch=main&style=flat-square&label=build)](https://github.com/cachewraith/wraithgrid/actions/workflows/build.yml)
-[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2dd4bf?style=flat-square)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-2dd4bf?style=flat-square)](#install)
 [![License: MIT](https://img.shields.io/github/license/cachewraith/wraithgrid?style=flat-square&color=f5a524)](LICENSE)
 
 [Install](#install) · [Usage](#usage) · [Shortcuts](#shortcuts) · [Build from source](#build-from-source) · [Privacy](#privacy-and-security)
@@ -34,19 +34,19 @@ reads, copies or proxies anything inside those folders.
 
 ## Features
 
-|                               |                                                                                                              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Many accounts at once**     | Personal, work and client accounts run side by side, each with its own login, settings and history.          |
-| **Flexible layouts**          | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.           |
-| **Workspaces**                | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                   |
-| **Folders & icons**           | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.        |
-| **Live pane status**          | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                   |
-| **Shared CLAUDE.md & skills** | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.          |
-| **Update alerts**             | A desktop notification tells you once when a new version is released.                                        |
-| **Survives restarts**         | Workspaces, layouts, accounts and folders come back on the next launch.                                      |
-| **Themes**                    | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.      |
-| **Native everywhere**         | Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
-| **Private by design**         | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.         |
+|                               |                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Many accounts at once**     | Personal, work and client accounts run side by side, each with its own login, settings and history.                                               |
+| **Flexible layouts**          | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                |
+| **Workspaces**                | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                        |
+| **Folders & icons**           | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.                                             |
+| **Live pane status**          | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                                                        |
+| **Shared CLAUDE.md & skills** | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                               |
+| **Update alerts**             | A desktop notification tells you once when a new version is released.                                                                             |
+| **Survives restarts**         | Workspaces, layouts, accounts and folders come back on the next launch.                                                                           |
+| **Themes**                    | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                           |
+| **Native everywhere**         | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
+| **Private by design**         | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                              |
 
 ## Screenshots
 
@@ -86,6 +86,8 @@ Download the package for your system from the
 | Arch (and Hyprland on Arch)     | `sudo pacman -U ./wraithgrid-<version>-x64.pacman`           |
 | Any Linux distro                | `chmod +x Wraithgrid-<version>-x86_64.AppImage`, then run it |
 | Windows 10 (1809+) and 11       | `Wraithgrid-Setup-<version>-x64.exe`                         |
+| macOS 12+, Apple Silicon        | `Wraithgrid-<version>-mac-arm64.dmg`, drag to Applications   |
+| macOS 12+, Intel                | `Wraithgrid-<version>-mac-x64.dmg`, drag to Applications     |
 
 Every release includes a `SHA256SUMS.txt` for verifying downloads.
 
@@ -95,10 +97,20 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
 > folder). You can also set its path in **Settings**.
 
 <details>
-<summary><b>Platform notes</b>: tiling compositors, launchers, AppImage, Windows</summary>
+<summary><b>Platform notes</b>: macOS, tiling compositors, launchers, AppImage, Windows</summary>
 
 <br />
 
+- **macOS: first launch.** The app is ad-hoc signed but not notarized (no Apple Developer ID
+  yet), so Gatekeeper stops the first launch. Right-click **Wraithgrid** in Applications →
+  **Open** → **Open**, or run `xattr -dr com.apple.quarantine /Applications/Wraithgrid.app`.
+  Updates: Settings → Updates opens the release page instead of installing in place (macOS
+  only lets an app replace itself when it is Developer ID signed).
+- **macOS: keys.** App shortcuts use ⌘ where Linux and Windows use Ctrl (⌘⇧N new pane, ⌘⇧P
+  search, ⌘⌥ + arrows to move focus, ⌘= / ⌘- for text size); ⌘C / ⌘V copy and paste in panes.
+  Every Ctrl key goes to the terminal, so Ctrl+C, Ctrl+R and Ctrl+_ reach `claude` as usual.
+  `claude` from Homebrew (`/opt/homebrew/bin`) or the native installer is found even when
+  Wraithgrid is opened from the Dock.
 - **Hyprland, sway, i3 and other tiling compositors.** Wraithgrid detects them. The title bar
   then only has a close button, since the compositor owns sizing and there is no minimize, and
   the minimum window size drops to 640×420 so the window fits a tile. It runs as a native
@@ -120,7 +132,8 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
   `cmd`. The native caption buttons (with snap layouts) sit on the title bar. An npm-installed
   `claude` (`claude.cmd`) runs through `cmd.exe`, so launch args containing `& | < > ^ % "` are
   refused; the native `claude.exe` has no such limit.
-- **Where files live.** Config is in `~/.config/wraithgrid/config.json` on Linux and
+- **Where files live.** Config is in `~/.config/wraithgrid/config.json` on Linux,
+  `~/Library/Application Support/wraithgrid/config.json` on macOS and
   `%APPDATA%\wraithgrid\config.json` on Windows. Account folders default to
   `~/.wraithgrid/accounts/` (`%USERPROFILE%\.wraithgrid\accounts\` on Windows).
 
@@ -227,6 +240,7 @@ never saves terminal content.
   - Ubuntu, Debian, Kali: `sudo apt install python3 make g++`
   - Fedora: `sudo dnf install python3 make gcc-c++`
   - Windows: Visual Studio Build Tools with "Desktop development with C++", and Python 3
+  - macOS: Xcode Command Line Tools (`xcode-select --install`)
 - To build a Fedora `.rpm` on another distro: `rpmbuild` (`rpm-tools` on Arch, `rpm` on
   Ubuntu). The pacman package needs `bsdtar` (`libarchive-tools` on Ubuntu).
 
@@ -235,6 +249,7 @@ pnpm i                      # installs deps and rebuilds node-pty for Electron
 pnpm dev                    # run with hot reload
 pnpm dist:linux:portable    # all Linux packages, built in Docker on Ubuntu 22.04
 pnpm dist:win               # Windows installer (run on Windows)
+pnpm dist:mac               # macOS .dmg and .zip, Apple Silicon and Intel (run on a Mac)
 ```
 
 If `pnpm i` asks you to approve build scripts, allow `electron`, `esbuild` and `node-pty`. The
@@ -272,6 +287,7 @@ runner.
 | `pnpm dist:linux`          | AppImage, .deb, .rpm and pacman package, on this machine    |
 | `pnpm dist:linux:portable` | the same, built in an Ubuntu 22.04 container (needs Docker) |
 | `pnpm dist:win`            | NSIS installer for Windows                                  |
+| `pnpm dist:mac`            | .dmg and .zip for macOS, arm64 and x64 (run on a Mac)       |
 
 </details>
 
@@ -282,7 +298,7 @@ runner.
 
 Pushing a version tag publishes a GitHub release (`.github/workflows/release.yml`). The
 workflow checks that the tag matches `package.json`, runs the tests, builds the Linux packages
-(on Ubuntu 22.04) and the Windows installer, then attaches all of them and a
+(on Ubuntu 22.04), the Windows installer and the macOS apps (arm64 and x64), then attaches all of them and a
 `SHA256SUMS.txt` to the release.
 
 ```sh

@@ -129,6 +129,13 @@ describe('login-shell PATH', () => {
     expect(parsePathFromEnvDump(out)).toBe('/home/u/.local/bin:/usr/bin')
   })
 
+  it('reads PATH from printenv output too', () => {
+    expect(parsePathFromEnvDump(`Last login: Mon\n${M}/opt/homebrew/bin:/usr/bin\n${M}`)).toBe(
+      '/opt/homebrew/bin:/usr/bin'
+    )
+    expect(parsePathFromEnvDump(`${M}\n${M}`)).toBeNull()
+  })
+
   it('returns null when the shell failed', () => {
     expect(parsePathFromEnvDump('')).toBeNull()
     expect(parsePathFromEnvDump(`${M}HOME=/x\0`)).toBeNull()
@@ -149,5 +156,36 @@ describe('login-shell PATH', () => {
       'C:\\Users\\u\\AppData\\Roaming\\npm',
       'C:\\Users\\u\\.bun\\bin'
     ])
+  })
+})
+
+describe('macOS', () => {
+  it('uses the inset traffic lights and a normal minimum size', () => {
+    expect(detectDesktop('darwin', {})).toEqual({ chrome: 'mac', desktop: 'macOS', wayland: false })
+    expect(minimumWindowSize('mac')).toEqual({ width: 1100, height: 700 })
+  })
+
+  it('looks for claude in Homebrew too', () => {
+    const dirs = extraBinDirs('darwin', '/Users/u', {})
+    expect(dirs).toContain('/opt/homebrew/bin')
+    expect(dirs).toContain('/usr/local/bin')
+    expect(dirs).toContain('/Users/u/.local/bin')
+    expect(extraBinDirs('linux', '/home/u', {})).not.toContain('/opt/homebrew/bin')
+  })
+
+  it('falls back to zsh, the macOS default shell', async () => {
+    const exists = (files: string[]) => (f: string) => Promise.resolve(files.includes(f))
+    const none = () => Promise.resolve(null)
+    expect(await resolveDefaultShell('darwin', {}, none, exists(['/bin/zsh', '/bin/bash']))).toBe(
+      '/bin/zsh'
+    )
+    expect(
+      await resolveDefaultShell(
+        'darwin',
+        { SHELL: '/opt/homebrew/bin/fish' },
+        none,
+        exists(['/opt/homebrew/bin/fish'])
+      )
+    ).toBe('/opt/homebrew/bin/fish')
   })
 })

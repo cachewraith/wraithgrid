@@ -12,6 +12,11 @@ export function accountsRoot(homeDir: string): string {
   return path.join(homeDir, '.wraithgrid', 'accounts')
 }
 
+/** Where git worktrees created for new panes live, one folder per repo. */
+export function worktreesRoot(homeDir: string): string {
+  return path.join(homeDir, '.wraithgrid', 'worktrees')
+}
+
 /** Expands `~` and makes the path absolute. */
 export function resolveUserPath(p: string, homeDir: string): string {
   return path.resolve(expandHome(p, homeDir))

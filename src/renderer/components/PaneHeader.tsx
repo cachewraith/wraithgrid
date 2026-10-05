@@ -1,8 +1,9 @@
 import type { DraggableSyntheticListeners } from '@dnd-kit/core'
+import type { GitStatus } from '@shared/ipc-contract'
 import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { AccountIcon } from './AccountIcon'
-import { IconClose, IconUnzoom, IconZoom } from './icons'
+import { IconBranch, IconClose, IconUnzoom, IconZoom } from './icons'
 
 interface Props {
   title: string
@@ -12,11 +13,13 @@ interface Props {
   cwdLabel: string
   status: PaneStatus
   zoomed: boolean
+  git: GitStatus | undefined
   setDragHandle: (el: HTMLElement | null) => void
   dragListeners: DraggableSyntheticListeners
   onFocus: () => void
   onZoom: () => void
   onClose: () => void
+  onDiff: () => void
 }
 
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
@@ -46,6 +49,18 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       <span className="cwd" title={p.cwdLabel}>
         {p.cwdLabel}
       </span>
+      {p.git?.repo ? (
+        <button
+          className={`gitc${p.git.changed ? ' dirty' : ''}`}
+          title={`${p.git.branch ?? 'detached HEAD'}${p.git.changed ? ` · ${p.git.changed} changed` : ''}${p.git.ahead ? ` · ${p.git.ahead} ahead` : ''} — show changes (${SHORTCUT_HINT.diff})`}
+          aria-label={`Branch ${p.git.branch ?? 'detached'}, ${p.git.changed} changed files. Show changes`}
+          onClick={p.onDiff}
+        >
+          <IconBranch small />
+          <span className="gitc-b">{p.git.branch ?? 'detached'}</span>
+          {p.git.changed ? <span className="gitc-n">{p.git.changed}</span> : null}
+        </button>
+      ) : null}
       <span className={`st st-${p.status}`}>
         <span className="sd" />
         {PANE_STATUS_LABEL[p.status]}

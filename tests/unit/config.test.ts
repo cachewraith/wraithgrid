@@ -20,12 +20,15 @@ const sample = (): Config => ({
       folderId: 'f1'
     }
   ],
-  accountFolders: [{ id: 'f1', name: 'Work', collapsed: false }],
+  accountFolders: [
+    { id: 'f1', name: 'Work', collapsed: false, icon: 'lucide:briefcase', color: '#14b8a6' }
+  ],
   workspaces: [
     {
       id: 'ws1',
       name: 'default',
-      icon: '🚀',
+      icon: 'material:rocket-launch',
+      color: '',
       panes: [
         { id: 'p1', accountId: 'a1', cwd: '~/proj', args: ['-c'], shell: false, title: 'proj' }
       ],
@@ -221,5 +224,23 @@ describe('ConfigStore', () => {
     await writeFileAtomic(file, '{"a":2}')
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ a: 2 })
     expect(fs.readdirSync(dir)).toEqual(['config.json'])
+  })
+
+  it('gives folders an icon and color, workspaces a color, and resets bad ones', () => {
+    const raw = JSON.parse(JSON.stringify(sample()))
+    delete raw.accountFolders[0].icon
+    delete raw.accountFolders[0].color
+    delete raw.workspaces[0].color
+    const r = parseConfig(raw)
+    expect(r.ok && r.config.accountFolders[0]).toMatchObject({ icon: '', color: '' })
+    expect(r.ok && r.config.workspaces[0]!.color).toBe('')
+
+    raw.workspaces[0].color = 'red; background:url(x)'
+    raw.workspaces[0].icon = 'x'.repeat(65)
+    raw.accounts[0].icon = 'material:rocket-launch'
+    const bad = parseConfig(raw)
+    expect(bad.ok).toBe(true)
+    expect(bad.ok && bad.config.workspaces[0]).toMatchObject({ color: '', icon: '' })
+    expect(bad.ok && bad.config.accounts[0]!.icon).toBe('material:rocket-launch')
   })
 })

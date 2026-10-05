@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AccountsView, RemoveAccountDialog } from '../components/AccountsView'
+import { CommandPalette } from '../components/CommandPalette'
+import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
 import { SettingsView } from '../components/SettingsView'
@@ -24,8 +26,11 @@ function useGlobalShortcuts(): void {
       const action = matchShortcut(e)
       if (!action) return
       const s = store.getState()
-      // Dialogs own the keyboard, except that the sheet shortcut toggles the sheet.
-      if (s.modal && !(action.type === 'shortcuts' && s.modal.kind === 'shortcuts')) return
+      // Dialogs own the keyboard, except that a sheet's own shortcut toggles it.
+      const toggles =
+        (action.type === 'shortcuts' && s.modal?.kind === 'shortcuts') ||
+        (action.type === 'palette' && s.modal?.kind === 'palette')
+      if (s.modal && !toggles) return
       e.preventDefault()
       e.stopPropagation()
       switch (action.type) {
@@ -47,6 +52,13 @@ function useGlobalShortcuts(): void {
         case 'shortcuts':
           if (s.modal) s.closeModal()
           else s.openModal({ kind: 'shortcuts' })
+          break
+        case 'palette':
+          if (s.modal) s.closeModal()
+          else s.openModal({ kind: 'palette' })
+          break
+        case 'diff':
+          s.toggleDiff()
           break
         case 'fontSize': {
           const size = s.config.settings.fontSize
@@ -116,12 +128,15 @@ function Modals() {
       return <WorkspaceSwitcher />
     case 'removeAccount':
       return <RemoveAccountDialog accountId={modal.accountId} />
+    case 'palette':
+      return <CommandPalette />
   }
 }
 
 export function App() {
   const ready = useApp((s) => s.ready)
   const view = useApp((s) => s.view)
+  const diffOpen = useApp((s) => s.diffOpen && s.view === 'grid')
   useGlobalShortcuts()
   useDenseSidebar()
   useAppearance()
@@ -134,10 +149,13 @@ export function App() {
         <Sidebar />
         <main className="main">
           <TopBar />
-          <div className="content">
-            <PaneGrid />
-            {view === 'accounts' ? <AccountsView /> : null}
-            {view === 'settings' ? <SettingsView /> : null}
+          <div className="work">
+            <div className="content">
+              <PaneGrid />
+              {view === 'accounts' ? <AccountsView /> : null}
+              {view === 'settings' ? <SettingsView /> : null}
+            </div>
+            {diffOpen ? <DiffPanel /> : null}
           </div>
         </main>
       </div>

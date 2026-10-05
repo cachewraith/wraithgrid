@@ -1,4 +1,4 @@
-import { stat, mkdir, realpath, rm } from 'node:fs/promises'
+import { readFile, stat, mkdir, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   app,
@@ -10,7 +10,7 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import type { z } from 'zod'
-import { contractHome } from '@shared/paths'
+import { contractHome, expandHome } from '@shared/paths'
 import {
   IPC,
   accountCreateDirArgs,
@@ -20,16 +20,24 @@ import {
   sharedApplyArgs,
   updateCheckArgs,
   updateInstallArgs,
+  gitPaneArgs,
+  gitWorktreeAddArgs,
+  notifyPaneArgs,
   pickPathArgs,
+  shellListArgs,
   ptyCreateArgs,
   ptyKillArgs,
   ptyResizeArgs,
   ptyWriteArgs,
   type AppInfo,
   type CreateDirResult,
+  type GitDiffResult,
+  type GitStatus,
+  type GitWorktreeResult,
   type PtyCreateResult,
   type SharedApplyResult,
   type SharedReportEntry,
+  type ShellOption,
   type SimpleResult,
   type UpdateCheckResult,
   type UpdateInstallResult
@@ -39,8 +47,9 @@ import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
 import type { Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
-import { accountsRoot, isStrictlyInside, resolveUserPath } from './paths'
-import { resolveDefaultShell, spawnCommandFor, type DesktopInfo } from './platform'
+import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
+import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
+import { listShells, resolvePaneShell, spawnCommandFor, type DesktopInfo } from './platform'
 import {
   ensureSource,
   linkShared,
@@ -68,9 +77,17 @@ export interface IpcDeps {
   onLaunchUpdateCheck?: (result: UpdateCheckResult) => void
   /** Called after a valid config replaced the old one. */
   onConfigChanged?: (prev: Config, next: Config) => void
+  git: GitRunner
+  /** Shows an OS notification about a pane; a click should bring that pane forward. */
+  notifyPane: (paneId: string, title: string, body: string) => void
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
+const fileExists = (f: string): Promise<boolean> =>
+  access(f).then(
+    () => true,
+    () => false
+  )
 
 export function registerIpc(deps: IpcDeps): void {
   const { store, ptys, homeDir } = deps
@@ -168,17 +185,22 @@ export function registerIpc(deps: IpcDeps): void {
       await deps.envReady
       if (!a.shell && a.accountId) await syncShared(a.accountId)
       let file: string
+      let args = a.args
       if (a.shell) {
-        file = await resolveDefaultShell(
+        const picked = await resolvePaneShell(
           process.platform,
           process.env,
-          (name) => findOnPath(name),
-          (f) =>
-            access(f).then(
-              () => true,
-              () => false
-            )
+          findOnPath,
+          fileExists,
+          {
+            // A bare name stays bare: it is looked up on PATH.
+            path: expandHome(cfg.settings.shellPath.trim(), homeDir),
+            args: cfg.settings.shellArgs
+          }
         )
+        if (!picked.ok) return fail(picked.error)
+        file = picked.shell.file
+        args = picked.shell.args
       } else {
         const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
         if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -190,12 +212,7 @@ export function registerIpc(deps: IpcDeps): void {
         file = resolved.path
       }
 
-      const cmd = spawnCommandFor(
-        process.platform,
-        file,
-        a.shell ? [] : a.args,
-        process.env.ComSpec
-      )
+      const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
       if (!cmd.ok) return fail(cmd.error)
       const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, configDir, homeDir })
       return ptys.create({
@@ -390,6 +407,81 @@ export function registerIpc(deps: IpcDeps): void {
     (): Promise<UpdateInstallResult> => deps.installer.install(),
     { ok: false, error: 'The update could not be installed.', manual: false }
   )
+
+  // ---- Git -------------------------------------------------------------------------
+
+  /** The pane's folder from main's own config copy. */
+  const paneCwd = (paneId: string): string | null => {
+    for (const ws of store.get().workspaces) {
+      const pane = ws.panes.find((p) => p.id === paneId)
+      if (pane) return resolveUserPath(pane.cwd, homeDir)
+    }
+    return null
+  }
+  const noRepo: GitStatus = { repo: false, branch: null, ahead: 0, behind: 0, changed: 0 }
+
+  handle(
+    IPC.gitStatus,
+    gitPaneArgs,
+    async (a): Promise<GitStatus> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return noRepo
+      await deps.envReady
+      return gitStatus(deps.git, cwd)
+    },
+    noRepo
+  )
+
+  handle(
+    IPC.gitDiff,
+    gitPaneArgs,
+    async (a): Promise<GitDiffResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return gitDiff(deps.git, cwd)
+    },
+    fail('Could not read the diff')
+  )
+
+  handle(
+    IPC.gitWorktreeAdd,
+    gitWorktreeAddArgs,
+    async (a): Promise<GitWorktreeResult> => {
+      const cwd = resolveUserPath(a.cwd, homeDir)
+      try {
+        if (!(await stat(cwd)).isDirectory()) return fail(`Not a folder: ${a.cwd}`)
+      } catch {
+        return fail(`Folder not found: ${a.cwd}`)
+      }
+      await deps.envReady
+      const r = await addWorktree(deps.git, cwd, a.branch, worktreesRoot(homeDir))
+      if (!r.ok) return r
+      log(`created worktree ${contractHome(r.dir, homeDir)} on branch ${a.branch}`)
+      return { ok: true, dir: contractHome(r.dir, homeDir) }
+    },
+    fail('Could not create the worktree')
+  )
+
+  // ---- Shells ----------------------------------------------------------------------
+
+  handle(
+    IPC.shellList,
+    shellListArgs,
+    async (): Promise<ShellOption[]> => {
+      await deps.envReady
+      return listShells(process.platform, process.env, findOnPath, fileExists, (f) =>
+        readFile(f, 'utf8').catch(() => null)
+      )
+    },
+    []
+  )
+
+  // ---- Pane notifications ----------------------------------------------------------
+
+  listen(IPC.notifyPane, notifyPaneArgs, (a) => {
+    if (paneCwd(a.paneId)) deps.notifyPane(a.paneId, a.title, a.body)
+  })
 
   // ---- App info --------------------------------------------------------------------
 

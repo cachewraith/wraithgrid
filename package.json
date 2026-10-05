@@ -32,10 +32,13 @@
     "dist:linux": "electron-vite build && electron-builder --linux --publish never",
     "dist:linux:portable": "bash scripts/dist-linux-docker.sh",
     "dist:win": "electron-vite build && electron-builder --win --publish never",
+    "dist:mac": "electron-vite build && electron-builder --mac --publish never",
     "postinstall": "electron-builder install-app-deps"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@iconify-json/lucide": "1.2.135",
+    "@iconify-json/material-symbols": "1.2.94",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.19.0",
     "@types/react": "19.3.0",

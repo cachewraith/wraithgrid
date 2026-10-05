@@ -103,6 +103,27 @@ nsis:
   artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 appImage:
   artifactName: ${productName}-${version}-${arch}.${ext}
+# macOS: one dmg (to install) and one zip (what electron-updater reads) per CPU.
+# Ad-hoc signed ("-"): Apple Silicon refuses to start unsigned code at all, and there is no
+# Developer ID yet, so the app is not notarized and Gatekeeper asks once (see README).
+# Hardened runtime stays off: with ad-hoc signing it would block loading node-pty.
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  identity: '-'
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  notarize: false
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  extendInfo:
+    LSMinimumSystemVersion: '12.0'
+dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
 # In-app updates (electron-updater) read latest.yml / latest-linux.yml from this repo's
 # GitHub releases. The build never uploads (dist scripts pass --publish never); release.yml does.
 publish:
