@@ -43,3 +43,4 @@ Entries dated 2026-09-29 are reconstructed from the code and commit history duri
 - 2026-10-05 | Icons stored as `set:name` strings in the existing `icon` field | Old emoji values keep working; no migration | Separate iconSet/iconName fields
 - 2026-10-05 | Icon/tint fields `.catch('')` in the schema | Cosmetic; a hand-edited bad value shouldn't quarantine the whole config | Strict validation like other fields
 - 2026-10-05 | Account tint changes the account color; workspaces/folders get their own `color` ('' = neutral) | Accounts already have a color that marks their panes | Separate account icon tint
+- 2026-10-05 | Panes are flush terminal splits (1px dividers, square, focus via header) | Rounded cards + gaps + colored stripe + glow ring read as generic/AI-generated; a multiplexer look fits a terminal app; react-resizable-panels keeps a 10px hit area on 1px separators | Keep cards with toned-down ring; per-pane account stripe

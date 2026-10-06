@@ -2,6 +2,7 @@
 
 ## 2026-10-05
 
+- [ui] Panes look like terminal splits, not floating cards: flush to each other with 1px dividers (accent while dragging), square corners, no account-color stripe or sheen, no glow ring; focus = lifted header, bright title, accent underline; compact 30px header; top bar gets a bottom rule (files: src/renderer/styles/base.css, src/renderer/components/Pane.tsx)
 - [release] v1.4.1: first published 1.4 release; v1.4.0's tag stays but its build failed on Windows (files: package.json)
 - [tests] Real-repo git test uses an empty temp gitconfig instead of os.devNull, which git can't open on Windows (`\\.\nul`); v1.4.0's Windows build failed on it (files: tests/unit/git.test.ts)
 - [release] v1.4.0 (files: package.json)
