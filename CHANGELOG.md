@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- [release] v1.5.1: first published 1.5 release; v1.5.0's tag stays but its Linux build failed (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
 - [tests] Sidebar-resize e2e reads config.json tolerantly; the file wasn't written yet on the Linux runner, failing v1.5.0's build (files: tests/e2e/sidebar-resize.spec.ts, docs/CONTEXT.md)
 - [release] v1.5.0: flush terminal-split panes, resizable sidebar (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
 

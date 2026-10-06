@@ -2,7 +2,7 @@
 
 ## Purpose
 Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS. v1.5.0.
+each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS. v1.5.1.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -95,4 +95,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - e2e: config.json is written after a debounce and can be missing on a fast CI runner; read it inside `expect.poll` with a try/catch, never a bare `readFileSync`.
 
 ## Current focus
-v1.5.0 released (panes restyled as flush terminal splits, resizable sidebar; 1.4: neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+v1.5.1 released (1.5.0's Linux build failed on an e2e race; panes restyled as flush terminal splits, resizable sidebar; 1.4: neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
