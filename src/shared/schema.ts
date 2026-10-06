@@ -7,6 +7,9 @@ import {
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   SHARED_MODES,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type Config,
@@ -91,6 +94,13 @@ export const settingsSchema = z.object({
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
   sidebarCollapsed: z.boolean().default(false),
+  sidebarWidth: z
+    .number()
+    .int()
+    .min(SIDEBAR_WIDTH_MIN)
+    .max(SIDEBAR_WIDTH_MAX)
+    .default(SIDEBAR_WIDTH_DEFAULT)
+    .catch(SIDEBAR_WIDTH_DEFAULT),
   sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true),
   notifyPanes: z.boolean().default(true),

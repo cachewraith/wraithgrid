@@ -18,6 +18,7 @@ worktree panes and notifications.
 | Pane on its own branch | **Ctrl+Shift+N** → turn on *Work on a new branch (git worktree)* |
 | Jump to a pane | Expand a workspace in the sidebar → click the pane |
 | Notifications | On by default; **Settings → Notifications** to turn off |
+| Resize the sidebar | Drag its right edge; double-click the edge to reset |
 | Shell for plain panes | **Settings → General → Shell for plain panes** |
 
 ---

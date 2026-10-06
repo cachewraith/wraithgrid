@@ -1,6 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject
+} from 'react'
 import { ICON_COLORS } from '@shared/icons'
-import { PANE_STATUS_LABEL, type Config, type Pane, type Workspace } from '@shared/types'
+import {
+  PANE_STATUS_LABEL,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  type Config,
+  type Pane,
+  type Workspace
+} from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
@@ -29,6 +44,57 @@ export function accountColorsFor(config: Config, wsId: string): string[] {
 
 /** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
 const SIDE_MOVE_MS = 260
+
+const clampWidth = (w: number): number =>
+  Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, w)))
+
+/**
+ * The expanded sidebar's right edge: drag to resize (live, saved on release), double-click
+ * to reset. Width lives in a CSS variable while dragging so the config isn't rewritten per move.
+ */
+function SideResizer({ side }: { side: RefObject<HTMLElement | null> }) {
+  const actions = useActions()
+  const [dragging, setDragging] = useState(false)
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    const el = side.current
+    if (e.button !== 0 || !el) return
+    e.preventDefault()
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    const startX = e.clientX
+    const startW = el.getBoundingClientRect().width
+    let width = startW
+    setDragging(true)
+    const move = (ev: PointerEvent): void => {
+      width = clampWidth(startW + ev.clientX - startX)
+      el.style.setProperty('--side-w', `${width}px`)
+    }
+    const up = (): void => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', up)
+      handle.removeEventListener('pointercancel', up)
+      setDragging(false)
+      el.style.removeProperty('--side-w')
+      actions.updateSettings({ sidebarWidth: width })
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', up)
+    handle.addEventListener('pointercancel', up)
+  }
+
+  return (
+    <div
+      className={`side-resize${dragging ? ' on' : ''}`}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize sidebar"
+      title="Drag to resize, double-click to reset"
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => actions.updateSettings({ sidebarWidth: SIDEBAR_WIDTH_DEFAULT })}
+    />
+  )
+}
 
 /** A pane under its workspace, like a chat in a chat app's history: click to jump to it. */
 function PaneRow({ pane }: { pane: Pane }) {
@@ -219,6 +285,8 @@ function WorkspaceRow({
 export function Sidebar() {
   const actions = useActions()
   const collapsed = useApp((s) => s.config.settings.sidebarCollapsed)
+  const width = useApp((s) => s.config.settings.sidebarWidth)
+  const sideRef = useRef<HTMLElement>(null)
   const config = useApp((s) => s.config)
   const { workspaces, accounts } = config
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar'
@@ -244,47 +312,23 @@ export function Sidebar() {
   const isExpanded = (id: string): boolean => toggled[id] ?? id === activeId
 
   return (
-    <aside
-      className={`side${collapsed ? ' col' : ''}${moving ? ' moving' : ''}`}
-      aria-label="Sidebar"
-    >
-      <div className="side-hd">
-        <button
-          className="icon-btn"
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          onClick={actions.toggleSidebar}
-        >
-          <IconSidebar />
-        </button>
-        {collapsed ? null : (
+    <>
+      <aside
+        ref={sideRef}
+        className={`side${collapsed ? ' col' : ''}${moving ? ' moving' : ''}`}
+        aria-label="Sidebar"
+        style={{ '--side-width': `${width}px` } as CSSProperties}
+      >
+        <div className="side-hd">
           <button
             className="icon-btn"
-            aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
-            title={`New pane (${SHORTCUT_HINT.newPane})`}
-            onClick={newPane}
+            aria-label={toggleLabel}
+            title={toggleLabel}
+            onClick={actions.toggleSidebar}
           >
-            <IconCompose />
+            <IconSidebar />
           </button>
-        )}
-      </div>
-
-      {collapsed ? (
-        <>
-          <div className="cdots" aria-label="Accounts">
-            {accounts.map((a) => (
-              <span
-                key={a.id}
-                role="img"
-                title={`${a.name} — ${a.signedIn ? 'signed in' : 'login needed'}`}
-                aria-label={`${a.name}, ${a.signedIn ? 'signed in' : 'login needed'}`}
-                style={{ display: 'inline-flex' }}
-              >
-                <AccountIcon account={a} size={20} />
-              </span>
-            ))}
-          </div>
-          <div className="side-ft">
+          {collapsed ? null : (
             <button
               className="icon-btn"
               aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
@@ -293,70 +337,99 @@ export function Sidebar() {
             >
               <IconCompose />
             </button>
-            <button
-              className="icon-btn"
-              aria-label={`Search (${SHORTCUT_HINT.palette})`}
-              title={`Search (${SHORTCUT_HINT.palette})`}
-              onClick={search}
-            >
-              <IconSearch />
-            </button>
-            <button
-              className="icon-btn"
-              aria-label="Switch workspace"
-              title={`Switch workspace (${SHORTCUT_HINT.workspace})`}
-              onClick={() => actions.openModal({ kind: 'workspaces' })}
-            >
-              <IconGrid4 />
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <nav className="side-nav" aria-label="Quick actions">
-            <button
-              className="nav-row"
-              onClick={newPane}
-              title={`New pane (${SHORTCUT_HINT.newPane})`}
-            >
-              <IconCompose />
-              <span>New pane</span>
-              <kbd>{SHORTCUT_HINT.newPane}</kbd>
-            </button>
-            <button
-              className="nav-row"
-              onClick={search}
-              title={`Search (${SHORTCUT_HINT.palette})`}
-            >
-              <IconSearch />
-              <span>Search</span>
-              <kbd>{SHORTCUT_HINT.palette}</kbd>
-            </button>
-          </nav>
-          <div className="sec">
-            <div className="sec-hd">
-              <span>Workspaces</span>
-              <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
+          )}
+        </div>
+
+        {collapsed ? (
+          <>
+            <div className="cdots" aria-label="Accounts">
+              {accounts.map((a) => (
+                <span
+                  key={a.id}
+                  role="img"
+                  title={`${a.name} — ${a.signedIn ? 'signed in' : 'login needed'}`}
+                  aria-label={`${a.name}, ${a.signedIn ? 'signed in' : 'login needed'}`}
+                  style={{ display: 'inline-flex' }}
+                >
+                  <AccountIcon account={a} size={20} />
+                </span>
+              ))}
             </div>
-            {workspaces.map((w, i) => (
-              <WorkspaceRow
-                key={w.id}
-                w={w}
-                index={i}
-                expanded={isExpanded(w.id)}
-                onToggle={() => setToggled((t) => ({ ...t, [w.id]: !isExpanded(w.id) }))}
-              />
-            ))}
-          </div>
-          <SidebarAccounts />
-          <div className="side-ft">
-            <button className="btn gh full" onClick={() => actions.setAccountsMode('add')}>
-              <IconUserPlus />
-              New account
-            </button>
-          </div>
-        </>
-      )}
-    </aside>
+            <div className="side-ft">
+              <button
+                className="icon-btn"
+                aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
+                title={`New pane (${SHORTCUT_HINT.newPane})`}
+                onClick={newPane}
+              >
+                <IconCompose />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label={`Search (${SHORTCUT_HINT.palette})`}
+                title={`Search (${SHORTCUT_HINT.palette})`}
+                onClick={search}
+              >
+                <IconSearch />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Switch workspace"
+                title={`Switch workspace (${SHORTCUT_HINT.workspace})`}
+                onClick={() => actions.openModal({ kind: 'workspaces' })}
+              >
+                <IconGrid4 />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <nav className="side-nav" aria-label="Quick actions">
+              <button
+                className="nav-row"
+                onClick={newPane}
+                title={`New pane (${SHORTCUT_HINT.newPane})`}
+              >
+                <IconCompose />
+                <span>New pane</span>
+                <kbd>{SHORTCUT_HINT.newPane}</kbd>
+              </button>
+              <button
+                className="nav-row"
+                onClick={search}
+                title={`Search (${SHORTCUT_HINT.palette})`}
+              >
+                <IconSearch />
+                <span>Search</span>
+                <kbd>{SHORTCUT_HINT.palette}</kbd>
+              </button>
+            </nav>
+            <div className="sec">
+              <div className="sec-hd">
+                <span>Workspaces</span>
+                <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
+              </div>
+              {workspaces.map((w, i) => (
+                <WorkspaceRow
+                  key={w.id}
+                  w={w}
+                  index={i}
+                  expanded={isExpanded(w.id)}
+                  onToggle={() => setToggled((t) => ({ ...t, [w.id]: !isExpanded(w.id) }))}
+                />
+              ))}
+            </div>
+            <SidebarAccounts />
+            <div className="side-ft">
+              <button className="btn gh full" onClick={() => actions.setAccountsMode('add')}>
+                <IconUserPlus />
+                New account
+              </button>
+            </div>
+          </>
+        )}
+      </aside>
+      {collapsed ? null : <SideResizer side={sideRef} />}
+    </>
   )
 }
