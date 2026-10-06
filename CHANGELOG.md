@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- [tests] Sidebar-resize e2e reads config.json tolerantly; the file wasn't written yet on the Linux runner, failing v1.5.0's build (files: tests/e2e/sidebar-resize.spec.ts, docs/CONTEXT.md)
 - [release] v1.5.0: flush terminal-split panes, resizable sidebar (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
 
 ## 2026-10-05

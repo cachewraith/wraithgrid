@@ -92,6 +92,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
+- e2e: config.json is written after a debounce and can be missing on a fast CI runner; read it inside `expect.poll` with a try/catch, never a bare `readFileSync`.
 
 ## Current focus
 v1.5.0 released (panes restyled as flush terminal splits, resizable sidebar; 1.4: neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
