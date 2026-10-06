@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-06
+
+- [release] v1.5.0: flush terminal-split panes, resizable sidebar (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
+
 ## 2026-10-05
 
 - [ui] Panes look like terminal splits, not floating cards: flush to each other with 1px dividers (accent while dragging), square corners, no account-color stripe or sheen, no glow ring; focus = lifted header, bright title, accent underline; compact 30px header; top bar gets a bottom rule (files: src/renderer/styles/base.css, src/renderer/components/Pane.tsx)
