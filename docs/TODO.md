@@ -1,6 +1,7 @@
 # TODO
 
 ## Now
+- Sidebar resize shipped (2026-10-05): drag edge, double-click resets; confirm with user it feels right
 - Icons: library picker shipped (2026-10-05); still open: a default icon for new accounts/workspaces? (user to confirm)
 - Shift+Enter "no new line" report: bytes (ESC CR) verified end to end on Hyprland and claude 2.1.285 accepts them; needs a repro (what happens: submits or nothing?)
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)

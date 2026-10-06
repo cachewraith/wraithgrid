@@ -164,7 +164,7 @@ kbd,
 /* ---- Sidebar ------------------------------------------------------------------ */
 
 .side {
-  width: 236px;
+  width: var(--side-w, var(--side-width, 236px));
   flex: none;
   background: var(--bg2);
   border-right: 1px solid var(--line);
@@ -407,6 +407,7 @@ kbd,
 .top {
   height: 46px;
   flex: none;
+  border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -507,7 +508,6 @@ kbd,
 .grid {
   position: absolute;
   inset: 0;
-  padding: 6px;
 }
 .grid-group {
   width: 100%;
@@ -516,35 +516,35 @@ kbd,
 .sep {
   flex: none;
   position: relative;
-  background: transparent;
+  background: var(--line);
   outline: none;
 }
 .sep[aria-orientation='vertical'] {
-  width: 6px;
+  width: 1px;
   cursor: col-resize;
 }
 .sep[aria-orientation='horizontal'] {
-  height: 6px;
+  height: 1px;
   cursor: row-resize;
 }
 .sep::after {
   content: '';
   position: absolute;
-  border-radius: 1px;
+  z-index: 2;
   background: transparent;
   transition: background 0.12s;
 }
 .sep[aria-orientation='vertical']::after {
   top: 0;
   bottom: 0;
-  left: 2px;
-  width: 2px;
+  left: -1px;
+  width: 3px;
 }
 .sep[aria-orientation='horizontal']::after {
   left: 0;
   right: 0;
-  top: 2px;
-  height: 2px;
+  top: -1px;
+  height: 3px;
 }
 .sep:hover::after,
 .sep:focus-visible::after,
@@ -556,10 +556,11 @@ kbd,
   height: 100%;
 }
 .slot {
-  width: 100%;
-  height: 100%;
-  border: 1.5px dashed var(--line2);
-  border-radius: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  margin: 8px;
+  border: 1px dashed var(--line2);
+  border-radius: 6px;
   background: none;
   color: var(--mu);
   display: flex;
@@ -587,17 +588,10 @@ kbd,
   min-width: 0;
   min-height: 0;
   background: var(--term-bg, var(--term));
-  border: 1px solid var(--line);
-  border-radius: 12px;
   overflow: hidden;
 }
-.pane.focused {
-  border-color: color-mix(in srgb, var(--acc) 65%, var(--line2));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent);
-}
 .pane.drop-target {
-  border-color: var(--acct);
-  box-shadow: 0 0 0 2px var(--acct);
+  box-shadow: inset 0 0 0 2px var(--acct);
 }
 .pane.dragging {
   opacity: 0.6;
@@ -605,30 +599,37 @@ kbd,
 .pane.hidden {
   display: none;
 }
-.strip {
-  height: 2px;
-  flex: none;
-}
 .ph {
-  height: 34px;
+  height: 30px;
   flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 6px 0 12px;
+  padding: 0 4px 0 10px;
   border-bottom: 1px solid var(--line);
-  font-size: 12.5px;
+  font-size: 12px;
   min-width: 0;
-  background: transparent;
+  background: var(--bg2);
   cursor: grab;
   touch-action: none;
+}
+/* Focus is a tab-like state: the focused pane's header lifts and its title brightens; others
+   recede. No rings or glows: the terminal cursor already says where typing goes. */
+.pane:not(.focused) .ph {
+  background: var(--bg);
+}
+.pane:not(.focused) .ph-title {
+  color: var(--mu);
+}
+.pane.focused .ph {
+  box-shadow: inset 0 -1px 0 var(--acc);
 }
 .ph-title {
   border: 0;
   background: none;
   padding: 2px 0;
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 12.5px;
   color: var(--tx);
   white-space: nowrap;
   max-width: 40%;
@@ -1958,7 +1959,7 @@ kbd,
 
 /* ---- Running indicator ----------------------------------------------------------- */
 
-/* The status dot turns into a spinner, and the account strip gets a moving sheen. */
+/* The status dot turns into a spinner while running. */
 .st-running .sd {
   background: transparent;
   box-shadow: none;
@@ -1968,33 +1969,13 @@ kbd,
   border-top-color: var(--ok);
   animation: wg-spin 0.8s linear infinite;
 }
-.strip.running {
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.75) 50%,
-    transparent 100%
-  ) !important;
-  background-size: 40% 100% !important;
-  background-repeat: no-repeat !important;
-  animation: wg-sheen 1.4s ease-in-out infinite;
-}
 @keyframes wg-spin {
   to {
     transform: rotate(360deg);
   }
 }
-@keyframes wg-sheen {
-  from {
-    background-position: -60% 0;
-  }
-  to {
-    background-position: 160% 0;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .st-running .sd,
-  .strip.running {
+  .st-running .sd {
     animation: none;
   }
 }
@@ -2030,7 +2011,41 @@ kbd,
   overflow: hidden;
 }
 .side.moving:not(.col) > * {
-  min-width: 235px;
+  min-width: calc(var(--side-width, 236px) - 1px);
+}
+/* Drag handle on the sidebar's right edge: a zero-width flex item with a wider hit area. */
+.side-resize {
+  position: relative;
+  flex: none;
+  width: 0;
+  z-index: 5;
+}
+.side-resize::before {
+  content: '';
+  position: absolute;
+  inset: 0 -4px 0 -4px;
+  cursor: col-resize;
+}
+.side-resize::after {
+  content: '';
+  position: absolute;
+  inset: 0 -1px 0 -2px;
+  background: var(--acc);
+  opacity: 0;
+  transition: opacity 120ms;
+  pointer-events: none;
+}
+.side-resize:hover::after,
+.side-resize.on::after {
+  opacity: 0.6;
+}
+/* While dragging: follow the pointer with no width animation, and no text selection. */
+.row:has(.side-resize.on) {
+  cursor: col-resize;
+  user-select: none;
+}
+.row:has(.side-resize.on) .side {
+  transition: none;
 }
 .side.col {
   align-items: stretch;

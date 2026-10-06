@@ -38,6 +38,9 @@ export type SharedMode = (typeof SHARED_MODES)[number]
 export const FONT_SIZE_MIN = 10
 export const FONT_SIZE_MAX = 20
 export const FONT_SIZE_DEFAULT = 13
+export const SIDEBAR_WIDTH_MIN = 180
+export const SIDEBAR_WIDTH_MAX = 480
+export const SIDEBAR_WIDTH_DEFAULT = 236
 export const DENSE_FONT_SIZE = 11
 
 export const ACCOUNT_COLORS = [
@@ -139,6 +142,8 @@ export interface Settings {
   defaultAccountId: string | null
   defaultCwd: string
   sidebarCollapsed: boolean
+  /** Expanded sidebar width in px; dragged from its right edge. */
+  sidebarWidth: number
   /**
    * 'overall': every account links to the machine's ~/.claude CLAUDE.md, settings,
    * skills and plugins. 'per-account': each account keeps its own.

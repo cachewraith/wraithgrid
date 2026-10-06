@@ -83,6 +83,17 @@ describe('config schema', () => {
     expect(parseConfig(withSettings({ terminalPalette: 'url(x)' })).ok).toBe(false)
   })
 
+  it('defaults the sidebar width and resets an out-of-range one', () => {
+    const withWidth = (sidebarWidth: unknown) => {
+      const r = parseConfig({ ...sample(), settings: { ...sample().settings, sidebarWidth } })
+      return r.ok ? r.config.settings.sidebarWidth : null
+    }
+    expect(withWidth(undefined)).toBe(236)
+    expect(withWidth(320)).toBe(320)
+    expect(withWidth(9999)).toBe(236)
+    expect(withWidth('wide')).toBe(236)
+  })
+
   it('rejects bad values', () => {
     const bad = { ...sample(), settings: { ...sample().settings, fontSize: 99 } }
     expect(parseConfig(bad).ok).toBe(false)
