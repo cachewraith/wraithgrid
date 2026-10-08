@@ -19,7 +19,6 @@ import {
   IconCheck,
   IconFolder,
   IconImport,
-  IconInfo,
   IconLogin,
   IconPlus,
   IconRename,
@@ -101,7 +100,7 @@ function AddAccountForm() {
         </div>
         <div className="fld">
           <span className="lbl" id="acc-color">
-            Color tag
+            Color
           </span>
           <div className="colors" role="radiogroup" aria-labelledby="acc-color">
             {ACCOUNT_COLORS.map((c) => {
@@ -119,7 +118,6 @@ function AddAccountForm() {
                   <span className="c" style={{ background: c.value }}>
                     {on ? <IconCheck style={{ strokeWidth: 2.2 }} /> : null}
                   </span>
-                  {c.name}
                 </button>
               )
             })}
@@ -127,7 +125,6 @@ function AddAccountForm() {
         </div>
       </div>
       <div className="note">
-        <IconInfo style={{ marginTop: 2 }} />
         {cli === 'claude' ? (
           <span>
             After saving, use <b>Login</b> to open a pane running <code>claude</code> under this
@@ -264,17 +261,21 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
             autoFocus
           />
         ) : (
-          <span>{account.name}</span>
+          <>
+            <span className="nm-tx">{account.name}</span>
+            <span className="cli-tag" title={AGENT_CLI_LABEL[account.cli]}>
+              {account.cli}
+            </span>
+          </>
         )}
       </span>
       <span className="dir" role="cell" title={account.configDir}>
         {account.configDir}
-        {account.cli !== 'claude' ? <small>{AGENT_CLI_LABEL[account.cli]}</small> : null}
         {account.imported ? <small>Imported existing config dir</small> : null}
         {sharedNote ? <small>{sharedNote}</small> : null}
       </span>
       <span className={`badge${account.signedIn ? '' : ' warn'}`} role="cell">
-        {account.signedIn ? <IconCheck small /> : <IconWarn small />}
+        {account.signedIn ? null : <IconWarn small />}
         {account.signedIn ? 'Signed in' : 'Not signed in'}
       </span>
       <span className="num" role="cell">
@@ -292,14 +293,24 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
           </>
         ) : (
           <>
-            <button
-              className={`btn ${account.signedIn ? 'gh' : 'pri'}`}
-              onClick={() => actions.loginAccount(account.id)}
-              title={`Open a pane running ${account.cli} under ${account.name}`}
-            >
-              <IconLogin small />
-              Login
-            </button>
+            {account.signedIn ? (
+              <button
+                className="icon-btn"
+                aria-label={`Log in again as ${account.name}`}
+                title="Log in again"
+                onClick={() => actions.loginAccount(account.id)}
+              >
+                <IconLogin />
+              </button>
+            ) : (
+              <button
+                className="btn pri"
+                onClick={() => actions.loginAccount(account.id)}
+                title={`Open a pane running ${account.cli} under ${account.name}`}
+              >
+                Login
+              </button>
+            )}
             <button
               className="icon-btn"
               aria-label={`Rename ${account.name}`}
@@ -341,8 +352,8 @@ export function AccountsView() {
           <div>
             <h1>Accounts</h1>
             <p>
-              Each account is its own <code>CLAUDE_CONFIG_DIR</code>, with its own login, settings
-              and history. Wraithgrid never reads files inside it.
+              Each account has its own config dir, so its own login, settings and history.
+              Wraithgrid never reads files inside it.
             </p>
           </div>
           <div className="acts">
@@ -367,9 +378,7 @@ export function AccountsView() {
               <span role="columnheader">Config dir</span>
               <span role="columnheader">Login</span>
               <span role="columnheader">Panes</span>
-              <span role="columnheader" style={{ textAlign: 'right' }}>
-                Actions
-              </span>
+              <span role="columnheader" aria-label="Actions" />
             </div>
             {accounts.map((a) => (
               <AccountRow key={a.id} account={a} uses={uses(a.id)} />

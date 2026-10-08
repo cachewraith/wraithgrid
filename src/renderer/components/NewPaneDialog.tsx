@@ -80,7 +80,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   }
 
   return (
-    <Dialog onClose={actions.closeModal} labelledBy="np-t">
+    <Dialog onClose={actions.closeModal} labelledBy="np-t" className="pinned">
       <form onSubmit={(e) => void submit(e)}>
         <div className="dlg-hd">
           <h2 id="np-t">New pane</h2>
@@ -133,16 +133,13 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                       disabled={shell}
                       onClick={() => setAccountId(a.id)}
                     >
-                      <AccountIcon account={a} size={22} />
+                      <AccountIcon account={a} size={20} />
                       <span className="tx">
                         <span className="nm">{a.name}</span>
-                        <span className={`sb${a.signedIn ? '' : ' warn'}`}>
-                          {!a.signedIn
-                            ? 'Not signed in · run /login in the pane'
-                            : a.cli === 'claude'
-                              ? a.configDir
-                              : `${AGENT_CLI_LABEL[a.cli]} · ${a.configDir}`}
+                        <span className="sb" title={AGENT_CLI_LABEL[a.cli]}>
+                          {a.cli}
                         </span>
+                        {a.signedIn ? null : <span className="sb warn">not signed in</span>}
                       </span>
                       {on ? <IconCheck className="ck" /> : null}
                     </button>
@@ -228,10 +225,9 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
 
           <div className="trow">
             <span className="tx">
-              <span style={{ fontWeight: 600 }}>Work on a new branch (git worktree)</span>
+              <span style={{ fontWeight: 500 }}>Work on a new branch (git worktree)</span>
               <span className="hint">
-                A separate checkout, so this pane's edits don't collide with other panes in the same
-                repo.
+                A separate checkout, so edits don't collide with other panes in the repo.
               </span>
             </span>
             <button
@@ -278,10 +274,9 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
 
           <div className="trow">
             <span className="tx">
-              <span style={{ fontWeight: 600 }}>Open a plain shell instead</span>
+              <span style={{ fontWeight: 500 }}>Open a plain shell instead</span>
               <span className="hint">
-                Runs <span className="mono">{shellName}</span> in the same folder, no{' '}
-                <span className="mono">claude</span>.
+                Runs <span className="mono">{shellName}</span> in the same folder.
               </span>
             </span>
             <button
