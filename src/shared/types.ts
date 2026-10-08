@@ -41,6 +41,9 @@ export const FONT_SIZE_DEFAULT = 13
 export const SIDEBAR_WIDTH_MIN = 180
 export const SIDEBAR_WIDTH_MAX = 480
 export const SIDEBAR_WIDTH_DEFAULT = 236
+export const DIFF_WIDTH_MIN = 280
+export const DIFF_WIDTH_MAX = 1000
+export const DIFF_WIDTH_DEFAULT = 440
 export const DENSE_FONT_SIZE = 11
 
 export const ACCOUNT_COLORS = [
@@ -169,6 +172,8 @@ export interface Settings {
   sidebarCollapsed: boolean
   /** Expanded sidebar width in px; dragged from its right edge. */
   sidebarWidth: number
+  /** Changes (git diff) panel width in px; dragged from its left edge. */
+  diffWidth: number
   /**
    * 'overall': every account links to the machine's ~/.claude CLAUDE.md, settings,
    * skills and plugins. 'per-account': each account keeps its own.

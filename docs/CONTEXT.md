@@ -45,7 +45,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS

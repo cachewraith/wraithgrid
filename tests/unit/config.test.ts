@@ -95,6 +95,17 @@ describe('config schema', () => {
     expect(withWidth('wide')).toBe(236)
   })
 
+  it('defaults the Changes panel width and resets an out-of-range one', () => {
+    const withWidth = (diffWidth: unknown) => {
+      const r = parseConfig({ ...sample(), settings: { ...sample().settings, diffWidth } })
+      return r.ok ? r.config.settings.diffWidth : null
+    }
+    expect(withWidth(undefined)).toBe(440)
+    expect(withWidth(600)).toBe(600)
+    expect(withWidth(100)).toBe(440)
+    expect(withWidth(5000)).toBe(440)
+  })
+
   it('rejects bad values', () => {
     const bad = { ...sample(), settings: { ...sample().settings, fontSize: 99 } }
     expect(parseConfig(bad).ok).toBe(false)

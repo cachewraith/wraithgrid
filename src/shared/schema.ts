@@ -4,6 +4,9 @@ import {
   ACCOUNT_COLORS,
   AGENT_CLIS,
   CONFIG_VERSION,
+  DIFF_WIDTH_DEFAULT,
+  DIFF_WIDTH_MAX,
+  DIFF_WIDTH_MIN,
   FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
@@ -103,6 +106,13 @@ export const settingsSchema = z.object({
     .max(SIDEBAR_WIDTH_MAX)
     .default(SIDEBAR_WIDTH_DEFAULT)
     .catch(SIDEBAR_WIDTH_DEFAULT),
+  diffWidth: z
+    .number()
+    .int()
+    .min(DIFF_WIDTH_MIN)
+    .max(DIFF_WIDTH_MAX)
+    .default(DIFF_WIDTH_DEFAULT)
+    .catch(DIFF_WIDTH_DEFAULT),
   sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true),
   notifyPanes: z.boolean().default(true),

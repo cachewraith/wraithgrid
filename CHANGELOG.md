@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- [diff] Drag the Changes panel's left edge to resize it (280–1000 px, grid keeps ≥240 px), saved as `settings.diffWidth`; double-click resets to 440 px. Sidebar and panel share one `EdgeResizer` (files: src/renderer/components/{EdgeResizer,DiffPanel,Sidebar}.tsx, src/renderer/styles/base.css, src/shared/{types,schema}.ts, tests/unit/config.test.ts, tests/e2e/sidebar-resize.spec.ts)
 - [ui] Less generated-looking management screens: Accounts is a flat hairline list (no card, no UPPERCASE headers or "Actions" column, CLI as a mono tag, quiet "Signed in", Login button only when needed); section labels sentence case; info callouts are plain text; smaller unlabeled color swatches; account and shell pickers are single-column lists instead of card grids; New pane toggles unboxed, footer pinned while the body scrolls; status bar reads "N panes on M accounts" without the duplicate workspace name (files: src/renderer/styles/base.css, src/renderer/components/{AccountsView,NewPaneDialog,StatusBar}.tsx)
 - [ui] New pane "Will run" preview shows the account's CLI and its config var (was always `CLAUDE_CONFIG_DIR=… claude`) (files: src/renderer/components/NewPaneDialog.tsx)
 - [docs] README: Gemini/Antigravity accounts, image paste (usage, shortcut, install note, privacy) (files: README.md)

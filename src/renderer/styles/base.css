@@ -2062,6 +2062,12 @@ kbd,
 .row:has(.side-resize.on) .side {
   transition: none;
 }
+.dp-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
 .side.col {
   align-items: stretch;
 }
@@ -2345,7 +2351,10 @@ kbd,
   min-width: 0;
 }
 .dp {
-  width: clamp(320px, 34%, 560px);
+  position: relative;
+  width: var(--dp-w, var(--dp-width, 440px));
+  /* The grid always keeps some room, whatever width was saved. */
+  max-width: calc(100% - 240px);
   flex: none;
   display: flex;
   flex-direction: column;

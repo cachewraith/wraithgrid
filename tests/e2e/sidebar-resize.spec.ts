@@ -58,3 +58,59 @@ test('dragging the sidebar edge resizes it, saves the width, and double-click re
     await app.close()
   }
 })
+
+test('dragging the Changes panel edge resizes it, saves the width, and double-click resets it', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-resize-e2e-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(home, { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  const cfgFile = path.join(userData, 'config.json')
+  const savedWidth = (): number | null => {
+    try {
+      return JSON.parse(fs.readFileSync(cfgFile, 'utf8')).settings.diffWidth
+    } catch {
+      return null
+    }
+  }
+
+  const app = await electron.launch({
+    args: [MAIN],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: userData }
+  })
+  try {
+    const win = await app.firstWindow()
+    await win.setViewportSize({ width: 1400, height: 800 })
+    // The shortcut only works once the app has loaded its config.
+    await expect(win.getByRole('complementary', { name: 'Sidebar' })).toBeVisible()
+    await win.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+D' : 'Control+Shift+D')
+    const panel = win.getByRole('complementary', { name: 'Changes' })
+    const handle = win.getByRole('separator', { name: 'Resize changes panel' })
+    const width = async () => (await panel.boundingBox())!.width
+
+    await expect.poll(width).toBe(440)
+    const box = (await handle.boundingBox())!
+    const y = box.y + 200
+    // The handle is the panel's left edge: dragging left widens it.
+    await win.mouse.move(box.x, y)
+    await win.mouse.down()
+    for (let i = 1; i <= 10; i++) await win.mouse.move(box.x - i * 10, y)
+    await win.mouse.up()
+    await expect.poll(width).toBe(540)
+    await expect.poll(() => savedWidth()).toBe(540)
+
+    // Clamped at the minimum.
+    const box2 = (await handle.boundingBox())!
+    await win.mouse.move(box2.x, y)
+    await win.mouse.down()
+    await win.mouse.move(box2.x + 600, y, { steps: 5 })
+    await win.mouse.up()
+    await expect.poll(width).toBe(280)
+
+    await win.mouse.dblclick((await handle.boundingBox())!.x, y)
+    await expect.poll(width).toBe(440)
+    await expect.poll(() => savedWidth()).toBe(440)
+  } finally {
+    await app.close()
+  }
+})
