@@ -2,6 +2,7 @@ import { readFile, stat, mkdir, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   app,
+  clipboard,
   dialog,
   ipcMain,
   shell,
@@ -25,6 +26,7 @@ import {
   notifyPaneArgs,
   pickPathArgs,
   shellListArgs,
+  clipboardImageArgs,
   ptyCreateArgs,
   ptyKillArgs,
   ptyResizeArgs,
@@ -43,8 +45,15 @@ import {
   type UpdateInstallResult
 } from '@shared/ipc-contract'
 import { access } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import {
+  imagePasteText,
+  pickImageMime,
+  readClipboardImage,
+  saveClipboardImage
+} from './clipboard-image'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
-import type { Config } from '@shared/types'
+import { AGENT_CLI_BIN, AGENT_CLI_LABEL, type AgentCli, type Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import { buildPaneEnv } from './pane-env'
 import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
@@ -169,10 +178,12 @@ export function registerIpc(deps: IpcDeps): void {
     async (a): Promise<PtyCreateResult> => {
       const cfg = store.get()
       let configDir: string | null = null
+      let cli: AgentCli = 'claude'
       if (!a.shell) {
         const account = cfg.accounts.find((x) => x.id === a.accountId)
         if (!account) return fail('This pane has no account. Pick one in the New pane dialog.')
         configDir = account.configDir
+        cli = account.cli
       }
 
       const cwd = resolveUserPath(a.cwd, homeDir)
@@ -183,7 +194,7 @@ export function registerIpc(deps: IpcDeps): void {
       }
 
       await deps.envReady
-      if (!a.shell && a.accountId) await syncShared(a.accountId)
+      if (!a.shell && cli === 'claude' && a.accountId) await syncShared(a.accountId)
       let file: string
       let args = a.args
       if (a.shell) {
@@ -201,6 +212,11 @@ export function registerIpc(deps: IpcDeps): void {
         if (!picked.ok) return fail(picked.error)
         file = picked.shell.file
         args = picked.shell.args
+      } else if (cli !== 'claude') {
+        const bin = AGENT_CLI_BIN[cli]
+        const found = await findOnPath(bin)
+        if (!found) return fail(`${bin} (${AGENT_CLI_LABEL[cli]}) was not found on PATH.`)
+        file = found
       } else {
         const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
         if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -214,7 +230,7 @@ export function registerIpc(deps: IpcDeps): void {
 
       const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
       if (!cmd.ok) return fail(cmd.error)
-      const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, configDir, homeDir })
+      const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, cli, configDir, homeDir })
       return ptys.create({
         paneId: a.paneId,
         file: cmd.file,
@@ -475,6 +491,48 @@ export function registerIpc(deps: IpcDeps): void {
       )
     },
     []
+  )
+
+  // ---- Clipboard images ------------------------------------------------------------
+
+  handle(
+    IPC.clipboardImage,
+    clipboardImageArgs,
+    async (a): Promise<string | null> => {
+      const cfg = store.get()
+      const pane = cfg.workspaces.flatMap((w) => w.panes).find((p) => p.id === a.paneId)
+      const account = pane && !pane.shell && cfg.accounts.find((x) => x.id === pane.accountId)
+      if (!account) return null
+      const image = await readClipboardImage({
+        readNative: async () => {
+          for (const item of await clipboard.read()) {
+            const picked = pickImageMime(item.types)
+            if (!picked) continue
+            const blob = await item.getType(picked[0])
+            if (blob instanceof Blob)
+              return { data: Buffer.from(await blob.arrayBuffer()), ext: picked[1] }
+          }
+          return null
+        },
+        run: (file, args) =>
+          new Promise((resolve) =>
+            execFile(
+              file,
+              args,
+              { encoding: 'buffer', timeout: 3000, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+              (err, stdout) => resolve(err ? null : stdout)
+            )
+          ),
+        wayland: deps.desktop.wayland
+      })
+      if (!image) return null
+      const file = await saveClipboardImage(
+        image,
+        path.join(app.getPath('temp'), 'wraithgrid-paste')
+      )
+      return imagePasteText(account.cli, file)
+    },
+    null
   )
 
   // ---- Pane notifications ----------------------------------------------------------

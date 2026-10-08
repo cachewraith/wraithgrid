@@ -1,5 +1,13 @@
 import path from 'node:path'
 import { expandHome } from '@shared/paths'
+import type { AgentCli } from '@shared/types'
+
+/** The variable that points each CLI at an account's config dir. agy has none: it uses the keyring. */
+const CONFIG_DIR_VAR: Record<AgentCli, string | null> = {
+  claude: 'CLAUDE_CONFIG_DIR',
+  gemini: 'GEMINI_CLI_HOME',
+  agy: null
+}
 
 /**
  * Variables that describe the terminal Wraithgrid was started from, not the pane. Inherited,
@@ -50,6 +58,8 @@ export interface PaneEnvInput {
   baseEnv: NodeJS.ProcessEnv
   /** Plain shell panes never get CLAUDE_CONFIG_DIR from Wraithgrid. */
   shell: boolean
+  /** The account's CLI. Defaults to claude. */
+  cli?: AgentCli
   /** The account's config dir, possibly starting with `~`. */
   configDir: string | null
   homeDir: string
@@ -58,12 +68,13 @@ export interface PaneEnvInput {
 }
 
 /**
- * The one place that decides a pane's environment, including CLAUDE_CONFIG_DIR
+ * The one place that decides a pane's environment, including CLAUDE_CONFIG_DIR / GEMINI_CLI_HOME
  * (requirements §13: isolate it so a CLI change touches one function).
  */
 export function buildPaneEnv({
   baseEnv,
   shell,
+  cli = 'claude',
   configDir,
   homeDir,
   platform = process.platform
@@ -80,8 +91,11 @@ export function buildPaneEnv({
   // macOS apps opened from the Dock get no locale; older macOS has no C.UTF-8.
   if (platform !== 'win32' && !hasLocale(env))
     env.LANG = platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
-  if (!shell && configDir) {
-    env.CLAUDE_CONFIG_DIR = path.resolve(expandHome(configDir, homeDir))
+  // An agent pane sees only its own account's config dir, never one Wraithgrid inherited.
+  if (!shell) for (const v of Object.values(CONFIG_DIR_VAR)) if (v) delete env[v]
+  const dirVar = CONFIG_DIR_VAR[cli]
+  if (!shell && configDir && dirVar) {
+    env[dirVar] = path.resolve(expandHome(configDir, homeDir))
   }
   return env
 }

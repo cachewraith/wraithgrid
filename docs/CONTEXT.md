@@ -1,8 +1,9 @@
 # Wraithgrid: Context
 
 ## Purpose
-Electron desktop app that runs many official `claude` CLI sessions side by side, one per pane,
-each with its own account (`CLAUDE_CONFIG_DIR`) and project folder. Windows, Linux and macOS. v1.5.1.
+Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
+each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `gemini`
+(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.5.1.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -23,7 +24,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/index.ts`: app entry; window, PATH resolution, wires ConfigStore/PtyManager/IPC
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
 - `src/main/pty-manager.ts`: spawns/kills pane processes; per-OS KillPolicy
-- `src/main/pane-env.ts`: builds a pane's env (`CLAUDE_CONFIG_DIR` for claude panes; strips the launching terminal's vars; UTF-8 locale fallback)
+- `src/main/clipboard-image.ts`: clipboard image → temp file → text to paste (path, or `@path` for gemini/agy)
+- `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; strips the launching terminal's vars; UTF-8 locale fallback)
 - `src/main/config-store.ts`: config.json load/save, atomic write, bad-file quarantine
 - `src/main/claude-detect.ts`: finds the `claude` binary and version
 - `src/main/platform.ts`: OS/desktop differences as pure functions (chrome, shell pick/detection, login-shell PATH probe per shell, spawn)
@@ -92,7 +94,11 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` save screenshots.
+- Electron 44's main `clipboard` is the async web-style API (`read()` → ClipboardItem, `getType`); no `readImage`.
+- Image paste: claude's own Ctrl+V clipboard read misses some screenshots; Wraithgrid intercepts Ctrl+V in agent panes (not on macOS) and pastes a saved file path instead.
+- `agy` stores its sign-in in the system keyring: agy accounts can't be isolated; non-claude CLIs are found on PATH only (no override setting).
 - e2e: config.json is written after a debounce and can be missing on a fast CI runner; read it inside `expect.poll` with a try/catch, never a bare `readFileSync`.
 
 ## Current focus
+Unreleased (2026-10-08): clipboard image paste in agent panes; Gemini CLI + Antigravity CLI accounts (user to verify screenshot paste on Hyprland and a real gemini/agy pane).
 v1.5.1 released (1.5.0's Linux build failed on an e2e race; panes restyled as flush terminal splits, resizable sidebar; 1.4: neutral restyle, sidebar pane list, Ctrl+Shift+P palette, git chip + Changes panel, worktree panes, pane notifications, any-shell support, macOS builds, icon library). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).

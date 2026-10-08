@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   ACCENTS,
   ACCOUNT_COLORS,
+  AGENT_CLIS,
   CONFIG_VERSION,
   FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
@@ -51,6 +52,7 @@ export const layoutNodeSchema: z.ZodType<LayoutNode> = z.lazy(() =>
 export const accountSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(64),
+  cli: z.enum(AGENT_CLIS).catch('claude'),
   configDir: pathSchema,
   color: colorSchema,
   signedIn: z.boolean().default(false),

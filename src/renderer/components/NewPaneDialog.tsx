@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome } from '@shared/paths'
+import { AGENT_CLI_LABEL, type AgentCli } from '@shared/types'
 import { AccountIcon } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { Dialog } from './Dialog'
 import { IconCheck, IconClose, IconFolder } from './icons'
+
+/** How the preview shows each CLI's config dir variable (agy has none). */
+const CLI_ENV_PREFIX: Record<AgentCli, (dir: string) => string> = {
+  claude: (dir) => `CLAUDE_CONFIG_DIR=${dir} `,
+  gemini: (dir) => `GEMINI_CLI_HOME=${dir} `,
+  agy: () => ''
+}
 
 export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const { api } = useServices()
@@ -33,13 +41,14 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const [error, setError] = useState<string | null>(null)
 
   const account = accounts.find((a) => a.id === accountId)
+  const cli = account?.cli ?? 'claude'
   const args = parseArgs(argsText)
   const canCreate =
     folder.trim() !== '' && (shell || !!account) && (!worktree || branch.trim() !== '') && !busy
   const runIn = worktree && branch.trim() ? `~/.wraithgrid/worktrees/…/${branch.trim()}` : folder
   const willRun = shell
     ? `cd ${folder || '<folder>'} && ${shellName}`
-    : `CLAUDE_CONFIG_DIR=${account?.configDir ?? '<account>'} claude${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
+    : `${CLI_ENV_PREFIX[cli](account?.configDir ?? '<account>')}${cli}${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
 
   const browse = async (): Promise<void> => {
     const picked = await api.dialog.pickFolder(folder || settings.defaultCwd)
@@ -93,7 +102,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
             {accounts.length === 0 ? (
               <div className="note">
                 <span>
-                  No accounts yet. A <code>claude</code> pane needs one.{' '}
+                  No accounts yet. An agent pane needs one.{' '}
                   <button
                     type="button"
                     className="btn gh"
@@ -128,7 +137,11 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                       <span className="tx">
                         <span className="nm">{a.name}</span>
                         <span className={`sb${a.signedIn ? '' : ' warn'}`}>
-                          {a.signedIn ? a.configDir : 'Not signed in · run /login in the pane'}
+                          {!a.signedIn
+                            ? 'Not signed in · run /login in the pane'
+                            : a.cli === 'claude'
+                              ? a.configDir
+                              : `${AGENT_CLI_LABEL[a.cli]} · ${a.configDir}`}
                         </span>
                       </span>
                       {on ? <IconCheck className="ck" /> : null}

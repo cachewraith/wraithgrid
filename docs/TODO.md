@@ -1,6 +1,8 @@
 # TODO
 
 ## Now
+- Verify on Hyprland: screenshot → Ctrl+V in a claude pane attaches the image; same in a gemini/agy pane (`@path`)
+- Gemini/agy panes: status detection (running/idle/approval) uses claude's patterns; check against real gemini/agy output
 - Sidebar resize shipped (2026-10-05): drag edge, double-click resets; confirm with user it feels right
 - Icons: library picker shipped (2026-10-05); still open: a default icon for new accounts/workspaces? (user to confirm)
 - Shift+Enter "no new line" report: bytes (ESC CR) verified end to end on Hyprland and claude 2.1.285 accepts them; needs a repro (what happens: submits or nothing?)
@@ -15,6 +17,7 @@
 - Worktrees: remove one when its pane closes (ask first; it may hold uncommitted work)
 
 ## Later
+- Settings path overrides for gemini/agy binaries (claude has one); `agy` per-account isolation if it gains a config-dir variable
 - Chat-style pane (`claude -p --output-format stream-json`): rejected for now (2026-10-05), revisit if asked
 - Configurable shortcuts (REQUIREMENTS §7.5 "configurable later")
 
