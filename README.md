@@ -4,7 +4,7 @@
 
 # Wraithgrid
 
-**Run many `claude` CLI sessions side by side, each with its own account and project folder.**
+**Run many `claude`, `gemini` and `agy` CLI sessions side by side, each with its own account and project folder.**
 
 [![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/cachewraith/wraithgrid/build.yml?branch=main&style=flat-square&label=build)](https://github.com/cachewraith/wraithgrid/actions/workflows/build.yml)
@@ -28,25 +28,29 @@ Switching `claude` accounts normally means logging out and back in. Wraithgrid r
 step: every pane has its own account and its own project folder, and all of them run at the
 same time in one window.
 
-It runs the official `claude` CLI as-is. For each pane it sets `CLAUDE_CONFIG_DIR` to that
-account's folder, so every account keeps its own login, settings and history. Wraithgrid never
-reads, copies or proxies anything inside those folders.
+It runs the official CLIs as-is. For a Claude Code pane it sets `CLAUDE_CONFIG_DIR` to that
+account's folder, and for a Gemini CLI pane `GEMINI_CLI_HOME`, so every account keeps its own
+login, settings and history. Antigravity CLI (`agy`) panes are supported too, but `agy` keeps its
+sign-in in the system keyring, so all `agy` accounts on a machine share one Google login.
+Wraithgrid never reads, copies or proxies anything inside those folders.
 
 ## Features
 
-|                               |                                                                                                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Many accounts at once**     | Personal, work and client accounts run side by side, each with its own login, settings and history.                                               |
-| **Flexible layouts**          | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                |
-| **Workspaces**                | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                        |
-| **Folders & icons**           | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.                                             |
-| **Live pane status**          | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                                                        |
-| **Shared CLAUDE.md & skills** | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                               |
-| **Update alerts**             | A desktop notification tells you once when a new version is released.                                                                             |
-| **Survives restarts**         | Workspaces, layouts, accounts and folders come back on the next launch.                                                                           |
-| **Themes**                    | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                           |
-| **Native everywhere**         | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
-| **Private by design**         | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                              |
+|                                   |                                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Many accounts at once**         | Personal, work and client accounts run side by side, each with its own login, settings and history.                                               |
+| **Claude, Gemini or Antigravity** | Each account runs Claude Code (`claude`), Gemini CLI (`gemini`) or Antigravity CLI (`agy`); mix them in one grid.                                 |
+| **Paste screenshots**             | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                          |
+| **Flexible layouts**              | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                |
+| **Workspaces**                    | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                        |
+| **Folders & icons**               | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.                                             |
+| **Live pane status**              | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                                                        |
+| **Shared CLAUDE.md & skills**     | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                               |
+| **Update alerts**                 | A desktop notification tells you once when a new version is released.                                                                             |
+| **Survives restarts**             | Workspaces, layouts, accounts and folders come back on the next launch.                                                                           |
+| **Themes**                        | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                           |
+| **Native everywhere**             | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
+| **Private by design**             | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                              |
 
 ## Screenshots
 
@@ -95,6 +99,9 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
 > You also need the [`claude` CLI](https://docs.claude.com/en/docs/claude-code). Wraithgrid
 > finds it on your `PATH` (including the native installer's `~/.local/bin` and npm's global
 > folder). You can also set its path in **Settings**.
+>
+> For Gemini or Antigravity accounts, install `gemini` or `agy`
+> (`curl -fsSL https://antigravity.google/cli/install.sh | bash`); they are found on your `PATH`.
 
 <details>
 <summary><b>Platform notes</b>: macOS, tiling compositors, launchers, AppImage, Windows</summary>
@@ -142,12 +149,14 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
 ## Usage
 
 1. **Add accounts.** Open **Accounts** (sidebar, **Manage**).
-   - **Add account** creates `~/.wraithgrid/accounts/<name>` for a fresh login.
+   - **Add account** creates `~/.wraithgrid/accounts/<name>` for a fresh login. Pick its
+     **CLI**: Claude Code, Gemini CLI or Antigravity CLI.
    - **Import ~/.claude** points an account at an existing config dir so you keep that login.
      Nothing is copied.
 2. **Sign in.** Press **Login** on an account. A pane opens running `claude` under that
    account. Press **Run /login** and finish in your browser. The account shows as signed in
    once the pane prints a successful login, or when you press **Mark as signed in**.
+   Gemini and Antigravity accounts ask you to sign in the first time a pane starts.
 3. **Open panes.** Press **New pane** (`Ctrl+Shift+N`) and pick an account, a folder and
    optional launch args (`--resume`, `-c`). You can also open a plain shell in a folder.
 4. **Arrange them.**
@@ -172,7 +181,12 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
    - On Windows, folders are junctions. Files are symlinks with Developer Mode on, otherwise
      hard links. Editors that save by replacing the file break a hard link, so edit them in
      `~/.claude`.
-7. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
+7. **Paste images.** Copy an image or take a screenshot, then press `Ctrl+V` (or
+   `Ctrl+Shift+V`) in a pane. Wraithgrid saves it under your temp folder (`wraithgrid-paste`,
+   cleared after a day) and pastes its path: `claude` attaches it as an image, `gemini` and
+   `agy` get an `@path` reference. With no image on the clipboard, `Ctrl+V` works as before.
+   On macOS, `Ctrl+V` goes straight to the CLI, which reads the image itself.
+8. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
    to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
    Click an account's badge on the Accounts page, or a workspace's badge in **Manage**, to
    give it an emoji icon.
@@ -196,6 +210,7 @@ where you left off.
 | Terminal text bigger / smaller      | `Ctrl+=` / `Ctrl+-`  |
 | Reset terminal text size            | `Ctrl+0`             |
 | Copy / paste in a terminal          | `Ctrl+Shift+C` / `V` |
+| Paste an image (screenshot)         | `Ctrl+V`             |
 | All shortcuts                       | `Ctrl+Shift+/`       |
 | Close a dialog                      | `Esc`                |
 
@@ -210,7 +225,8 @@ never saves terminal content.
 
 **Settings** covers:
 
-- the `claude` binary: auto-detected from `PATH`, with an optional override
+- the `claude` binary: auto-detected from `PATH`, with an optional override (`gemini` and
+  `agy` are always taken from `PATH`)
 - the default account and the default working directory
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - theme (dark, light or system), accent color and terminal color palette
@@ -227,6 +243,8 @@ never saves terminal content.
 - **Account folders are off-limits.** Sharing `~/.claude` is the only time Wraithgrid writes
   into account config dirs, and it only places links and renames what was in the way. It never
   reads the files. Logins (`.credentials.json`, `.claude.json`) are never linked.
+- **Pasted images stay local.** They are written to your temp folder (owner-only permissions)
+  and deleted after a day; only the CLI you paste them into reads them.
 - **Guarded deletes.** Deleting an account's config dir is opt-in, needs confirmation, and only
   works on the folder that account points to inside your home directory.
 

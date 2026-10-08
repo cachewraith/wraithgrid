@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- [docs] README: Gemini/Antigravity accounts, image paste (usage, shortcut, install note, privacy) (files: README.md)
 - [clipboard] Ctrl+V / Ctrl+Shift+V in an agent pane paste a clipboard image (e.g. a Wayland screenshot) as a temp file path (`@path` for gemini/agy); without an image Ctrl+V still reaches the CLI. Read via Electron's async clipboard, `wl-paste` fallback on Wayland; files in `<temp>/wraithgrid-paste`, pruned after a day (files: src/main/{clipboard-image,ipc}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/components/Terminal.tsx)
 - [agents] Accounts pick a CLI: Claude Code, Gemini CLI (`GEMINI_CLI_HOME` = config dir) or Antigravity CLI (`agy`, keyring sign-in, no per-account dir); found on PATH; `~/.claude` sharing and the /login banner stay claude-only; Shift+Enter→ESC CR only in claude panes (files: src/shared/{types,schema}.ts, src/main/{ipc,pane-env}.ts, src/renderer/app/store.ts, src/renderer/components/{AccountsView,NewPaneDialog,Terminal}.tsx)
 - [env] Agent panes drop inherited CLAUDE_CONFIG_DIR/GEMINI_CLI_HOME before setting their own (found when Wraithgrid ran inside a claude pane) (files: src/main/pane-env.ts)
