@@ -36,21 +36,23 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 
 ## Features
 
-|                                   |                                                                                                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Many accounts at once**         | Personal, work and client accounts run side by side, each with its own login, settings and history.                                               |
-| **Claude, Gemini or Antigravity** | Each account runs Claude Code (`claude`), Gemini CLI (`gemini`) or Antigravity CLI (`agy`); mix them in one grid.                                 |
-| **Paste screenshots**             | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                          |
-| **Flexible layouts**              | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                |
-| **Workspaces**                    | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                        |
-| **Folders & icons**               | Group accounts into sidebar folders by drag and drop, and give accounts and workspaces an emoji icon.                                             |
-| **Live pane status**              | Each pane shows whether `claude` is running (animated), idle or waiting for your approval.                                                        |
-| **Shared CLAUDE.md & skills**     | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                               |
-| **Update alerts**                 | A desktop notification tells you once when a new version is released.                                                                             |
-| **Survives restarts**             | Workspaces, layouts, accounts and folders come back on the next launch.                                                                           |
-| **Themes**                        | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                           |
-| **Native everywhere**             | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway. |
-| **Private by design**             | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                              |
+|                                   |                                                                                                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Many accounts at once**         | Personal, work and client accounts run side by side, each with its own login, settings and history.                                                                             |
+| **Claude, Gemini or Antigravity** | Each account runs Claude Code (`claude`), Gemini CLI (`gemini`) or Antigravity CLI (`agy`); mix them in one grid.                                                               |
+| **Paste screenshots**             | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                        |
+| **Flexible layouts**              | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                              |
+| **Workspaces**                    | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                      |
+| **Folders & icons**               | Group accounts into sidebar folders by drag and drop, and give accounts, workspaces and folders an emoji or one of ~6,500 Material and Lucide icons.                            |
+| **Live pane status**              | Each pane shows whether its CLI is running (animated), idle or waiting for your approval. Tuned for `claude`; Gemini and Antigravity output is not fully recognised yet.        |
+| **Git changes & worktrees**       | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch. |
+| **Search & notifications**        | `Ctrl+Shift+P` finds any pane, workspace or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                             |
+| **Shared CLAUDE.md & skills**     | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                             |
+| **Update alerts**                 | A desktop notification tells you once when a new version is released.                                                                                                           |
+| **Survives restarts**             | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                         |
+| **Themes**                        | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                         |
+| **Native everywhere**             | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                               |
+| **Private by design**             | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                            |
 
 ## Screenshots
 
@@ -158,7 +160,9 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
    once the pane prints a successful login, or when you press **Mark as signed in**.
    Gemini and Antigravity accounts ask you to sign in the first time a pane starts.
 3. **Open panes.** Press **New pane** (`Ctrl+Shift+N`) and pick an account, a folder and
-   optional launch args (`--resume`, `-c`). You can also open a plain shell in a folder.
+   optional launch args (`--resume`, `-c`). Turn on **Work on a new branch (git worktree)** to
+   give the pane its own checkout under `~/.wraithgrid/worktrees`, so panes in the same repo
+   don't edit each other's files. You can also open a plain shell in a folder.
 4. **Arrange them.**
    - Drag the dividers to resize.
    - Pick a preset: 1, 2 side by side, 2×2, or 3 columns.
@@ -166,6 +170,7 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
    - Zoom a pane with `Ctrl+Shift+Z`.
    - Panes that don't fit a preset stay open but hidden. The **+N hidden** chip brings them
      back.
+   - Drag the sidebar's right edge to make it wider or narrower; double-click it to reset.
 5. **Workspaces.** Keep separate sets of panes (the sidebar, or **Manage** to create, rename
    and delete them) and switch with `Ctrl+Shift+1…9`.
 6. **One claude setup for every account.** By default (**Settings → Shared CLAUDE.md and
@@ -186,10 +191,14 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
    cleared after a day) and pastes its path: `claude` attaches it as an image, `gemini` and
    `agy` get an `@path` reference. With no image on the clipboard, `Ctrl+V` works as before.
    On macOS, `Ctrl+V` goes straight to the CLI, which reads the image itself.
-8. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
+8. **Review changes.** Click the branch label in a pane's header, or press `Ctrl+Shift+D`, to
+   see what changed in that pane's folder since the last commit, file by file. Drag the
+   panel's left edge to resize it (saved); double-click the edge to reset.
+9. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
    to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
-   Click an account's badge on the Accounts page, or a workspace's badge in **Manage**, to
-   give it an emoji icon.
+   Click an account's badge on the Accounts page, a workspace's badge in **Manage**, or
+   right-click a folder, to pick an icon (search Material and Lucide icons, or any emoji) and a
+   tint.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
 **Restart** button. Quitting Wraithgrid ends every pane's processes. On the next launch your
@@ -201,11 +210,13 @@ where you left off.
 
 | Action                              | Keys                 |
 | ----------------------------------- | -------------------- |
+| Search panes and commands           | `Ctrl+Shift+P`       |
 | New pane                            | `Ctrl+Shift+N`       |
 | Close pane                          | `Ctrl+Shift+W`       |
 | Zoom pane / back to grid            | `Ctrl+Shift+Z`       |
 | Move focus left / up / right / down | `Ctrl+Alt+Arrow`     |
 | Switch workspace                    | `Ctrl+Shift+1` … `9` |
+| Show / hide the git changes         | `Ctrl+Shift+D`       |
 | New line in claude                  | `Shift+Enter`        |
 | Terminal text bigger / smaller      | `Ctrl+=` / `Ctrl+-`  |
 | Reset terminal text size            | `Ctrl+0`             |
@@ -229,6 +240,8 @@ never saves terminal content.
   `agy` are always taken from `PATH`)
 - the default account and the default working directory
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
+- the shell plain shell panes run (automatic, any detected shell, or a custom path)
+- desktop notifications for panes that finish or need approval
 - theme (dark, light or system), accent color and terminal color palette
 - the terminal font and size
 - update checks against GitHub releases, with a desktop notification once per new version
