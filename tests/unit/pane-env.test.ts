@@ -67,4 +67,28 @@ describe('buildPaneEnv', () => {
     buildPaneEnv({ baseEnv: copy, shell: false, configDir: '~/.claude', homeDir: home })
     expect(copy).toEqual(base)
   })
+
+  it('points gemini at its config dir with GEMINI_CLI_HOME', () => {
+    const env = buildPaneEnv({
+      baseEnv: base,
+      shell: false,
+      cli: 'gemini',
+      configDir: '~/.wraithgrid/accounts/g',
+      homeDir: home
+    })
+    expect(env.GEMINI_CLI_HOME).toBe(path.join(home, '.wraithgrid', 'accounts', 'g'))
+    expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
+  })
+
+  it('sets no config dir variable for agy, dropping inherited ones', () => {
+    const env = buildPaneEnv({
+      baseEnv: { ...base, CLAUDE_CONFIG_DIR: '/x', GEMINI_CLI_HOME: '/y' },
+      shell: false,
+      cli: 'agy',
+      configDir: '~/.wraithgrid/accounts/a',
+      homeDir: home
+    })
+    expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
+    expect(env).not.toHaveProperty('GEMINI_CLI_HOME')
+  })
 })

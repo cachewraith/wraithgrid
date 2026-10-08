@@ -1,11 +1,13 @@
 // The git diff of the focused pane's folder, beside the grid: what the agent changed since
 // the last commit, file by file. Read-only; it refreshes when the change count moves.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { DIFF_WIDTH_DEFAULT, DIFF_WIDTH_MAX, DIFF_WIDTH_MIN } from '@shared/types'
 import type { GitDiffResult } from '@shared/ipc-contract'
 import { useActions, useApp, useServices } from '../app/services'
 import { findPane } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { parsePatch, type DiffFile } from '../lib/diff'
+import { EdgeResizer } from './EdgeResizer'
 import { IconBranch, IconChevron, IconClose, IconRestart } from './icons'
 
 function FileDiff({ file }: { file: DiffFile }) {
@@ -53,6 +55,8 @@ export function DiffPanel() {
   const paneId = useApp((s) => s.focusedPaneId)
   const pane = useApp((s) => (s.focusedPaneId ? findPane(s.config, s.focusedPaneId)?.pane : null))
   const git = useApp((s) => (s.focusedPaneId ? s.git[s.focusedPaneId] : undefined))
+  const width = useApp((s) => s.config.settings.diffWidth)
+  const panelRef = useRef<HTMLElement>(null)
   const [nonce, setNonce] = useState(0)
   // Each fetch is stamped with what it was for; a stale stamp means a newer one is loading.
   const stamp = `${paneId}:${nonce}:${git?.changed}:${git?.branch}`
@@ -111,7 +115,23 @@ export function DiffPanel() {
     )
 
   return (
-    <aside className="dp" aria-label="Changes">
+    <aside
+      className="dp"
+      aria-label="Changes"
+      ref={panelRef}
+      style={{ '--dp-width': `${width}px` } as CSSProperties}
+    >
+      <EdgeResizer
+        target={panelRef}
+        cssVar="--dp-w"
+        edge="left"
+        min={DIFF_WIDTH_MIN}
+        max={DIFF_WIDTH_MAX}
+        label="Resize changes panel"
+        className="dp-resize"
+        onCommit={(w) => actions.updateSettings({ diffWidth: w })}
+        onReset={() => actions.updateSettings({ diffWidth: DIFF_WIDTH_DEFAULT })}
+      />
       <div className="dp-hd">
         <span className="dp-title">Changes</span>
         {git?.branch ? (

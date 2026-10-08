@@ -12,6 +12,7 @@ const sample = (): Config => ({
     {
       id: 'a1',
       name: 'personal',
+      cli: 'claude',
       configDir: '~/.claude',
       color: '#7c5cff',
       signedIn: true,
@@ -92,6 +93,17 @@ describe('config schema', () => {
     expect(withWidth(320)).toBe(320)
     expect(withWidth(9999)).toBe(236)
     expect(withWidth('wide')).toBe(236)
+  })
+
+  it('defaults the Changes panel width and resets an out-of-range one', () => {
+    const withWidth = (diffWidth: unknown) => {
+      const r = parseConfig({ ...sample(), settings: { ...sample().settings, diffWidth } })
+      return r.ok ? r.config.settings.diffWidth : null
+    }
+    expect(withWidth(undefined)).toBe(440)
+    expect(withWidth(600)).toBe(600)
+    expect(withWidth(100)).toBe(440)
+    expect(withWidth(5000)).toBe(440)
   })
 
   it('rejects bad values', () => {
@@ -253,5 +265,19 @@ describe('ConfigStore', () => {
     expect(bad.ok).toBe(true)
     expect(bad.ok && bad.config.workspaces[0]).toMatchObject({ color: '', icon: '' })
     expect(bad.ok && bad.config.accounts[0]!.icon).toBe('material:rocket-launch')
+  })
+
+  it('defaults an account to claude and resets an unknown CLI', () => {
+    const raw = JSON.parse(JSON.stringify(sample())) as Config
+    const acc = raw.accounts[0] as unknown as Record<string, unknown>
+    delete acc.cli
+    const missing = parseConfig(raw)
+    expect(missing.ok && missing.config.accounts[0]!.cli).toBe('claude')
+    acc.cli = 'rm -rf'
+    const bad = parseConfig(raw)
+    expect(bad.ok && bad.config.accounts[0]!.cli).toBe('claude')
+    acc.cli = 'gemini'
+    const gemini = parseConfig(raw)
+    expect(gemini.ok && gemini.config.accounts[0]!.cli).toBe('gemini')
   })
 })

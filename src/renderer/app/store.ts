@@ -15,6 +15,7 @@ import { defaultConfig } from '@shared/schema'
 import {
   ACCOUNT_COLORS,
   type Account,
+  type AgentCli,
   type Config,
   type LayoutNode,
   type Pane,
@@ -147,7 +148,7 @@ export interface AppState {
   deleteWorkspace(id: string): void
 
   // accounts
-  addAccount(name: string, color: string): Promise<string | null>
+  addAccount(name: string, color: string, cli?: AgentCli): Promise<string | null>
   importAccount(dir: string): string | null
   renameAccount(id: string, name: string): void
   /** An icon id or emoji ('' for the first letter); a color also recolors the account. */
@@ -750,7 +751,7 @@ export function createAppStore({
 
       // ---- accounts ------------------------------------------------------------
 
-      async addAccount(name, color) {
+      async addAccount(name, color, cli = 'claude') {
         const trimmed = name.trim().slice(0, 64)
         if (!trimmed) return 'Enter a name.'
         const s = get()
@@ -764,9 +765,11 @@ export function createAppStore({
         const account: Account = {
           id: newId('a'),
           name: trimmed,
+          cli,
           configDir: res.dir,
           color,
-          signedIn: false,
+          // gemini and agy ask to sign in on their first launch; the /login banner is claude's.
+          signedIn: cli !== 'claude',
           imported: false,
           icon: '',
           folderId: null
@@ -791,6 +794,7 @@ export function createAppStore({
         const account: Account = {
           id: newId('a'),
           name,
+          cli: 'claude',
           configDir: trimmed,
           color: nextFreeColor(s.config.accounts),
           signedIn: true,

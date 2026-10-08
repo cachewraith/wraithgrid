@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
+import type { AgentCli } from '@shared/types'
 import { IS_MAC, matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
 import { currentTheme } from '../app/store'
@@ -60,23 +61,33 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     term.unicode.activeVersion = '11'
     term.loadAddon(new WebLinksAddon((_e, uri) => open(uri)))
 
-    const isShellPane = (): boolean =>
-      store
-        .getState()
-        .config.workspaces.some((w) => w.panes.some((p) => p.id === paneId && p.shell))
+    /** The pane's agent CLI, or null for a plain shell pane. */
+    const paneCli = (): AgentCli | null => {
+      const { config } = store.getState()
+      const pane = config.workspaces.flatMap((w) => w.panes).find((p) => p.id === paneId)
+      if (!pane || pane.shell) return null
+      return config.accounts.find((a) => a.id === pane.accountId)?.cli ?? 'claude'
+    }
+    /** Pastes the clipboard's image as a file path; resolves false when there is none. */
+    const pasteImage = async (): Promise<boolean> => {
+      if (!paneCli()) return false
+      const text = await api.clipboard.image(paneId)
+      if (text) term.paste(text)
+      return !!text
+    }
 
     // App shortcuts never reach the process; everything else (Ctrl+C, arrows) does.
     term.attachCustomKeyEventHandler((e) => {
       if (matchShortcut(e)) return false
       // Shift+Enter sends ESC CR, which claude reads as "new line" (what /terminal-setup
-      // configures in other terminals). Plain Enter still submits; shells are left alone.
+      // configures in other terminals). Plain Enter still submits; other panes are left alone.
       if (
         e.shiftKey &&
         !e.ctrlKey &&
         !e.altKey &&
         !e.metaKey &&
         e.key === 'Enter' &&
-        !isShellPane()
+        paneCli() === 'claude'
       ) {
         if (e.type === 'keydown') {
           e.preventDefault()
@@ -88,6 +99,18 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
       // done by the Edit menu (xterm handles the copy and paste events), and every Ctrl
       // chord goes to the process.
       if (IS_MAC) return true
+      // Ctrl+V in an agent pane: an image on the clipboard (e.g. a screenshot) is saved and
+      // pasted as a file path, since the CLI's own clipboard read misses some of them.
+      // Without an image, Ctrl+V reaches the CLI as before.
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyV' && paneCli()) {
+        if (e.type === 'keydown') {
+          e.preventDefault()
+          void pasteImage().then((pasted) => {
+            if (!pasted) bus.input(paneId, '\x16')
+          })
+        }
+        return false
+      }
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyC') {
         if (e.type === 'keydown') {
           e.preventDefault()
@@ -99,7 +122,9 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyV') {
         if (e.type === 'keydown') {
           e.preventDefault()
-          void navigator.clipboard.readText().then((text) => {
+          void pasteImage().then(async (pasted) => {
+            if (pasted) return
+            const text = await navigator.clipboard.readText()
             if (text) term.paste(text)
           })
         }

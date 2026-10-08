@@ -14,12 +14,12 @@ export function StatusBar() {
     <footer className="sbar">
       <span>
         <b>{ws.panes.length}</b> {ws.panes.length === 1 ? 'pane' : 'panes'}
-      </span>
-      <span>
-        <b>{accountCount}</b> {accountCount === 1 ? 'account' : 'accounts'}
-      </span>
-      <span>
-        workspace <b>{ws.name}</b>
+        {accountCount > 0 ? (
+          <>
+            {' '}
+            on <b>{accountCount}</b> {accountCount === 1 ? 'account' : 'accounts'}
+          </>
+        ) : null}
       </span>
       <span className="sp" />
       {update ? (

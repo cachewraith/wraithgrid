@@ -1,5 +1,10 @@
 # What's new: the T3 Code–inspired update
 
+> **Coming next (unreleased):** paste screenshots straight into a pane with **Ctrl+V**
+> (Wraithgrid saves the image and pastes its path), and accounts can now run
+> **Gemini CLI** or **Antigravity CLI (`agy`)** instead of Claude Code: pick the CLI under
+> **Accounts → Add account**.
+
 *v1.5.1 · 2026-10-06*
 
 Wraithgrid still runs the real `claude` CLI in every pane. This update borrows ideas from

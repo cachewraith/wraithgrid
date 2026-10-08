@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type RefObject
-} from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ICON_COLORS } from '@shared/icons'
 import {
   PANE_STATUS_LABEL,
@@ -21,6 +14,7 @@ import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { AccountIcon, Avatar } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
+import { EdgeResizer } from './EdgeResizer'
 import { IconPopover } from './IconPicker'
 import {
   IconChevron,
@@ -44,57 +38,6 @@ export function accountColorsFor(config: Config, wsId: string): string[] {
 
 /** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
 const SIDE_MOVE_MS = 260
-
-const clampWidth = (w: number): number =>
-  Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, w)))
-
-/**
- * The expanded sidebar's right edge: drag to resize (live, saved on release), double-click
- * to reset. Width lives in a CSS variable while dragging so the config isn't rewritten per move.
- */
-function SideResizer({ side }: { side: RefObject<HTMLElement | null> }) {
-  const actions = useActions()
-  const [dragging, setDragging] = useState(false)
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    const el = side.current
-    if (e.button !== 0 || !el) return
-    e.preventDefault()
-    const handle = e.currentTarget
-    handle.setPointerCapture(e.pointerId)
-    const startX = e.clientX
-    const startW = el.getBoundingClientRect().width
-    let width = startW
-    setDragging(true)
-    const move = (ev: PointerEvent): void => {
-      width = clampWidth(startW + ev.clientX - startX)
-      el.style.setProperty('--side-w', `${width}px`)
-    }
-    const up = (): void => {
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', up)
-      handle.removeEventListener('pointercancel', up)
-      setDragging(false)
-      el.style.removeProperty('--side-w')
-      actions.updateSettings({ sidebarWidth: width })
-    }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', up)
-    handle.addEventListener('pointercancel', up)
-  }
-
-  return (
-    <div
-      className={`side-resize${dragging ? ' on' : ''}`}
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize sidebar"
-      title="Drag to resize, double-click to reset"
-      onPointerDown={onPointerDown}
-      onDoubleClick={() => actions.updateSettings({ sidebarWidth: SIDEBAR_WIDTH_DEFAULT })}
-    />
-  )
-}
 
 /** A pane under its workspace, like a chat in a chat app's history: click to jump to it. */
 function PaneRow({ pane }: { pane: Pane }) {
@@ -429,7 +372,18 @@ export function Sidebar() {
           </>
         )}
       </aside>
-      {collapsed ? null : <SideResizer side={sideRef} />}
+      {collapsed ? null : (
+        <EdgeResizer
+          target={sideRef}
+          cssVar="--side-w"
+          edge="right"
+          min={SIDEBAR_WIDTH_MIN}
+          max={SIDEBAR_WIDTH_MAX}
+          label="Resize sidebar"
+          onCommit={(w) => actions.updateSettings({ sidebarWidth: w })}
+          onReset={() => actions.updateSettings({ sidebarWidth: SIDEBAR_WIDTH_DEFAULT })}
+        />
+      )}
     </>
   )
 }

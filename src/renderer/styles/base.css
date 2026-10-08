@@ -943,6 +943,21 @@ kbd,
 .dlg-ft .hint {
   margin-right: auto;
 }
+/* Long dialogs: the body scrolls, header and footer stay put. */
+.dlg.pinned {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dlg.pinned > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dlg.pinned .dlg-bd {
+  overflow: auto;
+  min-height: 0;
+}
 .fld {
   display: flex;
   flex-direction: column;
@@ -997,28 +1012,37 @@ kbd,
 .inpt:disabled {
   opacity: 0.5;
 }
+/* A picker list: one bordered group of rows, the picked row raised. */
 .apick {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
 }
 .aopt {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line2);
-  border-radius: 8px;
-  background: var(--bg);
+  padding: 8px 10px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
   text-align: left;
   min-width: 0;
 }
-.aopt:hover {
-  border-color: var(--hover-line);
+.aopt:first-child {
+  border-top: 0;
+}
+.aopt:hover:not(:disabled) {
+  background: var(--bg2);
 }
 .aopt.on {
-  border-color: var(--tx);
-  box-shadow: 0 0 0 1px var(--tx);
+  background: var(--raise);
+}
+.aopt:disabled {
+  opacity: 0.5;
 }
 .aopt .nm {
   font-size: 13px;
@@ -1027,6 +1051,7 @@ kbd,
 }
 .aopt .sb {
   font-size: 11.5px;
+  font-family: var(--font-mono);
   color: var(--fa);
   white-space: nowrap;
   overflow: hidden;
@@ -1037,13 +1062,13 @@ kbd,
 }
 .aopt .tx {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 .aopt .ck {
-  color: var(--acct);
+  color: var(--tx);
 }
 .recent {
   display: flex;
@@ -1104,10 +1129,6 @@ kbd,
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
 }
 .trow .tx {
   flex: 1;
@@ -1171,29 +1192,22 @@ kbd,
   gap: 8px;
 }
 .tbl {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 .tr {
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(0, 1.4fr) 116px 44px 168px;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(0, 1.4fr) 116px 44px 120px;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 11px 2px;
   border-top: 1px solid var(--line);
   font-size: 13px;
 }
 .tr.hd {
   border-top: 0;
-  background: var(--bg2);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--fa);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  padding: 9px 14px;
+  padding: 0 2px 7px;
 }
 .tr .nm {
   display: flex;
@@ -1202,10 +1216,17 @@ kbd,
   font-weight: 600;
   min-width: 0;
 }
-.tr .nm > span:last-child {
+.tr .nm > .nm-tx {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.cli-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fa);
 }
 .tr .dir {
   font-family: var(--font-mono);
@@ -1241,7 +1262,7 @@ kbd,
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  color: var(--ok);
+  color: var(--mu);
 }
 .badge.warn {
   color: var(--warn);
@@ -1267,7 +1288,9 @@ kbd,
 }
 .colors {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  height: 34px;
+  align-items: center;
 }
 .cpick {
   display: flex;
@@ -1281,9 +1304,9 @@ kbd,
   color: var(--fa);
 }
 .cpick .c {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
   color: #0a0a12;
@@ -1323,10 +1346,6 @@ kbd,
   font-size: 12.5px;
   color: var(--mu);
   line-height: 1.5;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--bg2);
-  border: 1px solid var(--line);
 }
 .form-acts {
   display: flex;
@@ -1362,10 +1381,8 @@ kbd,
 }
 .qs-lbl {
   margin-top: 22px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--fa);
 }
 .qs {
@@ -1654,13 +1671,11 @@ kbd,
   color: var(--fa);
 }
 .sgrp {
-  margin: 26px 0 0;
+  margin: 30px 0 0;
   padding-bottom: 10px;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fa);
+  color: var(--tx);
 }
 .accents {
   display: flex;
@@ -2047,6 +2062,12 @@ kbd,
 .row:has(.side-resize.on) .side {
   transition: none;
 }
+.dp-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
 .side.col {
   align-items: stretch;
 }
@@ -2330,7 +2351,10 @@ kbd,
   min-width: 0;
 }
 .dp {
-  width: clamp(320px, 34%, 560px);
+  position: relative;
+  width: var(--dp-w, var(--dp-width, 440px));
+  /* The grid always keeps some room, whatever width was saved. */
+  max-width: calc(100% - 240px);
   flex: none;
   display: flex;
   flex-direction: column;

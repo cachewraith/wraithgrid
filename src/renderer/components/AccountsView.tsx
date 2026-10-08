@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { contractHome, slugify } from '@shared/paths'
-import { ACCOUNT_COLORS, type Account } from '@shared/types'
+import {
+  ACCOUNT_COLORS,
+  AGENT_CLIS,
+  AGENT_CLI_LABEL,
+  type Account,
+  type AgentCli
+} from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
 import { nextFreeColor } from '../app/store'
 import { IconPicker } from './IconPicker'
@@ -13,7 +19,6 @@ import {
   IconCheck,
   IconFolder,
   IconImport,
-  IconInfo,
   IconLogin,
   IconPlus,
   IconRename,
@@ -26,13 +31,14 @@ function AddAccountForm() {
   const accounts = useApp((s) => s.config.accounts)
   const [name, setName] = useState('')
   const [color, setColor] = useState(() => nextFreeColor(accounts))
+  const [cli, setCli] = useState<AgentCli>('claude')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const submit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     setBusy(true)
-    const err = await actions.addAccount(name, color)
+    const err = await actions.addAccount(name, color, cli)
     setBusy(false)
     if (err) setError(err)
     else actions.setAccountsMode('list')
@@ -41,6 +47,31 @@ function AddAccountForm() {
   return (
     <form className="card" aria-label="Add account" onSubmit={(e) => void submit(e)}>
       <h2>Add account</h2>
+      <div className="fld">
+        <span className="lbl" id="acc-cli">
+          CLI
+        </span>
+        <div
+          className="seg"
+          role="radiogroup"
+          aria-labelledby="acc-cli"
+          style={{ width: 'max-content' }}
+        >
+          {AGENT_CLIS.map((c) => (
+            <button
+              type="button"
+              key={c}
+              className={`seg-btn${cli === c ? ' on' : ''}`}
+              role="radio"
+              aria-checked={cli === c}
+              onClick={() => setCli(c)}
+              style={{ padding: '0 14px' }}
+            >
+              {AGENT_CLI_LABEL[c]}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="frow">
         <div className="fld">
           <label className="lbl" htmlFor="acc-name">
@@ -69,7 +100,7 @@ function AddAccountForm() {
         </div>
         <div className="fld">
           <span className="lbl" id="acc-color">
-            Color tag
+            Color
           </span>
           <div className="colors" role="radiogroup" aria-labelledby="acc-color">
             {ACCOUNT_COLORS.map((c) => {
@@ -87,7 +118,6 @@ function AddAccountForm() {
                   <span className="c" style={{ background: c.value }}>
                     {on ? <IconCheck style={{ strokeWidth: 2.2 }} /> : null}
                   </span>
-                  {c.name}
                 </button>
               )
             })}
@@ -95,11 +125,22 @@ function AddAccountForm() {
         </div>
       </div>
       <div className="note">
-        <IconInfo style={{ marginTop: 2 }} />
-        <span>
-          After saving, use <b>Login</b> to open a pane running <code>claude</code> under this
-          account and run <code>/login</code> there.
-        </span>
+        {cli === 'claude' ? (
+          <span>
+            After saving, use <b>Login</b> to open a pane running <code>claude</code> under this
+            account and run <code>/login</code> there.
+          </span>
+        ) : cli === 'gemini' ? (
+          <span>
+            Panes run <code>gemini</code> with <code>GEMINI_CLI_HOME</code> set to this config dir;
+            it asks you to sign in on first launch.
+          </span>
+        ) : (
+          <span>
+            Panes run <code>agy</code>. It keeps its sign-in in the system keyring, so every
+            Antigravity account on this machine uses the same Google login; it asks on first launch.
+          </span>
+        )}
       </div>
       <div className="form-acts">
         <button type="button" className="btn gh" onClick={() => actions.setAccountsMode('list')}>
@@ -176,7 +217,7 @@ function ImportAccountForm() {
 function AccountRow({ account, uses }: { account: Account; uses: number }) {
   const actions = useActions()
   const sharedNote = useApp((s) =>
-    s.config.settings.sharedMode === 'overall'
+    s.config.settings.sharedMode === 'overall' && account.cli === 'claude'
       ? 'Shares ~/.claude (CLAUDE.md, skills, plugins)'
       : null
   )
@@ -220,7 +261,12 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
             autoFocus
           />
         ) : (
-          <span>{account.name}</span>
+          <>
+            <span className="nm-tx">{account.name}</span>
+            <span className="cli-tag" title={AGENT_CLI_LABEL[account.cli]}>
+              {account.cli}
+            </span>
+          </>
         )}
       </span>
       <span className="dir" role="cell" title={account.configDir}>
@@ -229,7 +275,7 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
         {sharedNote ? <small>{sharedNote}</small> : null}
       </span>
       <span className={`badge${account.signedIn ? '' : ' warn'}`} role="cell">
-        {account.signedIn ? <IconCheck small /> : <IconWarn small />}
+        {account.signedIn ? null : <IconWarn small />}
         {account.signedIn ? 'Signed in' : 'Not signed in'}
       </span>
       <span className="num" role="cell">
@@ -247,14 +293,24 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
           </>
         ) : (
           <>
-            <button
-              className={`btn ${account.signedIn ? 'gh' : 'pri'}`}
-              onClick={() => actions.loginAccount(account.id)}
-              title={`Open a pane running claude under ${account.name}`}
-            >
-              <IconLogin small />
-              Login
-            </button>
+            {account.signedIn ? (
+              <button
+                className="icon-btn"
+                aria-label={`Log in again as ${account.name}`}
+                title="Log in again"
+                onClick={() => actions.loginAccount(account.id)}
+              >
+                <IconLogin />
+              </button>
+            ) : (
+              <button
+                className="btn pri"
+                onClick={() => actions.loginAccount(account.id)}
+                title={`Open a pane running ${account.cli} under ${account.name}`}
+              >
+                Login
+              </button>
+            )}
             <button
               className="icon-btn"
               aria-label={`Rename ${account.name}`}
@@ -296,8 +352,8 @@ export function AccountsView() {
           <div>
             <h1>Accounts</h1>
             <p>
-              Each account is its own <code>CLAUDE_CONFIG_DIR</code>, with its own login, settings
-              and history. Wraithgrid never reads files inside it.
+              Each account has its own config dir, so its own login, settings and history.
+              Wraithgrid never reads files inside it.
             </p>
           </div>
           <div className="acts">
@@ -322,9 +378,7 @@ export function AccountsView() {
               <span role="columnheader">Config dir</span>
               <span role="columnheader">Login</span>
               <span role="columnheader">Panes</span>
-              <span role="columnheader" style={{ textAlign: 'right' }}>
-                Actions
-              </span>
+              <span role="columnheader" aria-label="Actions" />
             </div>
             {accounts.map((a) => (
               <AccountRow key={a.id} account={a} uses={uses(a.id)} />

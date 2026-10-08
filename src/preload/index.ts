@@ -61,6 +61,9 @@ const api: WraithApi = {
   shells: {
     list: () => ipcRenderer.invoke(IPC.shellList, {})
   },
+  clipboard: {
+    image: (paneId) => ipcRenderer.invoke(IPC.clipboardImage, { paneId })
+  },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),
     onReveal: (cb) => subscribe<string>(IPC.paneReveal, cb)

@@ -41,6 +41,9 @@ export const FONT_SIZE_DEFAULT = 13
 export const SIDEBAR_WIDTH_MIN = 180
 export const SIDEBAR_WIDTH_MAX = 480
 export const SIDEBAR_WIDTH_DEFAULT = 236
+export const DIFF_WIDTH_MIN = 280
+export const DIFF_WIDTH_MAX = 1000
+export const DIFF_WIDTH_DEFAULT = 440
 export const DENSE_FONT_SIZE = 11
 
 export const ACCOUNT_COLORS = [
@@ -50,10 +53,35 @@ export const ACCOUNT_COLORS = [
   { name: 'rose', value: '#f43f5e' }
 ] as const
 
+/**
+ * The agent CLI an account's panes run. `agy` is Antigravity CLI, Gemini CLI's successor;
+ * it keeps its sign-in in the system keyring, so it has no per-account config dir.
+ */
+export const AGENT_CLIS = ['claude', 'gemini', 'agy'] as const
+export type AgentCli = (typeof AGENT_CLIS)[number]
+
+export const AGENT_CLI_LABEL: Record<AgentCli, string> = {
+  claude: 'Claude Code',
+  gemini: 'Gemini CLI',
+  agy: 'Antigravity CLI'
+}
+
+/** The command each CLI is found by on PATH. */
+export const AGENT_CLI_BIN: Record<AgentCli, string> = {
+  claude: 'claude',
+  gemini: 'gemini',
+  agy: 'agy'
+}
+
 export interface Account {
   id: string
   name: string
-  /** Passed to the CLI as CLAUDE_CONFIG_DIR. May start with `~`. Never read by Wraithgrid. */
+  /** Which CLI its panes run. */
+  cli: AgentCli
+  /**
+   * Passed to the CLI as CLAUDE_CONFIG_DIR (claude) or GEMINI_CLI_HOME (gemini); unused by
+   * agy. May start with `~`. Never read by Wraithgrid.
+   */
   configDir: string
   color: string
   /** Wraithgrid's own flag. It is never derived from files inside configDir. */
@@ -144,6 +172,8 @@ export interface Settings {
   sidebarCollapsed: boolean
   /** Expanded sidebar width in px; dragged from its right edge. */
   sidebarWidth: number
+  /** Changes (git diff) panel width in px; dragged from its left edge. */
+  diffWidth: number
   /**
    * 'overall': every account links to the machine's ~/.claude CLAUDE.md, settings,
    * skills and plugins. 'per-account': each account keeps its own.

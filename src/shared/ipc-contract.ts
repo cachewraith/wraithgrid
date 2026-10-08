@@ -44,6 +44,7 @@ export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) }
 export const updateInstallArgs = z.object({})
 /** git runs in the pane's folder as main has it in its own config, never a renderer path. */
 export const shellListArgs = z.object({})
+export const clipboardImageArgs = z.object({ paneId: idSchema })
 export const gitPaneArgs = z.object({ paneId: idSchema })
 export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
@@ -216,6 +217,13 @@ export interface WraithApi {
   shells: {
     /** Shells installed on this machine, for the Settings picker. */
     list(): Promise<ShellOption[]>
+  }
+  clipboard: {
+    /**
+     * Saves the clipboard's image to a temp file and returns the text to paste for it into
+     * this agent pane (its path, or `@path` for gemini/agy); null when there is no image.
+     */
+    image(paneId: string): Promise<string | null>
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */
