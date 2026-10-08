@@ -1,6 +1,8 @@
 // A draggable panel edge (sidebar, Changes panel): resize live, save on release, double-click
-// to reset. While dragging, the width lives in a CSS variable on the panel so the config
-// isn't rewritten on every pointer move.
+// to reset. The dragged width lives in a CSS variable on the panel so the config isn't
+// rewritten on every pointer move. It stays set after release (it equals the saved width):
+// clearing it before React renders the saved width would snap the panel back and animate it
+// forward again, moving the handle away from the pointer.
 import { useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 
 interface Props {
@@ -34,8 +36,9 @@ export function EdgeResizer({
     const el = target.current
     if (e.button !== 0 || !el) return
     e.preventDefault()
-    const handle = e.currentTarget
-    handle.setPointerCapture(e.pointerId)
+    // Listen on window, not the handle: Chromium can drop the handle's pointer capture
+    // mid-drag (seen under load), and later moves and the release must still arrive.
+    e.currentTarget.setPointerCapture(e.pointerId)
     const startX = e.clientX
     const startW = el.getBoundingClientRect().width
     const sign = edge === 'right' ? 1 : -1
@@ -46,17 +49,22 @@ export function EdgeResizer({
       width = clamp(startW + sign * (ev.clientX - startX))
       el.style.setProperty(cssVar, `${width}px`)
     }
-    const up = (): void => {
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', up)
-      handle.removeEventListener('pointercancel', up)
+    const end = (): void => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', end)
       setDragging(false)
-      el.style.removeProperty(cssVar)
       onCommit(width)
     }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', up)
-    handle.addEventListener('pointercancel', up)
+    // The release point decides the saved width: a busy renderer can drop or coalesce the
+    // last moves before the pointer is let go. A cancel keeps the last applied width.
+    const up = (ev: PointerEvent): void => {
+      move(ev)
+      end()
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', end)
   }
 
   return (
@@ -67,7 +75,10 @@ export function EdgeResizer({
       aria-label={label}
       title="Drag to resize, double-click to reset"
       onPointerDown={onPointerDown}
-      onDoubleClick={onReset}
+      onDoubleClick={() => {
+        target.current?.style.removeProperty(cssVar)
+        onReset()
+      }}
     />
   )
 }
