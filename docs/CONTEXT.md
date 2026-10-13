@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `gemini`
-(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.7.1.
+(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.8.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -111,4 +111,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
-v1.7.1 released (v1.7.0's Windows build failed on a test; claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Unreleased: Mods as one list for all accounts (install/switch everywhere at once, repo links), claudemod.com as a Browse source. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).
+v1.8.0 released (Mods as one list for all accounts: install/switch everywhere at once, repo links, claudemod.com as a Browse source; 1.7: claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Also untried on real accounts: Install to all accounts and a claudemod.com install. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).

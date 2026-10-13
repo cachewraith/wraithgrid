@@ -1,6 +1,10 @@
-# What's new in 1.7: claude mods
+# What's new in 1.7 and 1.8: claude mods
 
-*v1.7.1 · 2026-10-13*
+*v1.8.0 · 2026-10-13*
+
+New in 1.8: **Installed** is one list for all your claude accounts, **Install** covers every
+account at once, a mod's name opens its repository, and **Browse** can list the mods from
+claudemod.com.
 
 claude now has mods: plugins that change claude's own screen with side panes, a band above the
 prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pane and adds a
