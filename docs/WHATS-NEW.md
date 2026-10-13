@@ -1,10 +1,10 @@
-# What's new in 1.6: Gemini, Antigravity and screenshot paste
+# What's new in 1.7: claude mods
 
-*v1.6.0 · 2026-10-08*
+*v1.7.0 · 2026-10-13*
 
-Wraithgrid is no longer claude-only: an account can now run Gemini CLI or Antigravity CLI.
-Screenshots paste straight into a pane, the git Changes panel can be resized, and the
-Accounts and New pane screens are simpler.
+claude now has mods: plugins that change claude's own screen with side panes, a band above the
+prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pane and adds a
+**Mods** screen to find, install and switch them without leaving the app.
 
 ---
 
@@ -12,59 +12,58 @@ Accounts and New pane screens are simpler.
 
 | Feature | How to use it |
 |---|---|
-| Gemini or Antigravity account | **Accounts → Add account** → pick the **CLI** |
-| Paste a screenshot or image | **Ctrl+V** (or **Ctrl+Shift+V**) in a pane |
-| Resize the Changes panel | Drag its left edge; double-click the edge to reset |
+| Open the Mods screen | Plug icon in the top bar, or **Ctrl+Shift+P** → **Mods** |
+| Find and install a mod | **Mods → Browse**, search, **Install** |
+| Turn a mod on or off | **Mods → Installed**, the switch beside it |
+| Load a mod you are building | **Mods → Mod folders → Add folder…** |
+| Smooth mod animation | **Mods → Draw panes with the GPU** |
 
 ---
 
-## 1. Gemini CLI and Antigravity CLI accounts
+## 1. Browse and install mods
 
-When you add an account, pick which CLI its panes run:
+**Mods → Browse** lists everything your account's claude marketplaces offer, a few thousand
+mods and plugins, so you don't have to search GitHub. Type a name or what you want it to do;
+the most installed come first. Each row shows the description, the marketplace, a **Source**
+link and an **Install** button.
 
-- **Claude Code** (`claude`): as before. Every existing account stays a Claude account.
-- **Gemini CLI** (`gemini`): each account gets its own config folder through
-  `GEMINI_CLI_HOME`, so logins and history stay separate, like Claude accounts.
-- **Antigravity CLI** (`agy`), Google's successor to Gemini CLI: `agy` keeps its sign-in in
-  your system keyring, so **all Antigravity accounts on one computer share the same Google
-  login**. That is a limit of `agy` itself.
+- With more than one claude account, pick the account to install for.
+- A mod runs as you, with your files and logins: install the ones you trust.
+- The catalog holds every claude plugin, not only the ones that change the screen.
+- A few mods install by running a command and need a confirmation claude only asks for in a
+  terminal. Those show claude's message; install them with `/plugin` in a pane.
 
-Install `gemini` or `agy` yourself; Wraithgrid finds them on your `PATH`. Gemini and
-Antigravity ask you to sign in the first time a pane starts. You can mix all three CLIs in one
-grid.
+## 2. See and switch installed mods
 
-Not there yet: the running / idle / needs-approval label is tuned for `claude` and may be off
-in Gemini and Antigravity panes.
+**Mods → Installed** shows each claude account's mods with their version and where they come
+from, and a switch to enable or disable each one. Wraithgrid asks the account's own `claude`
+for this list; it does not open the plugin files itself.
 
-## 2. Paste screenshots
+A running claude loads mods when it starts: after a change, use **Restart claude panes**.
 
-Take a screenshot (or copy any image) and press **Ctrl+V** in a pane. Wraithgrid saves the
-image to a temp file and pastes its path: `claude` attaches it as an image, `gemini` and `agy`
-get an `@path` reference. This fixes screenshots that could not be pasted before, notably on
-Wayland desktops such as Hyprland.
+## 3. Mod folders for every pane
 
-- With no image on the clipboard, **Ctrl+V** works exactly as before.
-- Saved images are only readable by you and are deleted after a day.
-- On macOS nothing changes: `claude` reads the Mac clipboard itself.
+Building a mod, or keeping one in a folder of your own? Add the folder under **Mod folders**
+and every claude pane in every account loads it, without installing it. claude reloads the mod
+when its files change. Pick the mod's own folder, the one that holds
+`.claude-plugin/plugin.json`.
 
-## 3. Resizable Changes panel
+## 4. Panes do what mods ask
 
-The git diff panel (**Ctrl+Shift+D**) had a fixed width. Drag its left edge to make it wider
-or narrower; the width is remembered. Double-click the edge to go back to the default. The
-terminal grid always keeps some room.
+- **Copy**: text a mod copies lands on your clipboard.
+- **Notifications**: a mod's notification becomes a desktop notification for a pane you aren't
+  looking at. claude only sends these once `preferredNotifChannel` in its settings is
+  `ghostty`, `iterm2` or `kitty`; with one set, claude's own notices arrive as well.
+- **Room**: a side pane a mod opens by itself needs 110 columns. The Mods screen tells you how
+  many running panes are narrower; zoom a pane (**Ctrl+Shift+Z**) or shrink the text.
+- **Animation**: turn on **Draw panes with the GPU** for mods that redraw many times a
+  second. It is off by default; a pane that cannot get a GPU context keeps the standard
+  renderer.
 
-## 4. Simpler screens
+## Not there yet
 
-- **Accounts** is a plain list. Each account shows which CLI it runs, and the **Login**
-  button only appears on accounts that still need to sign in.
-- **New pane** lists accounts in a compact list, and its **Create pane** button stays visible
-  while you scroll. The *Will run* line now shows the real command for Gemini and Antigravity
-  accounts.
-- Settings section titles and the shell picker are calmer, without capital-letter headings
-  or card grids.
-- The status bar reads "2 panes on 1 account" (accounts used in this workspace).
-
-## Fixes
-
-- A Gemini or Antigravity pane no longer inherits a Claude config folder from the terminal
-  that started Wraithgrid.
+- Pictures a mod draws show as their text description.
+- A mod that redraws all the time (a clock, an animated band) makes its pane read "running",
+  so that pane sends no "done" notification.
+- Uninstalling and updating mods, and adding marketplaces, are still done with `/plugin` in a
+  pane.
