@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `gemini`
-(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.7.0.
+(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.7.1.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -104,6 +104,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `gpuTerminal` on removes `.xterm-rows` (WebGL draws to a canvas): e2e specs that read terminal text must leave it off. Chromium keeps ~16 WebGL contexts; only visible panes hold one.
 - `useActions()` returns the whole state (new object per update): never put `actions` in an effect's deps, destructure the action.
 - A mod that redraws all the time (animated band, clock) is output, so its pane reads `running` and never notifies "done".
+- Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
-v1.7.0 released (claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).
+v1.7.1 released (v1.7.0's Windows build failed on a test; claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).

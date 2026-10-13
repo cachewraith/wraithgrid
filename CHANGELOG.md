@@ -2,6 +2,8 @@
 
 ## 2026-10-13
 
+- [release] v1.7.1: first published 1.7 release; v1.7.0's tag stays but its Windows build failed (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
+- [tests] Mod-folder env tests run as the host platform; with `linux` forced on a Windows runner the drive-letter `:` read as the list separator, failing v1.7.0's build (files: tests/unit/pane-env.test.ts, docs/CONTEXT.md)
 - [release] v1.7.0: claude mods (Mods screen with browse/install and enable/disable, mod folders, clipboard and notification requests from mods, optional GPU rendering) (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md, docs/TODO.md)
 - [mods] Browse and install from the Mods screen: the account's marketplace catalog (`claude plugin list --available --json`, ~3,500 entries) with search (name match first, then description; most installed first; one row per mod name), Source link, Install (`claude plugin install <id> --scope user`, 3 min timeout); main installs only an id its last catalog offered (files: src/main/{mods,ipc}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/lib/mod-catalog.ts, src/renderer/components/ModsView.tsx, src/renderer/styles/base.css, tests/unit/mods.test.ts, tests/e2e/mods.spec.ts, tests/fixtures/fake-claude.sh, README.md)
 - [mods] Mods screen (top bar plug icon, palette): each claude account's installed mods from its own `claude plugin list --json`, enable/disable via `claude plugin enable|disable`, restart-panes note; main only toggles a row it listed itself (files: src/main/{mods,ipc}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/app/{store.ts,App.tsx}, src/renderer/components/{ModsView,TopBar,TitleBar,CommandPalette,icons}.tsx, src/renderer/styles/base.css)

@@ -1,6 +1,6 @@
 # What's new in 1.7: claude mods
 
-*v1.7.0 · 2026-10-13*
+*v1.7.1 · 2026-10-13*
 
 claude now has mods: plugins that change claude's own screen with side panes, a band above the
 prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pane and adds a
