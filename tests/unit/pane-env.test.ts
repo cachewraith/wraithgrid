@@ -96,15 +96,18 @@ describe('buildPaneEnv', () => {
 describe('mod folders (CLAUDE_CODE_PLUGIN_DIRS)', () => {
   const claude = { baseEnv: base, shell: false, configDir: '~/.claude', homeDir: home } as const
 
+  // Absolute paths are the host's (a drive letter on Windows), so these two run as the host.
+  const sep = path.delimiter
+
   it('gives claude panes the mod folders as absolute paths', () => {
-    const env = buildPaneEnv({ ...claude, modDirs: ['~/mods/tally', ' '], platform: 'linux' })
+    const env = buildPaneEnv({ ...claude, modDirs: ['~/mods/tally', ' '] })
     expect(env.CLAUDE_CODE_PLUGIN_DIRS).toBe(path.join(home, 'mods', 'tally'))
   })
 
   it('keeps folders the user already named, without repeats', () => {
-    const mine = path.resolve('/opt/mods/a')
-    expect(pluginDirsValue(`${mine}:/opt/mods/b`, [mine, '/opt/mods/c'], home, 'linux')).toBe(
-      [mine, '/opt/mods/b', path.resolve('/opt/mods/c')].join(':')
+    const [a, b, c] = ['a', 'b', 'c'].map((n) => path.resolve('/opt/mods', n))
+    expect(pluginDirsValue(`${a}${sep}${b}`, [a!, c!], home, process.platform)).toBe(
+      [a, b, c].join(sep)
     )
   })
 
