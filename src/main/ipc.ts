@@ -11,6 +11,7 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import type { z } from 'zod'
+import { marketplaceOf } from '@shared/mods'
 import { contractHome, expandHome } from '@shared/paths'
 import {
   IPC,
@@ -24,6 +25,7 @@ import {
   gitPaneArgs,
   gitWorktreeAddArgs,
   modsCatalogArgs,
+  modsCommunityArgs,
   modsInstallArgs,
   modsListArgs,
   modsSetEnabledArgs,
@@ -42,6 +44,7 @@ import {
   type GitStatus,
   type GitWorktreeResult,
   type ModCatalogResult,
+  type ModInstallResult,
   type ModInfo,
   type PtyCreateResult,
   type SharedApplyResult,
@@ -65,11 +68,16 @@ import type { ConfigStore } from './config-store'
 import {
   INSTALL_TIMEOUT_MS,
   claudeRunner,
+  listMarketplaces,
   listModCatalog,
   listMods,
+  marketplaceAddArgs,
   modInstallArgs,
-  modToggleArgs
+  modToggleArgs,
+  withModLinks,
+  type Marketplace
 } from './mods'
+import type { CommunityCatalog, CommunityMods } from './mod-community'
 import { buildPaneEnv } from './pane-env'
 import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
@@ -94,6 +102,8 @@ export interface IpcDeps {
   /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
   envReady: Promise<void>
   updates: UpdateChecker
+  /** The claudemod.com mod list; read only when the user opens it. */
+  community: CommunityCatalog
   installer: UpdateInstaller
   /** Launch-time update checks only run in packaged builds. */
   isPackaged: boolean
@@ -561,6 +571,8 @@ export function registerIpc(deps: IpcDeps): void {
 
   /** What each account's claude last listed; a toggle must name a row from here. */
   const listedMods = new Map<string, ModInfo[]>()
+  /** The marketplaces each account's claude last listed: mod links, and what an install adds. */
+  const marketplaces = new Map<string, Marketplace[]>()
   const MODS_PARALLEL = 4
 
   /** The claude binary as a runner, or the reason there is none. */
@@ -574,6 +586,15 @@ export function registerIpc(deps: IpcDeps): void {
   }
   const accountEnv = (configDir: string): Record<string, string> =>
     buildPaneEnv({ baseEnv: process.env, shell: false, cli: 'claude', configDir, homeDir })
+  /** Links are an extra: an account whose claude cannot list marketplaces still lists its mods. */
+  const readMarketplaces = async (
+    run: ReturnType<typeof claudeRunner>,
+    acc: Config['accounts'][number]
+  ): Promise<Marketplace[]> => {
+    const found = await listMarketplaces(run, accountEnv(acc.configDir), homeDir).catch(() => [])
+    marketplaces.set(acc.id, found)
+    return found
+  }
 
   handle(
     IPC.modsList,
@@ -588,7 +609,12 @@ export function registerIpc(deps: IpcDeps): void {
           .slice(i, i + MODS_PARALLEL)
           .map(async (acc): Promise<AccountMods> => {
             try {
-              const mods = await listMods(runner.run, accountEnv(acc.configDir), homeDir)
+              const env = accountEnv(acc.configDir)
+              const [markets, plain] = await Promise.all([
+                readMarketplaces(runner.run, acc),
+                listMods(runner.run, env, homeDir)
+              ])
+              const mods = withModLinks(plain, markets)
               listedMods.set(acc.id, mods)
               return { accountId: acc.id, ok: true, mods }
             } catch (err) {
@@ -636,51 +662,98 @@ export function registerIpc(deps: IpcDeps): void {
     fail('Could not change the mod')
   )
 
-  /** The ids each account's catalog last offered; an install must name one of them. */
-  const offeredMods = new Map<string, Set<string>>()
-  const claudeAccount = (id: string): Config['accounts'][number] | undefined =>
-    store.get().accounts.find((x) => x.id === id && x.cli === 'claude')
+  /** The ids the last catalog offered; an install must name one of them or a listed mod. */
+  let offeredMods = new Set<string>()
+  /** The same for the community list, with the repository each mod's marketplace comes from. */
+  let community: CommunityMods = { mods: [], marketplaces: [] }
+  const claudeAccounts = (): Config['accounts'] =>
+    store.get().accounts.filter((x) => x.cli === 'claude')
 
   handle(
     IPC.modsCatalog,
     modsCatalogArgs,
-    async (a): Promise<ModCatalogResult> => {
-      const account = claudeAccount(a.accountId)
-      if (!account) return fail('That account is gone.')
+    async (): Promise<ModCatalogResult> => {
+      const accounts = claudeAccounts()
+      if (accounts.length === 0) return fail('No claude account yet.')
       const runner = await modRunner()
       if (!runner.ok) return runner
-      try {
-        const mods = await listModCatalog(runner.run, accountEnv(account.configDir), homeDir)
-        offeredMods.set(account.id, new Set(mods.map((m) => m.id)))
-        return { ok: true, mods }
-      } catch (err) {
-        return fail((err as Error).message)
+      // One catalog serves every account: an install adds the marketplace where it is missing.
+      let error = ''
+      for (const account of accounts) {
+        try {
+          const markets = await readMarketplaces(runner.run, account)
+          const mods = await listModCatalog(
+            runner.run,
+            accountEnv(account.configDir),
+            homeDir,
+            markets
+          )
+          offeredMods = new Set(mods.map((m) => m.id))
+          return { ok: true, mods }
+        } catch (err) {
+          error ||= (err as Error).message
+        }
       }
+      return fail(error)
     },
     fail('Could not read the mod catalog')
   )
 
   handle(
-    IPC.modsInstall,
-    modsInstallArgs,
-    async (a): Promise<SimpleResult> => {
-      const account = claudeAccount(a.accountId)
-      const args = modInstallArgs(a.id)
-      if (!account || !args || !offeredMods.get(a.accountId)?.has(a.id))
-        return fail('That mod is no longer offered. Refresh the list.')
-      const runner = await modRunner()
-      if (!runner.ok) return runner
+    IPC.modsCommunity,
+    modsCommunityArgs,
+    async (): Promise<ModCatalogResult> => {
       try {
-        await runner.run(args, {
-          env: accountEnv(account.configDir),
-          cwd: homeDir,
-          timeoutMs: INSTALL_TIMEOUT_MS
-        })
+        community = await deps.community.read()
+        return { ok: true, mods: community.mods }
       } catch (err) {
         return fail((err as Error).message)
       }
-      log(`installed mod ${a.id} for ${account.name}`)
-      return { ok: true }
+    },
+    fail('Could not read claudemod.com')
+  )
+
+  handle(
+    IPC.modsInstall,
+    modsInstallArgs,
+    async (a): Promise<ModInstallResult> => {
+      const args = modInstallArgs(a.id)
+      const has = (accountId: string): boolean =>
+        listedMods.get(accountId)?.some((m) => m.id === a.id && m.scope === 'user') ?? false
+      const accounts = claudeAccounts()
+      const offered = offeredMods.has(a.id) || community.mods.some((m) => m.id === a.id)
+      if (!args || !(offered || accounts.some((x) => has(x.id))))
+        return fail('That mod is no longer offered. Refresh the list.')
+      const runner = await modRunner()
+      if (!runner.ok) return runner
+      const market = marketplaceOf(a.id)
+      // A marketplace an account already has wins over the community list's one of that name.
+      const source = [...[...marketplaces.values()].flat(), ...community.marketplaces].find(
+        (m) => m.name === market && m.add
+      )
+      const addArgs = source?.add ? marketplaceAddArgs(source.add) : null
+      const failed: { account: string; error: string }[] = []
+      // One account at a time: accounts that share ~/.claude write the same plugin files.
+      for (const account of accounts.filter((x) => !has(x.id))) {
+        const opts = {
+          env: accountEnv(account.configDir),
+          cwd: homeDir,
+          timeoutMs: INSTALL_TIMEOUT_MS
+        }
+        try {
+          const known = marketplaces.get(account.id)
+          if (addArgs && known && !known.some((m) => m.name === market)) {
+            await runner.run(addArgs, opts)
+            marketplaces.set(account.id, [...known, source!])
+            log(`added marketplace ${market} for ${account.name}`)
+          }
+          await runner.run(args, opts)
+          log(`installed mod ${a.id} for ${account.name}`)
+        } catch (err) {
+          failed.push({ account: account.name, error: (err as Error).message })
+        }
+      }
+      return { ok: true, failed }
     },
     fail('Could not install the mod')
   )

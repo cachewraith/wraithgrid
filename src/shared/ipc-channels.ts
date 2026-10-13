@@ -33,5 +33,6 @@ export const IPC = {
   modsList: 'mods:list',
   modsSetEnabled: 'mods:setEnabled',
   modsCatalog: 'mods:catalog',
+  modsCommunity: 'mods:community',
   modsInstall: 'mods:install'
 } as const

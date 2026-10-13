@@ -1,6 +1,7 @@
 # TODO
 
 ## Now
+- Mods as one list (2026-10-13): try Install / Add to all accounts with the real accounts (only the fake CLI and a throwaway config dir so far); confirm the repo link target for in-marketplace mods
 - Mods (2026-10-13): try with a real mod in a pane (pane/band drawing, `$.ui.copy`, `$.ui.notify` with a channel set, GPU rendering with many panes)
 - Mods: pane status with a mod that animates all the time (reads `running` forever, no "done" notification); needs a signal other than output
 - Mods: mascot ("pet") animation report below may be fixed by GPU rendering; ask the user to retry
@@ -12,6 +13,8 @@
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
+- Mods from claudemod.com: repos with only `.claude-plugin/plugin.json` (no marketplace file, e.g. effort-cycle) are left out; could clone them into a mod folder. Only the listed mod of a multi-mod repo is shown.
+- Mods: catalog comes from the first claude account that answers; merge when accounts have different marketplaces
 - Mods: uninstall and update from the Mods screen; add/remove marketplaces; mark which catalog entries change claude's screen (the catalog doesn't say)
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there

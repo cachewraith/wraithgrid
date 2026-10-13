@@ -21,6 +21,7 @@ import {
   titleBarOverlayFor
 } from './platform'
 import { PtyManager } from './pty-manager'
+import { CommunityCatalog } from './mod-community'
 import { UpdateChecker } from './update-check'
 import { UpdateInstaller } from './update-install'
 import { notifyIfNew, type UpdateNotice } from './update-notify'
@@ -366,6 +367,7 @@ void app.whenReady().then(() => {
     desktop,
     envReady,
     updates,
+    community: new CommunityCatalog((url, init) => net.fetch(url, init)),
     installer: createInstaller(),
     onLaunchUpdateCheck: notify,
     isPackaged: app.isPackaged,

@@ -14,7 +14,18 @@ if [ "$1" = "plugin" ]; then
       echo ' {"pluginId":"clock@acme","name":"clock","description":"A clock above the prompt","marketplaceName":"acme","version":"1.1.0","installCount":4520,"source":{"source":"url","url":"https://example.com/clock.git"}},'
       echo ' {"pluginId":"clock@mirror","name":"clock","description":"A clock above the prompt","marketplaceName":"mirror","source":"./clock"},'
       echo ' {"pluginId":"weather@acme","name":"weather","description":"Forecast in the status line","marketplaceName":"acme","installCount":12,"source":"./weather"}]}' ;;
-    "install clock@acme") touch "${CLAUDE_CONFIG_DIR}/clock.on" ;;
+    "install clock@acme")
+      [ -e "${CLAUDE_CONFIG_DIR}/acme.market" ] || { echo 'Plugin "clock" not found in marketplace "acme"' >&2; exit 1; }
+      touch "${CLAUDE_CONFIG_DIR}/clock.on" ;;
+    # Only the account named personal starts with the marketplace.
+    "marketplace list")
+      case "${CLAUDE_CONFIG_DIR}" in */personal) touch "${CLAUDE_CONFIG_DIR}/acme.market" ;; esac
+      if [ -e "${CLAUDE_CONFIG_DIR}/acme.market" ]; then
+        echo '[{"name":"acme","source":"github","repo":"acme/mods"}]'
+      else
+        echo '[]'
+      fi ;;
+    "marketplace add") touch "${CLAUDE_CONFIG_DIR}/acme.market" ;;
     "list --json")
       on=true; [ -e "${CLAUDE_CONFIG_DIR}/tally.off" ] && on=false
       clock=; [ -e "${CLAUDE_CONFIG_DIR}/clock.on" ] && clock='{"id":"clock@acme","version":"1.1.0","scope":"user","enabled":true},'

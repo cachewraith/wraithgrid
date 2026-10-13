@@ -1,7 +1,43 @@
 // Search over the mod catalog (a few thousand entries from the account's marketplaces).
 // The same mod is often listed by two marketplaces: one row per name is shown, the one
 // with an install count first, so the list reads as mods, not as listings.
-import type { CatalogMod } from '@shared/ipc-contract'
+import type { AccountMods, CatalogMod, ModInfo } from '@shared/ipc-contract'
+
+/** One installed mod across the accounts: every account is meant to carry the same mods. */
+export interface MergedMod {
+  /** As one account lists it; `enabled` is true only when it is on everywhere it is installed. */
+  mod: ModInfo
+  /** Accounts that have it, and the ones among them where it is switched on. */
+  accounts: string[]
+  on: string[]
+  /** Accounts that answered and lack it. */
+  missing: string[]
+}
+
+/** The accounts' lists as one, a row per mod (id, scope and project), in first-seen order. */
+export function mergeMods(results: AccountMods[]): MergedMod[] {
+  const answered = results.flatMap((r) => (r.ok ? [r] : []))
+  const rows = new Map<string, MergedMod>()
+  for (const r of answered) {
+    for (const m of r.mods) {
+      const key = `${m.id}|${m.scope}|${m.projectPath ?? ''}`
+      const row = rows.get(key) ?? { mod: m, accounts: [], on: [], missing: [] }
+      row.accounts.push(r.accountId)
+      if (m.enabled) row.on.push(r.accountId)
+      row.mod = {
+        ...row.mod,
+        url: row.mod.url ?? m.url,
+        notes: [...new Set([...row.mod.notes, ...m.notes])]
+      }
+      rows.set(key, row)
+    }
+  }
+  return [...rows.values()].map((row) => ({
+    ...row,
+    mod: { ...row.mod, enabled: row.on.length === row.accounts.length },
+    missing: answered.map((r) => r.accountId).filter((id) => !row.accounts.includes(id))
+  }))
+}
 
 /** One entry per mod name: the listing with the most installs. Order is kept. */
 export function uniqueMods(mods: CatalogMod[]): CatalogMod[] {
@@ -35,7 +71,7 @@ export function searchMods(mods: CatalogMod[], query: string): CatalogMod[] {
     .sort(
       (a, b) =>
         a.rank - b.rank ||
-        (b.m.installs ?? 0) - (a.m.installs ?? 0) ||
+        (b.m.installs ?? b.m.stars ?? 0) - (a.m.installs ?? a.m.stars ?? 0) ||
         a.m.name.localeCompare(b.m.name)
     )
     .map((r) => r.m)

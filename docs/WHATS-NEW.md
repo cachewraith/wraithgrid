@@ -24,10 +24,14 @@ prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pa
 
 **Mods → Browse** lists everything your account's claude marketplaces offer, a few thousand
 mods and plugins, so you don't have to search GitHub. Type a name or what you want it to do;
-the most installed come first. Each row shows the description, the marketplace, a **Source**
-link and an **Install** button.
+the most installed come first. Each row shows the description, the marketplace and an **Install** button;
+click the mod's name to open its repository.
 
-- With more than one claude account, pick the account to install for.
+- **Install** covers all your claude accounts at once, no account to pick. An account that
+  lacks the mod's marketplace gets it added first.
+- Pick **claudemod.com** above the search box for the mods that community list offers. It is
+  not run by Anthropic or Wraithgrid; installing one adds its GitHub repository as a
+  marketplace. The site is contacted only when you pick it.
 - A mod runs as you, with your files and logins: install the ones you trust.
 - The catalog holds every claude plugin, not only the ones that change the screen.
 - A few mods install by running a command and need a confirmation claude only asks for in a
@@ -35,9 +39,10 @@ link and an **Install** button.
 
 ## 2. See and switch installed mods
 
-**Mods → Installed** shows each claude account's mods with their version and where they come
-from, and a switch to enable or disable each one. Wraithgrid asks the account's own `claude`
-for this list; it does not open the plugin files itself.
+**Mods → Installed** is one list for all your claude accounts, with each mod's version and
+where it comes from. One switch enables or disables a mod in every account that has it, and
+**Add to all accounts** hands a mod to the accounts that lack it. Wraithgrid asks each
+account's own `claude` for this list; it does not open the plugin files itself.
 
 A running claude loads mods when it starts: after a change, use **Restart claude panes**.
 

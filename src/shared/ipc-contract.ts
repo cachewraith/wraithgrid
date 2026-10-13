@@ -59,9 +59,10 @@ export const modsSetEnabledArgs = z.object({
   projectPath: z.string().max(4096).nullable(),
   enabled: z.boolean()
 })
-export const modsCatalogArgs = z.object({ accountId: idSchema })
-/** Names one entry of the last catalog; main checks it against its own copy before installing. */
-export const modsInstallArgs = z.object({ accountId: idSchema, id: z.string().min(1).max(200) })
+export const modsCatalogArgs = z.object({})
+/** Names a mod of the last catalog or list; main checks it against its own copy before installing. */
+export const modsCommunityArgs = z.object({})
+export const modsInstallArgs = z.object({ id: z.string().min(1).max(200) })
 export const notifyPaneArgs = z.object({
   paneId: idSchema,
   title: z.string().min(1).max(120),
@@ -178,11 +179,13 @@ export interface ModInfo {
   enabled: boolean
   /** Set for project and local scopes: the project it is installed for. */
   projectPath: string | null
+  /** The page of the marketplace it came from, when that has one. */
+  url: string | null
   /** claude's own remarks, e.g. that another mod of the same name takes precedence. */
   notes: string[]
 }
 
-/** A mod offered by one of the account's marketplaces, as `claude plugin list --available` reports it. */
+/** A mod offered by a marketplace, as an account's `claude plugin list --available` reports it. */
 export interface CatalogMod {
   /** `name@marketplace`: what `claude plugin install` takes. */
   id: string
@@ -192,11 +195,17 @@ export interface CatalogMod {
   version: string | null
   /** How many installs the marketplace counts, where it says. */
   installs: number | null
+  /** Its repository's GitHub stars, for a mod from the community list. */
+  stars: number | null
   /** The mod's https source page, when it has one. */
   url: string | null
 }
 
 export type ModCatalogResult = { ok: true; mods: CatalogMod[] } | { ok: false; error: string }
+
+/** An install covers every claude account; `failed` names the ones claude refused it for. */
+export type ModInstallResult =
+  { ok: true; failed: { account: string; error: string }[] } | { ok: false; error: string }
 
 export type AccountMods =
   { accountId: string; ok: true; mods: ModInfo[] } | { accountId: string; ok: false; error: string }
@@ -279,10 +288,12 @@ export interface WraithApi {
       mod: Pick<ModInfo, 'id' | 'scope' | 'projectPath'>,
       enabled: boolean
     ): Promise<SimpleResult>
-    /** Every mod the account's marketplaces offer. */
-    catalog(accountId: string): Promise<ModCatalogResult>
-    /** Installs a catalog mod for the account (user scope) through its CLI. */
-    install(accountId: string, id: string): Promise<SimpleResult>
+    /** Every mod the marketplaces offer, as the first claude account that answers lists them. */
+    catalog(): Promise<ModCatalogResult>
+    /** The mods claudemod.com lists that can be installed; contacts that site and GitHub. */
+    community(): Promise<ModCatalogResult>
+    /** Installs a mod for every claude account that lacks it (user scope), each through its CLI. */
+    install(id: string): Promise<ModInstallResult>
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

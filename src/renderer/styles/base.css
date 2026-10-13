@@ -2714,11 +2714,6 @@ kbd,
 }
 
 /* Mods view: installed mods and mod folders as hairline lists inside a settings row. */
-.mod-acc {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .mod-list {
   display: flex;
   flex-direction: column;
@@ -2778,6 +2773,21 @@ kbd,
 }
 .mod-link:hover {
   color: var(--tx);
+}
+/* A mod's name opens its repository: it reads as the name until pointed at. */
+.mod-link.name {
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+}
+.mod-link.name::after {
+  content: ' ↗';
+  color: var(--mu);
+  font-weight: 400;
+}
+.mod-link.name:hover,
+.mod-link.name:focus-visible {
+  text-decoration: underline;
 }
 .mod-row > .btn,
 .mod-row > .badge {

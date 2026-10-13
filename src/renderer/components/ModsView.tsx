@@ -1,50 +1,114 @@
 // Mods are claude plugins that change claude's own screen (panes, a band above the prompt,
-// status lines, toasts). This view shows which ones each claude account has installed, the
-// local mod folders every claude pane loads, and what a pane needs to draw them well.
+// status lines, toasts). This view shows the mods the claude accounts have, as one list
+// (a mod is installed and switched for every account at once), the local mod folders every
+// claude pane loads, and what a pane needs to draw them well.
 import { useEffect, useState } from 'react'
-import type { AccountMods, CatalogMod, ModCatalogResult, ModInfo } from '@shared/ipc-contract'
+import type {
+  AccountMods,
+  CatalogMod,
+  ModCatalogResult,
+  ModInstallResult
+} from '@shared/ipc-contract'
+import { marketplaceOf, modNameOf } from '@shared/mods'
 import { contractHome } from '@shared/paths'
 import { MOD_DIRS_MAX, MOD_PANE_MIN_COLS, type Account } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { formatInstalls, searchMods } from '../lib/mod-catalog'
-import { AccountIcon } from './AccountIcon'
+import { formatInstalls, mergeMods, searchMods, type MergedMod } from '../lib/mod-catalog'
 import { IconClose, IconFolder, IconRestart } from './icons'
 
+/** A mod's name, opening its repository when the mod has one. */
+function ModName({ name, url }: { name: string; url: string | null }) {
+  const { api } = useServices()
+  if (!url) return <>{name}</>
+  return (
+    <button
+      className="mod-link name"
+      title={url}
+      aria-label={`Open the repository of ${name}`}
+      onClick={() => void api.shell.openExternal(url)}
+    >
+      {name}
+    </button>
+  )
+}
+
+/** What an install for every account came to, as one line; null when all took it. */
+function installError(res: ModInstallResult): string | null {
+  if (!res.ok) return res.error
+  const first = res.failed[0]
+  if (!first) return null
+  const more = res.failed.length - 1
+  return `${first.account}: ${first.error}${more ? ` (and ${more} more)` : ''}`
+}
+
 function ModRow({
-  accountId,
-  mod,
+  row,
+  accounts,
   onChanged
 }: {
-  accountId: string
-  mod: ModInfo
+  row: MergedMod
+  accounts: Account[]
   onChanged: () => void
 }) {
+  const { api } = useServices()
   const actions = useActions()
   const home = useApp((s) => s.info.homeDir)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const at = mod.id.lastIndexOf('@')
-  const name = at > 0 ? mod.id.slice(0, at) : mod.id
-  const source = at > 0 ? mod.id.slice(at + 1) : ''
+  const { mod } = row
+  const name = modNameOf(mod.id)
+  const nameOf = (id: string): string => accounts.find((a) => a.id === id)?.name ?? id
+  // Only a mod installed for the whole account can be handed to the other accounts.
+  const spread = mod.scope === 'user' && row.missing.length > 0
 
+  // One switch for every account that has the mod; an account's refusal is shown by name.
   const toggle = async (): Promise<void> => {
+    const enabled = !mod.enabled
     setBusy(true)
-    const err = await actions.setModEnabled(accountId, mod, !mod.enabled)
+    let failed: string | null = null
+    for (const id of row.accounts) {
+      if (row.on.includes(id) === enabled) continue
+      const err = await actions.setModEnabled(id, mod, enabled)
+      if (err) failed ??= accounts.length > 1 ? `${nameOf(id)}: ${err}` : err
+      else onChanged()
+    }
     setBusy(false)
-    setError(err)
-    if (!err) onChanged()
+    setError(failed)
   }
+
+  const addToAll = async (): Promise<void> => {
+    setBusy(true)
+    const res = await api.mods.install(mod.id)
+    await actions.loadMods()
+    setBusy(false)
+    setError(installError(res))
+    if (res.ok) onChanged()
+  }
+
+  const where =
+    accounts.length < 2
+      ? null
+      : row.missing.length === 0
+        ? `all ${row.accounts.length} accounts`
+        : `only ${row.accounts.map(nameOf).join(', ')}`
+  const partlyOn = row.on.length > 0 && row.on.length < row.accounts.length
 
   return (
     <div className="mod-row">
       <div className="mod-tx">
         <span className="mod-nm">
-          {name}
+          <ModName name={name} url={mod.url} />
           <span className="cli-tag">{mod.version}</span>
         </span>
         <span className="hint">
-          {[source, mod.scope, mod.projectPath ? contractHome(mod.projectPath, home) : null]
+          {[
+            marketplaceOf(mod.id),
+            mod.scope,
+            mod.projectPath ? contractHome(mod.projectPath, home) : null,
+            where,
+            partlyOn ? `on for ${row.on.map(nameOf).join(', ')}` : null
+          ]
             .filter(Boolean)
             .join(' · ')}
         </span>
@@ -55,6 +119,16 @@ function ModRow({
         ))}
         {error ? <span className="hint err">{error}</span> : null}
       </div>
+      {spread ? (
+        <button
+          className="btn"
+          disabled={busy}
+          aria-label={`Add ${name} to all accounts`}
+          onClick={() => void addToAll()}
+        >
+          {busy ? 'Adding…' : 'Add to all accounts'}
+        </button>
+      ) : null}
       <button
         className={`sw${mod.enabled ? ' on' : ''}`}
         role="switch"
@@ -67,38 +141,52 @@ function ModRow({
   )
 }
 
-function AccountModsRow({
-  account,
-  result,
+/** Every claude account's mods as one list: a mod is installed and switched for all of them. */
+function InstalledRow({
+  accounts,
+  results,
   onChanged
 }: {
-  account: Account
-  result: AccountMods | undefined
+  accounts: Account[]
+  results: AccountMods[] | null
   onChanged: () => void
 }) {
+  const rows = results ? mergeMods(results) : []
+  const failed = (results ?? []).flatMap((r) => {
+    const account = accounts.find((a) => a.id === r.accountId)
+    return !r.ok && account ? [{ account, error: r.error }] : []
+  })
   return (
     <div className="srow">
       <div>
-        <h3 className="mod-acc">
-          <AccountIcon account={account} size={18} />
-          {account.name}
+        <h3>
+          {accounts.length > 1 ? `All ${accounts.length} claude accounts` : accounts[0]!.name}
         </h3>
-        <p className="ex mono">{account.configDir}</p>
+        <p className="ex">
+          {accounts.length > 1
+            ? 'One list for every account: a switch turns a mod on or off in each account that has it.'
+            : 'The mods this account has, as its own claude lists them.'}
+        </p>
       </div>
       <div className="ctl">
-        {!result ? (
+        {failed.map((f) => (
+          <span className="hint err" key={f.account.id}>
+            {f.account.name}: {f.error}
+          </span>
+        ))}
+        {!results ? (
           <span className="hint">Asking claude…</span>
-        ) : !result.ok ? (
-          <span className="hint err">{result.error}</span>
-        ) : result.mods.length === 0 ? (
-          <span className="hint">No mods installed. Find one under Browse below.</span>
+        ) : rows.length === 0 ? (
+          failed.length < results.length || results.length === 0 ? (
+            <span className="hint">No mods installed. Find one under Browse below.</span>
+          ) : null
         ) : (
           <div className="mod-list">
-            {result.mods.map((m) => (
+            {rows.map((row) => (
               <ModRow
-                key={`${m.id}|${m.scope}|${m.projectPath ?? ''}`}
-                accountId={account.id}
-                mod={m}
+                key={`${row.mod.id}|${row.mod.scope}|${row.mod.projectPath ?? ''}`}
+                row={row}
+                accounts={accounts}
                 onChanged={onChanged}
               />
             ))}
@@ -111,16 +199,22 @@ function AccountModsRow({
 
 const CATALOG_PAGE = 20
 
+type ModSource = 'marketplaces' | 'claudemod'
+const MOD_SOURCES: { id: ModSource; label: string }[] = [
+  { id: 'marketplaces', label: 'Marketplaces' },
+  { id: 'claudemod', label: 'claudemod.com' }
+]
+
 function CatalogRow({
   mod,
-  installed,
+  state,
   onInstall
 }: {
   mod: CatalogMod
-  installed: boolean
+  /** Whether every account has it, some do, or none. */
+  state: 'all' | 'some' | 'none'
   onInstall: () => Promise<string | null>
 }) {
-  const { api } = useServices()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -134,29 +228,22 @@ function CatalogRow({
     <div className="mod-row">
       <div className="mod-tx">
         <span className="mod-nm">
-          {mod.name}
+          <ModName name={mod.name} url={mod.url} />
           {mod.version ? <span className="cli-tag">{mod.version}</span> : null}
         </span>
         {mod.description ? <span className="mod-desc">{mod.description}</span> : null}
         <span className="hint">
           {[
             mod.marketplace,
-            mod.installs !== null ? `${formatInstalls(mod.installs)} installs` : null
+            mod.installs !== null ? `${formatInstalls(mod.installs)} installs` : null,
+            mod.stars !== null ? `${formatInstalls(mod.stars)} stars` : null
           ]
             .filter(Boolean)
             .join(' · ')}
-          {mod.url ? (
-            <>
-              {' · '}
-              <button className="mod-link" onClick={() => void api.shell.openExternal(mod.url!)}>
-                Source
-              </button>
-            </>
-          ) : null}
         </span>
         {error ? <span className="hint err">{error}</span> : null}
       </div>
-      {installed ? (
+      {state === 'all' ? (
         <span className="badge">Installed</span>
       ) : (
         <button
@@ -165,52 +252,62 @@ function CatalogRow({
           aria-label={`Install ${mod.name}`}
           onClick={() => void install()}
         >
-          {busy ? 'Installing…' : 'Install'}
+          {busy ? 'Installing…' : state === 'some' ? 'Add to all accounts' : 'Install'}
         </button>
       )}
     </div>
   )
 }
 
-/** The catalog of the account's marketplaces: search it and install without leaving the app. */
+/** The marketplace catalog: search it and install for every account without leaving the app. */
 function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: () => void }) {
   const { api } = useServices()
   const actions = useActions()
   const listed = useApp((s) => s.mods.accounts)
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? null)
-  // Kept with the account it was read for, so another account's catalog is never shown.
-  const [loaded, setLoaded] = useState<{ id: string; res: ModCatalogResult } | null>(null)
+  const [source, setSource] = useState<ModSource>('marketplaces')
+  const [market, setMarket] = useState<ModCatalogResult | null>(null)
+  const [community, setCommunity] = useState<ModCatalogResult | null>(null)
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(CATALOG_PAGE)
-  const account = accounts.find((a) => a.id === accountId) ?? accounts[0]
-  const id = account?.id ?? null
 
   useEffect(() => {
-    if (!id) return
     let stale = false
-    void api.mods.catalog(id).then((res) => {
-      if (!stale) setLoaded({ id, res })
+    void api.mods.catalog().then((r) => {
+      if (!stale) setMarket(r)
     })
     return () => {
       stale = true
     }
-  }, [api, id])
+  }, [api])
 
-  const res = loaded && loaded.id === id ? loaded.res : null
+  // The community list is another site: it is contacted only once it is asked for.
+  const wantCommunity = source === 'claudemod'
+  useEffect(() => {
+    if (!wantCommunity) return
+    let stale = false
+    void api.mods.community().then((r) => {
+      if (!stale) setCommunity(r)
+    })
+    return () => {
+      stale = true
+    }
+  }, [api, wantCommunity])
+
+  const res = wantCommunity ? community : market
   const catalog = res?.ok ? res.mods : null
   const error = res && !res.ok ? res.error : null
-
-  if (!account) return null
-  const mine = listed?.find((r) => r.accountId === account.id)
-  const installed = new Set(mine?.ok ? mine.mods.map((m) => m.id) : [])
+  const answered = (listed ?? []).flatMap((r) => (r.ok ? [r] : []))
+  const stateOf = (id: string): 'all' | 'some' | 'none' => {
+    const have = answered.filter((r) => r.mods.some((m) => m.id === id)).length
+    return have === 0 ? 'none' : have === answered.length ? 'all' : 'some'
+  }
   const found = catalog ? searchMods(catalog, query) : []
 
   const install = async (mod: CatalogMod): Promise<string | null> => {
-    const res = await api.mods.install(account.id, mod.id)
-    if (!res.ok) return res.error
+    const done = await api.mods.install(mod.id)
     await actions.loadMods()
-    onChanged()
-    return null
+    if (done.ok) onChanged()
+    return installError(done)
   }
 
   return (
@@ -218,27 +315,29 @@ function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: ()
       <div>
         <h3 id="browse-h">Find a mod</h3>
         <p className="ex">
-          Everything the account's marketplaces offer. A mod runs as you, with your files and
-          logins: install the ones you trust.
+          Everything the marketplaces offer, or the mods listed on claudemod.com.{' '}
+          {accounts.length > 1 ? `Install puts a mod in all ${accounts.length} accounts. ` : null}A
+          mod runs as you, with your files and logins: install the ones you trust.
         </p>
       </div>
       <div className="ctl">
-        {accounts.length > 1 ? (
-          <div className="recent" role="radiogroup" aria-label="Install for account">
-            {accounts.map((a) => (
-              <button
-                key={a.id}
-                className={`rchip${a.id === account.id ? ' on' : ''}`}
-                role="radio"
-                aria-checked={a.id === account.id}
-                onClick={() => setAccountId(a.id)}
-                style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
-              >
-                {a.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        <div className="recent" role="radiogroup" aria-label="Where to look for mods">
+          {MOD_SOURCES.map((s) => (
+            <button
+              key={s.id}
+              className={`rchip${s.id === source ? ' on' : ''}`}
+              role="radio"
+              aria-checked={s.id === source}
+              onClick={() => {
+                setSource(s.id)
+                setLimit(CATALOG_PAGE)
+              }}
+              style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
         <input
           className="inpt sans"
           type="search"
@@ -254,24 +353,25 @@ function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: ()
         {error ? (
           <span className="hint err">{error}</span>
         ) : !catalog ? (
-          <span className="hint">Asking claude for the catalog…</span>
+          <span className="hint">
+            {wantCommunity ? 'Asking claudemod.com…' : 'Asking claude for the catalog…'}
+          </span>
         ) : found.length === 0 ? (
-          <span className="hint">No mod matches “{query.trim()}”.</span>
+          <span className="hint">
+            {query.trim() ? `No mod matches “${query.trim()}”.` : 'No mod to install here.'}
+          </span>
         ) : (
           <>
             <span className="hint" role="status">
               {query.trim()
                 ? `${found.length} ${found.length === 1 ? 'mod' : 'mods'} found`
-                : `${found.length} mods, most installed first`}
+                : wantCommunity
+                  ? `${found.length} mods from claudemod.com, a community list: their marketplace is added on install`
+                  : `${found.length} mods, most installed first`}
             </span>
             <div className="mod-list">
               {found.slice(0, limit).map((m) => (
-                <CatalogRow
-                  key={m.id}
-                  mod={m}
-                  installed={installed.has(m.id)}
-                  onInstall={() => install(m)}
-                />
+                <CatalogRow key={m.id} mod={m} state={stateOf(m.id)} onInstall={() => install(m)} />
               ))}
             </div>
             {found.length > limit ? (
@@ -461,7 +561,7 @@ export function ModsView() {
             <h1>Mods</h1>
             <p>
               Mods change claude's own screen: side panes, a band above the prompt, status lines,
-              toasts, commands. Each pane draws the mods its account has.
+              toasts, commands. Install one once and every claude account has it.
             </p>
           </div>
           <div className="acts">
@@ -505,14 +605,11 @@ export function ModsView() {
             </div>
           </div>
         ) : (
-          claudeAccounts.map((a) => (
-            <AccountModsRow
-              key={a.id}
-              account={a}
-              result={mods.accounts?.find((r) => r.accountId === a.id)}
-              onChanged={() => setChanged(true)}
-            />
-          ))
+          <InstalledRow
+            accounts={claudeAccounts}
+            results={mods.accounts}
+            onChanged={() => setChanged(true)}
+          />
         )}
 
         {claudeAccounts.length ? (

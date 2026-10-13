@@ -10,7 +10,7 @@ const FAKE_CLAUDE = path.join(ROOT, 'tests/fixtures/fake-claude.sh')
 // Uses a bash stand-in for claude; Windows is covered by unit tests.
 test.skip(process.platform === 'win32', 'POSIX-only fixture')
 
-test('mods: panes load mod folders; the view lists and toggles an account’s mods', async () => {
+test('mods: panes load mod folders; the view lists, toggles and installs for every account', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-mods-e2e-'))
   const home = path.join(tmp, 'home')
   const userData = path.join(tmp, 'userdata')
@@ -29,6 +29,14 @@ test('mods: panes load mod folders; the view lists and toggles an account’s mo
           name: 'personal',
           configDir: '~/.wraithgrid/accounts/personal',
           color: '#7c5cff',
+          signedIn: true,
+          imported: false
+        },
+        {
+          id: 'a-work',
+          name: 'work',
+          configDir: '~/.wraithgrid/accounts/work',
+          color: '#22a06b',
           signedIn: true,
           imported: false
         }
@@ -54,13 +62,15 @@ test('mods: panes load mod folders; the view lists and toggles an account’s mo
       return null
     }
   }
-  const calls = (): string => {
+  const callsOf = (dir: string) => (): string => {
     try {
-      return fs.readFileSync(path.join(accountDir, 'plugin-calls.log'), 'utf8')
+      return fs.readFileSync(path.join(dir, 'plugin-calls.log'), 'utf8')
     } catch {
       return ''
     }
   }
+  const calls = callsOf(accountDir)
+  const workCalls = callsOf(path.join(home, '.wraithgrid', 'accounts', 'work'))
 
   const app = await electron.launch({
     args: [MAIN],
@@ -79,9 +89,16 @@ test('mods: panes load mod folders; the view lists and toggles an account’s mo
     await win.getByRole('button', { name: 'Mods', exact: true }).click()
     await expect(win.getByRole('heading', { name: 'Mods', level: 1 })).toBeVisible()
 
-    // Installed mods come from the account's own `claude plugin list --json`.
+    // The accounts' own `claude plugin list --json`, shown as one list with one switch per mod.
     const tally = win.getByRole('switch', { name: 'tally enabled' })
+    await expect(tally).toHaveCount(1)
     await expect(tally).toHaveAttribute('aria-checked', 'true')
+    await expect(win.getByText('acme · user · all 2 accounts').first()).toBeVisible()
+    // A mod's name opens the repository of the marketplace it came from.
+    await expect(win.getByRole('button', { name: 'Open the repository of tally' })).toHaveAttribute(
+      'title',
+      'https://github.com/acme/mods'
+    )
     await expect(win.getByRole('switch', { name: 'broken enabled' })).toHaveAttribute(
       'aria-checked',
       'false'
@@ -90,6 +107,7 @@ test('mods: panes load mod folders; the view lists and toggles an account’s mo
     await tally.click()
     await expect(tally).toHaveAttribute('aria-checked', 'false')
     await expect.poll(calls).toContain('plugin disable tally@acme --scope user')
+    await expect.poll(workCalls).toContain('plugin disable tally@acme --scope user')
     await expect(win.getByRole('button', { name: 'Restart claude panes' })).toBeVisible()
 
     // A refresh asks claude again and shows what it now reports.
@@ -98,19 +116,25 @@ test('mods: panes load mod folders; the view lists and toggles an account’s mo
 
     // claude's own error is shown and the switch stays as it was.
     await win.getByRole('switch', { name: 'broken enabled' }).click()
-    await expect(win.getByText('Plugin broken@acme could not be loaded')).toBeVisible()
+    await expect(win.getByText('personal: Plugin broken@acme could not be loaded')).toBeVisible()
     await expect(win.getByRole('switch', { name: 'broken enabled' })).toHaveAttribute(
       'aria-checked',
       'false'
     )
 
-    // Browse: the account's catalog, one row per mod, searched and installed from here.
+    // Browse: one catalog, one row per mod; an install reaches every account, adding the
+    // marketplace to the account that lacks it.
     const search = win.getByPlaceholder('Search mods by name or what they do')
     await expect(win.getByText('2 mods, most installed first')).toBeVisible()
     await search.fill('clock')
     await expect(win.getByText('1 mod found')).toBeVisible()
     await win.getByRole('button', { name: 'Install clock' }).click()
     await expect.poll(calls).toContain('plugin install clock@acme --scope user')
+    await expect.poll(workCalls).toContain('plugin marketplace add acme/mods')
+    await expect.poll(workCalls).toContain('plugin install clock@acme --scope user')
+    await expect(win.getByText('acme · user · all 2 accounts')).toHaveCount(3)
+    if (process.env.WRAITHGRID_E2E_SHOTS)
+      await win.screenshot({ path: path.join(process.env.WRAITHGRID_E2E_SHOTS, 'mods.png') })
     await expect(win.getByRole('switch', { name: 'clock enabled' })).toHaveAttribute(
       'aria-checked',
       'true'

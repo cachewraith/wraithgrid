@@ -74,8 +74,9 @@ const api: WraithApi = {
         projectPath: mod.projectPath,
         enabled
       }),
-    catalog: (accountId) => ipcRenderer.invoke(IPC.modsCatalog, { accountId }),
-    install: (accountId, id) => ipcRenderer.invoke(IPC.modsInstall, { accountId, id })
+    catalog: () => ipcRenderer.invoke(IPC.modsCatalog, {}),
+    community: () => ipcRenderer.invoke(IPC.modsCommunity, {}),
+    install: (id) => ipcRenderer.invoke(IPC.modsInstall, { id })
   },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),

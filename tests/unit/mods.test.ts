@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import type { CatalogMod } from '../../src/shared/ipc-contract'
+import type { AccountMods, CatalogMod, ModInfo } from '../../src/shared/ipc-contract'
 import {
   lastLine,
   listMods,
+  marketplaceAddArgs,
   modInstallArgs,
   modToggleArgs,
+  parseMarketplaces,
   parseModCatalog,
-  parseModList
+  parseModList,
+  withModLinks
 } from '../../src/main/mods'
-import { formatInstalls, searchMods, uniqueMods } from '../../src/renderer/lib/mod-catalog'
+import {
+  formatInstalls,
+  mergeMods,
+  searchMods,
+  uniqueMods
+} from '../../src/renderer/lib/mod-catalog'
 import { Osc99Reader, osc52Text, osc777Notice, osc9Notice } from '../../src/renderer/lib/term-osc'
 
 const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64')
@@ -153,6 +161,7 @@ describe('mod catalog', () => {
         marketplace: 'acme',
         version: '1.1.0',
         installs: 4520,
+        stars: null,
         url: 'https://example.com/clock'
       },
       {
@@ -162,6 +171,7 @@ describe('mod catalog', () => {
         marketplace: 'acme',
         version: null,
         installs: null,
+        stars: null,
         url: null
       },
       {
@@ -171,6 +181,7 @@ describe('mod catalog', () => {
         marketplace: '',
         version: null,
         installs: null,
+        stars: null,
         url: null
       }
     ])
@@ -196,6 +207,7 @@ describe('mod catalog', () => {
     marketplace: 'acme',
     version: null,
     installs: null,
+    stars: null,
     url: null,
     ...extra
   })
@@ -232,6 +244,102 @@ describe('mod catalog', () => {
     expect(searchMods(mods, 'statusclock').map((m) => m.name)).toEqual(['status-clock'])
     expect(searchMods([mod('statusline')], 'status line')).toHaveLength(1)
     expect(searchMods(mods, 'nothing')).toEqual([])
+  })
+
+  it('links a mod to its repository, and to its folder there', () => {
+    const markets = parseMarketplaces(
+      `note\n${JSON.stringify([
+        { name: 'acme', source: 'github', repo: 'acme/mods', installLocation: '/x' },
+        { name: 'git', source: 'git', url: 'https://git.example.com/mods.git' },
+        { name: 'local', source: 'directory', path: '/home/me/mods' },
+        { name: 'odd', source: 'github', repo: '--upload-pack=x' }
+      ])}`
+    )
+    expect(markets).toEqual([
+      { name: 'acme', url: 'https://github.com/acme/mods', add: 'acme/mods' },
+      {
+        name: 'git',
+        url: 'https://git.example.com/mods',
+        add: 'https://git.example.com/mods.git'
+      },
+      { name: 'local', url: null, add: null },
+      { name: 'odd', url: null, add: null }
+    ])
+    const entry = (name: string, marketplaceName: string, source: unknown): unknown => ({
+      pluginId: `${name}@${marketplaceName}`,
+      name,
+      marketplaceName,
+      source
+    })
+    const sub = { source: 'git-subdir', url: 'https://github.com/o/r.git', path: 'plugins/a b' }
+    const urls = parseModCatalog(
+      JSON.stringify({
+        available: [
+          entry('inside', 'acme', './plugins/inside'),
+          entry('root', 'acme', './'),
+          entry('up', 'acme', '../../etc'),
+          entry('elsewhere', 'git', './x'),
+          entry('homeless', 'local', './x'),
+          entry('sub', 'acme', { ...sub, ref: 'v1.5.5', sha: 'abc' }),
+          entry('sub-head', 'acme', sub),
+          entry('sub-odd', 'acme', { ...sub, ref: 'a b?' })
+        ]
+      }),
+      markets
+    ).map((m) => m.url)
+    expect(urls).toEqual([
+      'https://github.com/acme/mods/tree/HEAD/plugins/inside',
+      'https://github.com/acme/mods',
+      'https://github.com/acme/mods',
+      'https://git.example.com/mods',
+      null,
+      'https://github.com/o/r/tree/v1.5.5/plugins/a%20b',
+      'https://github.com/o/r/tree/HEAD/plugins/a%20b',
+      'https://github.com/o/r/tree/HEAD/plugins/a%20b'
+    ])
+    const [tally, synced] = withModLinks(
+      parseModList('[{"id":"tally@acme","scope":"user"},{"id":"eng@synced","scope":"synced"}]'),
+      markets
+    )
+    expect([tally!.url, synced!.url]).toEqual(['https://github.com/acme/mods', null])
+  })
+
+  it('adds a marketplace by repo or https address only', () => {
+    expect(marketplaceAddArgs('acme/mods')).toEqual(['plugin', 'marketplace', 'add', 'acme/mods'])
+    expect(marketplaceAddArgs('https://git.example.com/mods.git')).toHaveLength(4)
+    expect(marketplaceAddArgs('--scope')).toBeNull()
+    expect(marketplaceAddArgs('/home/me/mods')).toBeNull()
+    expect(marketplaceAddArgs('ssh://git@example.com/x')).toBeNull()
+  })
+
+  it('reads the accounts as one list', () => {
+    const one = (id: string, extra: Partial<ModInfo> = {}): ModInfo => ({
+      id,
+      version: '1',
+      scope: 'user',
+      enabled: true,
+      projectPath: null,
+      url: null,
+      notes: [],
+      ...extra
+    })
+    const results: AccountMods[] = [
+      { accountId: 'a', ok: true, mods: [one('tally@acme'), one('clock@acme')] },
+      {
+        accountId: 'b',
+        ok: true,
+        mods: [one('tally@acme', { enabled: false, url: 'https://x.test/' })]
+      },
+      { accountId: 'c', ok: false, error: 'not signed in' }
+    ]
+    expect(
+      mergeMods(results).map((r) => [r.mod.id, r.mod.enabled, r.accounts, r.on, r.missing])
+    ).toEqual([
+      ['tally@acme', false, ['a', 'b'], ['a'], []],
+      ['clock@acme', true, ['a'], ['a'], ['b']]
+    ])
+    expect(mergeMods(results)[0]!.mod.url).toBe('https://x.test/')
+    expect(mergeMods([])).toEqual([])
   })
 
   it('shortens install counts', () => {

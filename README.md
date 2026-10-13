@@ -48,7 +48,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Git changes & worktrees**       | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch. |
 | **Search & notifications**        | `Ctrl+Shift+P` finds any pane, workspace or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                             |
 | **Shared CLAUDE.md & skills**     | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                             |
-| **Mods**                          | Draws what claude mods draw; the **Mods** screen lists each account's mods, turns them on or off, and loads your own mod folders in every pane.                                 |
+| **Mods**                          | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                          |
 | **Update alerts**                 | A desktop notification tells you once when a new version is released.                                                                                                           |
 | **Survives restarts**             | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                         |
 | **Themes**                        | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                         |
@@ -254,11 +254,14 @@ claude mods (plugins that change claude's own screen: side panes, a band above t
 status lines, toasts, commands) run inside each pane. The **Mods** screen (plug icon in the top
 bar, or the command palette) covers the rest:
 
-- **Installed**: each claude account's mods, as that account's own `claude plugin list`
-  reports them, with a switch to enable or disable one.
-- **Browse**: search everything the account's marketplaces offer (a few thousand mods and
-  plugins) and install one with a click, without leaving the app. A mod runs as you: install
-  the ones you trust.
+- **Installed**: one list for all your claude accounts, read from each account's own
+  `claude plugin list`. A switch enables or disables a mod in every account that has it;
+  **Add to all accounts** appears where some lack it. Click a mod's name to open its repository.
+- **Browse**: search everything the marketplaces offer (a few thousand mods and plugins) and
+  install one with a click, for every claude account at once. An account that lacks the mod's
+  marketplace gets it added first. A mod runs as you: install the ones you trust.
+  Pick **claudemod.com** to see the mods that community list offers instead; installing one
+  adds its GitHub repository as a marketplace.
 - **Mod folders**: add the folder of a mod you are building; every claude pane in every
   account loads it (`CLAUDE_CODE_PLUGIN_DIRS`) and claude reloads it when its files change.
 - **Draw panes with the GPU**: keeps mods that animate smooth. Off by default.
@@ -271,14 +274,16 @@ bar, or the command palette) covers the rest:
 ## Privacy and security
 
 - **No telemetry.** The only network activity is opening links you click, in your browser
-  (http and https only), and the optional release check, which you can turn off.
+  (http and https only), the optional release check, which you can turn off, and the
+  claudemod.com mod list, read from that site and from GitHub only when you pick it under
+  **Mods → Browse**.
 - **Sandboxed renderer.** The UI runs sandboxed with context isolation. It reaches the system
   only through a fixed, validated IPC surface.
 - **Account folders are off-limits.** Sharing `~/.claude` is the only time Wraithgrid writes
   into account config dirs, and it only places links and renames what was in the way. It never
   reads the files. Logins (`.credentials.json`, `.claude.json`) are never linked.
-- **Mods go through claude.** The Mods screen runs the account's own `claude plugin` command
-  to list, install and switch mods; Wraithgrid does not open the plugin files. A pane's program can put
+- **Mods go through claude.** The Mods screen runs each account's own `claude plugin` command
+  to list, install and switch mods and to add a marketplace; Wraithgrid does not open the plugin files. A pane's program can put
   text on the clipboard but can never read it back.
 - **Pasted images stay local.** They are written to your temp folder (owner-only permissions)
   and deleted after a day; only the CLI you paste them into reads them.
