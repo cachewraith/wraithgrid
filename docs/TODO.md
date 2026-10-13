@@ -1,6 +1,9 @@
 # TODO
 
 ## Now
+- Mods (2026-10-13): try with a real mod in a pane (pane/band drawing, `$.ui.copy`, `$.ui.notify` with a channel set, GPU rendering with many panes)
+- Mods: pane status with a mod that animates all the time (reads `running` forever, no "done" notification); needs a signal other than output
+- Mods: mascot ("pet") animation report below may be fixed by GPU rendering; ask the user to retry
 - Verify on Hyprland: screenshot → Ctrl+V in a claude pane attaches the image; same in a gemini/agy pane (`@path`)
 - Gemini/agy panes: status detection (running/idle/approval) uses claude's patterns; check against real gemini/agy output
 - Sidebar resize shipped (2026-10-05): drag edge, double-click resets; confirm with user it feels right
@@ -9,6 +12,7 @@
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
+- Mods: uninstall and update from the Mods screen; add/remove marketplaces; mark which catalog entries change claude's screen (the catalog doesn't say)
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there
 - Test an in-app update 1.3.0 → 1.3.1 (1.3.0 is the first release with it; install 1.3.0 by hand once)

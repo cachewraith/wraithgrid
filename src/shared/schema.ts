@@ -10,6 +10,7 @@ import {
   FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  MOD_DIRS_MAX,
   SHARED_MODES,
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
@@ -125,7 +126,12 @@ export const settingsSchema = z.object({
         .refine((s) => !s.includes('\0'))
     )
     .max(32)
-    .default([])
+    .default([]),
+  modDirs: z
+    .array(pathSchema.refine((s) => !s.includes('\0')))
+    .max(MOD_DIRS_MAX)
+    .default([]),
+  gpuTerminal: z.boolean().default(false)
 })
 
 export const configSchema = z.object({

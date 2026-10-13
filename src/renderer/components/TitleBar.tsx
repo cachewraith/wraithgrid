@@ -10,7 +10,14 @@ export function TitleBar() {
   // custom: our min/max/close. tiling (Hyprland, sway, …): the compositor owns size and
   // minimize, so only close. overlay (Windows) and mac: the OS draws its own buttons.
   const chrome = useApp((s) => s.info.chrome)
-  const subtitle = view === 'settings' ? 'Settings' : view === 'accounts' ? 'Accounts' : wsName
+  const subtitle =
+    view === 'settings'
+      ? 'Settings'
+      : view === 'accounts'
+        ? 'Accounts'
+        : view === 'mods'
+          ? 'Mods'
+          : wsName
 
   useEffect(() => {
     document.title = `Wraithgrid — ${subtitle}`

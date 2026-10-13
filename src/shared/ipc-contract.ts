@@ -50,6 +50,18 @@ export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
   branch: z.string().min(1).max(100)
 })
+export const modsListArgs = z.object({})
+/** Names one row of the last list; main checks it against its own copy before acting. */
+export const modsSetEnabledArgs = z.object({
+  accountId: idSchema,
+  id: z.string().min(1).max(200),
+  scope: z.string().min(1).max(32),
+  projectPath: z.string().max(4096).nullable(),
+  enabled: z.boolean()
+})
+export const modsCatalogArgs = z.object({ accountId: idSchema })
+/** Names one entry of the last catalog; main checks it against its own copy before installing. */
+export const modsInstallArgs = z.object({ accountId: idSchema, id: z.string().min(1).max(200) })
 export const notifyPaneArgs = z.object({
   paneId: idSchema,
   title: z.string().min(1).max(120),
@@ -156,6 +168,39 @@ export interface ShellOption {
   args: string[]
 }
 
+/** One installed mod (a claude plugin), as the account's own `claude plugin list` reports it. */
+export interface ModInfo {
+  /** `name@marketplace`. */
+  id: string
+  version: string
+  /** user, project, local, synced… as claude names it. */
+  scope: string
+  enabled: boolean
+  /** Set for project and local scopes: the project it is installed for. */
+  projectPath: string | null
+  /** claude's own remarks, e.g. that another mod of the same name takes precedence. */
+  notes: string[]
+}
+
+/** A mod offered by one of the account's marketplaces, as `claude plugin list --available` reports it. */
+export interface CatalogMod {
+  /** `name@marketplace`: what `claude plugin install` takes. */
+  id: string
+  name: string
+  description: string
+  marketplace: string
+  version: string | null
+  /** How many installs the marketplace counts, where it says. */
+  installs: number | null
+  /** The mod's https source page, when it has one. */
+  url: string | null
+}
+
+export type ModCatalogResult = { ok: true; mods: CatalogMod[] } | { ok: false; error: string }
+
+export type AccountMods =
+  { accountId: string; ok: true; mods: ModInfo[] } | { accountId: string; ok: false; error: string }
+
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
@@ -224,6 +269,20 @@ export interface WraithApi {
      * this agent pane (its path, or `@path` for gemini/agy); null when there is no image.
      */
     image(paneId: string): Promise<string | null>
+  }
+  mods: {
+    /** Asks each claude account's CLI for its installed mods. */
+    list(): Promise<AccountMods[]>
+    /** Enables or disables one listed mod through the account's CLI. */
+    setEnabled(
+      accountId: string,
+      mod: Pick<ModInfo, 'id' | 'scope' | 'projectPath'>,
+      enabled: boolean
+    ): Promise<SimpleResult>
+    /** Every mod the account's marketplaces offer. */
+    catalog(accountId: string): Promise<ModCatalogResult>
+    /** Installs a catalog mod for the account (user scope) through its CLI. */
+    install(accountId: string, id: string): Promise<SimpleResult>
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

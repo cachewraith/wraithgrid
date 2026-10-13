@@ -8,6 +8,7 @@ import type { AgentCli } from '@shared/types'
 import { IS_MAC, matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
 import { currentTheme } from '../app/store'
+import { Osc99Reader, osc52Text, osc777Notice, osc9Notice, type TermNotice } from '../lib/term-osc'
 import { terminalFontStack, terminalTheme } from '../lib/term-theme'
 
 interface Props {
@@ -33,6 +34,7 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
   const theme = useApp((s) =>
     terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
   )
+  const gpu = useApp((s) => s.config.settings.gpuTerminal)
   const canTakeFocus = useApp(
     (s) => s.view === 'grid' && s.modal === null && s.closingPaneId !== paneId
   )
@@ -60,6 +62,23 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = '11'
     term.loadAddon(new WebLinksAddon((_e, uri) => open(uri)))
+
+    // What the pane's program asks of its terminal beyond drawing. claude sends these for a
+    // mod's `$.ui.copy` (OSC 52) and `$.ui.notify` (OSC 9, 777 or 99, by the user's
+    // preferredNotifChannel). A clipboard read (`52;c;?`) is never answered.
+    const raise = (n: TermNotice | null): boolean => {
+      if (n) store.getState().paneNotice(paneId, n.title, n.body)
+      return true
+    }
+    const kitty = new Osc99Reader()
+    term.parser.registerOscHandler(52, (data) => {
+      const text = osc52Text(data)
+      if (text) void navigator.clipboard.writeText(text).catch(() => undefined)
+      return true
+    })
+    term.parser.registerOscHandler(9, (data) => raise(osc9Notice(data)))
+    term.parser.registerOscHandler(777, (data) => raise(osc777Notice(data)))
+    term.parser.registerOscHandler(99, (data) => raise(kitty.feed(data)))
 
     /** The pane's agent CLI, or null for a plain shell pane. */
     const paneCli = (): AgentCli | null => {
@@ -193,6 +212,44 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
   useEffect(() => {
     if (termRef.current) termRef.current.options.theme = theme
   }, [theme])
+
+  // GPU drawing keeps frame-rate redraws (a mod's animated band or pane) smooth. Only panes
+  // on screen hold a WebGL context: Chromium allows about 16 and drops the oldest past that,
+  // and a pane that loses its context falls back to the DOM renderer.
+  useEffect(() => {
+    const term = termRef.current
+    if (!term || !gpu || !visible) return
+    let addon: { dispose(): void } | null = null
+    let gone = false
+    // The two renderers size a cell differently, so the column count is fitted again.
+    const refit = (): void => {
+      if (termRef.current !== term) return
+      try {
+        fitRef.current?.fit()
+        bus.resize(paneId, term.cols, term.rows)
+      } catch {
+        // Not laid out yet; the resize observer fits it later.
+      }
+    }
+    const drop = (): void => {
+      gone = true
+      if (!addon) return
+      addon.dispose()
+      addon = null
+      refit()
+    }
+    void import('@xterm/addon-webgl')
+      .then(({ WebglAddon }) => {
+        if (gone || termRef.current !== term) return
+        const webgl = new WebglAddon()
+        addon = webgl
+        webgl.onContextLoss(drop)
+        term.loadAddon(webgl)
+        refit()
+      })
+      .catch(drop) // No WebGL on this machine: the DOM renderer stays.
+    return drop
+  }, [gpu, visible, paneId, bus])
 
   useEffect(() => {
     if (focused && visible && canTakeFocus) termRef.current?.focus()

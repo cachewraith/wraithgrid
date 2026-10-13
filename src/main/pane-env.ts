@@ -54,6 +54,30 @@ function hasLocale(env: Record<string, string>): boolean {
   return ['LC_ALL', 'LC_CTYPE', 'LANG'].some((k) => !!env[k])
 }
 
+/** The variable claude reads extra plugin folders from, a path list like PATH. */
+export const PLUGIN_DIRS_VAR = 'CLAUDE_CODE_PLUGIN_DIRS'
+
+/**
+ * The path list for PLUGIN_DIRS_VAR: what the user's own environment already named, then
+ * the mod folders from Settings as absolute paths, without repeats. A folder whose path
+ * holds the list separator cannot be named in a path list and is left out.
+ */
+export function pluginDirsValue(
+  inherited: string | undefined,
+  modDirs: string[],
+  homeDir: string,
+  platform: NodeJS.Platform
+): string {
+  const sep = platform === 'win32' ? ';' : ':'
+  const own = modDirs
+    .map((d) => d.trim())
+    .filter(Boolean)
+    .map((d) => path.resolve(expandHome(d, homeDir)))
+    .filter((d) => !d.includes(sep))
+  const all = [...(inherited ?? '').split(sep).filter(Boolean), ...own]
+  return [...new Set(all)].join(sep)
+}
+
 export interface PaneEnvInput {
   baseEnv: NodeJS.ProcessEnv
   /** Plain shell panes never get CLAUDE_CONFIG_DIR from Wraithgrid. */
@@ -63,6 +87,8 @@ export interface PaneEnvInput {
   /** The account's config dir, possibly starting with `~`. */
   configDir: string | null
   homeDir: string
+  /** Mod folders from Settings; claude panes get them as CLAUDE_CODE_PLUGIN_DIRS. */
+  modDirs?: string[]
   /** Defaults to this process's platform; tests pass one. */
   platform?: NodeJS.Platform
 }
@@ -77,6 +103,7 @@ export function buildPaneEnv({
   cli = 'claude',
   configDir,
   homeDir,
+  modDirs = [],
   platform = process.platform
 }: PaneEnvInput): Record<string, string> {
   const env: Record<string, string> = {}
@@ -96,6 +123,10 @@ export function buildPaneEnv({
   const dirVar = CONFIG_DIR_VAR[cli]
   if (!shell && configDir && dirVar) {
     env[dirVar] = path.resolve(expandHome(configDir, homeDir))
+  }
+  if (!shell && cli === 'claude') {
+    const dirs = pluginDirsValue(env[PLUGIN_DIRS_VAR], modDirs, homeDir, platform)
+    if (dirs) env[PLUGIN_DIRS_VAR] = dirs
   }
   return env
 }

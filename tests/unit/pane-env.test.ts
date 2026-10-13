@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { buildPaneEnv } from '../../src/main/pane-env'
+import { buildPaneEnv, pluginDirsValue } from '../../src/main/pane-env'
 
 const home = path.resolve('/home/tester')
 const base = {
@@ -90,5 +90,36 @@ describe('buildPaneEnv', () => {
     })
     expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
     expect(env).not.toHaveProperty('GEMINI_CLI_HOME')
+  })
+})
+
+describe('mod folders (CLAUDE_CODE_PLUGIN_DIRS)', () => {
+  const claude = { baseEnv: base, shell: false, configDir: '~/.claude', homeDir: home } as const
+
+  it('gives claude panes the mod folders as absolute paths', () => {
+    const env = buildPaneEnv({ ...claude, modDirs: ['~/mods/tally', ' '], platform: 'linux' })
+    expect(env.CLAUDE_CODE_PLUGIN_DIRS).toBe(path.join(home, 'mods', 'tally'))
+  })
+
+  it('keeps folders the user already named, without repeats', () => {
+    const mine = path.resolve('/opt/mods/a')
+    expect(pluginDirsValue(`${mine}:/opt/mods/b`, [mine, '/opt/mods/c'], home, 'linux')).toBe(
+      [mine, '/opt/mods/b', path.resolve('/opt/mods/c')].join(':')
+    )
+  })
+
+  it('separates with ; on Windows and leaves out a folder holding the separator', () => {
+    expect(pluginDirsValue('C:\\a', [], home, 'win32')).toBe('C:\\a')
+    expect(pluginDirsValue(undefined, ['/opt/we:ird'], home, 'linux')).toBe('')
+  })
+
+  it('is not set without mod folders, nor for shell, gemini or agy panes', () => {
+    expect(buildPaneEnv(claude)).not.toHaveProperty('CLAUDE_CODE_PLUGIN_DIRS')
+    const dirs = ['~/mods/tally']
+    for (const extra of [{ shell: true }, { cli: 'gemini' }, { cli: 'agy' }] as const) {
+      expect(buildPaneEnv({ ...claude, ...extra, modDirs: dirs })).not.toHaveProperty(
+        'CLAUDE_CODE_PLUGIN_DIRS'
+      )
+    }
   })
 })

@@ -64,6 +64,19 @@ const api: WraithApi = {
   clipboard: {
     image: (paneId) => ipcRenderer.invoke(IPC.clipboardImage, { paneId })
   },
+  mods: {
+    list: () => ipcRenderer.invoke(IPC.modsList, {}),
+    setEnabled: (accountId, mod, enabled) =>
+      ipcRenderer.invoke(IPC.modsSetEnabled, {
+        accountId,
+        id: mod.id,
+        scope: mod.scope,
+        projectPath: mod.projectPath,
+        enabled
+      }),
+    catalog: (accountId) => ipcRenderer.invoke(IPC.modsCatalog, { accountId }),
+    install: (accountId, id) => ipcRenderer.invoke(IPC.modsInstall, { accountId, id })
+  },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),
     onReveal: (cb) => subscribe<string>(IPC.paneReveal, cb)

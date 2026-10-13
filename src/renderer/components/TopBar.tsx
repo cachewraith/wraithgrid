@@ -10,6 +10,7 @@ import {
   IconPreset2,
   IconPreset3,
   IconPreset4,
+  IconMods,
   IconSettings,
   IconUnzoom,
   IconZoom
@@ -45,7 +46,9 @@ export function TopBar() {
           {ws.name}
         </button>
         <div className="vsep" />
-        <span className="top-title">{view === 'accounts' ? 'Accounts' : 'Settings'}</span>
+        <span className="top-title">
+          {view === 'accounts' ? 'Accounts' : view === 'mods' ? 'Mods' : 'Settings'}
+        </span>
         <div className="top-sp" />
         <UtilityButtons />
       </header>
@@ -145,6 +148,14 @@ function UtilityButtons() {
         onClick={() => actions.openModal({ kind: 'shortcuts' })}
       >
         <IconKeyboard />
+      </button>
+      <button
+        className="icon-btn"
+        aria-label="Mods"
+        title="Mods"
+        onClick={() => actions.setView('mods')}
+      >
+        <IconMods />
       </button>
       <button
         className="icon-btn"

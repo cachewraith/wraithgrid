@@ -14,6 +14,7 @@ import {
   IconKeyboard,
   IconMoon,
   IconSearch,
+  IconMods,
   IconSettings,
   IconSidebar,
   IconSun,
@@ -108,6 +109,13 @@ function buildItems(s: AppState): Item[] {
       label: 'Accounts',
       icon: <IconUserPlus />,
       run: () => s.setView('accounts')
+    },
+    {
+      id: 'cmd:mods',
+      group: 'Commands',
+      label: 'Mods',
+      icon: <IconMods />,
+      run: () => s.setView('mods')
     },
     {
       id: 'cmd:settings',

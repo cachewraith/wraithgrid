@@ -1,8 +1,10 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type {
+  AccountMods,
   AppInfo,
   ClaudeDetectResult,
   GitStatus,
+  ModInfo,
   PtyExitEvent,
   SharedReportEntry,
   UpdateCheckResult,
@@ -65,7 +67,7 @@ export interface PaneRuntime {
   loginStarted: boolean
 }
 
-export type View = 'grid' | 'accounts' | 'settings'
+export type View = 'grid' | 'accounts' | 'mods' | 'settings'
 export type AccountsMode = 'list' | 'add' | 'import'
 export type Modal =
   | { kind: 'newPane'; slotId: string | null }
@@ -113,6 +115,8 @@ export interface AppState {
   git: Record<string, GitStatus>
   /** The diff panel beside the grid, showing the focused pane's folder. */
   diffOpen: boolean
+  /** Installed mods per claude account, as each account's CLI last listed them. */
+  mods: { loading: boolean; accounts: AccountMods[] | null }
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -131,6 +135,8 @@ export interface AppState {
   revealPane(paneId: string): void
   refreshGit(): Promise<void>
   toggleDiff(open?: boolean): void
+  /** A notification the pane's program asked its terminal for (e.g. a mod's `$.ui.notify`). */
+  paneNotice(paneId: string, title: string, body: string): void
 
   // layout
   applyPreset(id: PresetId): void
@@ -169,6 +175,11 @@ export interface AppState {
   /** Restarts every started claude pane, e.g. so a new CLAUDE.md or skill is picked up. */
   restartClaudePanes(): number
   loginAccount(id: string): void
+
+  // mods
+  loadMods(): Promise<void>
+  /** Enables or disables one listed mod; resolves an error message, or null. */
+  setModEnabled(accountId: string, mod: ModInfo, enabled: boolean): Promise<string | null>
 
   // settings
   updateSettings(patch: Partial<Settings>): void
@@ -507,6 +518,7 @@ export function createAppStore({
       settingsAnchor: null,
       git: {},
       diffOpen: false,
+      mods: { loading: false, accounts: null },
 
       async init() {
         const [raw, info] = await Promise.all([api.config.get(), api.app.info()])
@@ -943,6 +955,27 @@ export function createAppStore({
         return ids.length
       },
 
+      async loadMods() {
+        if (get().mods.loading) return
+        set({ mods: { ...get().mods, loading: true } })
+        const accounts = await api.mods.list()
+        set({ mods: { loading: false, accounts } })
+      },
+
+      async setModEnabled(accountId, mod, enabled) {
+        const res = await api.mods.setEnabled(accountId, mod, enabled)
+        if (!res.ok) return res.error
+        const same = (m: ModInfo): boolean =>
+          m.id === mod.id && m.scope === mod.scope && m.projectPath === mod.projectPath
+        const accounts = get().mods.accounts?.map((a) =>
+          a.accountId === accountId && a.ok
+            ? { ...a, mods: a.mods.map((m) => (same(m) ? { ...m, enabled } : m)) }
+            : a
+        )
+        set({ mods: { ...get().mods, accounts: accounts ?? null } })
+        return null
+      },
+
       markSignedIn(id) {
         get().updateConfig((c) => ({
           ...c,
@@ -964,6 +997,14 @@ export function createAppStore({
           { loginFlow: true }
         )
         set({ zoomedPaneId: paneId })
+      },
+
+      paneNotice(paneId, title, body) {
+        const s = get()
+        const found = findPane(s.config, paneId)
+        if (!found || !s.config.settings.notifyPanes || attending(paneId)) return
+        const where = `${found.pane.title} · ${found.ws.name}`
+        api.notify.pane(paneId, (title ? `${title} · ${where}` : where).slice(0, 120), body)
       },
 
       // ---- settings ------------------------------------------------------------

@@ -74,6 +74,7 @@ export const IconKeyboard = make(
     <path d="M4 7h1M7 7h1M10 7h2M4.5 9.5h7" />
   </>
 )
+export const IconMods = make(<path d="M6 2v3M10 2v3M4.5 5h7v2.5a3.5 3.5 0 0 1-7 0zM8 11v3" />)
 export const IconSettings = make(
   <>
     <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />

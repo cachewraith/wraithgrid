@@ -4,6 +4,7 @@ import { CommandPalette } from '../components/CommandPalette'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
+import { ModsView } from '../components/ModsView'
 import { SettingsView } from '../components/SettingsView'
 import { ShortcutsSheet } from '../components/ShortcutsSheet'
 import { Sidebar } from '../components/Sidebar'
@@ -153,6 +154,7 @@ export function App() {
             <div className="content">
               <PaneGrid />
               {view === 'accounts' ? <AccountsView /> : null}
+              {view === 'mods' ? <ModsView /> : null}
               {view === 'settings' ? <SettingsView /> : null}
             </div>
             {diffOpen ? <DiffPanel /> : null}

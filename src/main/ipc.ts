@@ -23,6 +23,10 @@ import {
   updateInstallArgs,
   gitPaneArgs,
   gitWorktreeAddArgs,
+  modsCatalogArgs,
+  modsInstallArgs,
+  modsListArgs,
+  modsSetEnabledArgs,
   notifyPaneArgs,
   pickPathArgs,
   shellListArgs,
@@ -31,11 +35,14 @@ import {
   ptyKillArgs,
   ptyResizeArgs,
   ptyWriteArgs,
+  type AccountMods,
   type AppInfo,
   type CreateDirResult,
   type GitDiffResult,
   type GitStatus,
   type GitWorktreeResult,
+  type ModCatalogResult,
+  type ModInfo,
   type PtyCreateResult,
   type SharedApplyResult,
   type SharedReportEntry,
@@ -55,6 +62,14 @@ import {
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
 import { AGENT_CLI_BIN, AGENT_CLI_LABEL, type AgentCli, type Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
+import {
+  INSTALL_TIMEOUT_MS,
+  claudeRunner,
+  listModCatalog,
+  listMods,
+  modInstallArgs,
+  modToggleArgs
+} from './mods'
 import { buildPaneEnv } from './pane-env'
 import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
@@ -230,7 +245,14 @@ export function registerIpc(deps: IpcDeps): void {
 
       const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
       if (!cmd.ok) return fail(cmd.error)
-      const env = buildPaneEnv({ baseEnv: process.env, shell: a.shell, cli, configDir, homeDir })
+      const env = buildPaneEnv({
+        baseEnv: process.env,
+        shell: a.shell,
+        cli,
+        configDir,
+        homeDir,
+        modDirs: cfg.settings.modDirs
+      })
       return ptys.create({
         paneId: a.paneId,
         file: cmd.file,
@@ -533,6 +555,134 @@ export function registerIpc(deps: IpcDeps): void {
       return imagePasteText(account.cli, file)
     },
     null
+  )
+
+  // ---- Mods ------------------------------------------------------------------------
+
+  /** What each account's claude last listed; a toggle must name a row from here. */
+  const listedMods = new Map<string, ModInfo[]>()
+  const MODS_PARALLEL = 4
+
+  /** The claude binary as a runner, or the reason there is none. */
+  const modRunner = async (): Promise<
+    { ok: true; run: ReturnType<typeof claudeRunner> } | { ok: false; error: string }
+  > => {
+    await deps.envReady
+    const resolved = await resolveClaudePath(store.get().claudePath, homeDir)
+    if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
+    return { ok: true, run: claudeRunner(resolved.path) }
+  }
+  const accountEnv = (configDir: string): Record<string, string> =>
+    buildPaneEnv({ baseEnv: process.env, shell: false, cli: 'claude', configDir, homeDir })
+
+  handle(
+    IPC.modsList,
+    modsListArgs,
+    async (): Promise<AccountMods[]> => {
+      const accounts = store.get().accounts.filter((x) => x.cli === 'claude')
+      const runner = await modRunner()
+      if (!runner.ok) return accounts.map((x) => ({ accountId: x.id, ...runner }))
+      const out: AccountMods[] = []
+      for (let i = 0; i < accounts.length; i += MODS_PARALLEL) {
+        const batch = accounts
+          .slice(i, i + MODS_PARALLEL)
+          .map(async (acc): Promise<AccountMods> => {
+            try {
+              const mods = await listMods(runner.run, accountEnv(acc.configDir), homeDir)
+              listedMods.set(acc.id, mods)
+              return { accountId: acc.id, ok: true, mods }
+            } catch (err) {
+              listedMods.delete(acc.id)
+              return { accountId: acc.id, ok: false, error: (err as Error).message }
+            }
+          })
+        out.push(...(await Promise.all(batch)))
+      }
+      return out
+    },
+    []
+  )
+
+  handle(
+    IPC.modsSetEnabled,
+    modsSetEnabledArgs,
+    async (a): Promise<SimpleResult> => {
+      const account = store.get().accounts.find((x) => x.id === a.accountId && x.cli === 'claude')
+      const mod = listedMods
+        .get(a.accountId)
+        ?.find((m) => m.id === a.id && m.scope === a.scope && m.projectPath === a.projectPath)
+      if (!account || !mod) return fail('That mod is no longer listed. Refresh the list.')
+      const args = modToggleArgs(mod, a.enabled)
+      if (!args) return fail('That mod cannot be changed from here.')
+      const runner = await modRunner()
+      if (!runner.ok) return runner
+      // A project-scoped mod is switched from its own project folder, as claude lists it.
+      let cwd = homeDir
+      if (mod.projectPath) {
+        try {
+          if ((await stat(mod.projectPath)).isDirectory()) cwd = mod.projectPath
+        } catch {
+          return fail(`Project folder not found: ${contractHome(mod.projectPath, homeDir)}`)
+        }
+      }
+      try {
+        await runner.run(args, { env: accountEnv(account.configDir), cwd })
+      } catch (err) {
+        return fail((err as Error).message)
+      }
+      log(`${a.enabled ? 'enabled' : 'disabled'} mod ${mod.id} for ${account.name}`)
+      return { ok: true }
+    },
+    fail('Could not change the mod')
+  )
+
+  /** The ids each account's catalog last offered; an install must name one of them. */
+  const offeredMods = new Map<string, Set<string>>()
+  const claudeAccount = (id: string): Config['accounts'][number] | undefined =>
+    store.get().accounts.find((x) => x.id === id && x.cli === 'claude')
+
+  handle(
+    IPC.modsCatalog,
+    modsCatalogArgs,
+    async (a): Promise<ModCatalogResult> => {
+      const account = claudeAccount(a.accountId)
+      if (!account) return fail('That account is gone.')
+      const runner = await modRunner()
+      if (!runner.ok) return runner
+      try {
+        const mods = await listModCatalog(runner.run, accountEnv(account.configDir), homeDir)
+        offeredMods.set(account.id, new Set(mods.map((m) => m.id)))
+        return { ok: true, mods }
+      } catch (err) {
+        return fail((err as Error).message)
+      }
+    },
+    fail('Could not read the mod catalog')
+  )
+
+  handle(
+    IPC.modsInstall,
+    modsInstallArgs,
+    async (a): Promise<SimpleResult> => {
+      const account = claudeAccount(a.accountId)
+      const args = modInstallArgs(a.id)
+      if (!account || !args || !offeredMods.get(a.accountId)?.has(a.id))
+        return fail('That mod is no longer offered. Refresh the list.')
+      const runner = await modRunner()
+      if (!runner.ok) return runner
+      try {
+        await runner.run(args, {
+          env: accountEnv(account.configDir),
+          cwd: homeDir,
+          timeoutMs: INSTALL_TIMEOUT_MS
+        })
+      } catch (err) {
+        return fail((err as Error).message)
+      }
+      log(`installed mod ${a.id} for ${account.name}`)
+      return { ok: true }
+    },
+    fail('Could not install the mod')
   )
 
   // ---- Pane notifications ----------------------------------------------------------

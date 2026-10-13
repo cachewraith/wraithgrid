@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `gemini`
-(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.6.0.
+(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.7.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -25,11 +25,12 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
 - `src/main/pty-manager.ts`: spawns/kills pane processes; per-OS KillPolicy
 - `src/main/clipboard-image.ts`: clipboard image → temp file → text to paste (path, or `@path` for gemini/agy)
-- `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; strips the launching terminal's vars; UTF-8 locale fallback)
+- `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; mod folders as `CLAUDE_CODE_PLUGIN_DIRS` for claude; strips the launching terminal's vars; UTF-8 locale fallback)
 - `src/main/config-store.ts`: config.json load/save, atomic write, bad-file quarantine
 - `src/main/claude-detect.ts`: finds the `claude` binary and version
 - `src/main/platform.ts`: OS/desktop differences as pure functions (chrome, shell pick/detection, login-shell PATH probe per shell, spawn)
 - `src/main/shared-config.ts`: link ~/.claude's CLAUDE.md, settings.json, skills/, plugins/, agents/, commands/ into every account ("overall" mode)
+- `src/main/mods.ts`: installed mods (claude plugins) per account via the account's own `claude plugin list --json` / `enable` / `disable`, and the marketplace catalog + `install`
 - `src/main/update-check.ts`: GitHub Releases check (fixed URL) for the Settings/status-bar notice
 - `src/main/update-install.ts`: in-app update facade over electron-updater (check → download → install + relaunch)
 - `src/main/update-notify.ts`: OS notification for a new release, once per version (`update-notified.json` in userData)
@@ -45,9 +46,9 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = installed mods per account, catalog search + install, mod folders, GPU toggle)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
-- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search
+- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search)
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
 - `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars)
 - `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide)
@@ -99,6 +100,10 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `agy` stores its sign-in in the system keyring: agy accounts can't be isolated; non-claude CLIs are found on PATH only (no override setting).
 - Drag handles listen on `window`, not the handle: Chromium can drop pointer capture mid-drag. Reproduce timing flakes with all cores busy (`while :; do :; done` per core).
 - e2e: config.json is written after a debounce and can be missing on a fast CI runner; read it inside `expect.poll` with a try/catch, never a bare `readFileSync`.
+- Mods: xterm.js has no kitty graphics, so a mod's `Image` shows its `alt`; claude sends mod notifications only when `preferredNotifChannel` is set (auto finds no channel in our panes), and then its own notices arrive too, next to ours.
+- `gpuTerminal` on removes `.xterm-rows` (WebGL draws to a canvas): e2e specs that read terminal text must leave it off. Chromium keeps ~16 WebGL contexts; only visible panes hold one.
+- `useActions()` returns the whole state (new object per update): never put `actions` in an effect's deps, destructure the action.
+- A mod that redraws all the time (animated band, clock) is output, so its pane reads `running` and never notifies "done".
 
 ## Current focus
-v1.6.0 released (Gemini CLI + Antigravity `agy` accounts, clipboard image paste in agent panes, resizable Changes panel, calmer Accounts/New pane UI). To verify by hand: screenshot paste on Hyprland, real gemini/agy panes (status detection is claude-tuned). macOS not yet tried on real hardware. Open: default icon for new accounts/workspaces (user to confirm); Shift+Enter report (needs repro); Claude mascot animation report (needs repro).
+v1.7.0 released (claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).

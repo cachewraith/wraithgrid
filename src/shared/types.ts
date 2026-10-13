@@ -45,6 +45,9 @@ export const DIFF_WIDTH_MIN = 280
 export const DIFF_WIDTH_MAX = 1000
 export const DIFF_WIDTH_DEFAULT = 440
 export const DENSE_FONT_SIZE = 11
+export const MOD_DIRS_MAX = 16
+/** A pane a mod opens unasked is seated from this many columns (claude's own rule). */
+export const MOD_PANE_MIN_COLS = 110
 
 export const ACCOUNT_COLORS = [
   { name: 'violet', value: '#7c5cff' },
@@ -187,6 +190,13 @@ export interface Settings {
   shellPath: string
   /** Arguments for `shellPath`, e.g. `--login -i` for Git Bash. */
   shellArgs: string[]
+  /**
+   * Local mod folders (claude plugins under development) that every claude pane loads,
+   * passed as CLAUDE_CODE_PLUGIN_DIRS. May start with `~`.
+   */
+  modDirs: string[]
+  /** Draw visible terminals with the GPU, so frame-rate redraws (mod animations) stay smooth. */
+  gpuTerminal: boolean
 }
 
 export const CONFIG_VERSION = 1

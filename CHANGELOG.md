@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-13
+
+- [release] v1.7.0: claude mods (Mods screen with browse/install and enable/disable, mod folders, clipboard and notification requests from mods, optional GPU rendering) (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md, docs/TODO.md)
+- [mods] Browse and install from the Mods screen: the account's marketplace catalog (`claude plugin list --available --json`, ~3,500 entries) with search (name match first, then description; most installed first; one row per mod name), Source link, Install (`claude plugin install <id> --scope user`, 3 min timeout); main installs only an id its last catalog offered (files: src/main/{mods,ipc}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/lib/mod-catalog.ts, src/renderer/components/ModsView.tsx, src/renderer/styles/base.css, tests/unit/mods.test.ts, tests/e2e/mods.spec.ts, tests/fixtures/fake-claude.sh, README.md)
+- [mods] Mods screen (top bar plug icon, palette): each claude account's installed mods from its own `claude plugin list --json`, enable/disable via `claude plugin enable|disable`, restart-panes note; main only toggles a row it listed itself (files: src/main/{mods,ipc}.ts, src/shared/{ipc-channels,ipc-contract}.ts, src/preload/index.ts, src/renderer/app/{store.ts,App.tsx}, src/renderer/components/{ModsView,TopBar,TitleBar,CommandPalette,icons}.tsx, src/renderer/styles/base.css)
+- [mods] Mod folders: `settings.modDirs` reach every claude pane as `CLAUDE_CODE_PLUGIN_DIRS` (absolute, appended to an inherited value, no repeats) (files: src/main/{pane-env,ipc}.ts, src/shared/{types,schema}.ts)
+- [terminal] Panes carry out what a mod asks the terminal for: OSC 52 copy (reads never answered), OSC 9 / 777 / 99 notifications as pane notifications (OSC 9;4 progress ignored) (files: src/renderer/lib/term-osc.ts, src/renderer/components/Terminal.tsx, src/renderer/app/store.ts)
+- [terminal] `settings.gpuTerminal` (off by default): visible panes draw with xterm's WebGL renderer for smooth mod animation, refit on switch, DOM renderer again on context loss; addon loads as its own chunk (files: src/renderer/components/Terminal.tsx, package.json)
+- [tests] Mod list parsing, toggle args, plugin-dirs env, OSC parsers; e2e Mods screen against a fake `claude plugin` (files: tests/unit/{mods,pane-env}.test.ts, tests/e2e/mods.spec.ts, tests/fixtures/fake-claude.sh)
+- [docs] README Mods section (files: README.md)
+
 ## 2026-10-08
 
 - [ui] Panel resize no longer stalls mid-drag: Chromium can drop the handle's pointer capture (reproduced under CPU load), so move/release are read on window; the release point sets the width; the dragged width stays applied after release instead of snapping back and re-animating (files: src/renderer/components/EdgeResizer.tsx)

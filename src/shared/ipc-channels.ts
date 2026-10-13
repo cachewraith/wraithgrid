@@ -29,5 +29,9 @@ export const IPC = {
   notifyPane: 'notify:pane',
   shellList: 'shell:list',
   paneReveal: 'pane:reveal',
-  clipboardImage: 'clipboard:image'
+  clipboardImage: 'clipboard:image',
+  modsList: 'mods:list',
+  modsSetEnabled: 'mods:setEnabled',
+  modsCatalog: 'mods:catalog',
+  modsInstall: 'mods:install'
 } as const
