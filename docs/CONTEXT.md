@@ -7,18 +7,18 @@ each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `g
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
-react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e). pnpm 11, Node ≥22.12.
+react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e). Bun 1.4 (package manager/script runner; tools run on Node), Node ≥22.12.
 
 ## Commands
-- `pnpm i` — install; rebuilds node-pty for Electron (allow electron/esbuild/node-pty builds)
-- `pnpm dev` — run with hot reload
-- `pnpm typecheck` — tsc over node + web projects
-- `pnpm lint` — ESLint + Prettier check (`pnpm format` to fix)
-- `pnpm test` — Vitest unit tests (`tests/unit`)
-- `pnpm test:e2e` — build, then Playwright (`tests/e2e`; needs a display, CI uses xvfb-run)
-- `pnpm build` — production build into `out/`
-- `pnpm dist:linux:portable` — Linux packages in Ubuntu 22.04 Docker; `pnpm dist:win` on Windows; `pnpm dist:mac` on a Mac
-- Release: `npm version <patch|minor|major> -m "chore: release %s" && git push --follow-tags`
+- `bun install` — install; rebuilds node-pty for Electron (`trustedDependencies`: electron/esbuild/node-pty; `bunfig.toml`: hoisted linker, 1-day minimumReleaseAge)
+- `bun run dev` — run with hot reload
+- `bun run typecheck` — tsc over node + web projects
+- `bun run lint` — ESLint + Prettier check (`bun run format` to fix)
+- `bun run test` — Vitest unit tests (`tests/unit`)
+- `bun run test:e2e` — build, then Playwright (`tests/e2e`; needs a display, CI uses xvfb-run)
+- `bun run build` — production build into `out/`
+- `bun run dist:linux:portable` — Linux packages in Ubuntu 22.04 Docker; `bun run dist:win` on Windows; `bun run dist:mac` on a Mac
+- Release: `bun pm version <patch|minor|major> -m "chore: release %s" && git push --follow-tags`
 
 ## Directory map
 - `src/main/index.ts`: app entry; window, PATH resolution, wires ConfigStore/PtyManager/IPC
@@ -92,9 +92,9 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
 - Popovers/menus must portal to <body>: sidebar sections animate opacity (own stacking context) and the sidebar clips.
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
-- `pnpm exec …` can hang in this environment; call `./node_modules/.bin/<tool>` directly.
+- Use `bun run <script>`, never bare `bun test` (that is Bun's own test runner, not Vitest). For one-off tools call `./node_modules/.bin/<tool>` directly.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
-- Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect pnpm's minimumReleaseAge (pin an older version rather than adding an exclude).
+- Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect `minimumReleaseAge` in bunfig.toml (pin an older version rather than adding an exclude).
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots.

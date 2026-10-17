@@ -47,7 +47,7 @@ Make the smallest diff that solves the problem, with no unrelated refactors.
 
 Match the surrounding file: Prettier with no semicolons and single quotes, `@shared` alias, a short
 file-top comment saying _why_ a new module exists, and the comment density nearby. Pin new dependencies
-to exact versions (respect pnpm `minimumReleaseAge`) and pin GitHub Actions by SHA. Testable renderer
+to exact versions (respect `minimumReleaseAge` in bunfig.toml) and pin GitHub Actions by SHA. Testable renderer
 logic goes in `src/renderer/lib/` because the node tsconfig can't import `.tsx`.
 
 ## Tests
@@ -60,13 +60,13 @@ logic goes in `src/renderer/lib/` because the node tsconfig can't import `.tsx`.
 
 ## Verify before saying done
 
-Run these with `./node_modules/.bin/…` where `pnpm exec` would be needed, because it can hang here:
+Run these through `bun run` (bare `bun test` is Bun's own runner, not Vitest):
 
 ```
-pnpm typecheck && pnpm lint && pnpm test
+bun run typecheck && bun run lint && bun run test
 ```
 
-Run `pnpm test:e2e` when UI changed and a display is available. Report real results, and quote the
+Run `bun run test:e2e` when UI changed and a display is available. Report real results, and quote the
 failure output if anything fails. Never claim a pass you didn't see.
 
 ## After every task (mandatory, per CLAUDE.md)

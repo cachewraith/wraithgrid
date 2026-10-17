@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-.pnpm-store/
 
 # Build output
 out/
@@ -27,7 +26,6 @@ coverage/
 # Logs and caches
 *.log
 npm-debug.log*
-pnpm-debug.log*
 .eslintcache
 .vite/
 

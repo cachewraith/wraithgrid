@@ -1,8 +1,7 @@
 out
 dist
 node_modules
-pnpm-lock.yaml
-pnpm-workspace.yaml
+bun.lock
 docs
 test-results
 playwright-report

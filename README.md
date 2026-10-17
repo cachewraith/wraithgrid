@@ -294,7 +294,8 @@ bar, or the command palette) covers the rest:
 
 **Requirements**
 
-- Node.js 22.12 or newer, and pnpm 11 (`corepack enable` picks the pinned version)
+- Node.js 22.12 or newer, and Bun 1.4 or newer (<https://bun.sh>); Bun installs and runs the
+  scripts, the tools themselves still run on Node
 - A C++ toolchain for the `node-pty` native module:
   - Arch: `sudo pacman -S --needed python make gcc`
   - Ubuntu, Debian, Kali: `sudo apt install python3 make g++`
@@ -305,15 +306,15 @@ bar, or the command palette) covers the rest:
   Ubuntu). The pacman package needs `bsdtar` (`libarchive-tools` on Ubuntu).
 
 ```sh
-pnpm i                      # installs deps and rebuilds node-pty for Electron
-pnpm dev                    # run with hot reload
-pnpm dist:linux:portable    # all Linux packages, built in Docker on Ubuntu 22.04
-pnpm dist:win               # Windows installer (run on Windows)
-pnpm dist:mac               # macOS .dmg and .zip, Apple Silicon and Intel (run on a Mac)
+bun install                    # installs deps and rebuilds node-pty for Electron
+bun run dev                    # run with hot reload
+bun run dist:linux:portable    # all Linux packages, built in Docker on Ubuntu 22.04
+bun run dist:win               # Windows installer (run on Windows)
+bun run dist:mac               # macOS .dmg and .zip, Apple Silicon and Intel (run on a Mac)
 ```
 
-If `pnpm i` asks you to approve build scripts, allow `electron`, `esbuild` and `node-pty`. The
-repository's `pnpm-workspace.yaml` already lists them under `allowBuilds`.
+Bun runs install scripts only for the packages in `trustedDependencies` in `package.json`
+(`electron`, `esbuild`, `node-pty`); `bunfig.toml` keeps a flat `node_modules` for electron-builder.
 
 <details>
 <summary><b>Why the portable build?</b></summary>
@@ -335,19 +336,19 @@ runner.
 
 <br />
 
-| Script                     | What it does                                                |
-| -------------------------- | ----------------------------------------------------------- |
-| `pnpm dev`                 | electron-vite dev server with the app                       |
-| `pnpm build`               | production build into `out/`                                |
-| `pnpm typecheck`           | `tsc` over the main/preload and renderer projects           |
-| `pnpm lint`                | ESLint and a Prettier check                                 |
-| `pnpm test`                | Vitest unit tests                                           |
-| `pnpm test:e2e`            | builds, then runs the Playwright Electron smoke test        |
-| `pnpm dist`                | packages for the current OS                                 |
-| `pnpm dist:linux`          | AppImage, .deb, .rpm and pacman package, on this machine    |
-| `pnpm dist:linux:portable` | the same, built in an Ubuntu 22.04 container (needs Docker) |
-| `pnpm dist:win`            | NSIS installer for Windows                                  |
-| `pnpm dist:mac`            | .dmg and .zip for macOS, arm64 and x64 (run on a Mac)       |
+| Script                        | What it does                                                |
+| ----------------------------- | ----------------------------------------------------------- |
+| `bun run dev`                 | electron-vite dev server with the app                       |
+| `bun run build`               | production build into `out/`                                |
+| `bun run typecheck`           | `tsc` over the main/preload and renderer projects           |
+| `bun run lint`                | ESLint and a Prettier check                                 |
+| `bun run test`                | Vitest unit tests                                           |
+| `bun run test:e2e`            | builds, then runs the Playwright Electron smoke test        |
+| `bun run dist`                | packages for the current OS                                 |
+| `bun run dist:linux`          | AppImage, .deb, .rpm and pacman package, on this machine    |
+| `bun run dist:linux:portable` | the same, built in an Ubuntu 22.04 container (needs Docker) |
+| `bun run dist:win`            | NSIS installer for Windows                                  |
+| `bun run dist:mac`            | .dmg and .zip for macOS, arm64 and x64 (run on a Mac)       |
 
 </details>
 
@@ -362,7 +363,7 @@ workflow checks that the tag matches `package.json`, runs the tests, builds the 
 `SHA256SUMS.txt` to the release.
 
 ```sh
-npm version patch -m "chore: release %s"   # or minor / major; bumps package.json, commits, tags v1.0.1
+bun pm version patch -m "chore: release %s"   # or minor / major; bumps package.json, commits, tags v1.0.1
 git push --follow-tags
 ```
 
