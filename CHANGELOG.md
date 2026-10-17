@@ -2,6 +2,7 @@
 
 ## 2026-10-17
 
+- [docs] TODO: "Herdr parity" plan H1–H8 (agents survive quit, resume, more CLIs, status for every CLI, SSH machines, CLI/API, attach, easier install) (files: docs/TODO.md)
 - [ai] Project subagents: wraithgrid-engineer (builds features per the working agreement), wraithgrid-reviewer (read-only pre-merge review: IPC boundary, cross-platform, tests, docs), wraithgrid-bug-hunter (report → repro test → root cause → fix + reply draft) (files: .claude/agents/{wraithgrid-engineer,wraithgrid-reviewer,wraithgrid-bug-hunter}.md, docs/CONTEXT.md)
 
 ## 2026-10-13

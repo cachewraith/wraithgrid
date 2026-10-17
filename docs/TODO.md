@@ -23,6 +23,17 @@
 - Changes panel: commit / push / open PR actions (T3's one-button flow), with a confirm step
 - Worktrees: remove one when its pane closes (ask first; it may hold uncommitted work)
 
+## Herdr parity (planned 2026-10-17)
+Gaps vs herdr.dev, in build order. Keep our edge (many accounts per CLI, GUI, git review); these close theirs.
+- H1 Agents survive quitting: move node-pty into a background pty host process; the GUI attaches over a local socket and replays scrollback on reconnect. Quit menu: "Close window (agents keep running)" vs "Quit and stop agents"; tray icon while detached. ADR first (process model, socket auth, upgrade with live panes). Blocks H5–H7
+- H2 Resume conversations on restart: restored panes start the CLI with its resume flag (claude `--continue`) when the pane had one; per-pane toggle
+- H3 More agent CLIs: per-CLI registry (binary, config-dir env var, image paste format, status patterns, new-line key) replacing the claude/gemini/agy branches; add Codex (`CODEX_HOME`), opencode, Cursor agent, Copilot CLI; check each one's per-account isolation before promising multi-account
+- H4 Status for every CLI: working / blocked / done / idle (add "done"), patterns per registry entry, fixtures from real output; covers the gemini/agy item in Now
+- H5 Remote machines over SSH: run the pty host on another machine, add it in Settings (host from `~/.ssh/config`), its workspaces and panes in the sidebar; panes keep running when disconnected. Needs H1
+- H6 CLI + local API: `wraithgrid list | read <pane> | send <pane> <text> | wait <pane> --until blocked|idle | split | new`; opt-in, user-only socket permissions, no network listener; lets agents start and prompt each other. Needs H1
+- H7 Attach one pane from any terminal: `wraithgrid attach <pane>` (plain tty, works over SSH). Needs H1 + H6
+- H8 Easier install: Homebrew cask, winget, AUR, one-line install script with checksum check
+
 ## Later
 - Settings path overrides for gemini/agy binaries (claude has one); `agy` per-account isolation if it gains a config-dir variable
 - Chat-style pane (`claude -p --output-format stream-json`): rejected for now (2026-10-05), revisit if asked
