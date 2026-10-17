@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17
+
+- [ai] Project subagents: wraithgrid-engineer (builds features per the working agreement), wraithgrid-reviewer (read-only pre-merge review: IPC boundary, cross-platform, tests, docs), wraithgrid-bug-hunter (report → repro test → root cause → fix + reply draft) (files: .claude/agents/{wraithgrid-engineer,wraithgrid-reviewer,wraithgrid-bug-hunter}.md, docs/CONTEXT.md)
+
 ## 2026-10-13
 
 - [release] v1.8.0: one mod list for all claude accounts (install and switch everywhere at once), mod names open their repository, claudemod.com as a Browse source (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
