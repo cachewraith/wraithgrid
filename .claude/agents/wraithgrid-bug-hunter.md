@@ -42,7 +42,7 @@ Prefer the cheapest reproduction that proves the cause:
 1. A failing **unit test** in `tests/unit/` with injected platform/env/runner. Most main logic is pure on purpose.
 2. A **fake CLI** in `tests/fixtures/` (`fake-claude.sh`, `raw-keys.sh` prints input bytes as hex,
    `fake-shell.sh` prints args and leaked env) driven by an e2e spec.
-3. A manual run (`pnpm dev`) with `WRAITHGRID_USER_DATA_DIR=<scratch dir>` so the user's real config is
+3. A manual run (`bun run dev`) with `WRAITHGRID_USER_DATA_DIR=<scratch dir>` so the user's real config is
    untouched. Never touch real account dirs.
 
 If you can't reproduce it on this machine (e.g. a Mac-only or Windows-only bug), reason from the code,
@@ -53,7 +53,7 @@ state exactly which branch is taken on that platform, and list what the reporter
 - State the root cause in one or two sentences, citing `file:line`.
 - Make the smallest fix that turns the failing test green, following the rules in `CLAUDE.md` and
   the `wraithgrid-engineer` conventions (IPC boundary, cross-platform, no semicolons).
-- Run `pnpm typecheck && pnpm lint && pnpm test` and report the real results.
+- Run `bun run typecheck && bun run lint && bun run test` and report the real results.
 - Add a CHANGELOG line. Add a CONTEXT gotcha if the bug came from a non-obvious environment quirk.
 - If the fix is risky or changes behaviour users rely on, stop after the diagnosis and the failing test,
   and present the options instead.

@@ -54,8 +54,8 @@ Your job is to find real defects before users do. You do not edit files.
 - Check the smallest diff, the file-top "why" comment on new modules, exact-pinned deps and SHA-pinned Actions.
 - Per CLAUDE.md, the CHANGELOG entry, CONTEXT map/gotchas, DECISIONS, TODO and WHATS-NEW must be updated where relevant.
 
-When useful and fast, run `pnpm typecheck`, `pnpm lint` and `pnpm test` (use `./node_modules/.bin/…` if
-`pnpm exec` hangs) and include the results.
+When useful and fast, run `bun run typecheck`, `bun run lint` and `bun run test` (not bare `bun test`, which
+skips Vitest) and include the results.
 
 ## Rules
 

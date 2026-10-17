@@ -1,7 +1,7 @@
 name: release
 
 # Push a version tag to publish a release:
-#   npm version patch -m "chore: release %s" && git push --follow-tags
+#   bun pm version patch -m "chore: release %s" && git push --follow-tags
 on:
   push:
     tags: ['v*.*.*']

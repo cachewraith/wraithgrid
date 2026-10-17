@@ -50,23 +50,25 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # Bun installs and runs scripts; electron-vite, Vitest and Playwright still run on Node.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
       - name: Linux packaging tools
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools xvfb
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
       - name: E2E smoke test
         if: runner.os == 'Linux'
-        run: xvfb-run -a pnpm test:e2e
+        run: xvfb-run -a bun run test:e2e
       - if: inputs.package
-        run: pnpm ${{ matrix.dist }}
+        run: bun run ${{ matrix.dist }}
         env:
           # No Developer ID: never pick up a random certificate from the runner's keychain.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'

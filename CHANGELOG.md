@@ -2,6 +2,7 @@
 
 ## 2026-10-17
 
+- [build] Package manager pnpm → Bun 1.4.3: `bun.lock` migrated from pnpm-lock (same versions), `trustedDependencies` replaces `allowBuilds`, `bunfig.toml` keeps hoisted linker + 1-day minimumReleaseAge; CI uses oven-sh/setup-bun (Node still runs the tools), Docker Linux build installs Bun; release via `bun pm version` (files: package.json, bunfig.toml, bun.lock, pnpm-lock.yaml, pnpm-workspace.yaml, .github/workflows/{build,release}.yml, scripts/dist-linux-docker.sh, .gitignore, .prettierignore, README.md, docs/CONTEXT.md, .claude/agents/*.md)
 - [docs] TODO: "Herdr parity" plan H1–H8 (agents survive quit, resume, more CLIs, status for every CLI, SSH machines, CLI/API, attach, easier install) (files: docs/TODO.md)
 - [ai] Project subagents: wraithgrid-engineer (builds features per the working agreement), wraithgrid-reviewer (read-only pre-merge review: IPC boundary, cross-platform, tests, docs), wraithgrid-bug-hunter (report → repro test → root cause → fix + reply draft) (files: .claude/agents/{wraithgrid-engineer,wraithgrid-reviewer,wraithgrid-bug-hunter}.md, docs/CONTEXT.md)
 
