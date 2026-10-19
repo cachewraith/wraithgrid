@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import { contractHome, slugify } from '@shared/paths'
-import {
-  ACCOUNT_COLORS,
-  AGENT_CLIS,
-  AGENT_CLI_LABEL,
-  type Account,
-  type AgentCli
-} from '@shared/types'
+import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
+import { ACCOUNT_COLORS, type Account } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
 import { nextFreeColor } from '../app/store'
 import { IconPicker } from './IconPicker'
@@ -55,7 +50,7 @@ function AddAccountForm() {
           className="seg"
           role="radiogroup"
           aria-labelledby="acc-cli"
-          style={{ width: 'max-content' }}
+          style={{ width: 'max-content', maxWidth: '100%', flexWrap: 'wrap' }}
         >
           {AGENT_CLIS.map((c) => (
             <button
@@ -125,22 +120,7 @@ function AddAccountForm() {
         </div>
       </div>
       <div className="note">
-        {cli === 'claude' ? (
-          <span>
-            After saving, use <b>Login</b> to open a pane running <code>claude</code> under this
-            account and run <code>/login</code> there.
-          </span>
-        ) : cli === 'gemini' ? (
-          <span>
-            Panes run <code>gemini</code> with <code>GEMINI_CLI_HOME</code> set to this config dir;
-            it asks you to sign in on first launch.
-          </span>
-        ) : (
-          <span>
-            Panes run <code>agy</code>. It keeps its sign-in in the system keyring, so every
-            Antigravity account on this machine uses the same Google login; it asks on first launch.
-          </span>
-        )}
+        <span>{AGENT_CLI_SPECS[cli].note}</span>
       </div>
       <div className="form-acts">
         <button type="button" className="btn gh" onClick={() => actions.setAccountsMode('list')}>

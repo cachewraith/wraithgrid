@@ -8,9 +8,15 @@ import {
   BRANCH_PATTERN,
   DIFF_MAX_BYTES,
   addWorktree,
+  checkWorktree,
+  commitAll,
   gitDiff,
   gitStatus,
   parseStatus,
+  pullRequestLink,
+  pullRequestUrl,
+  pushBranch,
+  removeWorktree,
   worktreeDir,
   type GitRunner
 } from '../../src/main/git'
@@ -141,6 +147,83 @@ describe('with a real repository', () => {
     const again = await addWorktree(realGit, dir, 'feat/x', wt)
     expect(again.ok).toBe(false)
     expect(!again.ok && again.error).toMatch(/already exists/)
+  })
+
+  it('commits everything, then pushes the branch with an upstream on the first push', async () => {
+    expect(await commitAll(realGit, dir, '  ')).toEqual({
+      ok: false,
+      error: 'Write a commit message first.'
+    })
+    expect(await pushBranch(realGit, dir)).toEqual({
+      ok: false,
+      error: 'This repository has no remote to push to.'
+    })
+    await writeFile(path.join(dir, 'a.txt'), 'two\n')
+    await writeFile(path.join(dir, 'b.txt'), 'b\n')
+    const c = await commitAll(realGit, dir, 'feat: two files')
+    expect(c.ok && c.detail).toMatch(/^Committed [0-9a-f]+$/)
+    expect((await gitStatus(realGit, dir)).changed).toBe(0)
+    expect((await realGit(['log', '-1', '--format=%s'], dir)).trim()).toBe('feat: two files')
+
+    const bare = path.join(wt, 'remote.git')
+    await realGit(['init', '-q', '--bare', bare], wt)
+    await realGit(['remote', 'add', 'origin', bare], dir)
+    expect(await pushBranch(realGit, dir)).toEqual({ ok: true, detail: 'Pushed main to origin' })
+    await writeFile(path.join(dir, 'c.txt'), 'c\n')
+    await commitAll(realGit, dir, 'more')
+    expect(await pushBranch(realGit, dir)).toEqual({ ok: true, detail: 'Pushed main' })
+    expect((await realGit(['log', '-1', '--format=%s', 'main'], bare)).trim()).toBe('more')
+
+    // The remote is a local folder, not GitHub or GitLab.
+    expect(await pullRequestLink(realGit, dir)).toEqual({
+      ok: false,
+      error: 'Pull requests open for GitHub and GitLab remotes only.'
+    })
+  })
+
+  it('removes only linked worktrees, and dirty ones only when forced', async () => {
+    expect(await checkWorktree(realGit, dir)).toEqual({
+      ok: false,
+      error: 'Not a linked worktree.'
+    })
+    const r = await addWorktree(realGit, dir, 'feat/y', wt)
+    if (!r.ok) throw new Error(r.error)
+    expect(await checkWorktree(realGit, r.dir)).toEqual({
+      ok: true,
+      branch: 'feat/y',
+      changed: 0,
+      mainRoot: dir
+    })
+    await writeFile(path.join(r.dir, 'wip.txt'), 'w\n')
+    const refused = await removeWorktree(realGit, r.dir, false)
+    expect(refused.ok).toBe(false)
+    expect(!refused.ok && refused.error).toMatch(/^1 uncommitted files/)
+    expect(await removeWorktree(realGit, r.dir, true)).toEqual({
+      ok: true,
+      detail: 'Kept branch feat/y'
+    })
+    expect((await realGit(['worktree', 'list'], dir)).split('\n').filter(Boolean)).toHaveLength(1)
+    // The branch stays.
+    expect((await realGit(['branch', '--list', 'feat/y'], dir)).trim()).toBe('feat/y')
+  })
+})
+
+describe('pullRequestUrl', () => {
+  it('builds GitHub and GitLab pages from https and ssh remotes', () => {
+    expect(pullRequestUrl('git@github.com:acme/app.git', 'feat/x')).toBe(
+      'https://github.com/acme/app/compare/feat%2Fx?expand=1'
+    )
+    expect(pullRequestUrl('https://github.com/acme/app', 'b')).toBe(
+      'https://github.com/acme/app/compare/b?expand=1'
+    )
+    expect(pullRequestUrl('https://token@github.com/acme/app.git\n', 'b')).toBe(
+      'https://github.com/acme/app/compare/b?expand=1'
+    )
+    expect(pullRequestUrl('ssh://git@gitlab.com/group/sub/app.git', 'b')).toBe(
+      'https://gitlab.com/group/sub/app/-/merge_requests/new?merge_request%5Bsource_branch%5D=b'
+    )
+    expect(pullRequestUrl('https://example.com/acme/app.git', 'b')).toBeNull()
+    expect(pullRequestUrl('https://github.com.evil.io/acme/app', 'b')).toBeNull()
   })
 })
 

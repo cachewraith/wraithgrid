@@ -128,7 +128,7 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
     await expect(win.getByText('2 mods, most installed first')).toBeVisible()
     await search.fill('clock')
     await expect(win.getByText('1 mod found')).toBeVisible()
-    await win.getByRole('button', { name: 'Install clock' }).click()
+    await win.getByRole('button', { name: 'Install clock', exact: true }).click()
     await expect.poll(calls).toContain('plugin install clock@acme --scope user')
     await expect.poll(workCalls).toContain('plugin marketplace add acme/mods')
     await expect.poll(workCalls).toContain('plugin install clock@acme --scope user')
@@ -139,7 +139,28 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
       'aria-checked',
       'true'
     )
-    await expect(win.getByRole('button', { name: 'Install clock' })).toHaveCount(0)
+    await expect(win.getByRole('button', { name: 'Install clock', exact: true })).toHaveCount(0)
+
+    // Update and uninstall reach every account that has the mod; uninstall asks twice.
+    await win.getByRole('button', { name: 'Update clock' }).click()
+    await expect.poll(calls).toContain('plugin update clock@acme --scope user')
+    await expect.poll(workCalls).toContain('plugin update clock@acme --scope user')
+    await win.getByRole('button', { name: 'Uninstall clock' }).click()
+    await win.getByRole('button', { name: 'Confirm uninstall clock' }).click()
+    await expect.poll(calls).toContain('plugin uninstall clock@acme --scope user')
+    await expect.poll(workCalls).toContain('plugin uninstall clock@acme --scope user')
+    await expect(win.getByRole('switch', { name: 'clock enabled' })).toHaveCount(0)
+
+    // Marketplaces: one list for all accounts; add and remove go to each of them.
+    const markets = win.getByRole('list', { name: 'Marketplaces' })
+    await expect(markets.getByText('all 2 accounts')).toBeVisible()
+    await win.getByRole('textbox', { name: 'Marketplace to add' }).fill('acme/extra')
+    await win.getByRole('button', { name: 'Add marketplace' }).click()
+    await expect.poll(calls).toContain('plugin marketplace add acme/extra')
+    await expect.poll(workCalls).toContain('plugin marketplace add acme/extra')
+    await win.getByRole('button', { name: 'Remove marketplace acme' }).click()
+    await win.getByRole('button', { name: 'Confirm remove acme' }).click()
+    await expect.poll(workCalls).toContain('plugin marketplace remove acme')
 
     // GPU drawing is a saved setting; the pane keeps a screen either way.
     await win.getByRole('switch', { name: 'Draw panes with the GPU' }).click()

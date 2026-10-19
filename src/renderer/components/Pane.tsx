@@ -1,10 +1,13 @@
 import { Component, memo, useCallback, useRef, useState, type ReactNode } from 'react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { contractHome, expandHome } from '@shared/paths'
+import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { DENSE_FONT_SIZE, PANE_STATUS_LABEL } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { accountById, findPane } from '../app/store'
 import type { Rect } from '../layout/focus'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
+import { IconCheck, IconClose, IconRestart } from './icons'
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
@@ -58,6 +61,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const git = useApp((s) => s.git[paneId])
   const actions = useActions()
   const [bannerHidden, setBannerHidden] = useState(false)
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
 
   const drop = useDroppable({ id: paneId, disabled: dragDisabled })
   const drag = useDraggable({ id: paneId, disabled: dragDisabled })
@@ -80,7 +84,9 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   if (!pane) return null
   const status = rt?.status ?? 'starting'
   const exited = !!rt?.exit
-  const command = pane.shell ? 'shell' : 'claude'
+  const cli = account?.cli ?? 'claude'
+  const command = pane.shell ? 'shell' : AGENT_CLI_SPECS[cli].bin
+  const canResume = !pane.shell && !!AGENT_CLI_SPECS[cli].resumeArgs
   const cwd = contractHome(expandHome(pane.cwd, home), home)
   const loginNeeded = !pane.shell && !!account && !account.signedIn && !exited
   const compact = !!rect && rect.width < 460
@@ -127,6 +133,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           actions.focusPane(paneId)
           actions.toggleDiff(true)
         }}
+        onMenu={(e) => setMenu(menuPoint(e))}
       />
       <div
         className={`term-host${dense ? ' sm' : ''}${zoomed ? ' lg' : ''}${exited ? ' dim' : ''}`}
@@ -159,6 +166,37 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           exit={rt.exit}
           command={command}
           onRestart={() => actions.restartPane(paneId)}
+        />
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          label={`Pane ${pane.title}`}
+          onClose={() => setMenu(null)}
+          items={[
+            ...(canResume
+              ? [
+                  {
+                    label: pane.resume
+                      ? 'Continue conversation on restore: on'
+                      : 'Continue conversation on restore: off',
+                    icon: pane.resume ? <IconCheck small /> : undefined,
+                    onSelect: () => actions.setPaneResume(paneId, !pane.resume)
+                  }
+                ]
+              : []),
+            {
+              label: 'Restart',
+              icon: <IconRestart small />,
+              onSelect: () => actions.restartPane(paneId)
+            },
+            {
+              label: 'Close pane',
+              icon: <IconClose small />,
+              danger: true,
+              onSelect: () => actions.closePane(paneId)
+            }
+          ]}
         />
       ) : null}
       {closing ? (

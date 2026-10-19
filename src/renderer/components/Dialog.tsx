@@ -33,6 +33,24 @@ export function Dialog({
     return () => previous?.focus?.()
   }, [])
 
+  // Focus can fall out of the dialog (a button disabled while busy drops it to <body>);
+  // Esc must still close it then.
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      // Only when focus is nowhere: a portaled popover above the dialog handles its own Esc.
+      const lost = !document.activeElement || document.activeElement === document.body
+      if (e.key !== 'Escape' || e.defaultPrevented || !lost) return
+      e.preventDefault()
+      closeRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const onKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.stopPropagation()

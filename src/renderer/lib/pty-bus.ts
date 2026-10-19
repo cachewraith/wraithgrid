@@ -1,6 +1,6 @@
 import type { PtyExitEvent, WraithApi } from '@shared/ipc-contract'
 import { stripAnsi } from './ansi'
-import { APPROVAL_PATTERN, ECHO_WINDOW_MS, LOGIN_PATTERN, type PaneActivity } from './status'
+import { ECHO_WINDOW_MS, LOGIN_PATTERN, type PaneActivity } from './status'
 
 type Sink = (data: string) => void
 
@@ -20,6 +20,8 @@ export class PtyBus {
   private readonly pending = new Map<string, string>()
   private readonly tracks = new Map<string, PaneTrack>()
   private readonly sizes = new Map<string, { cols: number; rows: number }>()
+  /** Each agent pane's "waiting for approval" output (its CLI's); shell panes have none. */
+  private readonly approval = new Map<string, RegExp>()
   private readonly exitListeners = new Set<(e: PtyExitEvent) => void>()
   private readonly loginListeners = new Set<(paneId: string) => void>()
   private unsubscribe: (() => void)[] = []
@@ -79,6 +81,12 @@ export class PtyBus {
     this.sizes.set(paneId, { cols, rows })
   }
 
+  /** Sets what output means "needs approval" for this pane's CLI; null for a shell. */
+  setApprovalPattern(paneId: string, pattern: RegExp | null): void {
+    if (pattern) this.approval.set(paneId, pattern)
+    else this.approval.delete(paneId)
+  }
+
   activity(paneId: string): PaneActivity | undefined {
     return this.tracks.get(paneId)
   }
@@ -97,6 +105,7 @@ export class PtyBus {
     this.pending.delete(paneId)
     this.tracks.delete(paneId)
     this.sizes.delete(paneId)
+    this.approval.delete(paneId)
   }
 
   onExit(cb: (e: PtyExitEvent) => void): () => void {
@@ -134,7 +143,7 @@ export class PtyBus {
     if (!text) return
     const window = t.tail.slice(-200) + text
     t.tail = (t.tail + text).slice(-TAIL_MAX)
-    if (APPROVAL_PATTERN.test(window)) t.approvalAt = now
+    if (this.approval.get(paneId)?.test(window)) t.approvalAt = now
     if (LOGIN_PATTERN.test(window)) this.loginListeners.forEach((cb) => cb(paneId))
   }
 }

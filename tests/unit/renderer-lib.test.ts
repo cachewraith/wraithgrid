@@ -2,12 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome, expandHome, slugify } from '@shared/paths'
 import { stripAnsi } from '../../src/renderer/lib/ansi'
-import {
-  APPROVAL_PATTERN,
-  LOGIN_PATTERN,
-  deriveStatus,
-  lastErrorLine
-} from '../../src/renderer/lib/status'
+import { AGENT_CLI_SPECS } from '@shared/agent-clis'
+import { LOGIN_PATTERN, deriveStatus, lastErrorLine } from '../../src/renderer/lib/status'
 
 describe('launch args', () => {
   it('splits like a shell without expanding anything', () => {
@@ -59,8 +55,9 @@ describe('pane status', () => {
   })
 
   it('recognizes prompts and login lines in terminal output', () => {
-    expect(APPROVAL_PATTERN.test(stripAnsi('\x1b[1mDo you want to proceed?\x1b[0m'))).toBe(true)
-    expect(APPROVAL_PATTERN.test('Do you want to make this edit to auth.ts?')).toBe(true)
+    const approval = AGENT_CLI_SPECS.claude.approval
+    expect(approval.test(stripAnsi('\x1b[1mDo you want to proceed?\x1b[0m'))).toBe(true)
+    expect(approval.test('Do you want to make this edit to auth.ts?')).toBe(true)
     expect(LOGIN_PATTERN.test('Login successful. Press Enter to continue')).toBe(true)
     expect(LOGIN_PATTERN.test('Logged in as someone@example.com')).toBe(true)
     expect(LOGIN_PATTERN.test('Not logged in. Run /login')).toBe(false)

@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome } from '@shared/paths'
-import { AGENT_CLI_LABEL, type AgentCli } from '@shared/types'
+import { AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import { AccountIcon } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { Dialog } from './Dialog'
 import { IconCheck, IconClose, IconFolder } from './icons'
 
-/** How the preview shows each CLI's config dir variable (agy has none). */
-const CLI_ENV_PREFIX: Record<AgentCli, (dir: string) => string> = {
-  claude: (dir) => `CLAUDE_CONFIG_DIR=${dir} `,
-  gemini: (dir) => `GEMINI_CLI_HOME=${dir} `,
-  agy: () => ''
+/** How the preview shows the CLI's config dir variable (some CLIs have none). */
+const cliEnvPrefix = (cli: AgentCli, dir: string): string => {
+  const v = AGENT_CLI_SPECS[cli].configDirVar
+  return v ? `${v}=${dir} ` : ''
 }
 
 export function NewPaneDialog({ slotId }: { slotId: string | null }) {
@@ -48,7 +47,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const runIn = worktree && branch.trim() ? `~/.wraithgrid/worktrees/…/${branch.trim()}` : folder
   const willRun = shell
     ? `cd ${folder || '<folder>'} && ${shellName}`
-    : `${CLI_ENV_PREFIX[cli](account?.configDir ?? '<account>')}${cli}${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
+    : `${cliEnvPrefix(cli, account?.configDir ?? '<account>')}${AGENT_CLI_SPECS[cli].bin}${args.length ? ` ${formatArgs(args)}` : ''}   (in ${runIn || '<folder>'})`
 
   const browse = async (): Promise<void> => {
     const picked = await api.dialog.pickFolder(folder || settings.defaultCwd)

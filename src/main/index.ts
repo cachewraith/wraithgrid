@@ -231,14 +231,14 @@ function showPaneNotice(paneId: string, title: string, body: string): void {
  * git without a shell. Optional locks off: status polling must never take index.lock
  * while claude is committing in the same repo. No prompts: a credential ask would hang.
  */
-const runGit: GitRunner = (args, cwd) =>
+const runGit: GitRunner = (args, cwd, opts) =>
   new Promise((resolve, reject) => {
     execFile(
       'git',
       args,
       {
         cwd,
-        timeout: 15_000,
+        timeout: opts?.slow ? 180_000 : 15_000,
         maxBuffer: 8 * 1024 * 1024,
         windowsHide: true,
         env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }

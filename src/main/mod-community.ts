@@ -1,6 +1,7 @@
 // claudemod.com is a community list of mods, each with its GitHub repository. The site has
 // no API: the list is read from its browse page, and what can be installed is read from each
-// repository's own marketplace file. Nothing here is trusted: every repository, marketplace
+// repository's own marketplace file; a repository that is a bare plugin (only
+// `.claude-plugin/plugin.json`) is offered for download into a mod folder instead. Nothing here is trusted: every repository, marketplace
 // and mod name is checked before it can reach a `claude plugin` command.
 import { z } from 'zod'
 import type { CatalogMod } from '@shared/ipc-contract'
@@ -99,9 +100,38 @@ export function communityMod(
       version: plugin.version ?? null,
       installs: null,
       stars: entry.stars,
+      clone: null,
       url
     },
     marketplace: { name: market, url, add: entry.repo }
+  }
+}
+
+const pluginManifest = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().nullish().catch(null),
+  version: z.string().max(64).nullish().catch(null)
+})
+
+/**
+ * The catalog row for a site entry whose repository is one bare plugin: downloaded into a mod
+ * folder, since there is no marketplace for `claude plugin install` to take it from.
+ */
+export function communityPlugin(entry: CommunityEntry, pluginJson: unknown): CatalogMod | null {
+  const parsed = pluginManifest.safeParse(pluginJson)
+  if (!parsed.success || !NAME.test(parsed.data.name)) return null
+  const { name, description, version } = parsed.data
+  return {
+    // Not an install id: `@folder` marks a mod that lives in a mod folder.
+    id: `${name}@folder`,
+    name,
+    description: (description ?? '').replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_MAX),
+    marketplace: 'mod folder',
+    version: version ?? null,
+    installs: null,
+    stars: entry.stars,
+    clone: entry.repo,
+    url: `https://github.com/${entry.repo}`
   }
 }
 
@@ -141,16 +171,21 @@ export class CommunityCatalog {
     if (page === null) throw new Error('Could not reach claudemod.com. Check your connection.')
     const entries = parseCommunityPage(page)
     if (entries.length === 0) throw new Error('claudemod.com listed no mods Wraithgrid can read.')
-    const found: ({ mod: CatalogMod; marketplace: Marketplace } | null)[] = []
+    const found: ({ mod: CatalogMod; marketplace: Marketplace | null } | null)[] = []
     for (let i = 0; i < entries.length; i += PARALLEL) {
       const batch = entries.slice(i, i + PARALLEL).map(async (entry) => {
-        try {
-          const text = await fetchText(
+        const raw = (file: string): Promise<string | null> =>
+          fetchText(
             this.fetch,
-            `https://raw.githubusercontent.com/${entry.repo}/HEAD/.claude-plugin/marketplace.json`,
+            `https://raw.githubusercontent.com/${entry.repo}/HEAD/.claude-plugin/${file}`,
             MAX_MANIFEST_BYTES
-          )
-          return text === null ? null : communityMod(entry, JSON.parse(text))
+          ).catch(() => null)
+        try {
+          const text = await raw('marketplace.json')
+          if (text !== null) return communityMod(entry, JSON.parse(text))
+          const plugin = await raw('plugin.json')
+          const mod = plugin === null ? null : communityPlugin(entry, JSON.parse(plugin))
+          return mod ? { mod, marketplace: null } : null
         } catch {
           return null
         }
@@ -158,7 +193,10 @@ export class CommunityCatalog {
       found.push(...(await Promise.all(batch)))
     }
     const ok = found.flatMap((f) => (f ? [f] : []))
-    const value = { mods: ok.map((f) => f.mod), marketplaces: ok.map((f) => f.marketplace) }
+    const value = {
+      mods: ok.map((f) => f.mod),
+      marketplaces: ok.flatMap((f) => (f.marketplace ? [f.marketplace] : []))
+    }
     this.last = { at: this.now(), value }
     return value
   }

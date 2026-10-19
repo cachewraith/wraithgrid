@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AccountsView, RemoveAccountDialog } from '../components/AccountsView'
 import { CommandPalette } from '../components/CommandPalette'
+import { RemoveWorktreeDialog } from '../components/RemoveWorktreeDialog'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
@@ -131,6 +132,8 @@ function Modals() {
       return <RemoveAccountDialog accountId={modal.accountId} />
     case 'palette':
       return <CommandPalette />
+    case 'removeWorktree':
+      return <RemoveWorktreeDialog cwd={modal.cwd} title={modal.title} />
   }
 }
 

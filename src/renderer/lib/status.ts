@@ -21,8 +21,6 @@ export const RUNNING_WINDOW_MS = 1200
 /** Output this soon after a keypress is treated as echo, not work. */
 export const ECHO_WINDOW_MS = 250
 
-export const APPROVAL_PATTERN =
-  /Do you want to (?:proceed|make this edit|create|allow|run)[^\n]{0,160}\?/i
 export const LOGIN_PATTERN = /login successful|logged in as/i
 
 export function deriveStatus({

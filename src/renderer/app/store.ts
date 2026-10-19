@@ -11,6 +11,7 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
+import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { ICON_MAX } from '@shared/icons'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
@@ -45,6 +46,7 @@ import type { PtyBus } from '../lib/pty-bus'
 import type { RectRegistry } from '../lib/scheduling'
 import { StaggeredQueue } from '../lib/scheduling'
 import { deriveStatus, lastErrorLine } from '../lib/status'
+import { setShortcutBindings } from './shortcuts'
 
 export interface ExitInfo {
   code: number
@@ -75,6 +77,7 @@ export type Modal =
   | { kind: 'workspaces' }
   | { kind: 'removeAccount'; accountId: string }
   | { kind: 'palette' }
+  | { kind: 'removeWorktree'; cwd: string; title: string }
 
 export interface NewPaneInput {
   accountId: string | null
@@ -127,6 +130,10 @@ export interface AppState {
   closePane(paneId: string, force?: boolean): void
   cancelClose(): void
   restartPane(paneId: string): void
+  /** Notes that a prompt was sent to an agent pane, so a restore can continue it. */
+  markConversation(paneId: string): void
+  /** The per-pane "continue the conversation on restore" toggle. */
+  setPaneResume(paneId: string, resume: boolean): void
   focusPane(paneId: string | null): void
   focusDirection(dir: Direction): void
   toggleZoom(paneId?: string): void
@@ -294,6 +301,11 @@ export function normalizeWorkspaces(config: Config): Config {
   }
 }
 
+/** A folder Wraithgrid made with "Work on a new branch" (main saves them home-relative). */
+export function isWorktreeCwd(cwd: string): boolean {
+  return cwd.replace(/\\/g, '/').startsWith('~/.wraithgrid/worktrees/')
+}
+
 const RESTART_MARK = (t: Date): string =>
   `\r\n\x1b[2m— restarted ${t.toTimeString().slice(0, 5)} —\x1b[0m\r\n`
 
@@ -309,6 +321,10 @@ export function createAppStore({
   const startQueue = new StaggeredQueue(150, now)
   /** When each pane last started running, to tell real work from a brief redraw. */
   const runningSince = new Map<string, number>()
+  /** Panes started at least once since launch (created here, or restored and started). */
+  const spawned = new Set<string>()
+  /** When each pane's last unseen run ended (its "done" status). */
+  const doneAt = new Map<string, number>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -317,17 +333,35 @@ export function createAppStore({
       set({ runtime: { ...get().runtime, [paneId]: { ...cur, ...patch } } })
     }
 
+    /** Changes one pane's saved fields, wherever its workspace is. */
+    const patchPane = (paneId: string, patch: Partial<Pane>): void => {
+      const found = findPane(get().config, paneId)
+      if (!found) return
+      get().updateConfig((c) =>
+        withWorkspace(c, found.ws.id, (w) => ({
+          ...w,
+          panes: w.panes.map((p) => (p.id === paneId ? { ...p, ...patch } : p))
+        }))
+      )
+    }
+
     const spawn = async (paneId: string): Promise<void> => {
       const found = findPane(get().config, paneId)
       if (!found) return
       const { pane } = found
       const { cols, rows } = bus.size(paneId)
+      // Only a pane's first start after launch resumes; a restart or a new pane starts fresh.
+      const restored = !spawned.has(paneId)
+      spawned.add(paneId)
+      const cli = accountById(get().config, pane.accountId)?.cli ?? 'claude'
+      bus.setApprovalPattern(paneId, pane.shell ? null : AGENT_CLI_SPECS[cli].approval)
       const res = await api.pty.create({
         paneId,
         accountId: pane.shell ? null : pane.accountId,
         cwd: pane.cwd,
         args: pane.args,
         shell: pane.shell,
+        resume: restored && !pane.shell && pane.resume && pane.hasConversation,
         cols,
         rows
       })
@@ -385,8 +419,11 @@ export function createAppStore({
         cwd: input.cwd,
         args: input.shell ? [] : input.args,
         shell: input.shell,
-        title: input.shell ? 'shell' : baseName(input.cwd) === '~' ? 'home' : baseName(input.cwd)
+        title: input.shell ? 'shell' : baseName(input.cwd) === '~' ? 'home' : baseName(input.cwd),
+        resume: true,
+        hasConversation: false
       }
+      spawned.add(id)
       const layout = placePane(ws, id, input.slotId)
       const recent = [input.cwd, ...s.config.recentFolders.filter((f) => f !== input.cwd)].slice(
         0,
@@ -446,24 +483,45 @@ export function createAppStore({
       return windowFocused() && s.view === 'grid' && visiblePaneIds(s).includes(paneId)
     }
 
-    const maybeNotify = (paneId: string, from: PaneStatus, to: PaneStatus, t: number): void => {
+    const maybeNotify = (paneId: string, from: PaneStatus, to: PaneStatus): void => {
+      const asks = to === 'approval' && from !== 'approval'
+      const done = to === 'done' && from !== 'done'
+      const s = get()
+      if ((!asks && !done) || !s.config.settings.notifyPanes) return
+      const found = findPane(s.config, paneId)
+      if (!found || found.pane.shell) return
+      const bin = AGENT_CLI_SPECS[accountById(s.config, found.pane.accountId)?.cli ?? 'claude'].bin
+      const where = `${found.pane.title} · ${found.ws.name}`
+      if (asks)
+        api.notify.pane(paneId, `${where} needs approval`, `${bin} is waiting for your answer.`)
+      else api.notify.pane(paneId, `${where} is done`, `${bin} finished and is waiting for you.`)
+    }
+
+    /**
+     * "done": a run of real work ended while the user was not looking, and they have not
+     * looked or typed since. Looking at the pane turns it back into "idle".
+     */
+    const withDone = (paneId: string, from: PaneStatus, to: PaneStatus, t: number): PaneStatus => {
       if (to === 'running') {
         if (from !== 'running') runningSince.set(paneId, t)
-        return
+        doneAt.delete(paneId)
+        return to
       }
       const since = runningSince.get(paneId)
       runningSince.delete(paneId)
-      const asks = to === 'approval' && from !== 'approval'
-      const done =
-        to === 'idle' && from === 'running' && since !== undefined && t - since >= NOTIFY_MIN_RUN_MS
-      const s = get()
-      if ((!asks && !done) || !s.config.settings.notifyPanes || attending(paneId)) return
-      const found = findPane(s.config, paneId)
-      if (!found || found.pane.shell) return
-      const where = `${found.pane.title} · ${found.ws.name}`
-      if (asks)
-        api.notify.pane(paneId, `${where} needs approval`, 'claude is waiting for your answer.')
-      else api.notify.pane(paneId, `${where} is done`, 'claude finished and is waiting for you.')
+      if (to !== 'idle') {
+        doneAt.delete(paneId)
+        return to
+      }
+      if (from === 'running' && since !== undefined && t - since >= NOTIFY_MIN_RUN_MS)
+        doneAt.set(paneId, t)
+      const at = doneAt.get(paneId)
+      if (at === undefined) return to
+      if (attending(paneId) || (bus.activity(paneId)?.lastInputAt ?? 0) > at) {
+        doneAt.delete(paneId)
+        return to
+      }
+      return 'done'
     }
 
     const refreshStatuses = (): void => {
@@ -474,7 +532,7 @@ export function createAppStore({
       for (const [paneId, rt] of Object.entries(s.runtime)) {
         const found = findPane(s.config, paneId)
         const account = found ? accountById(s.config, found.pane.accountId) : undefined
-        const status = rt.exit
+        const derived = rt.exit
           ? 'exited'
           : deriveStatus({
               started: rt.started,
@@ -483,10 +541,11 @@ export function createAppStore({
               activity: bus.activity(paneId),
               now: t
             })
+        const status = withDone(paneId, rt.status, derived, t)
         runtime[paneId] = status === rt.status ? rt : { ...rt, status }
         if (status !== rt.status) {
           changed = true
-          maybeNotify(paneId, rt.status, status, t)
+          if (!attending(paneId)) maybeNotify(paneId, rt.status, status)
         }
       }
       if (changed) set({ runtime })
@@ -573,7 +632,13 @@ export function createAppStore({
           set({ closingPaneId: paneId, focusedPaneId: paneId })
           return
         }
+        const pane = findPane(get().config, paneId)?.pane
         dropPane(paneId)
+        // The last pane on a Wraithgrid worktree: offer to remove its folder.
+        if (pane && isWorktreeCwd(pane.cwd) && !get().modal) {
+          const used = get().config.workspaces.some((w) => w.panes.some((p) => p.cwd === pane.cwd))
+          if (!used) set({ modal: { kind: 'removeWorktree', cwd: pane.cwd, title: pane.title } })
+        }
       },
 
       cancelClose() {
@@ -595,6 +660,16 @@ export function createAppStore({
           }
         })
         startQueue.push(() => void spawn(paneId))
+      },
+
+      markConversation(paneId) {
+        const found = findPane(get().config, paneId)
+        if (!found || found.pane.shell || found.pane.hasConversation) return
+        patchPane(paneId, { hasConversation: true })
+      },
+
+      setPaneResume(paneId, resume) {
+        patchPane(paneId, { resume })
       },
 
       focusPane(paneId) {
@@ -1086,6 +1161,12 @@ export function createAppStore({
         set({ settingsAnchor: null })
       }
     }
+  })
+
+  // Rebound shortcuts apply at once, to the key handlers and to every hint drawn after.
+  store.subscribe((s, prev) => {
+    if (s.config.settings.shortcuts !== prev.config.settings.shortcuts)
+      setShortcutBindings(s.config.settings.shortcuts)
   })
 
   // Persist every config change; main validates and writes it debounced (300 ms).

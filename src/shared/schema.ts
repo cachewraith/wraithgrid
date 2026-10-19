@@ -3,6 +3,7 @@ import {
   ACCENTS,
   ACCOUNT_COLORS,
   AGENT_CLIS,
+  SHORTCUT_IDS,
   CONFIG_VERSION,
   DIFF_WIDTH_DEFAULT,
   DIFF_WIDTH_MAX,
@@ -79,7 +80,9 @@ export const paneSchema = z.object({
   cwd: pathSchema,
   args: z.array(z.string().max(1000)).max(32).default([]),
   shell: z.boolean().default(false),
-  title: z.string().max(128).default('')
+  title: z.string().max(128).default(''),
+  resume: z.boolean().default(true),
+  hasConversation: z.boolean().default(false)
 })
 
 export const workspaceSchema = z.object({
@@ -131,7 +134,24 @@ export const settingsSchema = z.object({
     .array(pathSchema.refine((s) => !s.includes('\0')))
     .max(MOD_DIRS_MAX)
     .default([]),
-  gpuTerminal: z.boolean().default(false)
+  gpuTerminal: z.boolean().default(false),
+  cliPaths: z
+    .partialRecord(
+      z.enum(AGENT_CLIS),
+      z
+        .string()
+        .max(4096)
+        .refine((s) => !s.includes('\0'))
+    )
+    .default({})
+    .catch({}),
+  shortcuts: z
+    .partialRecord(
+      z.enum(SHORTCUT_IDS),
+      z.string().regex(/^(?:mod\+)(?:shift\+)?(?:alt\+)?[A-Za-z0-9]{1,24}$/)
+    )
+    .default({})
+    .catch({})
 })
 
 export const configSchema = z.object({

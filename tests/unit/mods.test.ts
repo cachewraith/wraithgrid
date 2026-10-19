@@ -4,6 +4,9 @@ import {
   lastLine,
   listMods,
   marketplaceAddArgs,
+  marketplaceRemoveArgs,
+  mergeCatalogs,
+  modChangeArgs,
   modInstallArgs,
   modToggleArgs,
   parseMarketplaces,
@@ -162,6 +165,7 @@ describe('mod catalog', () => {
         version: '1.1.0',
         installs: 4520,
         stars: null,
+        clone: null,
         url: 'https://example.com/clock'
       },
       {
@@ -172,6 +176,7 @@ describe('mod catalog', () => {
         version: null,
         installs: null,
         stars: null,
+        clone: null,
         url: null
       },
       {
@@ -182,6 +187,7 @@ describe('mod catalog', () => {
         version: null,
         installs: null,
         stars: null,
+        clone: null,
         url: null
       }
     ])
@@ -208,6 +214,7 @@ describe('mod catalog', () => {
     version: null,
     installs: null,
     stars: null,
+    clone: null,
     url: null,
     ...extra
   })
@@ -344,5 +351,50 @@ describe('mod catalog', () => {
 
   it('shortens install counts', () => {
     expect([12, 4520, 45_200, 1_290_640].map(formatInstalls)).toEqual(['12', '4.5k', '45k', '1.3M'])
+  })
+})
+
+describe('mod changes', () => {
+  it("uninstalls and updates in the mod's own scope, never an unsafe id or name", () => {
+    expect(modChangeArgs({ id: 'clock@acme', scope: 'user' }, 'uninstall')).toEqual([
+      'plugin',
+      'uninstall',
+      'clock@acme',
+      '--scope',
+      'user'
+    ])
+    expect(modChangeArgs({ id: 'clock@acme', scope: 'managed' }, 'update')).toEqual([
+      'plugin',
+      'update',
+      'clock@acme'
+    ])
+    expect(modChangeArgs({ id: '--all', scope: 'user' }, 'uninstall')).toBeNull()
+    expect(marketplaceRemoveArgs('acme')).toEqual(['plugin', 'marketplace', 'remove', 'acme'])
+    expect(marketplaceRemoveArgs('-rf')).toBeNull()
+    expect(marketplaceRemoveArgs('a b')).toBeNull()
+  })
+
+  it("merges the accounts' catalogs, first listing of an id wins", () => {
+    const row = (id: string, installs: number): CatalogMod => ({
+      id,
+      name: id.split('@')[0]!,
+      description: '',
+      marketplace: id.split('@')[1]!,
+      version: null,
+      installs,
+      stars: null,
+      clone: null,
+      url: null
+    })
+    expect(
+      mergeCatalogs([
+        [row('a@x', 1), row('b@x', 2)],
+        [row('b@x', 9), row('c@y', 3)]
+      ]).map((m) => [m.id, m.installs])
+    ).toEqual([
+      ['a@x', 1],
+      ['b@x', 2],
+      ['c@y', 3]
+    ])
   })
 })

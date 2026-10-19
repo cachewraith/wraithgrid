@@ -1,3 +1,5 @@
+import type { AgentCli } from './agent-clis'
+
 // Domain model shared by main, preload and renderer. Persisted shape lives in schema.ts.
 
 /** The theme actually drawn. */
@@ -56,25 +58,23 @@ export const ACCOUNT_COLORS = [
   { name: 'rose', value: '#f43f5e' }
 ] as const
 
-/**
- * The agent CLI an account's panes run. `agy` is Antigravity CLI, Gemini CLI's successor;
- * it keeps its sign-in in the system keyring, so it has no per-account config dir.
- */
-export const AGENT_CLIS = ['claude', 'gemini', 'agy'] as const
-export type AgentCli = (typeof AGENT_CLIS)[number]
-
-export const AGENT_CLI_LABEL: Record<AgentCli, string> = {
-  claude: 'Claude Code',
-  gemini: 'Gemini CLI',
-  agy: 'Antigravity CLI'
-}
-
-/** The command each CLI is found by on PATH. */
-export const AGENT_CLI_BIN: Record<AgentCli, string> = {
-  claude: 'claude',
-  gemini: 'gemini',
-  agy: 'agy'
-}
+export {
+  AGENT_CLIS,
+  AGENT_CLI_LABEL,
+  AGENT_CLI_BIN,
+  AGENT_CLI_SPECS,
+  type AgentCli
+} from './agent-clis'
+/** App shortcuts a user can rebind; focus arrows, workspace digits and font size stay fixed. */
+export const SHORTCUT_IDS = [
+  'newPane',
+  'closePane',
+  'toggleZoom',
+  'palette',
+  'diff',
+  'shortcuts'
+] as const
+export type ShortcutId = (typeof SHORTCUT_IDS)[number]
 
 export interface Account {
   id: string
@@ -82,8 +82,8 @@ export interface Account {
   /** Which CLI its panes run. */
   cli: AgentCli
   /**
-   * Passed to the CLI as CLAUDE_CONFIG_DIR (claude) or GEMINI_CLI_HOME (gemini); unused by
-   * agy. May start with `~`. Never read by Wraithgrid.
+   * Passed to the CLI in its config-dir variable (AGENT_CLI_SPECS[cli].configDirVar); unused
+   * by CLIs without one. May start with `~`. Never read by Wraithgrid.
    */
   configDir: string
   color: string
@@ -143,6 +143,10 @@ export interface Pane {
   args: string[]
   shell: boolean
   title: string
+  /** Continue the pane's conversation when Wraithgrid restores it (the per-pane toggle). */
+  resume: boolean
+  /** Something was sent to the agent, so there is a conversation to continue. */
+  hasConversation: boolean
 }
 
 export type SplitDir = 'row' | 'col'
@@ -190,6 +194,10 @@ export interface Settings {
   shellPath: string
   /** Arguments for `shellPath`, e.g. `--login -i` for Git Bash. */
   shellArgs: string[]
+  /** Binary overrides for the non-claude CLIs; a missing or empty entry is found on PATH. */
+  cliPaths: Partial<Record<AgentCli, string>>
+  /** Rebound shortcuts as `mod+shift+KeyN` (key codes); a missing entry keeps the default. */
+  shortcuts: Partial<Record<ShortcutId, string>>
   /**
    * Local mod folders (claude plugins under development) that every claude pane loads,
    * passed as CLAUDE_CODE_PLUGIN_DIRS. May start with `~`.
@@ -213,12 +221,14 @@ export interface Config {
   settings: Settings
 }
 
-export type PaneStatus = 'starting' | 'running' | 'idle' | 'approval' | 'exited' | 'login'
+/** `done`: a run finished while the user looked elsewhere; it turns `idle` once seen. */
+export type PaneStatus = 'starting' | 'running' | 'idle' | 'done' | 'approval' | 'exited' | 'login'
 
 export const PANE_STATUS_LABEL: Record<PaneStatus, string> = {
   starting: 'starting',
   running: 'running',
   idle: 'idle',
+  done: 'done',
   approval: 'needs approval',
   exited: 'exited',
   login: 'login needed'

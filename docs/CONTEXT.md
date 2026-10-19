@@ -2,8 +2,8 @@
 
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
-each with its own account and project folder: `claude` (`CLAUDE_CONFIG_DIR`), `gemini`
-(`GEMINI_CLI_HOME`) or Antigravity `agy` (keyring sign-in, no per-account dir). Windows, Linux and macOS. v1.8.0.
+each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.8.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -41,6 +41,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/shared/ipc-channels.ts`: the complete IPC channel list
 - `src/shared/ipc-contract.ts`: zod schemas for IPC args/events
 - `src/shared/schema.ts`: persisted config schema, migrate/sanitize/parse
+- `src/shared/agent-clis.ts`: agent CLI registry (bin, config-dir var, sign-in isolation, image paste, new-line key, resume args, approval prompt); add a CLI here
 - `src/shared/types.ts`: domain types, themes, accents, palettes, fonts
 - `src/shared/icons.ts`: icon value format (`''` letter, `material:x`/`lucide:x`, else emoji), tints
 - `src/shared/args.ts`, `src/shared/paths.ts`: launch-args parsing, pure path helpers
@@ -53,9 +54,11 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists)
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
 - `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars)
-- `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide)
+- `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide); `install.sh` = one-line installer (SHA256SUMS check); `update-packaging.sh <ver>` = fill packaging/ from a release
+- `packaging/`: Homebrew cask, winget manifests, AUR PKGBUILD (publish steps in its README)
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `.claude/agents/`: project subagents: wraithgrid-engineer (build), wraithgrid-reviewer (read-only review), wraithgrid-bug-hunter (diagnose reports)
+- `docs/adr/`: longer ADRs (0001 background pty host, proposed)
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
@@ -100,7 +103,9 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots.
 - Electron 44's main `clipboard` is the async web-style API (`read()` → ClipboardItem, `getType`); no `readImage`.
 - Image paste: claude's own Ctrl+V clipboard read misses some screenshots; Wraithgrid intercepts Ctrl+V in agent panes (not on macOS) and pastes a saved file path instead.
-- `agy` stores its sign-in in the system keyring: agy accounts can't be isolated; non-claude CLIs are found on PATH only (no override setting).
+- `agy` and opencode have no per-account dir (shared sign-in); codex/cursor/copilot may keep the sign-in in the keyring (`dir-unchecked`). Non-claude binaries: `settings.cliPaths`, else PATH.
+- Resume: only a pane's first start after launch, only with `hasConversation` (set on the first Enter); "continue latest" args pick the folder's newest conversation, so two panes on one folder + account resume the same one.
+- Approval patterns for non-claude CLIs come from docs, not real output: replace with fixtures when available.
 - Drag handles listen on `window`, not the handle: Chromium can drop pointer capture mid-drag. Reproduce timing flakes with all cores busy (`while :; do :; done` per core).
 - e2e: config.json is written after a debounce and can be missing on a fast CI runner; read it inside `expect.poll` with a try/catch, never a bare `readFileSync`.
 - Mods: xterm.js has no kitty graphics, so a mod's `Image` shows its `alt`; claude sends mod notifications only when `preferredNotifChannel` is set (auto finds no channel in our panes), and then its own notices arrive too, next to ours.
@@ -112,4 +117,5 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
+Herdr parity (branch feat/cli-registry-20261019, uncommitted): H2/H3/H4/H8 done, plus worktree cleanup, Changes panel commit/push/PR, mods update/uninstall/marketplaces/download, configurable shortcuts. H1 ADR proposed (docs/adr/0001), waiting for review; H5–H7 wait on H1.
 v1.8.0 released (Mods as one list for all accounts: install/switch everywhere at once, repo links, claudemod.com as a Browse source; 1.7: claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Also untried on real accounts: Install to all accounts and a claudemod.com install. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).

@@ -31,7 +31,16 @@ const sample = (): Config => ({
       icon: 'material:rocket-launch',
       color: '',
       panes: [
-        { id: 'p1', accountId: 'a1', cwd: '~/proj', args: ['-c'], shell: false, title: 'proj' }
+        {
+          id: 'p1',
+          accountId: 'a1',
+          cwd: '~/proj',
+          args: ['-c'],
+          shell: false,
+          title: 'proj',
+          resume: true,
+          hasConversation: false
+        }
       ],
       layout: { type: 'pane', paneId: 'p1' }
     }

@@ -196,6 +196,7 @@ export function parseModCatalog(stdout: string, marketplaces: Marketplace[] = []
         version: d.version ?? null,
         installs: d.installCount ?? null,
         stars: null,
+        clone: null,
         url: sourceUrl(
           d.source,
           marketplaces.find((m) => m.name === d.marketplaceName)?.url ?? null
@@ -224,6 +225,31 @@ export async function listModCatalog(
 /** Installs for the whole account (user scope), or null when the id cannot be passed safely. */
 export function modInstallArgs(id: string): string[] | null {
   return MOD_ID.test(id) ? ['plugin', 'install', id, '--scope', 'user'] : null
+}
+
+/** The arguments that uninstall or update a listed mod in its own scope, or null when unsafe. */
+export function modChangeArgs(
+  mod: Pick<ModInfo, 'id' | 'scope'>,
+  change: 'uninstall' | 'update'
+): string[] | null {
+  if (!MOD_ID.test(mod.id)) return null
+  const args = ['plugin', change, mod.id]
+  if (SCOPE_FLAGS.has(mod.scope)) args.push('--scope', mod.scope)
+  return args
+}
+
+/** A marketplace name on its own; it must never read as an option. */
+export const MARKETPLACE_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/
+
+export function marketplaceRemoveArgs(name: string): string[] | null {
+  return MARKETPLACE_NAME.test(name) ? ['plugin', 'marketplace', 'remove', name] : null
+}
+
+/** Every account's catalog as one list: the first account to offer an id keeps its row. */
+export function mergeCatalogs(lists: CatalogMod[][]): CatalogMod[] {
+  const seen = new Map<string, CatalogMod>()
+  for (const list of lists) for (const m of list) if (!seen.has(m.id)) seen.set(m.id, m)
+  return [...seen.values()]
 }
 
 /** The line of claude's error output worth showing: its last non-empty one. */

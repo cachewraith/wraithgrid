@@ -1,0 +1,17 @@
+PackageIdentifier: cachewraith.Wraithgrid
+PackageVersion: 1.8.0
+PackageLocale: en-US
+Publisher: cachewraith
+PublisherUrl: https://github.com/cachewraith
+PackageName: Wraithgrid
+PackageUrl: https://github.com/cachewraith/wraithgrid
+License: MIT
+LicenseUrl: https://github.com/cachewraith/wraithgrid/blob/main/LICENSE
+ShortDescription: Run many agent CLI sessions side by side, each with its own account and project folder.
+Tags:
+  - claude
+  - terminal
+  - ai
+  - developer-tools
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

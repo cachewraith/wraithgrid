@@ -91,6 +91,29 @@ describe('buildPaneEnv', () => {
     expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
     expect(env).not.toHaveProperty('GEMINI_CLI_HOME')
   })
+
+  it('gives each CLI only its own config dir variable from the registry', () => {
+    const inherited = { ...base, CODEX_HOME: '/x', COPILOT_HOME: '/y', CURSOR_CONFIG_DIR: '/z' }
+    const dir = path.join(home, '.wraithgrid', 'accounts', 'c')
+    const run = (cli: 'codex' | 'copilot' | 'cursor' | 'opencode') =>
+      buildPaneEnv({ baseEnv: inherited, shell: false, cli, configDir: dir, homeDir: home })
+    expect(run('codex')).toMatchObject({ CODEX_HOME: dir })
+    expect(run('codex')).not.toHaveProperty('COPILOT_HOME')
+    expect(run('copilot')).toMatchObject({ COPILOT_HOME: dir })
+    expect(run('cursor')).toMatchObject({ CURSOR_CONFIG_DIR: dir })
+    for (const v of ['CODEX_HOME', 'COPILOT_HOME', 'CURSOR_CONFIG_DIR'])
+      expect(run('opencode')).not.toHaveProperty(v)
+  })
+
+  it('keeps inherited config dir variables in plain shell panes', () => {
+    const env = buildPaneEnv({
+      baseEnv: { ...base, CODEX_HOME: '/x' },
+      shell: true,
+      configDir: null,
+      homeDir: home
+    })
+    expect(env.CODEX_HOME).toBe('/x')
+  })
 })
 
 describe('mod folders (CLAUDE_CODE_PLUGIN_DIRS)', () => {

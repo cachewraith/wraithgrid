@@ -32,6 +32,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
   fs.mkdirSync(repo, { recursive: true })
   fs.mkdirSync(path.join(home, 'notes'), { recursive: true })
   fs.mkdirSync(userData, { recursive: true })
+  // The app's own commits read the identity from the test home.
+  fs.writeFileSync(path.join(home, '.gitconfig'), '[user]\n\tname = t\n\temail = t@t\n')
   git(repo, 'init', '-q', '-b', 'main')
   fs.writeFileSync(path.join(repo, 'auth.ts'), 'export const a = 1\n')
   git(repo, 'add', '.')
@@ -118,6 +120,21 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await expect(panel.locator('.dl-add')).toHaveCount(2)
     await expect(panel.locator('.dl-del')).toHaveCount(1)
     if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'diff-dark.png') })
+
+    // Commit everything from the panel, then push after confirming.
+    const bare = path.join(tmp, 'remote.git')
+    git(tmp, 'init', '-q', '--bare', bare)
+    git(repo, 'remote', 'add', 'origin', bare)
+    await panel.getByRole('textbox', { name: 'Commit message' }).fill('feat: b')
+    await panel.getByRole('button', { name: 'Commit all (1)' }).click()
+    await expect(panel.getByRole('status')).toContainText('Committed')
+    expect(git(repo, 'log', '-1', '--format=%s').trim()).toBe('feat: b')
+    await expect(panel.locator('.dp-empty')).toContainText('No changes')
+    await panel.getByRole('button', { name: /^Push/ }).click()
+    await expect(panel.getByRole('alert')).toContainText('Push main to its remote?')
+    await panel.getByRole('button', { name: 'Push', exact: true }).click()
+    await expect(panel.getByRole('status')).toContainText('Pushed main to origin')
+    expect(git(bare, 'log', '-1', '--format=%s', 'main').trim()).toBe('feat: b')
     await win.keyboard.press('Control+Shift+D')
     await expect(panel).toHaveCount(0)
 
@@ -154,6 +171,19 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.locator('#np-branch').fill('feat/limit')
     await win.getByRole('button', { name: 'Create pane' }).click()
     await expect(win.getByRole('alert')).toContainText('already exists')
+    // Esc closes it, though the busy button let go of the focus.
+    await win.keyboard.press('Escape')
+    await expect(win.locator('.scrim')).toHaveCount(0)
+
+    // Closing the worktree's last pane offers to remove it, naming uncommitted files.
+    fs.writeFileSync(path.join(wtDir, 'wip.ts'), 'x\n')
+    await wtPane.getByRole('button', { name: /^Close pane/ }).click()
+    const ask = win.getByRole('alertdialog', { name: /Remove the worktree/ })
+    await expect(ask).toContainText('1 file is not committed')
+    await ask.getByRole('button', { name: 'Remove and lose 1 file' }).click()
+    await expect(ask).toHaveCount(0)
+    expect(fs.existsSync(wtDir)).toBe(false)
+    expect(git(repo, 'branch', '--list', 'feat/limit').trim()).toBe('feat/limit')
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

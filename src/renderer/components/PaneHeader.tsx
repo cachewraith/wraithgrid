@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react'
 import type { DraggableSyntheticListeners } from '@dnd-kit/core'
 import type { GitStatus } from '@shared/ipc-contract'
 import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
@@ -20,12 +21,21 @@ interface Props {
   onZoom: () => void
   onClose: () => void
   onDiff: () => void
+  onMenu: (e: MouseEvent<HTMLElement>) => void
 }
 
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
   const zoomLabel = zoomed(p.zoomed)
   return (
-    <div className="ph" ref={setDragHandle} {...dragListeners}>
+    <div
+      className="ph"
+      ref={setDragHandle}
+      {...dragListeners}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        p.onMenu(e)
+      }}
+    >
       <button
         className="ph-title"
         onClick={p.onFocus}
