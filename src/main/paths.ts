@@ -3,6 +3,14 @@ import { expandHome } from '@shared/paths'
 
 export const CONFIG_FILE_NAME = 'config.json'
 
+/**
+ * Requirements §9 names ~/.config/wraithgrid; Electron would default to the productName.
+ * WRAITHGRID_USER_DATA_DIR lets tests run against a throwaway config dir.
+ */
+export function userDataDir(appData: string, env: NodeJS.ProcessEnv): string {
+  return env.WRAITHGRID_USER_DATA_DIR || path.join(appData, 'wraithgrid')
+}
+
 export function configFilePath(userDataDir: string): string {
   return path.join(userDataDir, CONFIG_FILE_NAME)
 }

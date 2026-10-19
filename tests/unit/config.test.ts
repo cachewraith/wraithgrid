@@ -42,9 +42,11 @@ const sample = (): Config => ({
           hasConversation: false
         }
       ],
-      layout: { type: 'pane', paneId: 'p1' }
+      layout: { type: 'pane', paneId: 'p1' },
+      machineId: null
     }
   ],
+  machines: [],
   activeWorkspace: 'ws1'
 })
 

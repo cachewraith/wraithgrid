@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IPty } from 'node-pty'
 import type { PtyExitEvent } from '@shared/ipc-contract'
-import { PtyManager, type KillPolicy, type SpawnFn } from '../../src/main/pty-manager'
+import { PtyManager, type KillPolicy, type SpawnFn } from '../../src/host/pty-manager'
 
 type Listener<T> = (e: T) => void
 

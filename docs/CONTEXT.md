@@ -21,9 +21,17 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Release: `bun pm version <patch|minor|major> -m "chore: release %s" && git push --follow-tags`
 
 ## Directory map
-- `src/main/index.ts`: app entry; window, PATH resolution, wires ConfigStore/PtyManager/IPC
+- `src/main/index.ts`: entry dispatcher: `wraithgrid <command>` → re-runs itself as Node on `cli.js` (spawnSync), else imports `app.ts`
+- `src/main/app.ts`: the app; window, PATH resolution, host start, quit choices + tray, remote hosts, wires ConfigStore/PaneRouter/IPC
+- `src/main/cli.ts` + `cli-entry.ts`: `wraithgrid list|read|send|wait|new|split|attach|stop` (pure, deps injected) and its Node entry (`out/main/cli.js`, never imports electron); `host-stdio` = remote bridge
+- `src/main/host-bridge.ts`: `wraithgrid host-stdio` on a remote machine: starts/joins its host, injects its token, resolves `spawn` frames there
+- `src/main/host-start.ts`: start a detached host (fd masking) + socket connect; used by app and bridge
+- `src/main/pane-router.ts`: routes pane ops to the local host or a machine's (by workspace `machineId`)
+- `src/main/spawn-resolve.ts`: pane spec → exact process (binary, args, cwd, env); local in ipc, remote in the bridge
+- `src/main/ssh.ts`: `~/.ssh/config` hosts, ssh args, ssh child as a duplex stream
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
-- `src/main/pty-manager.ts`: spawns/kills pane processes; per-OS KillPolicy
+- `src/main/pane-host.ts`: GUI side of the pty host: find/start it, hello + token, create/attach/write/kill, version mismatch
+- `src/host/`: background pty host (ADR 0001), built as `out/main/host.js`, never imports electron: `index.ts` entry (lock, token, socket), `server.ts` panes + clients, `protocol.ts` NDJSON frames (zod), `paths.ts` socket/token paths per user-data dir, `screen.ts` headless xterm + serialize, `fds.ts` inherited-fd masking, `pty-manager.ts` spawns/kills pane processes (per-OS KillPolicy)
 - `src/main/clipboard-image.ts`: clipboard image → temp file → text to paste (path, or `@path` for gemini/agy)
 - `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; mod folders as `CLAUDE_CODE_PLUGIN_DIRS` for claude; strips the launching terminal's vars; UTF-8 locale fallback)
 - `src/main/config-store.ts`: config.json load/save, atomic write, bad-file quarantine
@@ -49,7 +57,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, BranchPicker = switch/create branch of a pane's folder, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists)
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
@@ -58,7 +66,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `packaging/`: Homebrew cask, winget manifests, AUR PKGBUILD (publish steps in its README)
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `.claude/agents/`: project subagents: wraithgrid-engineer (build), wraithgrid-reviewer (read-only review), wraithgrid-bug-hunter (diagnose reports)
-- `docs/adr/`: longer ADRs (0001 background pty host, proposed)
+- `docs/adr/`: longer ADRs (0001 background pty host, accepted + review)
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
@@ -78,6 +86,13 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/lib/{ansi,ids,scheduling}.ts`, `src/renderer/layout/presets.ts`
 
 ## Known gotchas
+- Panes live in the host, not main: it renames itself `wraithgrid-host` (pgrep for `host.js` finds nothing); socket dir `$XDG_RUNTIME_DIR/wraithgrid-<uid>-<hash of userData>` (or tmpdir), removed on clean exit, kept with `host.log` after a failure. A dev host keeps running old `src/host` code while the protocol matches: stop it (Quit and stop agents, or SIGTERM) after host changes. Unix socket paths max ~104 bytes.
+- Never spawn a long-lived child from main without masking fds (`stdioMasking`): Chromium fds lack CLOEXEC.
+- Playwright: a crashed page object stays dead; read the reloaded page via `app.evaluate(... executeJavaScript)`. Launch crash tests with `cwd` in a temp dir (core dumps). Wait for a fake CLI's last banner line before typing (echo races its output).
+- Quits from code/signals/`app.close()` never ask (`ask` = stop); only the close button, WM close, the macOS Quit item and the tray ask.
+- Never run long work in Electron main without a window system: it aborts without a display (SIGTRAP) once JS yields. CLI = `spawnSync` + ELECTRON_RUN_AS_NODE. Crash experiments leave multi-GB `core.*` files in the cwd: delete them.
+- `WRAITHGRID_SSH` replaces `ssh` (tests: `tests/fixtures/fake-ssh.sh` runs "the remote" with WG_REMOTE_HOME/DATA/PATH). A remote agent's cmdline is its own PATH's `claude`, not the fixture path.
+- `wraithgrid` CLI is refused until `settings.cliAccess`; the GUI pushes it to the host on connect/change (the host keeps the last value while detached). Windows: GUI-subsystem binary, CLI output not shown in a console yet.
 - node-pty compiles against the host glibc: ship Linux builds from Ubuntu 22.04 (portable script / CI).
 - Launcher-started app lacks shell PATH: main asks the login shell once with flags per shell kind (csh/tcsh can't take `-l -c`), then `/bin/sh -l` (skipped when `TERM` set).
 - claude panes never go through the user's shell; their screen breaks only via inherited env (COLUMNS, TERM_PROGRAM, TMUX…): add new terminal vars to `TERMINAL_VARS` in pane-env.ts.
@@ -117,4 +132,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
-v1.9.0 released (seven agent CLIs via the registry, resume on restore, `done` status, Changes panel commit/push/PR, worktree cleanup, mods update/uninstall/marketplaces/download, configurable shortcuts, install.sh + packaging files). Next: H1 ADR review (docs/adr/0001), then H1 → H6 → H7 → H5; publish packaging (needs accounts). To verify by hand: codex/cursor/copilot/opencode with real accounts (sign-in isolation, approval prompts), mods actions on real accounts, screenshot paste on Hyprland, macOS on real hardware.
+Unreleased on branch `feat/pty-host-20261019`: H1 background pty host (agents survive quit/crash, tray, close choice), H6 `wraithgrid` CLI, H7 `attach`, H5 machines over ssh; all verified on Linux (dev + packaged dir build). Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts); release. Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.

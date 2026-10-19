@@ -1,4 +1,5 @@
 import type { PaneStatus } from '@shared/types'
+import { RUNNING_WINDOW_MS } from '@shared/activity'
 
 export interface PaneActivity {
   lastOutputAt: number
@@ -16,10 +17,7 @@ export interface StatusInput {
   now: number
 }
 
-/** Output within this window counts as "running"; quieter panes are idle. */
-export const RUNNING_WINDOW_MS = 1200
-/** Output this soon after a keypress is treated as echo, not work. */
-export const ECHO_WINDOW_MS = 250
+export { ECHO_WINDOW_MS, RUNNING_WINDOW_MS } from '@shared/activity'
 
 export const LOGIN_PATTERN = /login successful|logged in as/i
 

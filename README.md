@@ -54,6 +54,9 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Shared CLAUDE.md & skills**  | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                                                        |
 | **Mods**                       | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                                                     |
 | **Update alerts**              | A desktop notification tells you once when a new version is released.                                                                                                                                      |
+| **Agents keep running**        | Close the window or quit and the agents carry on in a background process; the next launch shows them again, screen and all. Off until you choose it on first close.                                        |
+| **Command line**               | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                          |
+| **Other machines**             | A workspace can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                   |
 | **Survives restarts**          | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                    |
 | **Themes**                     | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                                                    |
 | **Native everywhere**          | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                          |
@@ -209,6 +212,11 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    write a message and press **Commit all** (`Ctrl+Enter`), then **Push** and **Pull
    request** (opens the GitHub or GitLab page for the branch); both ask first. Closing the last
    pane on a worktree asks whether to remove its folder; the branch is kept.
+   **Switch branch** by right-clicking the branch label (or clicking the branch in the Changes
+   panel, or **Switch branch…** in the pane's menu or `Ctrl+Shift+P`): type to filter your
+   branches, newest first, and remote ones you don't have yet, or type a new name to create it.
+   Uncommitted changes come along; git refuses if they would be overwritten and says why.
+   Every pane on that folder sees the new branch.
 9. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
    to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
    Click an account's badge on the Accounts page, a workspace's badge in **Manage**, or
@@ -216,10 +224,62 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    tint.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
-**Restart** button. Quitting Wraithgrid ends every pane's processes. On the next launch your
-workspaces, layouts, accounts and folders come back and each pane starts `claude` again.
-Conversation history belongs to `claude` itself: add `-c` to a pane's launch args to continue
-where you left off.
+**Restart** button. On the next launch your workspaces, layouts, accounts and folders come
+back and each pane starts `claude` again, continuing its conversation if you had prompted it.
+
+**Agents that keep running.** Panes run in a small background process (`wraithgrid-host`), not
+in the window. The first time you close the window with agents running, Wraithgrid asks:
+
+- **Keep running**: the window closes and a tray icon stays, with the number of running
+  agents, **Open Wraithgrid**, **Stop all agents and quit** and **Quit, keep agents running**.
+  Opening Wraithgrid again shows every pane with its screen as it is now. A pane that ended
+  meanwhile shows its exit code.
+- **Stop agents and quit**: every pane's processes end, as before.
+
+Tick **Remember my choice**, or change it later under **Settings → When the window closes**.
+Running agents keep using CPU, memory and API usage, and no notifications arrive while the
+window is closed. On GNOME without the AppIndicator extension there is no tray icon: open
+Wraithgrid again to see or stop the agents. A window crash no longer stops panes either; the
+window reloads and shows them again. Updating from **Settings → Updates** stops running agents
+after asking. The background process exits by itself 10 minutes after its last pane ends.
+
+### Command line
+
+Turn on **Settings → Command line** first; it is off by default. Then the `wraithgrid`
+command, or an agent in one of your panes, can drive panes while Wraithgrid runs (the window
+may be closed):
+
+```sh
+wraithgrid list                        # panes: id, title, workspace, account, state
+wraithgrid send alpha "fix the failing test"
+wraithgrid wait alpha --until idle     # also: running, blocked (asking for approval), exited
+wraithgrid read alpha --lines 50
+wraithgrid new --account work --cwd ~/proj/api -- --model opus
+wraithgrid split alpha                 # beside alpha, same account and folder
+wraithgrid attach alpha                # the pane in this terminal; Ctrl+] leaves it running
+wraithgrid stop                        # stop every agent
+```
+
+Name a pane by its id or its title. Inside a pane, `$WRAITHGRID_PANE` holds its own id, so an
+agent can split itself or prompt another pane. `attach` works over ssh with `ssh -t`.
+`new` and `split` need the window open. The command is the app's own binary: `wraithgrid` on
+Linux packages, the AppImage itself, or `/Applications/Wraithgrid.app/Contents/MacOS/Wraithgrid`
+on macOS. On Windows the output does not appear in a console yet.
+
+### Machines
+
+A workspace can run its panes on another computer: add it under **Settings → Machines** (an
+ssh host from `~/.ssh/config`, or `user@host`; **Test** checks it), then right-click an empty
+workspace → **Run on …**. Panes start there with that computer's `claude` (or other CLI),
+folders and account logins; the sidebar shows the machine's name next to the workspace.
+
+- The other computer needs Wraithgrid installed with `wraithgrid` on PATH (the .deb, .rpm,
+  pacman or AUR packages do this), and ssh that logs in without a password prompt (a key or an
+  agent). Wraithgrid runs `ssh -T <host> wraithgrid host-stdio`; nothing else listens there.
+- Agents there keep running when the connection drops or Wraithgrid quits, even with **Stop
+  agents and quit**. A disconnected pane says so; **Restart** reconnects and shows it again.
+- Account names and folders are shared with this computer, but logins are the other
+  computer's own: sign in once in a pane there.
 
 ### Shortcuts
 
@@ -304,6 +364,12 @@ bar, or the command palette) covers the rest:
   only when you click them.
 - **Sandboxed renderer.** The UI runs sandboxed with context isolation. It reaches the system
   only through a fixed, validated IPC surface.
+- **Background agents stay local.** The window talks to the background process over a Unix
+  socket in a folder only you can open (`$XDG_RUNTIME_DIR`, or your temp folder on macOS), or
+  a named pipe on Windows, and every connection must present a random token kept in a file
+  only you can read. There is no network listener. The `wraithgrid` command is refused until
+  you turn on **Settings → Command line**. Other machines are reached only through your own
+  `ssh`.
 - **Account folders are off-limits.** Sharing `~/.claude` is the only time Wraithgrid writes
   into account config dirs, and it only places links and renames what was in the way. It never
   reads the files. Logins (`.credentials.json`, `.claude.json`) are never linked.

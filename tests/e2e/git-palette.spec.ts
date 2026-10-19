@@ -135,6 +135,38 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await panel.getByRole('button', { name: 'Push', exact: true }).click()
     await expect(panel.getByRole('status')).toContainText('Pushed main to origin')
     expect(git(bare, 'log', '-1', '--format=%s', 'main').trim()).toBe('feat: b')
+
+    // Switch branch: right-click the chip, filter, Enter.
+    git(repo, 'branch', 'older')
+    git(repo, 'push', '-q', 'origin', 'main:refs/heads/theirs')
+    git(repo, 'fetch', '-q', 'origin')
+    await apiPane.locator('.gitc').click({ button: 'right' })
+    const picker = win.getByRole('dialog', { name: /^Switch branch of/ })
+    await expect(picker.getByRole('option')).toHaveCount(3) // main, older, origin/theirs
+    if (SHOTS) {
+      await win.waitForTimeout(300) // past the menu's fade-in
+      await win.screenshot({ path: path.join(SHOTS, 'branches-dark.png') })
+    }
+    await picker.getByRole('textbox', { name: 'Find or create a branch' }).fill('old')
+    await win.keyboard.press('Enter')
+    await expect(picker).toHaveCount(0)
+    await expect(apiPane.locator('.gitc')).toContainText('older')
+    expect(git(repo, 'branch', '--show-current').trim()).toBe('older')
+    // A remote-only branch becomes a local one tracking it; the panel's branch opens the picker too.
+    await panel.locator('button.dp-branch').click()
+    await picker.getByRole('option', { name: /origin\/theirs/ }).click()
+    await expect(apiPane.locator('.gitc')).toContainText('theirs')
+    expect(git(repo, 'rev-parse', '--abbrev-ref', '@{u}').trim()).toBe('origin/theirs')
+    // A name no branch has offers to create it.
+    await apiPane.locator('.gitc').click({ button: 'right' })
+    await picker.getByRole('textbox', { name: 'Find or create a branch' }).fill('feat/picked')
+    await picker.getByRole('option', { name: /Create branch feat\/picked/ }).click()
+    await expect(apiPane.locator('.gitc')).toContainText('feat/picked')
+    await apiPane.locator('.gitc').click({ button: 'right' })
+    await picker.getByRole('textbox', { name: 'Find or create a branch' }).fill('main')
+    await win.keyboard.press('Enter')
+    await expect(apiPane.locator('.gitc')).toContainText('main')
+
     await win.keyboard.press('Control+Shift+D')
     await expect(panel).toHaveCount(0)
 

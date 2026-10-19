@@ -12,11 +12,14 @@ import {
   commitAll,
   gitDiff,
   gitStatus,
+  listBranches,
+  parseBranches,
   parseStatus,
   pullRequestLink,
   pullRequestUrl,
   pushBranch,
   removeWorktree,
+  switchBranch,
   worktreeDir,
   type GitRunner
 } from '../../src/main/git'
@@ -181,6 +184,62 @@ describe('with a real repository', () => {
     })
   })
 
+  it('lists branches newest first and switches local, remote and new ones', async () => {
+    const bare = path.join(wt, 'remote.git')
+    await realGit(['init', '-q', '--bare', bare], wt)
+    await realGit(['remote', 'add', 'origin', bare], dir)
+    await realGit(['push', '-q', '-u', 'origin', 'main'], dir)
+    // A branch only the remote has (pushed from another checkout).
+    await realGit(['push', '-q', 'origin', 'main:refs/heads/theirs'], dir)
+    await realGit(['fetch', '-q', 'origin'], dir)
+    await realGit(['branch', '-q', 'older'], dir)
+
+    const list = await listBranches(realGit, dir)
+    if (!list.ok) throw new Error(list.error)
+    expect(list.current).toBe('main')
+    expect(list.local.map((b) => b.name).sort()).toEqual(['main', 'older'])
+    expect(list.local.find((b) => b.name === 'main')!.upstream).toBe('origin/main')
+    expect(list.remote.map((b) => b.name)).toEqual(['origin/theirs'])
+
+    expect(await switchBranch(realGit, dir, { kind: 'local', name: 'older' })).toEqual({
+      ok: true,
+      detail: 'Switched to older'
+    })
+    expect(await switchBranch(realGit, dir, { kind: 'remote', name: 'origin/theirs' })).toEqual({
+      ok: true,
+      detail: 'Switched to theirs'
+    })
+    expect((await realGit(['rev-parse', '--abbrev-ref', '@{u}'], dir)).trim()).toBe('origin/theirs')
+    expect(await switchBranch(realGit, dir, { kind: 'create', name: 'feat/new' })).toEqual({
+      ok: true,
+      detail: 'Switched to feat/new'
+    })
+    expect(await switchBranch(realGit, dir, { kind: 'local', name: 'feat/new' })).toEqual({
+      ok: true,
+      detail: 'Already on feat/new'
+    })
+  })
+
+  it('refuses names git did not list, bad new names, and a switch that would lose changes', async () => {
+    expect(await switchBranch(realGit, dir, { kind: 'local', name: '--orphan=x' })).toEqual({
+      ok: false,
+      error: 'No branch --orphan=x here any more.'
+    })
+    expect(await switchBranch(realGit, dir, { kind: 'create', name: '-x' })).toEqual({
+      ok: false,
+      error: 'Not a valid branch name.'
+    })
+    await realGit(['switch', '-qc', 'other'], dir)
+    await writeFile(path.join(dir, 'a.txt'), 'other\n')
+    await realGit(['commit', '-qam', 'other'], dir)
+    await realGit(['switch', '-q', 'main'], dir)
+    await writeFile(path.join(dir, 'a.txt'), 'uncommitted\n')
+    const r = await switchBranch(realGit, dir, { kind: 'local', name: 'other' })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.error).toMatch(/local changes/)
+    expect((await gitStatus(realGit, dir)).branch).toBe('main')
+  })
+
   it('removes only linked worktrees, and dirty ones only when forced', async () => {
     expect(await checkWorktree(realGit, dir)).toEqual({
       ok: false,
@@ -205,6 +264,27 @@ describe('with a real repository', () => {
     expect((await realGit(['worktree', 'list'], dir)).split('\n').filter(Boolean)).toHaveLength(1)
     // The branch stays.
     expect((await realGit(['branch', '--list', 'feat/y'], dir)).trim()).toBe('feat/y')
+  })
+})
+
+describe('parseBranches', () => {
+  it('skips remote HEAD and remote branches checked out locally', () => {
+    const out = [
+      'refs/heads/main\x002 hours ago\x00origin/main',
+      'refs/heads/fix\x003 days ago\x00',
+      'refs/remotes/origin/HEAD\x002 hours ago\x00',
+      'refs/remotes/origin/main\x002 hours ago\x00',
+      'refs/remotes/origin/fix\x003 days ago\x00',
+      'refs/remotes/origin/new\x001 hour ago\x00'
+    ].join('\n')
+    expect(parseBranches(out, 'main')).toEqual({
+      current: 'main',
+      local: [
+        { name: 'main', when: '2 hours ago', upstream: 'origin/main' },
+        { name: 'fix', when: '3 days ago', upstream: null }
+      ],
+      remote: [{ name: 'origin/new', when: '1 hour ago' }]
+    })
   })
 })
 

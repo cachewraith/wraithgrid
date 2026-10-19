@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { PtyDataEvent, PtyExitEvent, UpdateProgress, WraithApi } from '@shared/ipc-contract'
+import type {
+  CliAction,
+  PtyDataEvent,
+  PtyExitEvent,
+  UpdateProgress,
+  WraithApi
+} from '@shared/ipc-contract'
+import type { CloseMode } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, payload: T): void => cb(payload)
@@ -29,7 +36,8 @@ const api: WraithApi = {
   window: {
     minimize: () => ipcRenderer.send(IPC.windowMinimize),
     maximize: () => ipcRenderer.send(IPC.windowMaximize),
-    close: () => ipcRenderer.send(IPC.windowClose)
+    close: () => ipcRenderer.send(IPC.windowClose),
+    onCloseMode: (cb) => subscribe<CloseMode>(IPC.windowCloseMode, cb)
   },
   claude: {
     detect: (override) => ipcRenderer.invoke(IPC.claudeDetect, { override })
@@ -57,6 +65,8 @@ const api: WraithApi = {
     status: (paneId) => ipcRenderer.invoke(IPC.gitStatus, { paneId }),
     diff: (paneId) => ipcRenderer.invoke(IPC.gitDiff, { paneId }),
     addWorktree: (cwd, branch) => ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch }),
+    branches: (paneId) => ipcRenderer.invoke(IPC.gitBranches, { paneId }),
+    switchBranch: (paneId, kind, name) => ipcRenderer.invoke(IPC.gitSwitch, { paneId, kind, name }),
     commit: (paneId, message) => ipcRenderer.invoke(IPC.gitCommit, { paneId, message }),
     push: (paneId) => ipcRenderer.invoke(IPC.gitPush, { paneId }),
     openPullRequest: (paneId) => ipcRenderer.invoke(IPC.gitOpenPr, { paneId }),
@@ -91,6 +101,15 @@ const api: WraithApi = {
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),
     onReveal: (cb) => subscribe<string>(IPC.paneReveal, cb)
+  },
+  machines: {
+    sshHosts: () => ipcRenderer.invoke(IPC.machineSshHosts),
+    test: (name, sshHost) => ipcRenderer.invoke(IPC.machineTest, { name, sshHost })
+  },
+  cli: {
+    onAction: (cb) =>
+      subscribe<{ id: number; action: CliAction }>(IPC.cliAction, (m) => cb(m.id, m.action)),
+    reply: (id, result) => ipcRenderer.send(IPC.cliResult, { id, result })
   }
 }
 

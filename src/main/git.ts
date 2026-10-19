@@ -1,10 +1,12 @@
-// Git facts for a pane's folder (branch, changed files, diff) and the few writes the user asks
-// for: a worktree for a new pane (and removing it), commit, push and a pull-request link.
+// Git facts for a pane's folder (branch, changed files, diff, branches) and the few writes the
+// user asks for: a worktree for a new pane (and removing it), switching branch, commit, push
+// and a pull-request link.
 // git runs through an injected runner (execFile, never a shell), so parsing and argument
 // building stay unit-testable.
 import path from 'node:path'
 import type {
   GitActionResult,
+  GitBranches,
   GitDiffResult,
   GitStatus,
   GitWorktreeCheck,
@@ -121,6 +123,89 @@ export async function commitAll(
     await run(['commit', '-m', msg], cwd, { slow: true })
     const hash = (await run(['rev-parse', '--short', 'HEAD'], cwd)).trim()
     return { ok: true, detail: `Committed ${hash}` }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+const BRANCH_REF_FORMAT = '%(refname)%00%(committerdate:relative)%00%(upstream:short)'
+
+/** Parses `git for-each-ref` over refs/heads and refs/remotes (newest commit first). */
+export function parseBranches(out: string, current: string | null): GitBranches {
+  const local: GitBranches['local'] = []
+  const remoteRefs: { name: string; when: string }[] = []
+  for (const line of out.split('\n')) {
+    const [ref, when = '', upstream = ''] = line.split('\0')
+    if (!ref) continue
+    if (ref.startsWith('refs/heads/')) {
+      local.push({ name: ref.slice('refs/heads/'.length), when, upstream: upstream || null })
+    } else if (ref.startsWith('refs/remotes/') && !ref.endsWith('/HEAD')) {
+      remoteRefs.push({ name: ref.slice('refs/remotes/'.length), when })
+    }
+  }
+  // A remote branch someone already has locally (as its upstream or by name) is not offered twice.
+  const covered = new Set(local.flatMap((b) => [b.upstream, b.name]))
+  const remote = remoteRefs.filter(
+    (r) => !covered.has(r.name) && !covered.has(r.name.replace(/^[^/]+\//, ''))
+  )
+  return { current, local, remote }
+}
+
+export async function listBranches(
+  run: GitRunner,
+  cwd: string
+): Promise<({ ok: true } & GitBranches) | { ok: false; error: string }> {
+  try {
+    const out = await run(
+      [
+        'for-each-ref',
+        '--sort=-committerdate',
+        `--format=${BRANCH_REF_FORMAT}`,
+        'refs/heads',
+        'refs/remotes'
+      ],
+      cwd
+    )
+    return { ok: true, ...parseBranches(out, await currentBranch(run, cwd)) }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+/**
+ * Checks out a local branch, a remote one (as a new local branch tracking it) or a new branch
+ * from HEAD. A name must be one git listed (or, for a new one, a valid name), so nothing from
+ * the renderer reaches git as an option. Uncommitted changes go along; git refuses when they
+ * would be overwritten, and says which files.
+ */
+export async function switchBranch(
+  run: GitRunner,
+  cwd: string,
+  to: { kind: 'local' | 'remote' | 'create'; name: string }
+): Promise<GitActionResult> {
+  if (to.kind === 'create') {
+    if (!BRANCH_PATTERN.test(to.name)) return { ok: false, error: 'Not a valid branch name.' }
+  } else {
+    const list = await listBranches(run, cwd)
+    if (!list.ok) return list
+    const known =
+      to.kind === 'local' ? list.local.map((b) => b.name) : list.remote.map((b) => b.name)
+    if (!known.includes(to.name) || to.name.startsWith('-'))
+      return { ok: false, error: `No branch ${to.name} here any more.` }
+    if (to.kind === 'local' && to.name === list.current)
+      return { ok: true, detail: `Already on ${to.name}` }
+  }
+  const args =
+    to.kind === 'create'
+      ? ['switch', '-c', to.name]
+      : to.kind === 'remote'
+        ? ['switch', '--track', to.name]
+        : ['switch', to.name]
+  try {
+    if (to.kind === 'create') await run(['check-ref-format', '--branch', to.name], cwd)
+    // Slow: post-checkout hooks and big trees take longer than the status poll's timeout.
+    await run(args, cwd, { slow: true })
+    return { ok: true, detail: `Switched to ${(await currentBranch(run, cwd)) ?? to.name}` }
   } catch (err) {
     return { ok: false, error: firstLine(err) }
   }

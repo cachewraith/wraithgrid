@@ -9,6 +9,7 @@ import { matches } from '../lib/search'
 import { AccountIcon, Avatar } from './AccountIcon'
 import { Dialog } from './Dialog'
 import {
+  IconBranch,
   IconCompose,
   IconDiff,
   IconKeyboard,
@@ -76,6 +77,18 @@ function buildItems(s: AppState): Item[] {
         s.closeModal()
       }
     },
+    ...(s.focusedPaneId && s.git[s.focusedPaneId]?.repo
+      ? [
+          {
+            id: 'cmd:branch',
+            group: 'Commands' as const,
+            label: 'Switch branch…',
+            sub: s.git[s.focusedPaneId]?.branch ?? undefined,
+            icon: <IconBranch />,
+            run: () => s.openModal({ kind: 'branches', paneId: s.focusedPaneId!, at: null })
+          }
+        ]
+      : []),
     {
       id: 'cmd:workspaces',
       group: 'Commands',

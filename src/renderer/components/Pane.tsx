@@ -7,7 +7,7 @@ import { useActions, useApp } from '../app/services'
 import { accountById, findPane } from '../app/store'
 import type { Rect } from '../layout/focus'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
-import { IconCheck, IconClose, IconRestart } from './icons'
+import { IconBranch, IconCheck, IconClose, IconRestart } from './icons'
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
@@ -134,6 +134,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           actions.toggleDiff(true)
         }}
         onMenu={(e) => setMenu(menuPoint(e))}
+        onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
       />
       <div
         className={`term-host${dense ? ' sm' : ''}${zoomed ? ' lg' : ''}${exited ? ' dim' : ''}`}
@@ -182,6 +183,15 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
                       : 'Continue conversation on restore: off',
                     icon: pane.resume ? <IconCheck small /> : undefined,
                     onSelect: () => actions.setPaneResume(paneId, !pane.resume)
+                  }
+                ]
+              : []),
+            ...(git?.repo
+              ? [
+                  {
+                    label: 'Switch branch…',
+                    icon: <IconBranch small />,
+                    onSelect: () => actions.openModal({ kind: 'branches', paneId, at: menu })
                   }
                 ]
               : []),

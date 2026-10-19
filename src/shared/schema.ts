@@ -13,6 +13,7 @@ import {
   FONT_SIZE_MIN,
   MOD_DIRS_MAX,
   SHARED_MODES,
+  CLOSE_MODES,
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
@@ -91,7 +92,21 @@ export const workspaceSchema = z.object({
   icon: iconSchema,
   color: tintSchema,
   panes: z.array(paneSchema).max(64),
-  layout: layoutNodeSchema.nullable()
+  layout: layoutNodeSchema.nullable(),
+  machineId: idSchema.nullable().default(null)
+})
+
+/** Never starts with `-` (it would be read as an ssh option) and has no spaces or quotes. */
+export const sshHostSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(/^[A-Za-z0-9_.@%:[\]][A-Za-z0-9_.@%:[\]-]*$/)
+
+export const machineSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1).max(64),
+  sshHost: sshHostSchema
 })
 
 export const settingsSchema = z.object({
@@ -135,6 +150,8 @@ export const settingsSchema = z.object({
     .max(MOD_DIRS_MAX)
     .default([]),
   gpuTerminal: z.boolean().default(false),
+  onWindowClose: z.enum(CLOSE_MODES).default('ask').catch('ask'),
+  cliAccess: z.boolean().default(false),
   cliPaths: z
     .partialRecord(
       z.enum(AGENT_CLIS),
@@ -160,6 +177,7 @@ export const configSchema = z.object({
   accounts: z.array(accountSchema).max(64),
   accountFolders: z.array(accountFolderSchema).max(32).default([]),
   workspaces: z.array(workspaceSchema).min(1).max(32),
+  machines: z.array(machineSchema).max(32).default([]),
   activeWorkspace: idSchema,
   recentFolders: z.array(pathSchema).max(20).default([]),
   settings: settingsSchema.default(() => settingsSchema.parse({}))
@@ -177,8 +195,17 @@ export function defaultConfig(): Config {
     accounts: [],
     accountFolders: [],
     workspaces: [
-      { id: 'ws-default', name: 'default', icon: '', color: '', panes: [], layout: null }
+      {
+        id: 'ws-default',
+        name: 'default',
+        icon: '',
+        color: '',
+        panes: [],
+        layout: null,
+        machineId: null
+      }
     ],
+    machines: [],
     activeWorkspace: 'ws-default',
     recentFolders: [],
     settings: settingsSchema.parse({})
@@ -248,8 +275,10 @@ export function sanitizeConfig(cfg: Config): Config {
     a.folderId && !folderIds.has(a.folderId) ? { ...a, folderId: null } : a
   )
   const accountIds = new Set(cfg.accounts.map((a) => a.id))
+  const machineIds = new Set(cfg.machines.map((m) => m.id))
   const workspaces = cfg.workspaces.map((w) => ({
     ...w,
+    machineId: w.machineId && machineIds.has(w.machineId) ? w.machineId : null,
     panes: w.panes.map((p) =>
       p.accountId && !accountIds.has(p.accountId) ? { ...p, accountId: null } : p
     )

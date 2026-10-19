@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { AccountsView, RemoveAccountDialog } from '../components/AccountsView'
 import { CommandPalette } from '../components/CommandPalette'
 import { RemoveWorktreeDialog } from '../components/RemoveWorktreeDialog'
+import { BranchPicker } from '../components/BranchPicker'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
@@ -134,6 +135,8 @@ function Modals() {
       return <CommandPalette />
     case 'removeWorktree':
       return <RemoveWorktreeDialog cwd={modal.cwd} title={modal.title} />
+    case 'branches':
+      return <BranchPicker paneId={modal.paneId} at={modal.at} />
   }
 }
 

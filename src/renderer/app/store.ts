@@ -3,6 +3,8 @@ import type {
   AccountMods,
   AppInfo,
   ClaudeDetectResult,
+  CliAction,
+  CliActionResult,
   GitStatus,
   ModInfo,
   PtyExitEvent,
@@ -78,6 +80,8 @@ export type Modal =
   | { kind: 'removeAccount'; accountId: string }
   | { kind: 'palette' }
   | { kind: 'removeWorktree'; cwd: string; title: string }
+  /** `at`: where it was opened (a right-click); null: centred (the palette). */
+  | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
 
 export interface NewPaneInput {
   accountId: string | null
@@ -141,6 +145,12 @@ export interface AppState {
   /** Switches to the pane's workspace, puts it in the grid if hidden, and focuses it. */
   revealPane(paneId: string): void
   refreshGit(): Promise<void>
+  /** Checks out a branch in a pane's folder; returns git's error, or null. */
+  switchBranch(
+    paneId: string,
+    kind: 'local' | 'remote' | 'create',
+    name: string
+  ): Promise<string | null>
   toggleDiff(open?: boolean): void
   /** A notification the pane's program asked its terminal for (e.g. a mod's `$.ui.notify`). */
   paneNotice(paneId: string, title: string, body: string): void
@@ -156,6 +166,12 @@ export interface AppState {
   switchWorkspaceIndex(index: number): void
   createWorkspace(name: string): void
   renameWorkspace(id: string, name: string): void
+  /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
+  setWorkspaceMachine(id: string, machineId: string | null): void
+  /** Adds a machine reached over ssh; returns an error to show, or null. */
+  addMachine(name: string, sshHost: string): string | null
+  /** Removes a machine; its workspaces run here again (their panes there keep running). */
+  removeMachine(id: string): void
   /** An icon id or emoji ('' for the first letter), and optionally a tint ('' = neutral). */
   setWorkspaceIcon(id: string, icon: string, color?: string): void
   deleteWorkspace(id: string): void
@@ -241,6 +257,9 @@ export function findPane(config: Config, paneId: string): { ws: Workspace; pane:
 export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): ThemeName {
   return resolveTheme(s.config.settings.theme, s.systemTheme === 'dark')
 }
+
+/** Same rule as the config schema's ssh host: no leading `-`, no spaces or quotes. */
+const SSH_HOST = /^[A-Za-z0-9_.@%:[\]][A-Za-z0-9_.@%:[\]-]*$/
 
 export function accountById(config: Config, id: string | null): Account | undefined {
   return id ? config.accounts.find((a) => a.id === id) : undefined
@@ -362,6 +381,7 @@ export function createAppStore({
         args: pane.args,
         shell: pane.shell,
         resume: restored && !pane.shell && pane.resume && pane.hasConversation,
+        attach: restored,
         cols,
         rows
       })
@@ -370,7 +390,11 @@ export function createAppStore({
         if (res.ok) api.pty.kill(paneId)
         return
       }
-      if (res.ok) patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
+      if (res.ok && res.exit) {
+        // Reattached to a pane that ended while Wraithgrid was closed.
+        patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
+        onExit({ paneId, exitCode: res.exit.exitCode, signal: res.exit.signal })
+      } else if (res.ok) patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
       else {
         bus.writeLocal(paneId, `\x1b[31m${res.error}\x1b[0m\r\n`)
         patchRuntime(paneId, {
@@ -384,6 +408,8 @@ export function createAppStore({
 
     const onExit = (e: PtyExitEvent): void => {
       if (!get().runtime[e.paneId]) return
+      // The link to its machine dropped: Restart first tries to reattach, as at launch.
+      if (e.disconnected) spawned.delete(e.paneId)
       patchRuntime(e.paneId, {
         status: 'exited',
         exit: {
@@ -394,6 +420,51 @@ export function createAppStore({
           spawnError: false
         }
       })
+    }
+
+    /** `wraithgrid new|split` (H6): picks the account, workspace and folder, then adds the pane. */
+    const runCliAction = (action: CliAction): CliActionResult => {
+      const c = get().config
+      const byName = <T extends { id: string; name: string }>(
+        list: T[],
+        q: string
+      ): T | undefined =>
+        list.find((x) => x.id === q) ?? list.find((x) => x.name.toLowerCase() === q.toLowerCase())
+      let base: Pane | undefined
+      if (action.kind === 'split') {
+        const found = findPane(c, action.paneId)
+        if (!found) return { ok: false, error: `No pane ${action.paneId}.` }
+        get().switchWorkspace(found.ws.id)
+        get().focusPane(found.pane.id)
+        base = found.pane
+      } else if (action.workspace) {
+        const ws = byName(c.workspaces, action.workspace)
+        if (!ws) return { ok: false, error: `No workspace "${action.workspace}".` }
+        get().switchWorkspace(ws.id)
+      }
+      const shell = action.shell ?? base?.shell ?? false
+      let accountId: string | null = null
+      if (!shell) {
+        const focused = findPane(get().config, get().focusedPaneId ?? '')?.pane
+        const account = action.account
+          ? byName(c.accounts, action.account)
+          : (accountById(c, (base ?? focused)?.accountId ?? null) ?? c.accounts[0])
+        if (!account)
+          return {
+            ok: false,
+            error: action.account ? `No account "${action.account}".` : 'Add an account first.'
+          }
+        accountId = account.id
+      }
+      const paneId = get().createPane({
+        accountId,
+        cwd: action.cwd ?? base?.cwd ?? '~',
+        args: shell ? [] : (action.args ?? base?.args ?? []),
+        shell,
+        slotId: null
+      })
+      set({ view: 'grid' })
+      return { ok: true, paneId }
     }
 
     const placePane = (ws: Workspace, paneId: string, slotId: string | null): LayoutNode => {
@@ -594,6 +665,8 @@ export function createAppStore({
         api.update.onProgress((install) => set({ update: { ...get().update, install } }))
         api.update.onShow(() => get().showUpdates())
         api.notify.onReveal((paneId) => get().revealPane(paneId))
+        api.window.onCloseMode((onWindowClose) => get().updateSettings({ onWindowClose }))
+        api.cli.onAction((id, action) => api.cli.reply(id, runCliAction(action)))
         setInterval(() => void get().refreshGit(), GIT_POLL_MS)
         set({
           config,
@@ -710,6 +783,13 @@ export function createAppStore({
         set({ focusedPaneId: paneId, view: 'grid', modal: null, zoomedPaneId: null })
       },
 
+      async switchBranch(paneId, kind, name) {
+        const r = await api.git.switchBranch(paneId, kind, name)
+        // Every pane on that folder shows the new branch at once, not at the next poll.
+        await get().refreshGit()
+        return r.ok ? null : r.error
+      },
+
       async refreshGit() {
         if (typeof document !== 'undefined' && document.hidden) return
         const ws = activeWorkspace(get())
@@ -808,6 +888,7 @@ export function createAppStore({
           name: trimmed,
           icon: '',
           color: '',
+          machineId: null,
           panes: [],
           layout: null
         }
@@ -820,6 +901,40 @@ export function createAppStore({
         const trimmed = name.trim().slice(0, 64)
         if (!trimmed) return
         set({ config: withWorkspace(get().config, id, (w) => ({ ...w, name: trimmed })) })
+      },
+
+      setWorkspaceMachine(id, machineId) {
+        const c = get().config
+        if (machineId && !c.machines.some((m) => m.id === machineId)) return
+        get().updateConfig((cfg) =>
+          withWorkspace(cfg, id, (w) => (w.panes.length ? w : { ...w, machineId }))
+        )
+      },
+
+      addMachine(name, sshHost) {
+        const n = name.trim().slice(0, 64)
+        const host = sshHost.trim()
+        if (!n) return 'Give the machine a name.'
+        if (!SSH_HOST.test(host) || host.length > 255)
+          return 'Use a Host from ~/.ssh/config or user@host (no spaces, not starting with -).'
+        const c = get().config
+        if (c.machines.some((m) => m.name.toLowerCase() === n.toLowerCase()))
+          return `A machine named ${n} exists.`
+        get().updateConfig((cfg) => ({
+          ...cfg,
+          machines: [...cfg.machines, { id: newId('m'), name: n, sshHost: host }]
+        }))
+        return null
+      },
+
+      removeMachine(id) {
+        get().updateConfig((cfg) => ({
+          ...cfg,
+          machines: cfg.machines.filter((m) => m.id !== id),
+          workspaces: cfg.workspaces.map((w) =>
+            w.machineId === id ? { ...w, machineId: null } : w
+          )
+        }))
       },
 
       deleteWorkspace(id) {

@@ -82,6 +82,8 @@ export interface SpawnRequest {
   env: Record<string, string>
   cols: number
   rows: number
+  /** For the host's pane status only; PtyManager ignores it. */
+  approval?: string
 }
 
 export type SpawnResult = { ok: true; pid: number } | { ok: false; error: string }

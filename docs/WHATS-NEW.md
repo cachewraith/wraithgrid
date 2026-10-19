@@ -1,10 +1,10 @@
-# What's new in 1.9: more agents, pick up where you left off
+# What's new in 1.10: agents that keep running
 
-*v1.9.0 · 2026-10-19*
+*Unreleased (draft)*
 
-Wraithgrid now runs seven agent CLIs, continues your conversations when it restarts, tells you
-which pane finished while you were away, commits and pushes from the Changes panel, and lets
-you rebind its shortcuts. The Mods screen can update, uninstall and manage marketplaces.
+Agents no longer stop when you close Wraithgrid. A new `wraithgrid` command lets scripts, and
+agents in other panes, drive your panes, and a workspace can run its panes on another
+computer over ssh.
 
 ---
 
@@ -12,72 +12,45 @@ you rebind its shortcuts. The Mods screen can update, uninstall and manage marke
 
 | Feature | How to use it |
 |---|---|
-| Add a Codex, opencode, Cursor or Copilot account | **Accounts → Add account**, pick the **CLI** |
-| Continue a conversation after a restart | Automatic for panes you prompted; right-click a pane's header to turn it off |
-| See which pane finished | A **done** status and notification |
-| Commit, push, open a pull request | **Ctrl+Shift+D**, then the buttons under the diff |
-| Clean up a worktree | Close its last pane, then **Remove worktree** |
-| Update or uninstall a mod | **Mods → Installed**, **Update** / **Uninstall** |
-| Add or remove a marketplace | **Mods → Marketplaces** |
-| Rebind a shortcut | **Settings → Keyboard shortcuts → Change** |
-| Install with one line | `curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts/install.sh \| sh` |
+| Keep agents running after closing | Close the window, pick **Keep running** (or **Settings → When the window closes**) |
+| Stop them later | Tray icon → **Stop all agents and quit**, or open Wraithgrid and quit with **Stop** |
+| Drive panes from a terminal | **Settings → Command line**, then `wraithgrid list`, `send`, `wait`, `read`, `new`, `split` |
+| Watch one pane in a terminal | `wraithgrid attach <pane>`; Ctrl+] leaves it running |
+| Run a workspace on another computer | **Settings → Machines → Add machine**, then right-click an empty workspace → **Run on …** |
 
 ---
 
-## 1. Seven agent CLIs
+## 1. Agents keep running
 
-Besides Claude Code, Gemini CLI and Antigravity, an account can now run **Codex**
-(`codex`), **opencode**, **Cursor Agent** (`cursor-agent`) or **Copilot CLI** (`copilot`).
-Each pane gets its account's folder through the CLI's own variable: `CODEX_HOME`,
-`CURSOR_CONFIG_DIR` or `COPILOT_HOME`.
+Panes now run in a small background process instead of the window. Close the window (or quit)
+and choose **Keep running**: the agents carry on, a tray icon shows how many, and the next
+launch shows every pane exactly as it is, screen and all. A pane that ended meanwhile shows
+its exit code. **Stop agents and quit** works as before. A crashed window no longer takes the
+agents with it either.
 
-- Codex, Cursor and Copilot keep settings and history per account, but may keep the sign-in
-  in your system keyring, so their accounts can share one login. The account form says so.
-- opencode, like Antigravity, has no per-account folder: its accounts share one login.
-- A CLI that isn't on your `PATH` can be given a path under **Settings → Other agent CLIs**.
+## 2. The `wraithgrid` command
 
-## 2. Pick up where you left off
+Off until you turn on **Settings → Command line**. Then:
 
-When Wraithgrid starts again, a pane you sent a prompt to continues its last conversation
-(`claude --continue`, `codex resume --last`, `gemini --resume latest`…). A pane you never
-prompted, a new pane and a restarted pane start fresh. Right-click a pane's header to switch
-**Continue conversation on restore** off for that pane.
+```sh
+wraithgrid list
+wraithgrid send alpha "run the tests and fix what fails"
+wraithgrid wait alpha --until idle
+wraithgrid read alpha --lines 40
+```
 
-## 3. "Done" means done
+`wait --until blocked` returns when the agent asks for approval. Inside a pane,
+`$WRAITHGRID_PANE` is its own id, so an agent can open a helper pane with `wraithgrid split`
+and prompt it.
 
-A pane that worked for a while and finished while you were looking elsewhere now shows
-**done**, and the desktop notification fires then. It turns back to idle once you look at it
-or type into it. Each CLI's "needs approval" prompt is recognized on its own terms.
+## 3. Attach from any terminal
 
-## 4. Commit, push and pull request from the Changes panel
+`wraithgrid attach alpha` shows the pane in your terminal, keys go to it, and **Ctrl+]**
+leaves it running. Over ssh, use `ssh -t`.
 
-Under the diff (**Ctrl+Shift+D**): write a message and press **Commit all** (or
-**Ctrl+Enter**), then **Push** and **Pull request**. The pull request opens the GitHub or
-GitLab page for the branch in your browser. Push and pull request ask before anything leaves
-your machine.
+## 4. Other machines
 
-Closing the last pane on a worktree now asks whether to remove its folder. It names any files
-that are not committed; the branch and its commits always stay.
-
-## 5. More from the Mods screen
-
-- **Update** and **Uninstall** (asks twice) for every account that has the mod.
-- **Marketplaces**: see where Browse finds mods, add one (`owner/repo` or an https address)
-  to all accounts, or remove one from all of them.
-- **Browse** now merges the marketplaces of all your claude accounts.
-- claudemod.com mods that are a single plugin, with no marketplace file, have **Download**:
-  they are cloned into `~/.wraithgrid/mods` and added to your mod folders.
-
-## 6. Your own shortcuts
-
-**Settings → Keyboard shortcuts** rebinds search, new pane, close pane, zoom, git changes and
-the shortcuts sheet. Press **Change**, then the new keys. A shortcut needs Ctrl (⌘ on macOS)
-with Shift or Alt, so the terminal keeps its own keys.
-
-## Not there yet
-
-- Codex, opencode, Cursor and Copilot have not been tried with real accounts yet; their
-  approval prompts are matched from their documentation.
-- Agents still stop when Wraithgrid quits. Keeping them running in the background is the
-  next big step (see `docs/adr/0001-background-pty-host.md`).
-- Homebrew, winget and AUR packages are prepared but not published yet.
+Add a computer under **Settings → Machines** (a host from `~/.ssh/config`), then set an empty
+workspace to **Run on** it. Its panes start there, with that computer's CLIs, folders and
+logins, and keep running when you disconnect or quit. It needs Wraithgrid installed there
+and ssh with a key or agent.
