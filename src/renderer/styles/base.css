@@ -685,6 +685,12 @@ kbd,
 .st-login .sd {
   background: var(--warn);
 }
+.st-done {
+  color: var(--acc);
+}
+.st-done .sd {
+  background: var(--acc);
+}
 .st-idle .sd,
 .st-starting .sd {
   background: transparent;
@@ -2279,6 +2285,10 @@ kbd,
   background: var(--warn);
   box-shadow: none;
 }
+.pn-dot.st-done {
+  background: var(--acc);
+  box-shadow: none;
+}
 .pn-dot.st-exited {
   background: var(--err);
   box-shadow: none;
@@ -2302,6 +2312,9 @@ kbd,
 .pn-st.st-approval,
 .pn-st.st-login {
   color: var(--warn);
+}
+.pn-st.st-done {
+  color: var(--acc);
 }
 .pn-st.st-exited {
   color: var(--err);
@@ -2792,4 +2805,56 @@ kbd,
 .mod-row > .btn,
 .mod-row > .badge {
   flex: none;
+}
+.cli-paths {
+  display: grid;
+  gap: 6px;
+}
+.cli-path {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--mu);
+}
+
+/* Changes panel footer: commit message, commit / push / pull request. */
+.dp-ft {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.dp-msg {
+  height: auto;
+  min-height: 52px;
+  padding: 6px 8px;
+  resize: vertical;
+  font: inherit;
+  font-size: 12.5px;
+}
+.dp-acts,
+.dp-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.dp-ask span {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+.btn.sm {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.ctl .sc-row {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.sc-row .sc-err {
+  flex-basis: 100%;
 }

@@ -1,6 +1,6 @@
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { AgentCli } from '@shared/types'
+import { AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 
 // Agent CLIs read a pasted image from the clipboard themselves (claude via xclip/wl-paste),
 // which misses images that only some Linux clipboards expose, e.g. screenshots copied by a
@@ -72,8 +72,8 @@ export async function saveClipboardImage(
   return file
 }
 
-/** How a pasted image path is typed into a pane: gemini and agy take `@path` references. */
+/** How a pasted image path is typed into a pane: a plain path, or an `@path` file reference. */
 export function imagePasteText(cli: AgentCli, file: string): string {
   const quoted = /\s/.test(file) ? `"${file}"` : file
-  return cli === 'claude' ? `${quoted} ` : `@${quoted} `
+  return AGENT_CLI_SPECS[cli].imagePaste === 'path' ? `${quoted} ` : `@${quoted} `
 }

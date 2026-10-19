@@ -24,9 +24,16 @@ import {
   updateInstallArgs,
   gitPaneArgs,
   gitWorktreeAddArgs,
+  gitWorktreeArgs,
+  gitWorktreeRemoveArgs,
+  gitCommitArgs,
   modsCatalogArgs,
   modsCommunityArgs,
   modsInstallArgs,
+  modsChangeArgs,
+  modsMarketplacesArgs,
+  modsMarketplaceAddArgs,
+  modsMarketplaceRemoveArgs,
   modsListArgs,
   modsSetEnabledArgs,
   notifyPaneArgs,
@@ -43,7 +50,12 @@ import {
   type GitDiffResult,
   type GitStatus,
   type GitWorktreeResult,
+  type GitActionResult,
   type ModCatalogResult,
+  type ModCloneResult,
+  type MarketplaceInfo,
+  type MarketplacesResult,
+  type CatalogMod,
   type ModInstallResult,
   type ModInfo,
   type PtyCreateResult,
@@ -63,15 +75,22 @@ import {
   saveClipboardImage
 } from './clipboard-image'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
-import { AGENT_CLI_BIN, AGENT_CLI_LABEL, type AgentCli, type Config } from '@shared/types'
+import { AGENT_CLI_BIN, AGENT_CLI_LABEL, withResumeArgs, type AgentCli } from '@shared/agent-clis'
+import type { Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import {
+  GITHUB_REPO,
   INSTALL_TIMEOUT_MS,
+  MARKETPLACE_NAME,
   claudeRunner,
+  lastLine,
   listMarketplaces,
   listModCatalog,
   listMods,
   marketplaceAddArgs,
+  marketplaceRemoveArgs,
+  mergeCatalogs,
+  modChangeArgs,
   modInstallArgs,
   modToggleArgs,
   withModLinks,
@@ -79,7 +98,17 @@ import {
 } from './mods'
 import type { CommunityCatalog, CommunityMods } from './mod-community'
 import { buildPaneEnv } from './pane-env'
-import { addWorktree, gitDiff, gitStatus, type GitRunner } from './git'
+import {
+  addWorktree,
+  checkWorktree,
+  commitAll,
+  gitDiff,
+  gitStatus,
+  pullRequestLink,
+  pushBranch,
+  removeWorktree,
+  type GitRunner
+} from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
 import { listShells, resolvePaneShell, spawnCommandFor, type DesktopInfo } from './platform'
 import {
@@ -239,9 +268,20 @@ export function registerIpc(deps: IpcDeps): void {
         args = picked.shell.args
       } else if (cli !== 'claude') {
         const bin = AGENT_CLI_BIN[cli]
-        const found = await findOnPath(bin)
-        if (!found) return fail(`${bin} (${AGENT_CLI_LABEL[cli]}) was not found on PATH.`)
-        file = found
+        const override = expandHome((cfg.settings.cliPaths[cli] ?? '').trim(), homeDir)
+        if (override) {
+          try {
+            if (!(await stat(override)).isFile()) return fail(`Not a file: ${override}`)
+          } catch {
+            return fail(`${bin} binary not found: ${override}`)
+          }
+          file = override
+        } else {
+          const found = await findOnPath(bin)
+          if (!found) return fail(`${bin} (${AGENT_CLI_LABEL[cli]}) was not found on PATH.`)
+          file = found
+        }
+        if (a.resume) args = withResumeArgs(cli, args)
       } else {
         const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
         if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -251,6 +291,7 @@ export function registerIpc(deps: IpcDeps): void {
           return fail(`claude binary not found: ${resolved.path}`)
         }
         file = resolved.path
+        if (a.resume) args = withResumeArgs(cli, args)
       }
 
       const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
@@ -511,6 +552,83 @@ export function registerIpc(deps: IpcDeps): void {
     fail('Could not create the worktree')
   )
 
+  /** A Wraithgrid worktree folder (real path under ~/.wraithgrid/worktrees), or null. */
+  const ownWorktree = async (cwd: string): Promise<string | null> => {
+    try {
+      const dir = await realpath(resolveUserPath(cwd, homeDir))
+      const root = await realpath(worktreesRoot(homeDir))
+      return isStrictlyInside(dir, root) ? dir : null
+    } catch {
+      return null
+    }
+  }
+
+  handle(
+    IPC.gitWorktreeCheck,
+    gitWorktreeArgs,
+    async (a) => {
+      const dir = await ownWorktree(a.cwd)
+      if (!dir) return fail('Not a Wraithgrid worktree.')
+      await deps.envReady
+      const r = await checkWorktree(deps.git, dir)
+      return r.ok ? { ok: true as const, branch: r.branch, changed: r.changed } : r
+    },
+    fail('Could not check the worktree')
+  )
+
+  handle(
+    IPC.gitWorktreeRemove,
+    gitWorktreeRemoveArgs,
+    async (a): Promise<GitActionResult> => {
+      const dir = await ownWorktree(a.cwd)
+      if (!dir) return fail('Not a Wraithgrid worktree.')
+      await deps.envReady
+      const r = await removeWorktree(deps.git, dir, a.force)
+      if (r.ok) log(`removed worktree ${contractHome(dir, homeDir)}${a.force ? ' (forced)' : ''}`)
+      return r
+    },
+    fail('Could not remove the worktree')
+  )
+
+  handle(
+    IPC.gitCommit,
+    gitCommitArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return commitAll(deps.git, cwd, a.message)
+    },
+    fail('Could not commit')
+  )
+
+  handle(
+    IPC.gitPush,
+    gitPaneArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return pushBranch(deps.git, cwd)
+    },
+    fail('Could not push')
+  )
+
+  handle(
+    IPC.gitOpenPr,
+    gitPaneArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      const r = await pullRequestLink(deps.git, cwd)
+      if (!r.ok) return r
+      await shell.openExternal(r.url)
+      return { ok: true, detail: 'Opened in your browser' }
+    },
+    fail('Could not open the pull request page')
+  )
+
   // ---- Shells ----------------------------------------------------------------------
 
   handle(
@@ -677,24 +795,25 @@ export function registerIpc(deps: IpcDeps): void {
       if (accounts.length === 0) return fail('No claude account yet.')
       const runner = await modRunner()
       if (!runner.ok) return runner
-      // One catalog serves every account: an install adds the marketplace where it is missing.
+      // Every account's marketplaces, merged: an install adds the marketplace where missing.
+      const lists: CatalogMod[][] = []
       let error = ''
-      for (const account of accounts) {
-        try {
-          const markets = await readMarketplaces(runner.run, account)
-          const mods = await listModCatalog(
-            runner.run,
-            accountEnv(account.configDir),
-            homeDir,
-            markets
-          )
-          offeredMods = new Set(mods.map((m) => m.id))
-          return { ok: true, mods }
-        } catch (err) {
-          error ||= (err as Error).message
-        }
+      for (let i = 0; i < accounts.length; i += MODS_PARALLEL) {
+        const batch = accounts.slice(i, i + MODS_PARALLEL).map(async (account) => {
+          try {
+            const markets = await readMarketplaces(runner.run, account)
+            return await listModCatalog(runner.run, accountEnv(account.configDir), homeDir, markets)
+          } catch (err) {
+            error ||= (err as Error).message
+            return null
+          }
+        })
+        for (const list of await Promise.all(batch)) if (list) lists.push(list)
       }
-      return fail(error)
+      if (lists.length === 0) return fail(error)
+      const mods = mergeCatalogs(lists)
+      offeredMods = new Set(mods.map((m) => m.id))
+      return { ok: true, mods }
     },
     fail('Could not read the mod catalog')
   )
@@ -721,7 +840,7 @@ export function registerIpc(deps: IpcDeps): void {
       const has = (accountId: string): boolean =>
         listedMods.get(accountId)?.some((m) => m.id === a.id && m.scope === 'user') ?? false
       const accounts = claudeAccounts()
-      const offered = offeredMods.has(a.id) || community.mods.some((m) => m.id === a.id)
+      const offered = offeredMods.has(a.id) || community.mods.some((m) => m.id === a.id && !m.clone)
       if (!args || !(offered || accounts.some((x) => has(x.id))))
         return fail('That mod is no longer offered. Refresh the list.')
       const runner = await modRunner()
@@ -756,6 +875,145 @@ export function registerIpc(deps: IpcDeps): void {
       return { ok: true, failed }
     },
     fail('Could not install the mod')
+  )
+
+  /** Runs `args` for each account in turn, collecting the ones claude refused. */
+  const forEachAccount = async (
+    accounts: Config['accounts'],
+    argsFor: (account: Config['accounts'][number]) => { args: string[]; cwd?: string } | null,
+    what: string
+  ): Promise<ModInstallResult> => {
+    const runner = await modRunner()
+    if (!runner.ok) return runner
+    const failed: { account: string; error: string }[] = []
+    // One account at a time: accounts that share ~/.claude write the same plugin files.
+    for (const account of accounts) {
+      const step = argsFor(account)
+      if (!step) continue
+      try {
+        await runner.run(step.args, {
+          env: accountEnv(account.configDir),
+          cwd: step.cwd ?? homeDir,
+          timeoutMs: INSTALL_TIMEOUT_MS
+        })
+        log(`${what} for ${account.name}`)
+      } catch (err) {
+        failed.push({ account: account.name, error: (err as Error).message })
+      }
+    }
+    return { ok: true, failed }
+  }
+
+  handle(
+    IPC.modsChange,
+    modsChangeArgs,
+    async (a): Promise<ModInstallResult> => {
+      // Only rows the last list showed: a project-scoped mod changes from its own folder.
+      const rowFor = (accountId: string): ModInfo | undefined =>
+        listedMods.get(accountId)?.find((m) => m.id === a.id)
+      const accounts = claudeAccounts().filter((x) => rowFor(x.id))
+      if (accounts.length === 0) return fail('That mod is no longer listed. Refresh the list.')
+      return forEachAccount(
+        accounts,
+        (account) => {
+          const row = rowFor(account.id)!
+          const args = modChangeArgs(row, a.change)
+          return args ? { args, cwd: row.projectPath ?? homeDir } : null
+        },
+        `${a.change === 'uninstall' ? 'uninstalled' : 'updated'} mod ${a.id}`
+      )
+    },
+    fail('Could not change the mod')
+  )
+
+  handle(
+    IPC.modsMarketplaces,
+    modsMarketplacesArgs,
+    async (): Promise<MarketplacesResult> => {
+      const accounts = claudeAccounts()
+      const runner = await modRunner()
+      if (!runner.ok) return runner
+      const lists = await Promise.all(accounts.map((acc) => readMarketplaces(runner.run, acc)))
+      const merged = new Map<string, MarketplaceInfo>()
+      for (const m of lists.flat()) {
+        const had = merged.get(m.name)
+        merged.set(m.name, {
+          name: m.name,
+          url: had?.url ?? m.url,
+          accounts: (had?.accounts ?? 0) + 1
+        })
+      }
+      return { ok: true, marketplaces: [...merged.values()], total: accounts.length }
+    },
+    fail('Could not list the marketplaces')
+  )
+
+  handle(
+    IPC.modsMarketplaceAdd,
+    modsMarketplaceAddArgs,
+    async (a): Promise<ModInstallResult> => {
+      const source = a.source.trim()
+      const args = marketplaceAddArgs(source)
+      if (!args) return fail('Give a GitHub repository (owner/repo) or an https address.')
+      return forEachAccount(claudeAccounts(), () => ({ args }), `added marketplace ${source}`)
+    },
+    fail('Could not add the marketplace')
+  )
+
+  handle(
+    IPC.modsMarketplaceRemove,
+    modsMarketplaceRemoveArgs,
+    async (a): Promise<ModInstallResult> => {
+      const args = marketplaceRemoveArgs(a.name)
+      if (!args) return fail('Not a marketplace name.')
+      const has = (id: string): boolean =>
+        marketplaces.get(id)?.some((m) => m.name === a.name) ?? false
+      const accounts = claudeAccounts().filter((x) => has(x.id))
+      if (accounts.length === 0) return fail('No account has that marketplace. Refresh the list.')
+      const r = await forEachAccount(accounts, () => ({ args }), `removed marketplace ${a.name}`)
+      for (const x of accounts)
+        marketplaces.set(
+          x.id,
+          (marketplaces.get(x.id) ?? []).filter((m) => m.name !== a.name)
+        )
+      return r
+    },
+    fail('Could not remove the marketplace')
+  )
+
+  handle(
+    IPC.modsClone,
+    modsInstallArgs,
+    async (a): Promise<ModCloneResult> => {
+      // Only a repository the last community list offered, into a folder named by its mod.
+      const mod = community.mods.find((m) => m.id === a.id && m.clone)
+      if (!mod?.clone || !GITHUB_REPO.test(mod.clone) || !MARKETPLACE_NAME.test(mod.name))
+        return fail('That mod is no longer offered. Refresh the list.')
+      const root = path.join(homeDir, '.wraithgrid', 'mods')
+      const dir = path.join(root, mod.name)
+      if (!isStrictlyInside(dir, root)) return fail('Not a safe folder name.')
+      try {
+        await stat(dir)
+        return fail(`${contractHome(dir, homeDir)} already exists.`)
+      } catch {
+        // Not there yet: clone it.
+      }
+      await mkdir(root, { recursive: true })
+      await deps.envReady
+      try {
+        await deps.git(
+          ['clone', '--depth', '1', '--', `https://github.com/${mod.clone}.git`, dir],
+          root,
+          { slow: true }
+        )
+      } catch (err) {
+        const e = err as { stderr?: string; message?: string }
+        return fail(lastLine(e.stderr || e.message || '') ?? 'git clone failed')
+      }
+      log(`downloaded mod ${mod.name} from ${mod.clone}`)
+      return { ok: true, dir: contractHome(dir, homeDir) }
+    },
+    fail('Could not download the mod')
   )
 
   // ---- Pane notifications ----------------------------------------------------------

@@ -4,7 +4,7 @@
 
 # Wraithgrid
 
-**Run many `claude`, `gemini` and `agy` CLI sessions side by side, each with its own account and project folder.**
+**Run many agent CLI sessions (`claude`, `gemini`, `agy`, `codex`, `opencode`, `cursor-agent`, `copilot`) side by side, each with its own account and project folder.**
 
 [![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/cachewraith/wraithgrid/build.yml?branch=main&style=flat-square&label=build)](https://github.com/cachewraith/wraithgrid/actions/workflows/build.yml)
@@ -28,32 +28,36 @@ Switching `claude` accounts normally means logging out and back in. Wraithgrid r
 step: every pane has its own account and its own project folder, and all of them run at the
 same time in one window.
 
-It runs the official CLIs as-is. For a Claude Code pane it sets `CLAUDE_CONFIG_DIR` to that
-account's folder, and for a Gemini CLI pane `GEMINI_CLI_HOME`, so every account keeps its own
-login, settings and history. Antigravity CLI (`agy`) panes are supported too, but `agy` keeps its
-sign-in in the system keyring, so all `agy` accounts on a machine share one Google login.
+It runs the official CLIs as-is, pointing each pane at its account's folder through the CLI's
+own variable: `CLAUDE_CONFIG_DIR` (Claude Code), `GEMINI_CLI_HOME` (Gemini CLI), `CODEX_HOME`
+(Codex), `CURSOR_CONFIG_DIR` (Cursor Agent) or `COPILOT_HOME` (Copilot CLI). Claude and Gemini
+accounts each keep their own login, settings and history. Codex, Cursor and Copilot keep their
+settings and history per account, but may keep the sign-in in the system keyring, so their
+accounts can end up sharing one login. Antigravity (`agy`) and opencode have no per-account
+folder: all their accounts on a machine share one login.
 Wraithgrid never reads, copies or proxies anything inside those folders.
 
 ## Features
 
-|                                   |                                                                                                                                                                                 |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Many accounts at once**         | Personal, work and client accounts run side by side, each with its own login, settings and history.                                                                             |
-| **Claude, Gemini or Antigravity** | Each account runs Claude Code (`claude`), Gemini CLI (`gemini`) or Antigravity CLI (`agy`); mix them in one grid.                                                               |
-| **Paste screenshots**             | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                        |
-| **Flexible layouts**              | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                              |
-| **Workspaces**                    | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                      |
-| **Folders & icons**               | Group accounts into sidebar folders by drag and drop, and give accounts, workspaces and folders an emoji or one of ~6,500 Material and Lucide icons.                            |
-| **Live pane status**              | Each pane shows whether its CLI is running (animated), idle or waiting for your approval. Tuned for `claude`; Gemini and Antigravity output is not fully recognised yet.        |
-| **Git changes & worktrees**       | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch. |
-| **Search & notifications**        | `Ctrl+Shift+P` finds any pane, workspace or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                             |
-| **Shared CLAUDE.md & skills**     | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                             |
-| **Mods**                          | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                          |
-| **Update alerts**                 | A desktop notification tells you once when a new version is released.                                                                                                           |
-| **Survives restarts**             | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                         |
-| **Themes**                        | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                         |
-| **Native everywhere**             | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                               |
-| **Private by design**             | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                            |
+|                                |                                                                                                                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Many accounts at once**      | Personal, work and client accounts run side by side, each with its own login, settings and history.                                                                                                        |
+| **Seven agent CLIs**           | Each account runs Claude Code, Gemini CLI, Antigravity CLI, Codex, opencode, Cursor Agent or Copilot CLI; mix them in one grid.                                                                            |
+| **Paste screenshots**          | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                                                   |
+| **Flexible layouts**           | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                                                         |
+| **Workspaces**                 | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                                                 |
+| **Folders & icons**            | Group accounts into sidebar folders by drag and drop, and give accounts, workspaces and folders an emoji or one of ~6,500 Material and Lucide icons.                                                       |
+| **Live pane status**           | Each pane shows whether its CLI is running (animated), waiting for your approval, done (finished while you looked elsewhere) or idle. Tuned for `claude`; other CLIs' prompts are matched from their docs. |
+| **Git changes & worktrees**    | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch.                            |
+| **Pick up where you left off** | Panes you prompted continue their conversation when Wraithgrid restarts (`claude --continue`, `codex resume --last`…). Right-click a pane's header to turn it off.                                         |
+| **Search & notifications**     | `Ctrl+Shift+P` finds any pane, workspace or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                                                        |
+| **Shared CLAUDE.md & skills**  | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                                                        |
+| **Mods**                       | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                                                     |
+| **Update alerts**              | A desktop notification tells you once when a new version is released.                                                                                                                                      |
+| **Survives restarts**          | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                    |
+| **Themes**                     | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                                                    |
+| **Native everywhere**          | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                          |
+| **Private by design**          | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                       |
 
 ## Screenshots
 
@@ -98,13 +102,20 @@ Download the package for your system from the
 
 Every release includes a `SHA256SUMS.txt` for verifying downloads.
 
+On Linux or macOS, one line picks the right package, checks it against `SHA256SUMS.txt` and
+installs it (`WRAITHGRID_DRY_RUN=1` only downloads and checks):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts/install.sh | sh
+```
+
 > [!NOTE]
 > You also need the [`claude` CLI](https://docs.claude.com/en/docs/claude-code). Wraithgrid
 > finds it on your `PATH` (including the native installer's `~/.local/bin` and npm's global
 > folder). You can also set its path in **Settings**.
 >
-> For Gemini or Antigravity accounts, install `gemini` or `agy`
-> (`curl -fsSL https://antigravity.google/cli/install.sh | bash`); they are found on your `PATH`.
+> For other accounts, install that CLI (`gemini`, `agy`, `codex`, `opencode`, `cursor-agent` or
+> `copilot`); they are found on your `PATH`, or set a path in **Settings → Other agent CLIs**.
 
 <details>
 <summary><b>Platform notes</b>: macOS, tiling compositors, launchers, AppImage, Windows</summary>
@@ -153,13 +164,13 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
 
 1. **Add accounts.** Open **Accounts** (sidebar, **Manage**).
    - **Add account** creates `~/.wraithgrid/accounts/<name>` for a fresh login. Pick its
-     **CLI**: Claude Code, Gemini CLI or Antigravity CLI.
+     **CLI**: Claude Code, Gemini CLI, Antigravity CLI, Codex, opencode, Cursor Agent or Copilot CLI.
    - **Import ~/.claude** points an account at an existing config dir so you keep that login.
      Nothing is copied.
 2. **Sign in.** Press **Login** on an account. A pane opens running `claude` under that
    account. Press **Run /login** and finish in your browser. The account shows as signed in
    once the pane prints a successful login, or when you press **Mark as signed in**.
-   Gemini and Antigravity accounts ask you to sign in the first time a pane starts.
+   Other CLIs ask you to sign in the first time a pane starts.
 3. **Open panes.** Press **New pane** (`Ctrl+Shift+N`) and pick an account, a folder and
    optional launch args (`--resume`, `-c`). Turn on **Work on a new branch (git worktree)** to
    give the pane its own checkout under `~/.wraithgrid/worktrees`, so panes in the same repo
@@ -189,12 +200,15 @@ Every release includes a `SHA256SUMS.txt` for verifying downloads.
      `~/.claude`.
 7. **Paste images.** Copy an image or take a screenshot, then press `Ctrl+V` (or
    `Ctrl+Shift+V`) in a pane. Wraithgrid saves it under your temp folder (`wraithgrid-paste`,
-   cleared after a day) and pastes its path: `claude` attaches it as an image, `gemini` and
-   `agy` get an `@path` reference. With no image on the clipboard, `Ctrl+V` works as before.
+   cleared after a day) and pastes its path: `claude` attaches it as an image, `codex` gets
+   the plain path, and the other CLIs get an `@path` reference. With no image on the clipboard, `Ctrl+V` works as before.
    On macOS, `Ctrl+V` goes straight to the CLI, which reads the image itself.
 8. **Review changes.** Click the branch label in a pane's header, or press `Ctrl+Shift+D`, to
    see what changed in that pane's folder since the last commit, file by file. Drag the
-   panel's left edge to resize it (saved); double-click the edge to reset.
+   panel's left edge to resize it (saved); double-click the edge to reset. Below the diff,
+   write a message and press **Commit all** (`Ctrl+Enter`), then **Push** and **Pull
+   request** (opens the GitHub or GitLab page for the branch); both ask first. Closing the last
+   pane on a worktree asks whether to remove its folder; the branch is kept.
 9. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
    to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
    Click an account's badge on the Accounts page, a workspace's badge in **Manage**, or
@@ -228,6 +242,11 @@ where you left off.
 
 Every other key, including `Ctrl+C`, `Esc` and the arrow keys, goes to the terminal.
 
+**Settings → Keyboard shortcuts** rebinds search, new pane, close pane, zoom, git changes and
+the shortcuts sheet: press **Change**, then the new chord. It needs `Ctrl` (`⌘` on macOS) with
+Shift or Alt, so plain `Ctrl` chords stay with the terminal; chords already in use (focus
+arrows, workspace digits, copy/paste, claude's undo) are refused.
+
 ## Configuration
 
 Settings, accounts and workspaces live in `config.json` (see
@@ -237,8 +256,8 @@ never saves terminal content.
 
 **Settings** covers:
 
-- the `claude` binary: auto-detected from `PATH`, with an optional override (`gemini` and
-  `agy` are always taken from `PATH`)
+- the `claude` binary: auto-detected from `PATH`, with an optional override; the other CLIs
+  are taken from `PATH` unless you set a path under **Other agent CLIs**
 - the default account and the default working directory
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - the shell plain shell panes run (automatic, any detected shell, or a custom path)
@@ -256,12 +275,17 @@ bar, or the command palette) covers the rest:
 
 - **Installed**: one list for all your claude accounts, read from each account's own
   `claude plugin list`. A switch enables or disables a mod in every account that has it;
-  **Add to all accounts** appears where some lack it. Click a mod's name to open its repository.
+  **Add to all accounts** appears where some lack it. **Update** and **Uninstall** (asks
+  twice) do the same for every account. Click a mod's name to open its repository.
 - **Browse**: search everything the marketplaces offer (a few thousand mods and plugins) and
   install one with a click, for every claude account at once. An account that lacks the mod's
   marketplace gets it added first. A mod runs as you: install the ones you trust.
   Pick **claudemod.com** to see the mods that community list offers instead; installing one
-  adds its GitHub repository as a marketplace.
+  adds its GitHub repository as a marketplace. A mod there that is a bare plugin (no
+  marketplace file) has **Download** instead: it is cloned into `~/.wraithgrid/mods/<name>` and
+  added to your mod folders. The catalog merges the marketplaces of all your claude accounts.
+- **Marketplaces**: see where Browse finds mods, add one (`owner/repo` or an https address) to
+  every account, or remove one from all of them.
 - **Mod folders**: add the folder of a mod you are building; every claude pane in every
   account loads it (`CLAUDE_CODE_PLUGIN_DIRS`) and claude reloads it when its files change.
 - **Draw panes with the GPU**: keeps mods that animate smooth. Off by default.
@@ -276,7 +300,8 @@ bar, or the command palette) covers the rest:
 - **No telemetry.** The only network activity is opening links you click, in your browser
   (http and https only), the optional release check, which you can turn off, and the
   claudemod.com mod list, read from that site and from GitHub only when you pick it under
-  **Mods → Browse**.
+  **Mods → Browse**. Git pushes, mod downloads (`git clone` from GitHub) and mod installs run
+  only when you click them.
 - **Sandboxed renderer.** The UI runs sandboxed with context isolation. It reaches the system
   only through a fixed, validated IPC surface.
 - **Account folders are off-limits.** Sharing `~/.claude` is the only time Wraithgrid writes

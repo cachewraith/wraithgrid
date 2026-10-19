@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest'
-import { chord, chordKeys, matchShortcut, type KeyLike } from '../../src/renderer/app/shortcuts'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  SHORTCUT_HINT,
+  bindingFromEvent,
+  bindingProblem,
+  chord,
+  chordKeys,
+  matchShortcut,
+  parseBinding,
+  setShortcutBindings,
+  type KeyLike
+} from '../../src/renderer/app/shortcuts'
 
 const key = (k: Partial<KeyLike>): KeyLike => ({
   key: '',
@@ -103,5 +113,41 @@ describe('macOS bindings', () => {
     expect(chord(['mod', 'shift', 'N'], true)).toBe('⌘⇧N')
     expect(chord(['mod', 'shift', 'N'], false)).toBe('Ctrl+Shift+N')
     expect(chordKeys(['mod', 'alt', '←'], true)).toEqual(['⌘', '⌥', '←'])
+  })
+})
+
+describe('rebound shortcuts', () => {
+  afterEach(() => setShortcutBindings({}))
+
+  it('uses a saved binding instead of the default, and shows it in hints', () => {
+    setShortcutBindings({ newPane: 'mod+alt+KeyT' })
+    expect(match(ctrlShift('KeyN', 'N'))).toBeNull()
+    expect(match(key({ code: 'KeyT', ctrlKey: true, altKey: true }))).toEqual({ type: 'newPane' })
+    expect(SHORTCUT_HINT.newPane).toMatch(/Alt\+T$|⌥T$/)
+  })
+
+  it('ignores a saved binding that is invalid or taken', () => {
+    setShortcutBindings({ newPane: 'mod+KeyC', closePane: 'mod+shift+KeyP' })
+    expect(match(ctrlShift('KeyN', 'N'))).toEqual({ type: 'newPane' })
+    expect(match(ctrlShift('KeyP', 'P'))).toEqual({ type: 'palette' })
+  })
+
+  it('records a chord with the app modifier and refuses ones the terminal needs', () => {
+    expect(bindingFromEvent(key({ code: 'KeyK', ctrlKey: true, shiftKey: true }), false)).toEqual({
+      shift: true,
+      alt: false,
+      code: 'KeyK'
+    })
+    expect(
+      bindingFromEvent(key({ code: 'ShiftLeft', ctrlKey: true, shiftKey: true }), false)
+    ).toBeNull()
+    expect(bindingFromEvent(key({ code: 'KeyK', shiftKey: true }), false)).toBeNull()
+    const b = (raw: string) => parseBinding(raw)!
+    expect(bindingProblem(b('mod+KeyK'), 'newPane')).toMatch(/Shift or Alt/)
+    expect(bindingProblem(b('mod+shift+Digit2'), 'newPane')).toMatch(/workspaces/)
+    expect(bindingProblem(b('mod+shift+KeyC'), 'newPane')).toMatch(/copy/)
+    expect(bindingProblem(b('mod+shift+KeyP'), 'newPane')).toMatch(/Search panes/)
+    expect(bindingProblem(b('mod+shift+KeyK'), 'newPane')).toBeNull()
+    expect(parseBinding('shift+KeyK')).toBeNull()
   })
 })

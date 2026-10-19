@@ -26,6 +26,11 @@ export const IPC = {
   gitStatus: 'git:status',
   gitDiff: 'git:diff',
   gitWorktreeAdd: 'git:worktreeAdd',
+  gitWorktreeCheck: 'git:worktreeCheck',
+  gitWorktreeRemove: 'git:worktreeRemove',
+  gitCommit: 'git:commit',
+  gitPush: 'git:push',
+  gitOpenPr: 'git:openPr',
   notifyPane: 'notify:pane',
   shellList: 'shell:list',
   paneReveal: 'pane:reveal',
@@ -34,5 +39,10 @@ export const IPC = {
   modsSetEnabled: 'mods:setEnabled',
   modsCatalog: 'mods:catalog',
   modsCommunity: 'mods:community',
-  modsInstall: 'mods:install'
+  modsInstall: 'mods:install',
+  modsChange: 'mods:change',
+  modsClone: 'mods:clone',
+  modsMarketplaces: 'mods:marketplaces',
+  modsMarketplaceAdd: 'mods:marketplaceAdd',
+  modsMarketplaceRemove: 'mods:marketplaceRemove'
 } as const

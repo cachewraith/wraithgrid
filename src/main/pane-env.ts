@@ -1,13 +1,6 @@
 import path from 'node:path'
 import { expandHome } from '@shared/paths'
-import type { AgentCli } from '@shared/types'
-
-/** The variable that points each CLI at an account's config dir. agy has none: it uses the keyring. */
-const CONFIG_DIR_VAR: Record<AgentCli, string | null> = {
-  claude: 'CLAUDE_CONFIG_DIR',
-  gemini: 'GEMINI_CLI_HOME',
-  agy: null
-}
+import { AGENT_CLI_SPECS, CONFIG_DIR_VARS, type AgentCli } from '@shared/agent-clis'
 
 /**
  * Variables that describe the terminal Wraithgrid was started from, not the pane. Inherited,
@@ -94,7 +87,7 @@ export interface PaneEnvInput {
 }
 
 /**
- * The one place that decides a pane's environment, including CLAUDE_CONFIG_DIR / GEMINI_CLI_HOME
+ * The one place that decides a pane's environment, including the CLI's config-dir variable
  * (requirements §13: isolate it so a CLI change touches one function).
  */
 export function buildPaneEnv({
@@ -119,8 +112,8 @@ export function buildPaneEnv({
   if (platform !== 'win32' && !hasLocale(env))
     env.LANG = platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
   // An agent pane sees only its own account's config dir, never one Wraithgrid inherited.
-  if (!shell) for (const v of Object.values(CONFIG_DIR_VAR)) if (v) delete env[v]
-  const dirVar = CONFIG_DIR_VAR[cli]
+  if (!shell) for (const v of CONFIG_DIR_VARS) delete env[v]
+  const dirVar = AGENT_CLI_SPECS[cli].configDirVar
   if (!shell && configDir && dirVar) {
     env[dirVar] = path.resolve(expandHome(configDir, homeDir))
   }

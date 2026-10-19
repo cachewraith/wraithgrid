@@ -1,10 +1,20 @@
-// Read-only git facts for a pane's folder (branch, changed files, diff) and one write:
-// adding a worktree so a new pane works on its own branch. git runs through an injected
-// runner (execFile, never a shell), so parsing and argument building stay unit-testable.
+// Git facts for a pane's folder (branch, changed files, diff) and the few writes the user asks
+// for: a worktree for a new pane (and removing it), commit, push and a pull-request link.
+// git runs through an injected runner (execFile, never a shell), so parsing and argument
+// building stay unit-testable.
 import path from 'node:path'
-import type { GitDiffResult, GitStatus, GitWorktreeResult } from '@shared/ipc-contract'
+import type {
+  GitActionResult,
+  GitDiffResult,
+  GitStatus,
+  GitWorktreeCheck,
+  GitWorktreeResult
+} from '@shared/ipc-contract'
 
-export type GitRunner = (args: string[], cwd: string) => Promise<string>
+/** `slow`: a commit (hooks) or push (network) may take minutes, not the polling timeout. */
+export type GitRunner = (args: string[], cwd: string, opts?: { slow?: boolean }) => Promise<string>
+
+export const COMMIT_MESSAGE_MAX = 5000
 
 /** A diff bigger than this is cut, so one huge generated file can't stall the renderer. */
 export const DIFF_MAX_BYTES = 1_000_000
@@ -95,6 +105,144 @@ export async function addWorktree(
     return { ok: false, error: firstLine(err) }
   }
   return { ok: true, dir }
+}
+
+/** Stages everything in the pane's folder and commits it with the user's message. */
+export async function commitAll(
+  run: GitRunner,
+  cwd: string,
+  message: string
+): Promise<GitActionResult> {
+  const msg = message.trim()
+  if (!msg) return { ok: false, error: 'Write a commit message first.' }
+  if (msg.length > COMMIT_MESSAGE_MAX) return { ok: false, error: 'The message is too long.' }
+  try {
+    await run(['add', '-A'], cwd)
+    await run(['commit', '-m', msg], cwd, { slow: true })
+    const hash = (await run(['rev-parse', '--short', 'HEAD'], cwd)).trim()
+    return { ok: true, detail: `Committed ${hash}` }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+/** The branch checked out in `cwd`, or null on a detached HEAD. */
+async function currentBranch(run: GitRunner, cwd: string): Promise<string | null> {
+  const b = (await run(['rev-parse', '--abbrev-ref', 'HEAD'], cwd)).trim()
+  return b && b !== 'HEAD' ? b : null
+}
+
+/** `origin` when there is one, else the first remote. */
+async function pickRemote(run: GitRunner, cwd: string): Promise<string | null> {
+  const remotes = (await run(['remote'], cwd))
+    .split('\n')
+    .map((r) => r.trim())
+    .filter(Boolean)
+  return remotes.includes('origin') ? 'origin' : (remotes[0] ?? null)
+}
+
+/** Pushes the current branch, setting its upstream on the first push. */
+export async function pushBranch(run: GitRunner, cwd: string): Promise<GitActionResult> {
+  try {
+    const branch = await currentBranch(run, cwd)
+    if (!branch) return { ok: false, error: 'Not on a branch (detached HEAD).' }
+    let hasUpstream = true
+    try {
+      await run(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], cwd)
+    } catch {
+      hasUpstream = false
+    }
+    if (hasUpstream) {
+      await run(['push'], cwd, { slow: true })
+      return { ok: true, detail: `Pushed ${branch}` }
+    }
+    const remote = await pickRemote(run, cwd)
+    if (!remote) return { ok: false, error: 'This repository has no remote to push to.' }
+    await run(['push', '--set-upstream', remote, branch], cwd, { slow: true })
+    return { ok: true, detail: `Pushed ${branch} to ${remote}` }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+/**
+ * The web page that opens a pull request (GitHub) or merge request (GitLab) for `branch`,
+ * from a remote URL in https or scp-like ssh form; null for other hosts.
+ */
+export function pullRequestUrl(remoteUrl: string, branch: string): string | null {
+  const m =
+    /^(?:https:\/\/(?:[^@/]+@)?|ssh:\/\/git@|git@)(github\.com|gitlab\.com)[:/]([\w.-]+(?:\/[\w.-]+)+)\/?$/.exec(
+      remoteUrl.trim()
+    )
+  if (!m) return null
+  const host = m[1]
+  const repo = m[2]!.replace(/\.git$/, '')
+  const b = encodeURIComponent(branch)
+  return host === 'github.com'
+    ? `https://github.com/${repo}/compare/${b}?expand=1`
+    : `https://gitlab.com/${repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${b}`
+}
+
+/** The pull-request page for the pane's branch on its remote. */
+export async function pullRequestLink(
+  run: GitRunner,
+  cwd: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    const branch = await currentBranch(run, cwd)
+    if (!branch) return { ok: false, error: 'Not on a branch (detached HEAD).' }
+    const remote = await pickRemote(run, cwd)
+    if (!remote) return { ok: false, error: 'This repository has no remote.' }
+    const url = pullRequestUrl(await run(['remote', 'get-url', remote], cwd), branch)
+    if (!url) return { ok: false, error: 'Pull requests open for GitHub and GitLab remotes only.' }
+    return { ok: true, url }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+/**
+ * Whether `dir` is a linked worktree (not a repo's main checkout), its branch and how many
+ * files in it are uncommitted, so the user can decide before it is removed.
+ */
+export async function checkWorktree(run: GitRunner, dir: string): Promise<GitWorktreeCheck> {
+  try {
+    const [gitDir, commonDir] = (
+      await run(['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'], dir)
+    )
+      .split('\n')
+      .map((l) => l.trim())
+    if (!gitDir || !commonDir || path.resolve(gitDir) === path.resolve(commonDir))
+      return { ok: false, error: 'Not a linked worktree.' }
+    const st = parseStatus(
+      await run(['status', '--porcelain=1', '--branch', '--untracked-files=normal'], dir)
+    )
+    return { ok: true, branch: st.branch, changed: st.changed, mainRoot: path.dirname(commonDir) }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+/**
+ * Removes a linked worktree's folder; its branch and commits stay in the repo. Uncommitted
+ * files are only thrown away with `force`. Runs from the main checkout: git won't remove
+ * the worktree it is running in.
+ */
+export async function removeWorktree(
+  run: GitRunner,
+  dir: string,
+  force: boolean
+): Promise<GitActionResult> {
+  const check = await checkWorktree(run, dir)
+  if (!check.ok) return check
+  if (check.changed && !force)
+    return { ok: false, error: `${check.changed} uncommitted files; remove anyway to lose them.` }
+  try {
+    await run(['worktree', 'remove', ...(force ? ['--force'] : []), dir], check.mainRoot)
+    return { ok: true, detail: check.branch ? `Kept branch ${check.branch}` : 'Removed' }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
 }
 
 /** git's own error line (it may print progress lines first), without the "fatal: " prefix. */

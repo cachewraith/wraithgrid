@@ -20,6 +20,8 @@ export const ptyCreateArgs = z.object({
     )
     .max(32),
   shell: z.boolean(),
+  /** Start the CLI with its "continue the last conversation" args (a restored pane). */
+  resume: z.boolean().default(false),
   cols: dim,
   rows: dim
 })
@@ -50,6 +52,13 @@ export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
   branch: z.string().min(1).max(100)
 })
+export const gitCommitArgs = z.object({
+  paneId: idSchema,
+  message: z.string().min(1).max(5000)
+})
+/** A worktree folder under ~/.wraithgrid/worktrees; main checks that before touching it. */
+export const gitWorktreeArgs = z.object({ cwd: z.string().min(1).max(4096) })
+export const gitWorktreeRemoveArgs = gitWorktreeArgs.extend({ force: z.boolean() })
 export const modsListArgs = z.object({})
 /** Names one row of the last list; main checks it against its own copy before acting. */
 export const modsSetEnabledArgs = z.object({
@@ -63,6 +72,13 @@ export const modsCatalogArgs = z.object({})
 /** Names a mod of the last catalog or list; main checks it against its own copy before installing. */
 export const modsCommunityArgs = z.object({})
 export const modsInstallArgs = z.object({ id: z.string().min(1).max(200) })
+export const modsChangeArgs = z.object({
+  id: z.string().min(1).max(200),
+  change: z.enum(['uninstall', 'update'])
+})
+export const modsMarketplacesArgs = z.object({})
+export const modsMarketplaceAddArgs = z.object({ source: z.string().min(1).max(500) })
+export const modsMarketplaceRemoveArgs = z.object({ name: z.string().min(1).max(120) })
 export const notifyPaneArgs = z.object({
   paneId: idSchema,
   title: z.string().min(1).max(120),
@@ -162,6 +178,13 @@ export type GitDiffResult =
 
 export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: string }
 
+/** A commit, push or worktree removal; `detail` is a short line for the user. */
+export type GitActionResult = { ok: true; detail: string } | { ok: false; error: string }
+
+export type GitWorktreeCheck =
+  | { ok: true; branch: string | null; changed: number; mainRoot: string }
+  | { ok: false; error: string }
+
 /** An installed shell offered in Settings; `args` are the ones it needs (Git Bash: login). */
 export interface ShellOption {
   name: string
@@ -199,7 +222,24 @@ export interface CatalogMod {
   stars: number | null
   /** The mod's https source page, when it has one. */
   url: string | null
+  /**
+   * `owner/repo` of a community mod that is a bare plugin (no marketplace file): it is not
+   * installed but downloaded into a mod folder. Null for everything `plugin install` takes.
+   */
+  clone: string | null
 }
+
+/** A marketplace merged over the claude accounts: how many of them have it. */
+export interface MarketplaceInfo {
+  name: string
+  url: string | null
+  accounts: number
+}
+
+export type MarketplacesResult =
+  { ok: true; marketplaces: MarketplaceInfo[]; total: number } | { ok: false; error: string }
+
+export type ModCloneResult = { ok: true; dir: string } | { ok: false; error: string }
 
 export type ModCatalogResult = { ok: true; mods: CatalogMod[] } | { ok: false; error: string }
 
@@ -267,6 +307,17 @@ export interface WraithApi {
     diff(paneId: string): Promise<GitDiffResult>
     /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
     addWorktree(cwd: string, branch: string): Promise<GitWorktreeResult>
+    /** Stages everything in the pane's folder and commits it. */
+    commit(paneId: string, message: string): Promise<GitActionResult>
+    /** Pushes the pane's branch (sets the upstream on the first push). */
+    push(paneId: string): Promise<GitActionResult>
+    /** Opens the pull-request page for the pane's branch in the browser. */
+    openPullRequest(paneId: string): Promise<GitActionResult>
+    /** Branch and uncommitted count of a Wraithgrid worktree, before removing it. */
+    checkWorktree(
+      cwd: string
+    ): Promise<{ ok: true; branch: string | null; changed: number } | { ok: false; error: string }>
+    removeWorktree(cwd: string, force: boolean): Promise<GitActionResult>
   }
   shells: {
     /** Shells installed on this machine, for the Settings picker. */
@@ -288,12 +339,22 @@ export interface WraithApi {
       mod: Pick<ModInfo, 'id' | 'scope' | 'projectPath'>,
       enabled: boolean
     ): Promise<SimpleResult>
-    /** Every mod the marketplaces offer, as the first claude account that answers lists them. */
+    /** Every mod the marketplaces of all claude accounts offer, merged by id. */
     catalog(): Promise<ModCatalogResult>
     /** The mods claudemod.com lists that can be installed; contacts that site and GitHub. */
     community(): Promise<ModCatalogResult>
     /** Installs a mod for every claude account that lacks it (user scope), each through its CLI. */
     install(id: string): Promise<ModInstallResult>
+    /** Uninstalls or updates a listed mod in every claude account that has it. */
+    change(id: string, change: 'uninstall' | 'update'): Promise<ModInstallResult>
+    /** Downloads a community bare-plugin mod into ~/.wraithgrid/mods; returns its folder. */
+    clone(id: string): Promise<ModCloneResult>
+    /** The marketplaces of all claude accounts, merged by name. */
+    marketplaces(): Promise<MarketplacesResult>
+    /** Adds a marketplace (`owner/repo` or an https address) to every account that lacks it. */
+    addMarketplace(source: string): Promise<ModInstallResult>
+    /** Removes a marketplace from every account that has it. */
+    removeMarketplace(name: string): Promise<ModInstallResult>
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

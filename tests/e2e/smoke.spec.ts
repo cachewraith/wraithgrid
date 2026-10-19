@@ -96,7 +96,7 @@ test('accounts are isolated, the layout is restored, and no process outlives the
               id: 'p-beta',
               accountId: 'a-work',
               cwd: '~/proj/beta',
-              args: ['-c'],
+              args: ['--verbose'],
               shell: false,
               title: 'beta'
             }
@@ -121,7 +121,7 @@ test('accounts are isolated, the layout is restored, and no process outlives the
       .toContain(squash(`CLAUDE_CONFIG_DIR=${home}/.wraithgrid/accounts/work`))
     expect(await paneText(win, 'alpha')).toContain(squash(`PWD=${home}/proj/alpha`))
     expect(await paneText(win, 'beta')).toContain(squash(`PWD=${home}/proj/beta`))
-    expect(await paneText(win, 'beta')).toContain('ARGS=-c')
+    expect(await paneText(win, 'beta')).toContain('ARGS=--verbose')
     expect(fakeClaudePids()).toHaveLength(2)
 
     // Input reaches the right process.
@@ -143,6 +143,11 @@ test('accounts are isolated, the layout is restored, and no process outlives the
 
     const saved = JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8'))
     expect(saved.workspaces[0].layout.type).toBe('split')
+    // Only the pane that was sent a prompt has a conversation to continue.
+    const savedPane = (id: string) =>
+      saved.workspaces[0].panes.find((p: { id: string }) => p.id === id)
+    expect(savedPane('p-beta').hasConversation).toBe(true)
+    expect(savedPane('p-alpha').hasConversation).toBe(false)
 
     // ---- Second run: the same layout, accounts and folders come back.
     ;({ app, win } = await launch(home, userData))
@@ -156,6 +161,20 @@ test('accounts are isolated, the layout is restored, and no process outlives the
       .toContain(squash(`CLAUDE_CONFIG_DIR=${home}/.wraithgrid/accounts/personal`))
     await expect.poll(() => paneText(win, 'beta')).toContain(squash(`PWD=${home}/proj/beta`))
     await expect.poll(() => fakeClaudePids().length).toBe(2)
+    // The restored pane continues its conversation; the one never prompted starts fresh.
+    expect(await paneText(win, 'beta')).toContain('ARGS=--continue--verbose')
+    expect(await paneText(win, 'alpha')).toContain('ARGS=TERM=')
+
+    // A restart starts fresh, and the pane menu turns resuming off.
+    const beta = win.locator('section.pane', { has: win.locator('.ph-title', { hasText: 'beta' }) })
+    await beta.locator('.ph').click({ button: 'right' })
+    await win.getByRole('menuitem', { name: /Continue conversation on restore: on/ }).click()
+    await beta.locator('.ph').click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Restart' }).click()
+    await expect.poll(() => paneText(win, 'beta')).toContain('restarted')
+    await expect
+      .poll(async () => (await paneText(win, 'beta')).split('restarted')[1])
+      .toContain('ARGS=--verbose')
 
     await app.close()
     expect(fakeClaudePids()).toEqual([])

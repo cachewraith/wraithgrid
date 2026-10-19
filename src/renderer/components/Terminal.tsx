@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import type { AgentCli } from '@shared/types'
+import { AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import { IS_MAC, matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
 import { currentTheme } from '../app/store'
@@ -98,19 +98,14 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     // App shortcuts never reach the process; everything else (Ctrl+C, arrows) does.
     term.attachCustomKeyEventHandler((e) => {
       if (matchShortcut(e)) return false
-      // Shift+Enter sends ESC CR, which claude reads as "new line" (what /terminal-setup
+      // Shift+Enter sends the CLI's "new line" bytes (claude: ESC CR, what /terminal-setup
       // configures in other terminals). Plain Enter still submits; other panes are left alone.
-      if (
-        e.shiftKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey &&
-        e.key === 'Enter' &&
-        paneCli() === 'claude'
-      ) {
+      const cli = e.shiftKey && e.key === 'Enter' ? paneCli() : null
+      const newLine = cli ? AGENT_CLI_SPECS[cli].newLine : null
+      if (newLine && !e.ctrlKey && !e.altKey && !e.metaKey) {
         if (e.type === 'keydown') {
           e.preventDefault()
-          bus.input(paneId, '\x1b\r')
+          bus.input(paneId, newLine)
         }
         return false
       }
@@ -167,7 +162,10 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     }
 
     if (fitNow()) bus.noteSize(paneId, term.cols, term.rows)
-    const onInput = term.onData((data) => bus.input(paneId, data))
+    const onInput = term.onData((data) => {
+      bus.input(paneId, data)
+      if (data.includes('\r')) store.getState().markConversation(paneId)
+    })
     const detach = bus.attach(paneId, (data) => term.write(data))
     store.getState().requestStart(paneId)
 

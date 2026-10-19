@@ -1,15 +1,29 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
+import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import { contractHome } from '@shared/paths'
+import {
+  IS_MAC,
+  SHORTCUT_LABEL,
+  bindingFromEvent,
+  bindingKeys,
+  bindingProblem,
+  currentBinding,
+  defaultBinding,
+  formatBinding,
+  setRecordingShortcut
+} from '../app/shortcuts'
 import {
   ACCENTS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  SHORTCUT_IDS,
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type AccentName,
   type SharedMode,
+  type ShortcutId,
   type ThemePreference
 } from '@shared/types'
 import { AccountIcon } from './AccountIcon'
@@ -563,6 +577,153 @@ function ClaudeBinaryRow() {
   )
 }
 
+/** Path overrides for the other agent CLIs, one input each; empty means "find it on PATH". */
+function CliPathsRow() {
+  const { updateConfig } = useActions()
+  const saved = useApp((s) => s.config.settings.cliPaths)
+  const [draft, setDraft] = useState<Partial<Record<AgentCli, string>>>(saved)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), [])
+
+  const commit = (cli: AgentCli, value: string): void => {
+    const next = { ...draft, [cli]: value }
+    setDraft(next)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      const cliPaths = Object.fromEntries(
+        Object.entries(next)
+          .map(([k, v]) => [k, (v ?? '').trim()])
+          .filter(([, v]) => v)
+      ) as Partial<Record<AgentCli, string>>
+      updateConfig((c) => ({ ...c, settings: { ...c.settings, cliPaths } }))
+    }, 400)
+  }
+
+  return (
+    <div className="srow">
+      <div>
+        <h3>Other agent CLIs</h3>
+        <p className="ex">Found on your PATH. Set a path to use a binary that is not on it.</p>
+      </div>
+      <div className="ctl cli-paths">
+        {AGENT_CLIS.filter((c) => c !== 'claude').map((c) => (
+          <label key={c} className="cli-path">
+            <span className="mono">{AGENT_CLI_SPECS[c].bin}</span>
+            <input
+              className="inpt"
+              value={draft[c] ?? ''}
+              onChange={(e) => commit(c, e.target.value)}
+              placeholder="on PATH"
+              spellCheck={false}
+              aria-label={`${AGENT_CLI_LABEL[c]} binary path`}
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** One rebindable shortcut: its keys, Change (records the next chord) and Reset. */
+function ShortcutItem({ id }: { id: ShortcutId }) {
+  const { updateConfig } = useActions()
+  const saved = useApp((s) => s.config.settings.shortcuts)
+  const [recording, setRecording] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const current = currentBinding(id)
+  const isDefault = !saved[id]
+
+  const store = (value: string | null): void =>
+    updateConfig((c) => {
+      const shortcuts = { ...c.settings.shortcuts }
+      if (value) shortcuts[id] = value
+      else delete shortcuts[id]
+      return { ...c, settings: { ...c.settings, shortcuts } }
+    })
+
+  // While recording, the next chord is the binding; it never reaches the app or a pane.
+  useEffect(() => {
+    if (!recording) return
+    setRecordingShortcut(true)
+    const onKey = (e: KeyboardEvent): void => {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      if (e.key === 'Escape') return setRecording(false)
+      const b = bindingFromEvent(e)
+      if (!b) return
+      const problem = bindingProblem(b, id)
+      setRecording(false)
+      setError(problem)
+      if (!problem) {
+        const d = defaultBinding(id)
+        const same = d.code === b.code && d.shift === b.shift && d.alt === b.alt
+        store(same ? null : formatBinding(b))
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      setRecordingShortcut(false)
+    }
+  })
+
+  return (
+    <div className="sc-row">
+      <span>{SHORTCUT_LABEL[id]}</span>
+      <span className="keys">
+        {recording ? (
+          <span className="hint" role="status">
+            Press the new keys… (Esc cancels)
+          </span>
+        ) : (
+          bindingKeys(current).map((k, i) => <kbd key={i}>{k}</kbd>)
+        )}
+        <button
+          className="btn gh sm"
+          aria-label={`Change shortcut: ${SHORTCUT_LABEL[id]}`}
+          onClick={() => {
+            setError(null)
+            setRecording((v) => !v)
+          }}
+        >
+          {recording ? 'Cancel' : 'Change'}
+        </button>
+        <button
+          className="btn gh sm"
+          aria-label={`Reset shortcut: ${SHORTCUT_LABEL[id]}`}
+          disabled={isDefault}
+          onClick={() => {
+            setError(null)
+            store(null)
+          }}
+        >
+          Reset
+        </button>
+      </span>
+      {error ? <span className="hint err sc-err">{error}</span> : null}
+    </div>
+  )
+}
+
+function ShortcutsRow() {
+  return (
+    <div className="srow">
+      <div>
+        <h3>Keyboard shortcuts</h3>
+        <p className="ex">
+          Pick another chord for an app shortcut. It needs Shift or Alt with {IS_MAC ? '⌘' : 'Ctrl'}
+          , so the terminal keeps its own keys.
+        </p>
+      </div>
+      <div className="ctl scl">
+        {SHORTCUT_IDS.map((id) => (
+          <ShortcutItem key={id} id={id} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SharedRow() {
   const actions = useActions()
   const mode = useApp((s) => s.config.settings.sharedMode)
@@ -694,6 +855,7 @@ export function SettingsView() {
 
         <h2 className="sgrp">General</h2>
         <ClaudeBinaryRow />
+        <CliPathsRow />
 
         <div className="srow">
           <div>
@@ -844,6 +1006,9 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <h2 className="sgrp">Keyboard</h2>
+        <ShortcutsRow />
 
         <h2 className="sgrp">Notifications</h2>
         <NotifyRow />

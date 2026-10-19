@@ -56,7 +56,12 @@ const api: WraithApi = {
   git: {
     status: (paneId) => ipcRenderer.invoke(IPC.gitStatus, { paneId }),
     diff: (paneId) => ipcRenderer.invoke(IPC.gitDiff, { paneId }),
-    addWorktree: (cwd, branch) => ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch })
+    addWorktree: (cwd, branch) => ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch }),
+    commit: (paneId, message) => ipcRenderer.invoke(IPC.gitCommit, { paneId, message }),
+    push: (paneId) => ipcRenderer.invoke(IPC.gitPush, { paneId }),
+    openPullRequest: (paneId) => ipcRenderer.invoke(IPC.gitOpenPr, { paneId }),
+    checkWorktree: (cwd) => ipcRenderer.invoke(IPC.gitWorktreeCheck, { cwd }),
+    removeWorktree: (cwd, force) => ipcRenderer.invoke(IPC.gitWorktreeRemove, { cwd, force })
   },
   shells: {
     list: () => ipcRenderer.invoke(IPC.shellList, {})
@@ -76,7 +81,12 @@ const api: WraithApi = {
       }),
     catalog: () => ipcRenderer.invoke(IPC.modsCatalog, {}),
     community: () => ipcRenderer.invoke(IPC.modsCommunity, {}),
-    install: (id) => ipcRenderer.invoke(IPC.modsInstall, { id })
+    install: (id) => ipcRenderer.invoke(IPC.modsInstall, { id }),
+    change: (id, change) => ipcRenderer.invoke(IPC.modsChange, { id, change }),
+    clone: (id) => ipcRenderer.invoke(IPC.modsClone, { id }),
+    marketplaces: () => ipcRenderer.invoke(IPC.modsMarketplaces, {}),
+    addMarketplace: (source) => ipcRenderer.invoke(IPC.modsMarketplaceAdd, { source }),
+    removeMarketplace: (name) => ipcRenderer.invoke(IPC.modsMarketplaceRemove, { name })
   },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import type {
   AccountMods,
   CatalogMod,
+  MarketplacesResult,
   ModCatalogResult,
   ModInstallResult
 } from '@shared/ipc-contract'
@@ -86,6 +87,18 @@ function ModRow({
     if (res.ok) onChanged()
   }
 
+  // Uninstall asks twice: it removes the mod from every account that has it.
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const change = async (what: 'update' | 'uninstall'): Promise<void> => {
+    setBusy(true)
+    setConfirmRemove(false)
+    const res = await api.mods.change(mod.id, what)
+    await actions.loadMods()
+    setBusy(false)
+    setError(installError(res))
+    if (res.ok) onChanged()
+  }
+
   const where =
     accounts.length < 2
       ? null
@@ -129,6 +142,28 @@ function ModRow({
           {busy ? 'Adding…' : 'Add to all accounts'}
         </button>
       ) : null}
+      <button
+        className="btn gh sm"
+        disabled={busy}
+        aria-label={`Update ${name}`}
+        title="Update to the newest version"
+        onClick={() => void change('update')}
+      >
+        Update
+      </button>
+      <button
+        className={`btn sm${confirmRemove ? ' dng' : ' gh'}`}
+        disabled={busy}
+        aria-label={confirmRemove ? `Confirm uninstall ${name}` : `Uninstall ${name}`}
+        onClick={() => (confirmRemove ? void change('uninstall') : setConfirmRemove(true))}
+        onBlur={() => setConfirmRemove(false)}
+      >
+        {confirmRemove
+          ? row.accounts.length > 1
+            ? `Remove from ${row.accounts.length} accounts`
+            : 'Click to remove'
+          : 'Uninstall'}
+      </button>
       <button
         className={`sw${mod.enabled ? ' on' : ''}`}
         role="switch"
@@ -244,7 +279,7 @@ function CatalogRow({
         {error ? <span className="hint err">{error}</span> : null}
       </div>
       {state === 'all' ? (
-        <span className="badge">Installed</span>
+        <span className="badge">{mod.clone ? 'In mod folders' : 'Installed'}</span>
       ) : (
         <button
           className="btn"
@@ -252,7 +287,15 @@ function CatalogRow({
           aria-label={`Install ${mod.name}`}
           onClick={() => void install()}
         >
-          {busy ? 'Installing…' : state === 'some' ? 'Add to all accounts' : 'Install'}
+          {mod.clone
+            ? busy
+              ? 'Downloading…'
+              : 'Download'
+            : busy
+              ? 'Installing…'
+              : state === 'some'
+                ? 'Add to all accounts'
+                : 'Install'}
         </button>
       )}
     </div>
@@ -297,13 +340,25 @@ function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: ()
   const catalog = res?.ok ? res.mods : null
   const error = res && !res.ok ? res.error : null
   const answered = (listed ?? []).flatMap((r) => (r.ok ? [r] : []))
-  const stateOf = (id: string): 'all' | 'some' | 'none' => {
+  const modDirs = useApp((s) => s.config.settings.modDirs)
+  const cloneDir = (m: CatalogMod): string => `~/.wraithgrid/mods/${m.name}`
+  const stateOf = (m: CatalogMod): 'all' | 'some' | 'none' => {
+    if (m.clone) return modDirs.includes(cloneDir(m)) ? 'all' : 'none'
+    const id = m.id
     const have = answered.filter((r) => r.mods.some((m) => m.id === id)).length
     return have === 0 ? 'none' : have === answered.length ? 'all' : 'some'
   }
   const found = catalog ? searchMods(catalog, query) : []
 
   const install = async (mod: CatalogMod): Promise<string | null> => {
+    // A bare plugin is downloaded and loaded as a mod folder, in every claude pane.
+    if (mod.clone) {
+      const got = await api.mods.clone(mod.id)
+      if (!got.ok) return got.error
+      if (!modDirs.includes(got.dir)) actions.updateSettings({ modDirs: [...modDirs, got.dir] })
+      onChanged()
+      return null
+    }
     const done = await api.mods.install(mod.id)
     await actions.loadMods()
     if (done.ok) onChanged()
@@ -371,7 +426,7 @@ function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: ()
             </span>
             <div className="mod-list">
               {found.slice(0, limit).map((m) => (
-                <CatalogRow key={m.id} mod={m} state={stateOf(m.id)} onInstall={() => install(m)} />
+                <CatalogRow key={m.id} mod={m} state={stateOf(m)} onInstall={() => install(m)} />
               ))}
             </div>
             {found.length > limit ? (
@@ -385,6 +440,118 @@ function BrowseRow({ accounts, onChanged }: { accounts: Account[]; onChanged: ()
             ) : null}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+/** The marketplaces the accounts get mods from: add one to all, or remove one from all. */
+function MarketplacesRow({ onChanged }: { onChanged: () => void }) {
+  const { api } = useServices()
+  const [res, setRes] = useState<MarketplacesResult | null>(null)
+  const [source, setSource] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<string | null>(null)
+  const [nonce, setNonce] = useState(0)
+  // Read again whenever the mod list is: an install may have added a marketplace.
+  const listed = useApp((s) => s.mods.accounts)
+
+  useEffect(() => {
+    let stale = false
+    void api.mods.marketplaces().then((r) => {
+      if (!stale) setRes(r)
+    })
+    return () => {
+      stale = true
+    }
+  }, [api, nonce, listed])
+
+  const run = async (job: Promise<ModInstallResult>): Promise<boolean> => {
+    setBusy(true)
+    setError(null)
+    const r = await job
+    setBusy(false)
+    setError(installError(r))
+    setNonce((n) => n + 1)
+    if (r.ok) onChanged()
+    return r.ok
+  }
+  const add = async (): Promise<void> => {
+    if (await run(api.mods.addMarketplace(source.trim()))) setSource('')
+  }
+
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="markets-h">Marketplaces</h3>
+        <p className="ex">
+          Where Browse finds mods. Adding or removing one does it for every claude account.
+        </p>
+      </div>
+      <div className="ctl">
+        {!res ? (
+          <span className="hint">Asking claude…</span>
+        ) : !res.ok ? (
+          <span className="hint err">{res.error}</span>
+        ) : res.marketplaces.length === 0 ? (
+          <span className="hint">No marketplace yet.</span>
+        ) : (
+          <div className="mod-list" role="list" aria-labelledby="markets-h">
+            {res.marketplaces.map((m) => (
+              <div className="mod-row" role="listitem" key={m.name}>
+                <div className="mod-tx">
+                  <span className="mod-nm">
+                    <ModName name={m.name} url={m.url} />
+                  </span>
+                  {res.total > 1 ? (
+                    <span className="hint">
+                      {m.accounts === res.total
+                        ? `all ${res.total} accounts`
+                        : `${m.accounts} of ${res.total} accounts`}
+                    </span>
+                  ) : null}
+                </div>
+                <button
+                  className={`btn sm${confirm === m.name ? ' dng' : ' gh'}`}
+                  disabled={busy}
+                  aria-label={
+                    confirm === m.name ? `Confirm remove ${m.name}` : `Remove marketplace ${m.name}`
+                  }
+                  onBlur={() => setConfirm(null)}
+                  onClick={() => {
+                    if (confirm !== m.name) return setConfirm(m.name)
+                    setConfirm(null)
+                    void run(api.mods.removeMarketplace(m.name))
+                  }}
+                >
+                  {confirm === m.name ? 'Click to remove' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <form
+          className="inrow"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (source.trim()) void add()
+          }}
+        >
+          <input
+            className="inpt"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="owner/repo or https://…"
+            aria-label="Marketplace to add"
+            spellCheck={false}
+            disabled={busy}
+          />
+          <button className="btn" type="submit" disabled={busy || !source.trim()}>
+            {busy ? 'Working…' : 'Add marketplace'}
+          </button>
+        </form>
+        {error ? <span className="hint err">{error}</span> : null}
       </div>
     </div>
   )
@@ -616,6 +783,7 @@ export function ModsView() {
           <>
             <h2 className="sgrp">Browse</h2>
             <BrowseRow accounts={claudeAccounts} onChanged={() => setChanged(true)} />
+            <MarketplacesRow onChanged={() => setChanged(true)} />
           </>
         ) : null}
 

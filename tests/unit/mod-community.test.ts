@@ -3,6 +3,7 @@ import {
   COMMUNITY_URL,
   CommunityCatalog,
   communityMod,
+  communityPlugin,
   parseCommunityPage
 } from '../../src/main/mod-community'
 
@@ -49,6 +50,7 @@ describe('claudemod.com list', () => {
         version: '1.0.0',
         installs: null,
         stars: 13,
+        clone: null,
         url: 'https://github.com/OneWave-AI/claude-code-mods'
       },
       marketplace: {
@@ -71,6 +73,29 @@ describe('claudemod.com list', () => {
     expect(communityMod(entry, 'junk')).toBeNull()
   })
 
+  it('offers a bare-plugin repository for download into a mod folder', () => {
+    expect(
+      communityPlugin(entry, {
+        name: 'effort-cycle',
+        description: ' Cycle\n effort ',
+        version: '2'
+      })
+    ).toEqual({
+      id: 'effort-cycle@folder',
+      name: 'effort-cycle',
+      description: 'Cycle effort',
+      marketplace: 'mod folder',
+      version: '2',
+      installs: null,
+      stars: 13,
+      clone: 'OneWave-AI/claude-code-mods',
+      url: 'https://github.com/OneWave-AI/claude-code-mods'
+    })
+    expect(communityPlugin(entry, { name: '--x' })).toBeNull()
+    expect(communityPlugin(entry, { name: '../up' })).toBeNull()
+    expect(communityPlugin(entry, 'junk')).toBeNull()
+  })
+
   it('fetches the page and each repository once, then reuses the answer', async () => {
     const asked: string[] = []
     let now = 0
@@ -82,25 +107,35 @@ describe('claudemod.com list', () => {
           return Promise.resolve(
             new Response(JSON.stringify({ name: 'cctop', plugins: [{ name: 'cctop' }] }))
           )
+        if (url.endsWith('/OneWave-AI/claude-code-mods/HEAD/.claude-plugin/plugin.json'))
+          return Promise.resolve(new Response(JSON.stringify({ name: 'burn-meter' })))
         return Promise.resolve(new Response('Not Found', { status: 404 }))
       },
       () => now
     )
     const first = await catalog.read()
-    expect(first.mods.map((m) => m.id)).toEqual(['cctop@cctop'])
+    // The repository without a marketplace file is a bare plugin: offered as a download.
+    expect(first.mods.map((m) => [m.id, m.clone])).toEqual([
+      ['burn-meter@folder', 'OneWave-AI/claude-code-mods'],
+      ['cctop@cctop', null]
+    ])
     expect(first.marketplaces).toEqual([
       { name: 'cctop', url: 'https://github.com/tomstagl/cctop', add: 'tomstagl/cctop' }
     ])
-    expect(asked).toEqual([
-      COMMUNITY_URL,
-      'https://raw.githubusercontent.com/OneWave-AI/claude-code-mods/HEAD/.claude-plugin/marketplace.json',
-      'https://raw.githubusercontent.com/tomstagl/cctop/HEAD/.claude-plugin/marketplace.json'
-    ])
+    const raw = 'https://raw.githubusercontent.com'
+    expect([...asked].sort()).toEqual(
+      [
+        COMMUNITY_URL,
+        `${raw}/OneWave-AI/claude-code-mods/HEAD/.claude-plugin/marketplace.json`,
+        `${raw}/OneWave-AI/claude-code-mods/HEAD/.claude-plugin/plugin.json`,
+        `${raw}/tomstagl/cctop/HEAD/.claude-plugin/marketplace.json`
+      ].sort()
+    )
     await catalog.read()
-    expect(asked).toHaveLength(3)
+    expect(asked).toHaveLength(4)
     now = 6 * 60_000
     await catalog.read()
-    expect(asked).toHaveLength(6)
+    expect(asked).toHaveLength(8)
   })
 
   it('says so when the site cannot be read', async () => {

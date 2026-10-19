@@ -1,5 +1,7 @@
 // The git diff of the focused pane's folder, beside the grid: what the agent changed since
-// the last commit, file by file. Read-only; it refreshes when the change count moves.
+// the last commit, file by file; it refreshes when the change count moves. Its footer commits
+// everything, pushes the branch and opens the pull-request page, each only on a click, and
+// push / pull request (they leave this machine) after a confirm.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { DIFF_WIDTH_DEFAULT, DIFF_WIDTH_MAX, DIFF_WIDTH_MIN } from '@shared/types'
 import type { GitDiffResult } from '@shared/ipc-contract'
@@ -44,6 +46,107 @@ function FileDiff({ file }: { file: DiffFile }) {
             ))}
           </pre>
         )
+      ) : null}
+    </div>
+  )
+}
+
+type GitAction = 'commit' | 'push' | 'pr'
+
+const CONFIRM: Record<Exclude<GitAction, 'commit'>, (branch: string) => string> = {
+  push: (b) => `Push ${b} to its remote?`,
+  pr: (b) => `Open a pull request page for ${b} in your browser?`
+}
+
+/** Commit / push / pull request for the focused pane's repository. */
+function GitActions({
+  paneId,
+  branch,
+  changed,
+  ahead
+}: {
+  paneId: string
+  branch: string | null
+  changed: number
+  ahead: number
+}) {
+  const { api } = useServices()
+  const actions = useActions()
+  const [message, setMessage] = useState('')
+  const [asking, setAsking] = useState<'push' | 'pr' | null>(null)
+  const [busy, setBusy] = useState<GitAction | null>(null)
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const run = async (what: GitAction): Promise<void> => {
+    setAsking(null)
+    setBusy(what)
+    setResult(null)
+    const r =
+      what === 'commit'
+        ? await api.git.commit(paneId, message)
+        : what === 'push'
+          ? await api.git.push(paneId)
+          : await api.git.openPullRequest(paneId)
+    setBusy(null)
+    setResult(r.ok ? { ok: true, text: r.detail } : { ok: false, text: r.error })
+    if (r.ok && what === 'commit') setMessage('')
+    void actions.refreshGit()
+  }
+
+  return (
+    <div className="dp-ft">
+      <textarea
+        className="inpt dp-msg"
+        placeholder={changed ? 'Commit message' : 'Nothing to commit'}
+        aria-label="Commit message"
+        value={message}
+        disabled={!changed || !!busy}
+        rows={2}
+        onChange={(e) => setMessage(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && message.trim()) {
+            e.preventDefault()
+            void run('commit')
+          }
+        }}
+      />
+      {asking && branch ? (
+        <div className="dp-ask" role="alert">
+          <span>{CONFIRM[asking](branch)}</span>
+          <button className="btn gh sm" onClick={() => setAsking(null)}>
+            Cancel
+          </button>
+          <button className="btn pri sm" onClick={() => void run(asking)}>
+            {asking === 'push' ? 'Push' : 'Open'}
+          </button>
+        </div>
+      ) : (
+        <div className="dp-acts">
+          <button
+            className="btn pri sm"
+            disabled={!changed || !message.trim() || !!busy}
+            onClick={() => void run('commit')}
+            title="Stage every change and commit (Ctrl+Enter)"
+          >
+            {busy === 'commit' ? 'Committing…' : `Commit all${changed ? ` (${changed})` : ''}`}
+          </button>
+          <button
+            className="btn sm"
+            disabled={!branch || !!busy}
+            onClick={() => setAsking('push')}
+            title={ahead ? `${ahead} commits not pushed` : 'Push the branch'}
+          >
+            {busy === 'push' ? 'Pushing…' : `Push${ahead ? ` (${ahead})` : ''}`}
+          </button>
+          <button className="btn sm" disabled={!branch || !!busy} onClick={() => setAsking('pr')}>
+            Pull request
+          </button>
+        </div>
+      )}
+      {result ? (
+        <div className={`hint${result.ok ? '' : ' err'}`} role="status">
+          {result.text}
+        </div>
       ) : null}
     </div>
   )
@@ -166,6 +269,9 @@ export function DiffPanel() {
       </div>
       {pane ? <div className="dp-sub mono">{pane.cwd}</div> : null}
       <div className="dp-bd">{body}</div>
+      {pane && paneId && git?.repo ? (
+        <GitActions paneId={paneId} branch={git.branch} changed={git.changed} ahead={git.ahead} />
+      ) : null}
     </aside>
   )
 }

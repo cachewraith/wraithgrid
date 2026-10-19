@@ -26,6 +26,9 @@ if [ "$1" = "plugin" ]; then
         echo '[]'
       fi ;;
     "marketplace add") touch "${CLAUDE_CONFIG_DIR}/acme.market" ;;
+    "marketplace remove") rm -f "${CLAUDE_CONFIG_DIR}/acme.market" ;;
+    "uninstall clock@acme") rm -f "${CLAUDE_CONFIG_DIR}/clock.on" ;;
+    "update clock@acme") ;;
     "list --json")
       on=true; [ -e "${CLAUDE_CONFIG_DIR}/tally.off" ] && on=false
       clock=; [ -e "${CLAUDE_CONFIG_DIR}/clock.on" ] && clock='{"id":"clock@acme","version":"1.1.0","scope":"user","enabled":true},'
