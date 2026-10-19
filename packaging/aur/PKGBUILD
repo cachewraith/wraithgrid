@@ -4,7 +4,7 @@
 # and a push to ssh://aur@aur.archlinux.org/wraithgrid-bin.git.
 pkgname=wraithgrid-bin
 _pkgname=wraithgrid
-pkgver=1.8.0
+pkgver=1.9.0
 pkgrel=1
 pkgdesc='Run many agent CLI sessions side by side, each with its own account and project folder'
 arch=('x86_64')
@@ -17,7 +17,7 @@ conflicts=("$_pkgname")
 options=('!strip' '!debug')
 source=("$url/releases/download/v$pkgver/$_pkgname-$pkgver-x64.pacman")
 noextract=("$_pkgname-$pkgver-x64.pacman")
-sha256sums=('0492e0b514e2bd6af08346d1482fa06dd1ba8730d7ae86e7d1fcc511437a060b')
+sha256sums=('bea13a75a837fc41194d3b2ec8acf1f2c81120484c1305c1a49bdd1237f8c62e')
 
 package() {
   bsdtar -xf "$srcdir/$_pkgname-$pkgver-x64.pacman" -C "$pkgdir" \

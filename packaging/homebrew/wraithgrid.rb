@@ -4,9 +4,9 @@
 cask "wraithgrid" do
   arch arm: "arm64", intel: "x64"
 
-  version "1.8.0"
-  sha256 arm:   "bc6b04eb3cb844c5da37fd087d8ac80b8197f25521df6fcfc174da8bf9787ba4",
-         intel: "c1cfaa03e6d7b794adaffa2f599236a1d6b367f61add9580a1efdc8370f4007b"
+  version "1.9.0"
+  sha256 arm:   "563fd6d535ebd86579e621f223b4d024d99406becc830871e78d136c47860ee4",
+         intel: "e5b3c2e97608f3df895d03cae495c503e92eddada9013527894ec53bc403f801"
 
   url "https://github.com/cachewraith/wraithgrid/releases/download/v#{version}/Wraithgrid-#{version}-mac-#{arch}.dmg"
   name "Wraithgrid"
