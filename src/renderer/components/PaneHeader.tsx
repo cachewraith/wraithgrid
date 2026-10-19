@@ -22,6 +22,8 @@ interface Props {
   onClose: () => void
   onDiff: () => void
   onMenu: (e: MouseEvent<HTMLElement>) => void
+  /** Right-click on the branch chip: the branch picker. */
+  onBranches: (e: MouseEvent<HTMLElement>) => void
 }
 
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
@@ -62,9 +64,14 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       {p.git?.repo ? (
         <button
           className={`gitc${p.git.changed ? ' dirty' : ''}`}
-          title={`${p.git.branch ?? 'detached HEAD'}${p.git.changed ? ` · ${p.git.changed} changed` : ''}${p.git.ahead ? ` · ${p.git.ahead} ahead` : ''} — show changes (${SHORTCUT_HINT.diff})`}
+          title={`${p.git.branch ?? 'detached HEAD'}${p.git.changed ? ` · ${p.git.changed} changed` : ''}${p.git.ahead ? ` · ${p.git.ahead} ahead` : ''} — show changes (${SHORTCUT_HINT.diff}); right-click to switch branch`}
           aria-label={`Branch ${p.git.branch ?? 'detached'}, ${p.git.changed} changed files. Show changes`}
           onClick={p.onDiff}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            p.onBranches(e)
+          }}
         >
           <IconBranch small />
           <span className="gitc-b">{p.git.branch ?? 'detached'}</span>

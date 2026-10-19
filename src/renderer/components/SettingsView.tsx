@@ -22,6 +22,7 @@ import {
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type AccentName,
+  type CloseMode,
   type SharedMode,
   type ShortcutId,
   type ThemePreference
@@ -461,6 +462,181 @@ function ShellOpt(p: { on: boolean; name: string; sub: string; onPick: () => voi
   )
 }
 
+const CLOSE_OPTIONS: { id: CloseMode; label: string }[] = [
+  { id: 'ask', label: 'Ask each time' },
+  { id: 'keep', label: 'Keep agents running' },
+  { id: 'stop', label: 'Stop agents and quit' }
+]
+
+function CloseRow() {
+  const actions = useActions()
+  const mode = useApp((s) => s.config.settings.onWindowClose)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="close-h">When the window closes</h3>
+        <p className="ex">
+          Agents can keep running in the background after the window closes, or after Wraithgrid
+          quits. The next launch shows them again, screen and all.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="recent" role="radiogroup" aria-labelledby="close-h">
+          {CLOSE_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`rchip${mode === o.id ? ' on' : ''}`}
+              role="radio"
+              aria-checked={mode === o.id}
+              onClick={() => actions.updateSettings({ onWindowClose: o.id })}
+              style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <span className="hint">
+          Running agents keep using CPU, memory and API usage. With agents kept, the tray icon
+          offers to open Wraithgrid or stop them all; no notifications arrive while the window is
+          closed.
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function CliRow() {
+  const actions = useActions()
+  const on = useApp((s) => s.config.settings.cliAccess)
+  return (
+    <div className="srow">
+      <div>
+        <h3>Command line</h3>
+        <p className="ex">
+          Lets the <span className="mono">wraithgrid</span> command, and agents in your panes, list
+          panes, read their screens, type into them, wait for them and open new ones. Only your user
+          can connect; nothing listens on the network.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="swrow">
+          <button
+            className={`sw${on ? ' on' : ''}`}
+            role="switch"
+            aria-checked={on}
+            aria-labelledby="set-cli"
+            onClick={() => actions.updateSettings({ cliAccess: !on })}
+          />
+          <span id="set-cli">Allow wraithgrid commands</span>
+        </div>
+        <span className="hint">
+          <span className="mono">wraithgrid list</span>,{' '}
+          <span className="mono">read &lt;pane&gt;</span>,{' '}
+          <span className="mono">send &lt;pane&gt; &lt;text&gt;</span>,{' '}
+          <span className="mono">wait &lt;pane&gt; --until idle</span>,{' '}
+          <span className="mono">new</span>, <span className="mono">split &lt;pane&gt;</span>,{' '}
+          <span className="mono">stop</span>. Run <span className="mono">wraithgrid help</span> for
+          details.
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function MachinesRow() {
+  const actions = useActions()
+  const { api } = useServices()
+  const machines = useApp((s) => s.config.machines)
+  const [hosts, setHosts] = useState<string[]>([])
+  const [name, setName] = useState('')
+  const [sshHost, setSshHost] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [tests, setTests] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    void api.machines.sshHosts().then(setHosts)
+  }, [api])
+
+  const add = (): void => {
+    const err = actions.addMachine(name || sshHost, sshHost)
+    setError(err)
+    if (!err) {
+      setName('')
+      setSshHost('')
+    }
+  }
+  const test = async (id: string, n: string, host: string): Promise<void> => {
+    setTests((t) => ({ ...t, [id]: 'Connecting…' }))
+    const r = await api.machines.test(n, host)
+    setTests((t) => ({
+      ...t,
+      [id]: r.ok
+        ? `Connected: Wraithgrid ${r.appVersion || '?'}, ${r.live} agent${r.live === 1 ? '' : 's'} running`
+        : r.error
+    }))
+  }
+
+  return (
+    <div className="srow">
+      <div>
+        <h3>Machines</h3>
+        <p className="ex">
+          Run a workspace's panes on another computer over ssh: right-click the workspace, then Run
+          on. Its agents keep running there when you disconnect or quit. The other computer needs
+          Wraithgrid installed (<span className="mono">wraithgrid</span> on PATH) and ssh with a key
+          or agent.
+        </p>
+      </div>
+      <div className="ctl">
+        {machines.map((m) => (
+          <div key={m.id} className="inrow" style={{ alignItems: 'center' }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <b>{m.name}</b> <span className="mono">{m.sshHost}</span>
+              {tests[m.id] ? <span className="hint"> · {tests[m.id]}</span> : null}
+            </span>
+            <button className="btn" onClick={() => void test(m.id, m.name, m.sshHost)}>
+              Test
+            </button>
+            <button className="btn" onClick={() => actions.removeMachine(m.id)}>
+              Remove
+            </button>
+          </div>
+        ))}
+        <div className="inrow">
+          <input
+            className="inpt"
+            aria-label="Machine ssh host"
+            list="ssh-hosts"
+            value={sshHost}
+            placeholder="ssh host (from ~/.ssh/config) or user@host"
+            onChange={(e) => setSshHost(e.target.value)}
+            spellCheck={false}
+          />
+          <datalist id="ssh-hosts">
+            {hosts.map((h) => (
+              <option key={h} value={h} />
+            ))}
+          </datalist>
+          <input
+            className="inpt"
+            aria-label="Machine name"
+            value={name}
+            placeholder="Name (optional)"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') add()
+            }}
+          />
+          <button className="btn" disabled={!sshHost.trim()} onClick={add}>
+            Add machine
+          </button>
+        </div>
+        {error ? <span className="hint err">{error}</span> : null}
+      </div>
+    </div>
+  )
+}
+
 function NotifyRow() {
   const actions = useActions()
   const on = useApp((s) => s.config.settings.notifyPanes)
@@ -894,6 +1070,9 @@ export function SettingsView() {
 
         <SharedRow />
         <ShellRow />
+        <CloseRow />
+        <CliRow />
+        <MachinesRow />
 
         <div className="srow">
           <div>

@@ -37,6 +37,10 @@ export type TerminalFont = (typeof TERMINAL_FONTS)[number]
 export const SHARED_MODES = ['overall', 'per-account'] as const
 export type SharedMode = (typeof SHARED_MODES)[number]
 
+/** What closing the window does while agents run: ask, stop them, or keep them running. */
+export const CLOSE_MODES = ['ask', 'stop', 'keep'] as const
+export type CloseMode = (typeof CLOSE_MODES)[number]
+
 export const FONT_SIZE_MIN = 10
 export const FONT_SIZE_MAX = 20
 export const FONT_SIZE_DEFAULT = 13
@@ -166,6 +170,16 @@ export interface Workspace {
   /** Every pane in the workspace. Panes missing from `layout` are hidden, not closed. */
   panes: Pane[]
   layout: LayoutNode | null
+  /** The machine its panes run on (H5); null: this computer. */
+  machineId: string | null
+}
+
+/** Another computer whose Wraithgrid runs this workspace's panes, reached with `ssh` (H5). */
+export interface Machine {
+  id: string
+  name: string
+  /** What `ssh` connects to: a Host from ~/.ssh/config, or [user@]host. */
+  sshHost: string
 }
 
 export interface Settings {
@@ -205,6 +219,10 @@ export interface Settings {
   modDirs: string[]
   /** Draw visible terminals with the GPU, so frame-rate redraws (mod animations) stay smooth. */
   gpuTerminal: boolean
+  /** Closing the window with agents running (ADR 0001); `ask` until the user remembers one. */
+  onWindowClose: CloseMode
+  /** Let `wraithgrid list|read|send|wait|new|split|stop` reach panes (H6). Off by default. */
+  cliAccess: boolean
 }
 
 export const CONFIG_VERSION = 1
@@ -216,6 +234,7 @@ export interface Config {
   accounts: Account[]
   accountFolders: AccountFolder[]
   workspaces: Workspace[]
+  machines: Machine[]
   activeWorkspace: string
   recentFolders: string[]
   settings: Settings

@@ -20,6 +20,7 @@ import {
   IconChevron,
   IconCompose,
   IconGrid4,
+  IconMonitor,
   IconRename,
   IconSearch,
   IconSidebar,
@@ -88,6 +89,19 @@ function WorkspaceRow({
   const key = index < 9 ? index + 1 : null
   const canDelete = config.workspaces.length > 1
   const panes = w.panes.length
+  const machine = config.machines.find((m) => m.id === w.machineId)
+  // Where the panes run can change only while there are none: running ones stay where they are.
+  const runOn = [
+    { id: null, name: 'this computer' },
+    ...config.machines.map((m) => ({ id: m.id, name: m.name }))
+  ]
+    .filter((t) => t.id !== (w.machineId ?? null))
+    .map((t) => ({
+      label: panes ? `Run on ${t.name} (close its panes first)` : `Run on ${t.name}`,
+      icon: <IconMonitor small />,
+      disabled: panes > 0,
+      onSelect: () => actions.setWorkspaceMachine(w.id, t.id)
+    }))
 
   const saveRename = (): void => {
     if (renaming?.trim()) actions.renameWorkspace(w.id, renaming)
@@ -147,6 +161,11 @@ function WorkspaceRow({
         >
           <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
           <span className="ws-name">{w.name}</span>
+          {machine ? (
+            <span className="ws-mach" title={`Runs on ${machine.name} (${machine.sshHost})`}>
+              {machine.name}
+            </span>
+          ) : null}
           <span className="dots">
             {accountColorsFor(config, w.id).map((c) => (
               <span key={c} className="dot" style={{ background: c }} />
@@ -185,6 +204,7 @@ function WorkspaceRow({
                 if (r) setIconAt({ top: r.bottom + 6, left: r.left + 8 })
               }
             },
+            ...(config.machines.length ? runOn : []),
             {
               label: !canDelete
                 ? 'Delete (last workspace)'

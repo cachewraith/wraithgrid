@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { idSchema } from './schema'
-import { SHARED_MODES, type Config, type SharedMode } from './types'
+import { idSchema, sshHostSchema } from './schema'
+import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
 
 export { IPC } from './ipc-channels'
 
@@ -22,6 +22,8 @@ export const ptyCreateArgs = z.object({
   shell: z.boolean(),
   /** Start the CLI with its "continue the last conversation" args (a restored pane). */
   resume: z.boolean().default(false),
+  /** First start after launch: reattach if the background host still runs this pane. */
+  attach: z.boolean().default(false),
   cols: dim,
   rows: dim
 })
@@ -79,6 +81,59 @@ export const modsChangeArgs = z.object({
 export const modsMarketplacesArgs = z.object({})
 export const modsMarketplaceAddArgs = z.object({ source: z.string().min(1).max(500) })
 export const modsMarketplaceRemoveArgs = z.object({ name: z.string().min(1).max(120) })
+const cliArgs = z
+  .array(
+    z
+      .string()
+      .max(1000)
+      .refine((s) => !s.includes('\0'))
+  )
+  .max(32)
+const cliPath = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine((s) => !s.includes('\0'))
+
+/** A `wraithgrid new|split` command, relayed by the host to the window (H6). */
+export const cliActionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('new'),
+    /** Account id or name; default: the focused pane's account, else the first one. */
+    account: z.string().max(200).optional(),
+    cwd: cliPath.optional(),
+    shell: z.boolean().default(false),
+    args: cliArgs.default([]),
+    /** Workspace id or name; default: the active one. */
+    workspace: z.string().max(200).optional()
+  }),
+  z.object({
+    kind: z.literal('split'),
+    /** Pane id; the new pane opens beside it with its account and folder unless given. */
+    paneId: idSchema,
+    account: z.string().max(200).optional(),
+    cwd: cliPath.optional(),
+    shell: z.boolean().optional(),
+    args: cliArgs.optional()
+  })
+])
+export type CliAction = z.infer<typeof cliActionSchema>
+export type CliActionResult = { ok: true; paneId: string } | { ok: false; error: string }
+export const cliResultArgs = z.object({
+  id: z.number().int().nonnegative(),
+  result: z.union([
+    z.object({ ok: z.literal(true), paneId: idSchema }),
+    z.object({ ok: z.literal(false), error: z.string().max(500) })
+  ])
+})
+
+export const machineTestArgs = z.object({
+  name: z.string().min(1).max(64),
+  sshHost: sshHostSchema
+})
+export type MachineTestResult =
+  { ok: true; appVersion: string; live: number } | { ok: false; error: string }
+
 export const notifyPaneArgs = z.object({
   paneId: idSchema,
   title: z.string().min(1).max(120),
@@ -96,11 +151,20 @@ export interface SharedReportEntry {
 export type SharedApplyResult =
   { ok: true; report: SharedReportEntry[] } | { ok: false; error: string }
 
-export type PtyCreateResult = { ok: true; pid: number } | { ok: false; error: string }
+export type PtyCreateResult =
+  | {
+      ok: true
+      pid: number
+      /** Reattached to a pane the background host kept; set if it ended while detached. */
+      exit?: { exitCode: number; signal: number | null } | null
+    }
+  | { ok: false; error: string }
 
 export interface PtyDataEvent {
   paneId: string
   data: string
+  /** A reattached pane's screen: drawn, but not counted as new output. */
+  replay?: boolean
 }
 
 export interface PtyExitEvent {
@@ -109,6 +173,8 @@ export interface PtyExitEvent {
   signal: number | null
   /** Set when the process never started (bad path, missing cwd). */
   error?: string
+  /** The connection to its machine dropped; the process may still run there (H5). */
+  disconnected?: boolean
 }
 
 export interface ClaudeDetectResult {
@@ -180,6 +246,19 @@ export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: 
 
 /** A commit, push or worktree removal; `detail` is a short line for the user. */
 export type GitActionResult = { ok: true; detail: string } | { ok: false; error: string }
+
+/** A folder's branches, newest commit first; `remote` lists only ones not checked out locally. */
+export interface GitBranches {
+  current: string | null
+  local: { name: string; when: string; upstream: string | null }[]
+  remote: { name: string; when: string }[]
+}
+export type GitBranchesResult = ({ ok: true } & GitBranches) | { ok: false; error: string }
+export const gitSwitchArgs = z.object({
+  paneId: idSchema,
+  kind: z.enum(['local', 'remote', 'create']),
+  name: z.string().min(1).max(255)
+})
 
 export type GitWorktreeCheck =
   | { ok: true; branch: string | null; changed: number; mainRoot: string }
@@ -275,6 +354,8 @@ export interface WraithApi {
     minimize(): void
     maximize(): void
     close(): void
+    /** Main saved a "remember my choice" from the close dialog. */
+    onCloseMode(cb: (mode: CloseMode) => void): () => void
   }
   claude: {
     detect(override?: string): Promise<ClaudeDetectResult>
@@ -307,6 +388,14 @@ export interface WraithApi {
     diff(paneId: string): Promise<GitDiffResult>
     /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
     addWorktree(cwd: string, branch: string): Promise<GitWorktreeResult>
+    /** Local and remote branches of the pane's folder. */
+    branches(paneId: string): Promise<GitBranchesResult>
+    /** Checks out a branch in the pane's folder (every pane on that folder sees it). */
+    switchBranch(
+      paneId: string,
+      kind: 'local' | 'remote' | 'create',
+      name: string
+    ): Promise<GitActionResult>
     /** Stages everything in the pane's folder and commits it. */
     commit(paneId: string, message: string): Promise<GitActionResult>
     /** Pushes the pane's branch (sets the upstream on the first push). */
@@ -360,5 +449,16 @@ export interface WraithApi {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */
     pane(paneId: string, title: string, body: string): void
     onReveal(cb: (paneId: string) => void): () => void
+  }
+  machines: {
+    /** Host names from ~/.ssh/config, for the Add machine field. */
+    sshHosts(): Promise<string[]>
+    /** Connects over ssh once and says which Wraithgrid answered. */
+    test(name: string, sshHost: string): Promise<MachineTestResult>
+  }
+  cli: {
+    /** A `wraithgrid new|split` command to carry out; answer it with `reply`. */
+    onAction(cb: (id: number, action: CliAction) => void): () => void
+    reply(id: number, result: CliActionResult): void
   }
 }

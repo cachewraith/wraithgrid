@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import type { z } from 'zod'
 import { marketplaceOf } from '@shared/mods'
-import { contractHome, expandHome } from '@shared/paths'
+import { contractHome } from '@shared/paths'
 import {
   IPC,
   accountCreateDirArgs,
@@ -27,6 +27,8 @@ import {
   gitWorktreeArgs,
   gitWorktreeRemoveArgs,
   gitCommitArgs,
+  gitSwitchArgs,
+  type GitBranchesResult,
   modsCatalogArgs,
   modsCommunityArgs,
   modsInstallArgs,
@@ -40,6 +42,10 @@ import {
   pickPathArgs,
   shellListArgs,
   clipboardImageArgs,
+  cliActionSchema,
+  cliResultArgs,
+  machineTestArgs,
+  type CliActionResult,
   ptyCreateArgs,
   ptyKillArgs,
   ptyResizeArgs,
@@ -75,7 +81,7 @@ import {
   saveClipboardImage
 } from './clipboard-image'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
-import { AGENT_CLI_BIN, AGENT_CLI_LABEL, withResumeArgs, type AgentCli } from '@shared/agent-clis'
+import type { AgentCli } from '@shared/agent-clis'
 import type { Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import {
@@ -104,13 +110,15 @@ import {
   commitAll,
   gitDiff,
   gitStatus,
+  listBranches,
   pullRequestLink,
   pushBranch,
   removeWorktree,
+  switchBranch,
   type GitRunner
 } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
-import { listShells, resolvePaneShell, spawnCommandFor, type DesktopInfo } from './platform'
+import { listShells, type DesktopInfo } from './platform'
 import {
   ensureSource,
   linkShared,
@@ -118,14 +126,17 @@ import {
   unlinkShared,
   type ItemResult
 } from './shared-config'
-import type { PtyManager } from './pty-manager'
+import type { PaneRouter } from './pane-router'
+import { sshConfigHosts } from './ssh'
+import type { SpawnSpec } from './spawn-resolve'
+import { resolveSpawn } from './spawn-resolve'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
 
 export interface IpcDeps {
   getWindow: () => BrowserWindow | null
   store: ConfigStore
-  ptys: PtyManager
+  ptys: Pick<PaneRouter, 'create' | 'spawnOn' | 'attach' | 'write' | 'resize' | 'kill' | 'probe'>
   homeDir: string
   desktop: DesktopInfo
   /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
@@ -146,13 +157,23 @@ export interface IpcDeps {
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
+
+/** The machine a pane's workspace runs on (H5); null: this computer. */
+export function machineOfPane(cfg: Config, paneId: string): string | null {
+  return cfg.workspaces.find((w) => w.panes.some((p) => p.id === paneId))?.machineId ?? null
+}
 const fileExists = (f: string): Promise<boolean> =>
   access(f).then(
     () => true,
     () => false
   )
 
-export function registerIpc(deps: IpcDeps): void {
+export interface IpcHandle {
+  /** Carries out a `wraithgrid new|split` command in the window (relayed by the host). */
+  runCliAction(action: Record<string, unknown>): Promise<CliActionResult>
+}
+
+export function registerIpc(deps: IpcDeps): IpcHandle {
   const { store, ptys, homeDir } = deps
 
   /** Only our own window may call in; anything else (e.g. a navigated frame) is refused. */
@@ -230,6 +251,10 @@ export function registerIpc(deps: IpcDeps): void {
     IPC.ptyCreate,
     ptyCreateArgs,
     async (a): Promise<PtyCreateResult> => {
+      if (a.attach) {
+        const kept = await ptys.attach(a.paneId, a.cols, a.rows)
+        if (kept) return { ok: true, pid: kept.pid, exit: kept.exit }
+      }
       const cfg = store.get()
       let configDir: string | null = null
       let cli: AgentCli = 'claude'
@@ -239,87 +264,42 @@ export function registerIpc(deps: IpcDeps): void {
         configDir = account.configDir
         cli = account.cli
       }
-
-      const cwd = resolveUserPath(a.cwd, homeDir)
-      try {
-        if (!(await stat(cwd)).isDirectory()) return fail(`Not a folder: ${a.cwd}`)
-      } catch {
-        return fail(`Folder not found: ${a.cwd}`)
+      const spec: SpawnSpec = {
+        paneId: a.paneId,
+        cli,
+        shell: a.shell,
+        configDir,
+        cwd: a.cwd,
+        args: a.args,
+        resume: a.resume,
+        cols: a.cols,
+        rows: a.rows
       }
+      // A remote workspace's panes are resolved and started on that machine (H5).
+      const machine = machineOfPane(cfg, a.paneId)
+      if (machine) return ptys.spawnOn(machine, spec)
 
       await deps.envReady
       if (!a.shell && cli === 'claude' && a.accountId) await syncShared(a.accountId)
-      let file: string
-      let args = a.args
-      if (a.shell) {
-        const picked = await resolvePaneShell(
-          process.platform,
-          process.env,
-          findOnPath,
-          fileExists,
-          {
-            // A bare name stays bare: it is looked up on PATH.
-            path: expandHome(cfg.settings.shellPath.trim(), homeDir),
-            args: cfg.settings.shellArgs
-          }
-        )
-        if (!picked.ok) return fail(picked.error)
-        file = picked.shell.file
-        args = picked.shell.args
-      } else if (cli !== 'claude') {
-        const bin = AGENT_CLI_BIN[cli]
-        const override = expandHome((cfg.settings.cliPaths[cli] ?? '').trim(), homeDir)
-        if (override) {
-          try {
-            if (!(await stat(override)).isFile()) return fail(`Not a file: ${override}`)
-          } catch {
-            return fail(`${bin} binary not found: ${override}`)
-          }
-          file = override
-        } else {
-          const found = await findOnPath(bin)
-          if (!found) return fail(`${bin} (${AGENT_CLI_LABEL[cli]}) was not found on PATH.`)
-          file = found
-        }
-        if (a.resume) args = withResumeArgs(cli, args)
-      } else {
-        const resolved = await resolveClaudePath(cfg.claudePath, homeDir)
-        if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
-        try {
-          if (!(await stat(resolved.path)).isFile()) return fail(`Not a file: ${resolved.path}`)
-        } catch {
-          return fail(`claude binary not found: ${resolved.path}`)
-        }
-        file = resolved.path
-        if (a.resume) args = withResumeArgs(cli, args)
-      }
-
-      const cmd = spawnCommandFor(process.platform, file, args, process.env.ComSpec)
-      if (!cmd.ok) return fail(cmd.error)
-      const env = buildPaneEnv({
-        baseEnv: process.env,
-        shell: a.shell,
-        cli,
-        configDir,
+      const resolved = await resolveSpawn(spec, {
+        platform: process.platform,
+        env: process.env,
         homeDir,
+        claudePath: cfg.claudePath,
+        cliPaths: cfg.settings.cliPaths,
+        shellPath: cfg.settings.shellPath,
+        shellArgs: cfg.settings.shellArgs,
         modDirs: cfg.settings.modDirs
       })
-      return ptys.create({
-        paneId: a.paneId,
-        file: cmd.file,
-        args: cmd.args,
-        cwd,
-        env,
-        cols: a.cols,
-        rows: a.rows
-      })
+      if (!resolved.ok) return fail(resolved.error)
+      return ptys.create(resolved.req)
     },
     fail('Invalid request')
   )
 
   listen(IPC.ptyWrite, ptyWriteArgs, (a) => ptys.write(a.paneId, a.data))
   listen(IPC.ptyResize, ptyResizeArgs, (a) => ptys.resize(a.paneId, a.cols, a.rows))
-  listen(IPC.ptyKill, ptyKillArgs, (a) => void ptys.kill(a.paneId))
+  listen(IPC.ptyKill, ptyKillArgs, (a) => ptys.kill(a.paneId))
 
   // ---- Config ----------------------------------------------------------------------
 
@@ -588,6 +568,40 @@ export function registerIpc(deps: IpcDeps): void {
       return r
     },
     fail('Could not remove the worktree')
+  )
+
+  /** Git runs here: a pane on another machine has its folder there (H5). */
+  const remoteFail = (paneId: string): { ok: false; error: string } | null =>
+    machineOfPane(store.get(), paneId)
+      ? fail('Branches of panes on another machine can’t be switched from here yet.')
+      : null
+
+  handle(
+    IPC.gitBranches,
+    gitPaneArgs,
+    async (a): Promise<GitBranchesResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      const remote = remoteFail(a.paneId)
+      if (remote) return remote
+      await deps.envReady
+      return listBranches(deps.git, cwd)
+    },
+    fail('Invalid request')
+  )
+
+  handle(
+    IPC.gitSwitch,
+    gitSwitchArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      const remote = remoteFail(a.paneId)
+      if (remote) return remote
+      await deps.envReady
+      return switchBranch(deps.git, cwd, { kind: a.kind, name: a.name })
+    },
+    fail('Invalid request')
   )
 
   handle(
@@ -1036,4 +1050,62 @@ export function registerIpc(deps: IpcDeps): void {
         }
       : null
   )
+
+  // ---- Machines (H5) -----------------------------------------------------------------
+
+  ipcMain.handle(IPC.machineSshHosts, async (e): Promise<string[]> => {
+    if (!trusted(e)) return []
+    try {
+      return sshConfigHosts(await readFile(path.join(homeDir, '.ssh', 'config'), 'utf8'))
+    } catch {
+      return []
+    }
+  })
+  handle(
+    IPC.machineTest,
+    machineTestArgs,
+    (a) => ptys.probe({ id: 'probe', name: a.name, sshHost: a.sshHost }),
+    fail('Invalid machine')
+  )
+
+  // ---- wraithgrid new|split (H6): the host relays them; the window owns the layout --
+
+  const pendingCli = new Map<number, (r: CliActionResult) => void>()
+  let nextCliId = 1
+  listen(IPC.cliResult, cliResultArgs, (a) => {
+    const done = pendingCli.get(a.id)
+    pendingCli.delete(a.id)
+    done?.(a.result)
+  })
+
+  return {
+    async runCliAction(raw) {
+      const parsed = cliActionSchema.safeParse(raw)
+      if (!parsed.success) return fail('Invalid command')
+      const action = parsed.data
+      if (action.cwd) {
+        try {
+          if (!(await stat(resolveUserPath(action.cwd, homeDir))).isDirectory())
+            return fail(`Not a folder: ${action.cwd}`)
+        } catch {
+          return fail(`Folder not found: ${action.cwd}`)
+        }
+      }
+      const win = deps.getWindow()
+      if (!win || win.isDestroyed())
+        return fail('The Wraithgrid window is closed. Open it to add panes.')
+      const id = nextCliId++
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          pendingCli.delete(id)
+          resolve(fail('The Wraithgrid window did not answer.'))
+        }, 20_000)
+        pendingCli.set(id, (r) => {
+          clearTimeout(timer)
+          resolve(r)
+        })
+        win.webContents.send(IPC.cliAction, { id, action })
+      })
+    }
+  }
 }

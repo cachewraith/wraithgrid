@@ -33,7 +33,7 @@ export class PtyBus {
 
   start(): void {
     this.unsubscribe = [
-      this.pty.onData((e) => this.handleData(e.paneId, e.data)),
+      this.pty.onData((e) => this.handleData(e.paneId, e.data, e.replay === true)),
       this.pty.onExit((e) => this.exitListeners.forEach((cb) => cb(e)))
     ]
   }
@@ -127,13 +127,15 @@ export class PtyBus {
     return t
   }
 
-  private handleData(paneId: string, data: string): void {
+  private handleData(paneId: string, data: string, replay = false): void {
     const sink = this.sinks.get(paneId)
     if (sink) sink(data)
     else {
       const queued = (this.pending.get(paneId) ?? '') + data
       this.pending.set(paneId, queued.slice(-PENDING_MAX))
     }
+    // A reattached screen is old output: it must not read as running, approval or login.
+    if (replay) return
 
     const t = this.track(paneId)
     const now = this.now()

@@ -238,10 +238,20 @@ export function DiffPanel() {
       <div className="dp-hd">
         <span className="dp-title">Changes</span>
         {git?.branch ? (
-          <span className="dp-branch" title={git.branch}>
+          <button
+            className="dp-branch"
+            title={`${git.branch}: switch branch`}
+            aria-label={`Branch ${git.branch}. Switch branch`}
+            disabled={!paneId}
+            onClick={(e) => {
+              if (!paneId) return
+              const r = e.currentTarget.getBoundingClientRect()
+              actions.openModal({ kind: 'branches', paneId, at: { x: r.left, y: r.bottom + 4 } })
+            }}
+          >
             <IconBranch small />
             {git.branch}
-          </span>
+          </button>
         ) : null}
         {files.length ? (
           <span className="df-n">
