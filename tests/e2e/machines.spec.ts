@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -15,7 +16,9 @@ const ROOT = path.resolve(__dirname, '../..')
 const MAIN = path.join(ROOT, 'out/main/index.js')
 const FAKE_CLAUDE = path.join(ROOT, 'tests/fixtures/fake-claude.sh')
 const FAKE_SSH = path.join(ROOT, 'tests/fixtures/fake-ssh.sh')
-const ELECTRON = path.join(ROOT, 'node_modules/.bin/electron')
+// The binary itself, not node_modules/.bin/electron: that is a Node script, and the fake
+// ssh runs with a bare PATH where CI runners have no node.
+const ELECTRON = createRequire(__filename)('electron') as string
 
 function pids(pattern: string): number[] {
   try {
