@@ -188,17 +188,36 @@ describe('wraithgrid command', () => {
     expect(errs.join()).toMatch(/not running/)
   })
 
+  /** The pane's state as the host reports it (CI timers are coarse: never assume timing). */
+  const stateOf = async (paneId: string): Promise<string> => {
+    const before = out.length
+    await run(['list', '--json'])
+    const rows = JSON.parse(out.splice(before).join('')) as { id: string; state: string }[]
+    return rows.find((r) => r.id === paneId)?.state ?? ''
+  }
+  const until = async (check: () => Promise<boolean>): Promise<void> => {
+    for (let i = 0; i < 200 && !(await check()); i++) await tick(5)
+  }
+  /** Until the host holds `n` pending waits: only then may the test move the clock. */
+  const waiting = (n = 1): Promise<void> =>
+    until(async () => (server as unknown as { waiters: Set<unknown> }).waiters.size >= n)
+
   it('waits for idle after the pane worked, quiet for --quiet', async () => {
     clock += 1000
     ptys.get('p1')!.emit('working…')
-    await tick(10)
-    const done = run(['wait', 'alpha', '--quiet', '100', '--timeout', '30'])
-    await tick(30)
-    expect(out).toEqual([])
-    clock += 1500 // past the running window: idle starts
-    await tick(20)
-    expect(out).toEqual([])
-    clock += 200 // quiet long enough
+    await until(async () => (await stateOf('p1')) === 'running')
+    let settled = false
+    const done = run(['wait', 'alpha', '--quiet', '100', '--timeout', '30']).then((code) => {
+      settled = true
+      return code
+    })
+    await waiting()
+    await tick(50)
+    expect(settled).toBe(false) // still running
+    clock += 1500 // past the running window: idle starts, at this (frozen) time
+    await tick(50)
+    expect(settled).toBe(false) // idle, but not quiet for 100 ms yet
+    clock += 200
     expect(await done).toBe(0)
     expect(out).toEqual(['idle'])
   })
@@ -206,6 +225,7 @@ describe('wraithgrid command', () => {
   it('a prompt just sent counts as running until the CLI answers', async () => {
     expect(await run(['send', 'alpha', 'go'])).toBe(0)
     const done = run(['wait', 'alpha', '--quiet', '0', '--timeout', '30'])
+    await waiting()
     await tick(30)
     expect(out).toEqual([])
     clock += 11_000 // no answer for 10 s: idle after all
@@ -219,13 +239,13 @@ describe('wraithgrid command', () => {
     expect(out).toEqual(['blocked'])
 
     const late = run(['wait', 'beta', '--until', 'blocked', '--timeout', '5'])
-    await tick(20)
+    await waiting()
     clock += 6000
     expect(await late).toBe(1)
     expect(errs.join()).toMatch(/Timed out; the pane is idle/)
 
     const exited = run(['wait', 'beta', '--until', 'exited'])
-    await tick(20)
+    await waiting()
     ptys.get('p2')!.exit(0)
     expect(await exited).toBe(0)
   })
