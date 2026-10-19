@@ -2,6 +2,7 @@
 
 ## 2026-10-19
 
+- [release] v1.9.0: seven agent CLIs, resume on restore, `done` status, Changes panel commit/push/pull request, worktree cleanup, mods update/uninstall/marketplaces/download, configurable shortcuts, one-line installer (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)
 - [git] Worktree check returns the main checkout with native separators (git prints `C:/…` on Windows; failed the Windows CI unit test) (files: src/main/git.ts)
 - [cli] Agent CLI registry (H3): one table per CLI (binary, config-dir variable, sign-in isolation, image paste form, new-line key, resume args, approval prompt, account note) replaces the claude/gemini/agy branches; adds Codex (`CODEX_HOME`), opencode (shared sign-in), Cursor Agent (`CURSOR_CONFIG_DIR`) and Copilot CLI (`COPILOT_HOME`); accounts of CLIs whose sign-in may sit in the keyring say so (files: src/shared/{agent-clis,types}.ts, src/main/{pane-env,clipboard-image,ipc}.ts, src/renderer/components/{AccountsView,NewPaneDialog,Terminal,Pane}.tsx, tests/unit/{agent-clis,pane-env,renderer-lib}.test.ts)
 - [settings] **Other agent CLIs**: a binary path per non-claude CLI (`settings.cliPaths`), else found on PATH (files: src/shared/{schema,types}.ts, src/main/ipc.ts, src/renderer/components/SettingsView.tsx, src/renderer/styles/base.css)

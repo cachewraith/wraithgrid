@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.8.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.9.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -117,5 +117,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
-Herdr parity (branch feat/cli-registry-20261019, uncommitted): H2/H3/H4/H8 done, plus worktree cleanup, Changes panel commit/push/PR, mods update/uninstall/marketplaces/download, configurable shortcuts. H1 ADR proposed (docs/adr/0001), waiting for review; H5–H7 wait on H1.
-v1.8.0 released (Mods as one list for all accounts: install/switch everywhere at once, repo links, claudemod.com as a Browse source; 1.7: claude mods: Mods screen with catalog search + install and enable/disable, mod folders for every pane, OSC 52 copy + OSC notifications, optional GPU rendering). To verify by hand with a real mod: Install from Browse (only run against the fake CLI so far), a pane/band draws right, `$.ui.copy` reaches the clipboard, `$.ui.notify` with `preferredNotifChannel: ghostty`, GPU rendering with 8+ panes. Also untried on real accounts: Install to all accounts and a claudemod.com install. Still open from 1.6: screenshot paste on Hyprland, real gemini/agy panes, macOS on real hardware, default icon for new accounts/workspaces, Shift+Enter report (needs repro).
+v1.9.0 released (seven agent CLIs via the registry, resume on restore, `done` status, Changes panel commit/push/PR, worktree cleanup, mods update/uninstall/marketplaces/download, configurable shortcuts, install.sh + packaging files). Next: H1 ADR review (docs/adr/0001), then H1 → H6 → H7 → H5; publish packaging (needs accounts). To verify by hand: codex/cursor/copilot/opencode with real accounts (sign-in isolation, approval prompts), mods actions on real accounts, screenshot paste on Hyprland, macOS on real hardware.

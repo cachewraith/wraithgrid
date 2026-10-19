@@ -1,14 +1,10 @@
-# What's new in 1.7 and 1.8: claude mods
+# What's new in 1.9: more agents, pick up where you left off
 
-*v1.8.0 · 2026-10-13*
+*v1.9.0 · 2026-10-19*
 
-New in 1.8: **Installed** is one list for all your claude accounts, **Install** covers every
-account at once, a mod's name opens its repository, and **Browse** can list the mods from
-claudemod.com.
-
-claude now has mods: plugins that change claude's own screen with side panes, a band above the
-prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pane and adds a
-**Mods** screen to find, install and switch them without leaving the app.
+Wraithgrid now runs seven agent CLIs, continues your conversations when it restarts, tells you
+which pane finished while you were away, commits and pushes from the Changes panel, and lets
+you rebind its shortcuts. The Mods screen can update, uninstall and manage marketplaces.
 
 ---
 
@@ -16,63 +12,72 @@ prompt, status lines, toasts and commands. Wraithgrid 1.7 draws them in every pa
 
 | Feature | How to use it |
 |---|---|
-| Open the Mods screen | Plug icon in the top bar, or **Ctrl+Shift+P** → **Mods** |
-| Find and install a mod | **Mods → Browse**, search, **Install** |
-| Turn a mod on or off | **Mods → Installed**, the switch beside it |
-| Load a mod you are building | **Mods → Mod folders → Add folder…** |
-| Smooth mod animation | **Mods → Draw panes with the GPU** |
+| Add a Codex, opencode, Cursor or Copilot account | **Accounts → Add account**, pick the **CLI** |
+| Continue a conversation after a restart | Automatic for panes you prompted; right-click a pane's header to turn it off |
+| See which pane finished | A **done** status and notification |
+| Commit, push, open a pull request | **Ctrl+Shift+D**, then the buttons under the diff |
+| Clean up a worktree | Close its last pane, then **Remove worktree** |
+| Update or uninstall a mod | **Mods → Installed**, **Update** / **Uninstall** |
+| Add or remove a marketplace | **Mods → Marketplaces** |
+| Rebind a shortcut | **Settings → Keyboard shortcuts → Change** |
+| Install with one line | `curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts/install.sh \| sh` |
 
 ---
 
-## 1. Browse and install mods
+## 1. Seven agent CLIs
 
-**Mods → Browse** lists everything your account's claude marketplaces offer, a few thousand
-mods and plugins, so you don't have to search GitHub. Type a name or what you want it to do;
-the most installed come first. Each row shows the description, the marketplace and an **Install** button;
-click the mod's name to open its repository.
+Besides Claude Code, Gemini CLI and Antigravity, an account can now run **Codex**
+(`codex`), **opencode**, **Cursor Agent** (`cursor-agent`) or **Copilot CLI** (`copilot`).
+Each pane gets its account's folder through the CLI's own variable: `CODEX_HOME`,
+`CURSOR_CONFIG_DIR` or `COPILOT_HOME`.
 
-- **Install** covers all your claude accounts at once, no account to pick. An account that
-  lacks the mod's marketplace gets it added first.
-- Pick **claudemod.com** above the search box for the mods that community list offers. It is
-  not run by Anthropic or Wraithgrid; installing one adds its GitHub repository as a
-  marketplace. The site is contacted only when you pick it.
-- A mod runs as you, with your files and logins: install the ones you trust.
-- The catalog holds every claude plugin, not only the ones that change the screen.
-- A few mods install by running a command and need a confirmation claude only asks for in a
-  terminal. Those show claude's message; install them with `/plugin` in a pane.
+- Codex, Cursor and Copilot keep settings and history per account, but may keep the sign-in
+  in your system keyring, so their accounts can share one login. The account form says so.
+- opencode, like Antigravity, has no per-account folder: its accounts share one login.
+- A CLI that isn't on your `PATH` can be given a path under **Settings → Other agent CLIs**.
 
-## 2. See and switch installed mods
+## 2. Pick up where you left off
 
-**Mods → Installed** is one list for all your claude accounts, with each mod's version and
-where it comes from. One switch enables or disables a mod in every account that has it, and
-**Add to all accounts** hands a mod to the accounts that lack it. Wraithgrid asks each
-account's own `claude` for this list; it does not open the plugin files itself.
+When Wraithgrid starts again, a pane you sent a prompt to continues its last conversation
+(`claude --continue`, `codex resume --last`, `gemini --resume latest`…). A pane you never
+prompted, a new pane and a restarted pane start fresh. Right-click a pane's header to switch
+**Continue conversation on restore** off for that pane.
 
-A running claude loads mods when it starts: after a change, use **Restart claude panes**.
+## 3. "Done" means done
 
-## 3. Mod folders for every pane
+A pane that worked for a while and finished while you were looking elsewhere now shows
+**done**, and the desktop notification fires then. It turns back to idle once you look at it
+or type into it. Each CLI's "needs approval" prompt is recognized on its own terms.
 
-Building a mod, or keeping one in a folder of your own? Add the folder under **Mod folders**
-and every claude pane in every account loads it, without installing it. claude reloads the mod
-when its files change. Pick the mod's own folder, the one that holds
-`.claude-plugin/plugin.json`.
+## 4. Commit, push and pull request from the Changes panel
 
-## 4. Panes do what mods ask
+Under the diff (**Ctrl+Shift+D**): write a message and press **Commit all** (or
+**Ctrl+Enter**), then **Push** and **Pull request**. The pull request opens the GitHub or
+GitLab page for the branch in your browser. Push and pull request ask before anything leaves
+your machine.
 
-- **Copy**: text a mod copies lands on your clipboard.
-- **Notifications**: a mod's notification becomes a desktop notification for a pane you aren't
-  looking at. claude only sends these once `preferredNotifChannel` in its settings is
-  `ghostty`, `iterm2` or `kitty`; with one set, claude's own notices arrive as well.
-- **Room**: a side pane a mod opens by itself needs 110 columns. The Mods screen tells you how
-  many running panes are narrower; zoom a pane (**Ctrl+Shift+Z**) or shrink the text.
-- **Animation**: turn on **Draw panes with the GPU** for mods that redraw many times a
-  second. It is off by default; a pane that cannot get a GPU context keeps the standard
-  renderer.
+Closing the last pane on a worktree now asks whether to remove its folder. It names any files
+that are not committed; the branch and its commits always stay.
+
+## 5. More from the Mods screen
+
+- **Update** and **Uninstall** (asks twice) for every account that has the mod.
+- **Marketplaces**: see where Browse finds mods, add one (`owner/repo` or an https address)
+  to all accounts, or remove one from all of them.
+- **Browse** now merges the marketplaces of all your claude accounts.
+- claudemod.com mods that are a single plugin, with no marketplace file, have **Download**:
+  they are cloned into `~/.wraithgrid/mods` and added to your mod folders.
+
+## 6. Your own shortcuts
+
+**Settings → Keyboard shortcuts** rebinds search, new pane, close pane, zoom, git changes and
+the shortcuts sheet. Press **Change**, then the new keys. A shortcut needs Ctrl (⌘ on macOS)
+with Shift or Alt, so the terminal keeps its own keys.
 
 ## Not there yet
 
-- Pictures a mod draws show as their text description.
-- A mod that redraws all the time (a clock, an animated band) makes its pane read "running",
-  so that pane sends no "done" notification.
-- Uninstalling and updating mods, and adding marketplaces, are still done with `/plugin` in a
-  pane.
+- Codex, opencode, Cursor and Copilot have not been tried with real accounts yet; their
+  approval prompts are matched from their documentation.
+- Agents still stop when Wraithgrid quits. Keeping them running in the background is the
+  next big step (see `docs/adr/0001-background-pty-host.md`).
+- Homebrew, winget and AUR packages are prepared but not published yet.
