@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { IPty } from 'node-pty'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
@@ -234,7 +235,8 @@ describe('wraithgrid command', () => {
     expect(actions[0]).toEqual({
       kind: 'new',
       account: 'work',
-      cwd: '/work/here/sub',
+      // path.resolve gives D:\… on Windows CI.
+      cwd: path.resolve('/work/here', 'sub'),
       args: ['--model', 'opus']
     })
     expect(out).toEqual(['p-new'])
