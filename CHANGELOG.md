@@ -2,6 +2,7 @@
 
 ## 2026-10-19
 
+- [git] Worktree check returns the main checkout with native separators (git prints `C:/…` on Windows; failed the Windows CI unit test) (files: src/main/git.ts)
 - [cli] Agent CLI registry (H3): one table per CLI (binary, config-dir variable, sign-in isolation, image paste form, new-line key, resume args, approval prompt, account note) replaces the claude/gemini/agy branches; adds Codex (`CODEX_HOME`), opencode (shared sign-in), Cursor Agent (`CURSOR_CONFIG_DIR`) and Copilot CLI (`COPILOT_HOME`); accounts of CLIs whose sign-in may sit in the keyring say so (files: src/shared/{agent-clis,types}.ts, src/main/{pane-env,clipboard-image,ipc}.ts, src/renderer/components/{AccountsView,NewPaneDialog,Terminal,Pane}.tsx, tests/unit/{agent-clis,pane-env,renderer-lib}.test.ts)
 - [settings] **Other agent CLIs**: a binary path per non-claude CLI (`settings.cliPaths`), else found on PATH (files: src/shared/{schema,types}.ts, src/main/ipc.ts, src/renderer/components/SettingsView.tsx, src/renderer/styles/base.css)
 - [panes] Resume on restore (H2): a pane that was sent a prompt (`hasConversation`) starts with its CLI's resume args on its first start after launch; restarts and new panes start fresh; pane header right-click menu: continue-on-restore toggle, Restart, Close (files: src/shared/{ipc-contract,schema,types}.ts, src/main/ipc.ts, src/renderer/app/store.ts, src/renderer/components/{Pane,PaneHeader,Terminal}.tsx, tests/e2e/smoke.spec.ts)

@@ -217,7 +217,9 @@ export async function checkWorktree(run: GitRunner, dir: string): Promise<GitWor
     const st = parseStatus(
       await run(['status', '--porcelain=1', '--branch', '--untracked-files=normal'], dir)
     )
-    return { ok: true, branch: st.branch, changed: st.changed, mainRoot: path.dirname(commonDir) }
+    // git prints `C:/…` on Windows; resolve gives the platform's own separators.
+    const mainRoot = path.dirname(path.resolve(commonDir))
+    return { ok: true, branch: st.branch, changed: st.changed, mainRoot }
   } catch (err) {
     return { ok: false, error: firstLine(err) }
   }
