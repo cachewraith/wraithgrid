@@ -1,6 +1,6 @@
 # What's new in 1.10: agents that keep running
 
-*Unreleased (draft)*
+*v1.10.0 · 2026-10-20*
 
 Agents no longer stop when you close Wraithgrid. A new `wraithgrid` command lets scripts, and
 agents in other panes, drive your panes, and a workspace can run its panes on another

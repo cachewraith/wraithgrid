@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.9.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.10.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -132,4 +132,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
 ## Current focus
-Unreleased on branch `feat/pty-host-20261019`: H1 background pty host (agents survive quit/crash, tray, close choice), H6 `wraithgrid` CLI, H7 `attach`, H5 machines over ssh; all verified on Linux (dev + packaged dir build). Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts); release. Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.
+v1.10.0 released (H1 background pty host: agents survive quit/crash, tray, close choice; H6 `wraithgrid` CLI; H7 `attach`; H5 machines over ssh; branch switch). Verified by hand on Linux only. Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts). Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.
