@@ -436,7 +436,6 @@ export class HostServer {
   }
 
   private async checkWaits(): Promise<void> {
-    const now = this.now()
     for (const w of [...this.waiters]) {
       const entry = this.panes.get(w.paneId)
       if (!entry) {
@@ -445,6 +444,8 @@ export class HostServer {
         continue
       }
       const state = await this.state(entry)
+      // Read after the state: a clock read before the await could predate the idle it saw.
+      const now = this.now()
       let met = state === w.until
       if (w.until === 'idle') {
         w.idleSince = state === 'idle' ? (w.idleSince ?? now) : null
