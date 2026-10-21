@@ -1,5 +1,5 @@
 PackageIdentifier: cachewraith.Wraithgrid
-PackageVersion: 1.8.0
+PackageVersion: 1.9.0
 InstallerType: nullsoft
 Scope: user
 InstallModes:
@@ -8,7 +8,7 @@ InstallModes:
 UpgradeBehavior: install
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/cachewraith/wraithgrid/releases/download/v1.8.0/Wraithgrid-Setup-1.8.0-x64.exe
-    InstallerSha256: '41b037fd5991442cd45e853932694113855cfcf9c79bca1a84970cf11452f1aa'
+    InstallerUrl: https://github.com/cachewraith/wraithgrid/releases/download/v1.9.0/Wraithgrid-Setup-1.9.0-x64.exe
+    InstallerSha256: 'e17aea4b3150bf051326a6499eef297078ce1b99f34a3344373aeb424c4b6300'
 ManifestType: installer
 ManifestVersion: 1.6.0

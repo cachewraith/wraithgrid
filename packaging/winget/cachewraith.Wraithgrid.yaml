@@ -2,7 +2,7 @@
 # manifests/c/cachewraith/Wraithgrid/<version>/ (wingetcreate can do it). Filled in by
 # scripts/update-packaging.sh.
 PackageIdentifier: cachewraith.Wraithgrid
-PackageVersion: 1.8.0
+PackageVersion: 1.9.0
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.6.0
