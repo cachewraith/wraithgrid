@@ -1,7 +1,7 @@
 # TODO
 
 ## Now
-- Herdr parity (2026-10-19, branch feat/pty-host-20261019): verify on Windows (named pipe host, ConPTY in a detached ELECTRON_RUN_AS_NODE process, NSIS update closing the host) and macOS (host from the .app, tray, ⌘Q asks); a real ssh machine for H5; NFR-1: memory/CPU of the host with 8 busy panes (headless xterm per pane)
+- Herdr parity (released in v1.10.0): verify on Windows (named pipe host, ConPTY in a detached ELECTRON_RUN_AS_NODE process, NSIS update closing the host) and macOS (host from the .app, tray, ⌘Q asks); a real ssh machine for H5; NFR-1: memory/CPU of the host with 8 busy panes (headless xterm per pane)
 - Windows: `wraithgrid` CLI prints nothing in a console (GUI-subsystem exe); needs AttachConsole or a `wraithgrid.cmd` shim
 - H5 follow-ups: a machine's own `wraithgrid` path (AppImage/macOS remote), remote sign-in state per machine (login banner uses the local flag), remote Mods/Changes panel (local only today)
 - H6 follow-up: a prompt sent with `wraithgrid send` does not set `hasConversation` (resume on restore skips it)
@@ -24,10 +24,9 @@
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there
 - Test an in-app update 1.3.0 → 1.3.1 (1.3.0 is the first release with it; install 1.3.0 by hand once)
-- Refresh README screenshots for the neutral restyle (screens from `WRAITHGRID_E2E_SHOTS`)
 
 ## Herdr parity
-H1–H7 built (2026-10-19, unreleased, see Done); H8 publishing needs the accounts (Now).
+H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 
 ## Later
 - `agy`/opencode per-account isolation if they gain a config-dir variable
@@ -36,6 +35,7 @@ H1–H7 built (2026-10-19, unreleased, see Done); H8 publishing needs the accoun
 ## Done (2026-10-21)
 - account-folders e2e flake fixed (wait for the drop target)
 - Mods: Update button for downloaded mods; every mod of a multi-mod claudemod.com repo listed
+- README screenshots retaken (repeatable: readme-shots.spec.ts)
 
 ## Done (2026-10-19)
 - Switch branch from the pane chip, Changes panel, pane menu and palette (branch picker)

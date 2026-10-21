@@ -77,7 +77,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
   </tr>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/settings.png" alt="Settings with shared ~/.claude mode, theme, accent color, terminal palette and font" />
+      <img src="docs/screenshots/settings.png" alt="Settings: theme, accent color, terminal colors and font" />
       <p align="center"><b>Settings</b>: shared <code>~/.claude</code>, theme, accent, terminal colors and font</p>
     </td>
     <td width="50%">
