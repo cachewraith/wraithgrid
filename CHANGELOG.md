@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-22
+
+- [release] v1.11.1: the 1.11 features (v1.11.0 was tagged but its Linux build failed, so it has no release), plus a chat no longer shows as idle while a queued message runs (files: package.json, CHANGELOG.md, docs/CONTEXT.md, docs/WHATS-NEW.md)
+
 ## 2026-10-21
 
 - [chat] A message sent while a turn was ending no longer shows the chat as idle: each chat counts its turns in flight and goes idle only when the last ends (an interrupt clears them all). This failed the v1.11.0 Linux release build (files: src/main/chat/sessions.ts, tests/unit/chat.test.ts)

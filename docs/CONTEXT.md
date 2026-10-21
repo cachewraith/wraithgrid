@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.11.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.11.1.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -152,4 +152,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
 
 ## Current focus
-v1.11.0 released (chat panes, themes, usage, `/` commands, chat modes, zoom + responsive layout). Chat panes (ADR 0002): claude adapter verified live; next adapters codex/gemini/cursor/opencode need real-output fixtures. v1.10.0 released (H1 background pty host: agents survive quit/crash, tray, close choice; H6 `wraithgrid` CLI; H7 `attach`; H5 machines over ssh; branch switch). Verified by hand on Linux only. Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts). Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.
+v1.11.1 released (v1.11.0's build failed; chat panes, themes, usage, `/` commands, chat modes, zoom + responsive layout). Chat panes (ADR 0002): claude adapter verified live; next adapters codex/gemini/cursor/opencode need real-output fixtures. v1.10.0 released (H1 background pty host: agents survive quit/crash, tray, close choice; H6 `wraithgrid` CLI; H7 `attach`; H5 machines over ssh; branch switch). Verified by hand on Linux only. Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts). Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.
