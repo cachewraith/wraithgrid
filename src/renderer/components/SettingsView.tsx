@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
 import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
@@ -9,6 +9,7 @@ import {
   bindingFromEvent,
   bindingKeys,
   bindingProblem,
+  chord,
   currentBinding,
   defaultBinding,
   formatBinding,
@@ -21,24 +22,35 @@ import {
   SHORTCUT_IDS,
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
+  UI_ZOOM_STEPS,
+  stepZoom,
   type AccentName,
   type CloseMode,
+  type PaneView,
   type SharedMode,
-  type ShortcutId,
-  type ThemePreference
+  type ShortcutId
 } from '@shared/types'
-import { AccountIcon } from './AccountIcon'
+import {
+  CHAT_EFFORTS,
+  CHAT_MODE_HINT,
+  CHAT_MODE_LABEL,
+  EFFORT_LABEL,
+  type ChatModel
+} from '@shared/chat'
+import { Initial } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
-import { currentTheme } from '../app/store'
+import { currentTheme, drawnTheme } from '../app/store'
+import { pickTheme, themeVars, type AppTheme, type ThemeFile } from '@shared/themes'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { PALETTE_LABEL, terminalFontStack, terminalTheme } from '../lib/term-theme'
 import {
   IconCheck,
+  IconExport,
   IconFolder,
   IconImport,
-  IconMonitor,
-  IconMoon,
+  IconMore,
   IconRestart,
-  IconSun,
+  IconTrash,
   IconWarn
 } from './icons'
 
@@ -51,50 +63,248 @@ const ACCENT_SWATCH: Record<AccentName, string> = {
   rose: '#f43f5e'
 }
 
-const THEME_OPTIONS: { id: ThemePreference; label: string; icon: ReactNode }[] = [
-  { id: 'system', label: 'System', icon: <IconMonitor small /> },
-  { id: 'dark', label: 'Dark', icon: <IconMoon small /> },
-  { id: 'light', label: 'Light', icon: <IconSun small /> }
-]
+/** A small window drawn in a theme's own colors: sidebar, a chat bubble, the accent. */
+function ThemePreview({ t }: { t: AppTheme }) {
+  return (
+    <span className="thm-prev" style={themeVars(t) as CSSProperties} aria-hidden="true">
+      <span className="thm-side">
+        <span className="thm-ln on" />
+        <span className="thm-ln" />
+        <span className="thm-ln short" />
+      </span>
+      <span className="thm-main">
+        <span className="thm-bub" />
+        <span className="thm-ln" />
+        <span className="thm-ln short" />
+        <span className="thm-btn" />
+      </span>
+    </span>
+  )
+}
 
 function ThemeRow() {
   const actions = useActions()
+  const { api } = useServices()
+  const themes = useApp((s) => s.themes)
+  const problems = useApp((s) => s.themeProblems)
   const pref = useApp((s) => s.config.settings.theme)
+  const themeDark = useApp((s) => s.config.settings.themeDark)
+  const themeLight = useApp((s) => s.config.settings.themeLight)
+  const mode = useApp(currentTheme)
+  const drawn = useApp(drawnTheme)
   const systemTheme = useApp((s) => s.systemTheme)
+  const [error, setError] = useState<string | null>(null)
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const [cardMenu, setCardMenu] = useState<{ at: MenuPoint; t: AppTheme } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const follow = pref === 'system'
+  const darkId = pickTheme(themes, themeDark, 'dark').id
+  const lightId = pickTheme(themes, themeLight, 'light').id
+  const drawnId = mode === 'dark' ? darkId : lightId
+
+  const run = async (p: Promise<string | null>): Promise<void> => setError(await p)
+  const exportTheme = async (t: ThemeFile): Promise<void> => {
+    const { name, mode, author, colors, terminal } = t
+    const r = await api.themes.export({ name, mode, author, colors, terminal })
+    setError(r && !r.ok ? r.error : null)
+  }
+
+  return (
+    <div className="srow thm-row">
+      <div className="thm-hd">
+        <div>
+          <h3 id="theme-h">Theme</h3>
+          <p className="ex">
+            Five built in, or your own: a theme is a small JSON file of colors you can import and
+            share.
+          </p>
+        </div>
+        <div className="thm-acts">
+          <button className="btn" onClick={() => void run(actions.importTheme())}>
+            <IconImport small />
+            Import theme…
+          </button>
+          <button
+            className="icon-btn"
+            aria-label="More theme actions"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              setMenu({ x: r.right - 240, y: r.bottom + 6 })
+            }}
+          >
+            <IconMore />
+          </button>
+        </div>
+      </div>
+      <div className="thm-grid" role="radiogroup" aria-labelledby="theme-h">
+        {themes.map((t) => {
+          const on = t.id === drawnId
+          const slot = follow && !on && (t.id === darkId || t.id === lightId)
+          return (
+            <button
+              key={t.id}
+              className={`thm${on ? ' on' : ''}`}
+              role="radio"
+              aria-checked={on}
+              aria-label={t.name}
+              title={t.author ? `${t.name} by ${t.author}` : t.name}
+              onClick={() => actions.chooseTheme(t.id)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setConfirmDelete(false)
+                setCardMenu({ at: menuPoint(e), t })
+              }}
+            >
+              <ThemePreview t={t} />
+              <span className="thm-nm">
+                {t.name}
+                {on ? <IconCheck small /> : null}
+              </span>
+              <span className="thm-sub">
+                {t.mode === 'dark' ? 'Dark' : 'Light'}
+                {t.builtIn ? '' : ' · yours'}
+                {slot ? ' · when the OS is ' + t.mode : ''}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="swrow">
+        <button
+          className={`sw${follow ? ' on' : ''}`}
+          role="switch"
+          aria-checked={follow}
+          aria-labelledby="thm-follow"
+          onClick={() => actions.updateSettings({ theme: follow ? mode : 'system' })}
+        />
+        <span id="thm-follow">Follow the OS light or dark setting</span>
+      </div>
+      <span className="theme-note">
+        {follow
+          ? `Your desktop is ${systemTheme} now. Dark uses ${pickTheme(themes, themeDark, 'dark').name}, light uses ${pickTheme(themes, themeLight, 'light').name}: pick a card of each kind to change them.`
+          : `${drawn.name} is on for the whole app.`}
+      </span>
+      {error ? (
+        <span className="hint warn" role="alert">
+          {error}
+        </span>
+      ) : null}
+      {problems.length ? (
+        <div className="thm-probs" role="status">
+          {problems.length === 1 ? 'A theme file' : `${problems.length} theme files`} could not be
+          loaded:
+          {problems.map((p) => (
+            <span key={p.file}>
+              <span className="mono">{p.file}</span> — {p.error}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          width={240}
+          label="Theme actions"
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              label: `Export ${drawn.name}…`,
+              icon: <IconExport small />,
+              onSelect: () => void exportTheme(drawn)
+            },
+            {
+              label: 'Open themes folder',
+              icon: <IconFolder small />,
+              onSelect: () =>
+                void api.themes.openFolder().then((r) => setError(r.ok ? null : r.error))
+            },
+            {
+              label: 'Reload themes',
+              icon: <IconRestart small />,
+              onSelect: () => void actions.loadThemes()
+            }
+          ]}
+        />
+      ) : null}
+      {cardMenu ? (
+        <ContextMenu
+          at={cardMenu.at}
+          label={`Theme ${cardMenu.t.name}`}
+          onClose={() => setCardMenu(null)}
+          items={[
+            {
+              label: 'Use this theme',
+              icon: <IconCheck small />,
+              onSelect: () => actions.chooseTheme(cardMenu.t.id)
+            },
+            {
+              label: cardMenu.t.builtIn ? 'Export as a starting point…' : 'Export…',
+              icon: <IconExport small />,
+              onSelect: () => void exportTheme(cardMenu.t)
+            },
+            ...(cardMenu.t.builtIn
+              ? []
+              : [
+                  {
+                    label: confirmDelete ? 'Click again to delete' : 'Delete theme',
+                    icon: <IconTrash small />,
+                    danger: true,
+                    divider: true,
+                    onSelect: () => {
+                      if (!confirmDelete) {
+                        setConfirmDelete(true)
+                        return false as const
+                      }
+                      void run(actions.deleteTheme(cardMenu.t.id))
+                    }
+                  }
+                ])
+          ]}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ZoomRow() {
+  const actions = useActions()
+  const zoom = useApp((s) => s.config.settings.uiZoom)
+  const set = (delta: -1 | 0 | 1): void => actions.updateSettings({ uiZoom: stepZoom(zoom, delta) })
   return (
     <div className="srow">
       <div>
-        <h3 id="theme-h">Theme</h3>
-        <p className="ex">System follows your desktop's light or dark setting as it changes.</p>
+        <h3 id="zoom-h">Interface size</h3>
+        <p className="ex">
+          Everything at once: sidebar, chats and terminals. Also {chord(['mod', '+'])} /{' '}
+          {chord(['mod', '-'])}, and {chord(['mod', '0'])} to reset.
+        </p>
       </div>
       <div className="ctl">
-        <div
-          className="seg"
-          role="radiogroup"
-          aria-labelledby="theme-h"
-          style={{ width: 'max-content' }}
-        >
-          {THEME_OPTIONS.map((o) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="step" role="group" aria-labelledby="zoom-h">
             <button
-              key={o.id}
-              className={`seg-btn${pref === o.id ? ' on' : ''}`}
-              role="radio"
-              aria-checked={pref === o.id}
-              onClick={() => actions.updateSettings({ theme: o.id })}
-              style={{ padding: '0 14px' }}
+              aria-label="Smaller"
+              disabled={zoom <= UI_ZOOM_STEPS[0]}
+              onClick={() => set(-1)}
             >
-              {o.icon}
-              {o.label}
+              −
             </button>
-          ))}
+            <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button
+              aria-label="Bigger"
+              disabled={zoom >= UI_ZOOM_STEPS[UI_ZOOM_STEPS.length - 1]!}
+              onClick={() => set(1)}
+            >
+              +
+            </button>
+          </div>
+          {zoom !== 1 ? (
+            <button className="btn gh" onClick={() => set(0)}>
+              Reset
+            </button>
+          ) : null}
         </div>
-        <span className="theme-note">
-          {pref === 'system'
-            ? `Your desktop is using ${systemTheme} right now.`
-            : pref === 'dark'
-              ? 'Dark is the default.'
-              : 'Light theme is on for the whole app.'}
-        </span>
       </div>
     </div>
   )
@@ -103,14 +313,36 @@ function ThemeRow() {
 function AccentRow() {
   const actions = useActions()
   const accent = useApp((s) => s.config.settings.accent)
+  const themeAccent = useApp(
+    (s) =>
+      pickTheme(
+        s.themes,
+        currentTheme(s) === 'dark' ? s.config.settings.themeDark : s.config.settings.themeLight,
+        currentTheme(s)
+      ).colors.accent
+  )
   return (
     <div className="srow">
       <div>
         <h3 id="accent-h">Accent color</h3>
-        <p className="ex">Buttons, selection, focus rings and the terminal cursor.</p>
+        <p className="ex">
+          Buttons, selection, focus rings and the terminal cursor. Theme keeps the theme's own.
+        </p>
       </div>
       <div className="ctl">
         <div className="accents" role="radiogroup" aria-labelledby="accent-h">
+          <button
+            className={`accent auto${accent === 'theme' ? ' on' : ''}`}
+            role="radio"
+            aria-checked={accent === 'theme'}
+            aria-label="Theme accent"
+            title="The theme's own accent"
+            style={{ '--sw': themeAccent } as CSSProperties}
+            onClick={() => actions.updateSettings({ accent: 'theme' })}
+          >
+            {accent === 'theme' ? <IconCheck small /> : null}
+          </button>
+          <span className="accents-sep" aria-hidden="true" />
           {ACCENTS.map((a) => (
             <button
               key={a}
@@ -134,20 +366,19 @@ function AccentRow() {
 function PaletteRow() {
   const actions = useActions()
   const palette = useApp((s) => s.config.settings.terminalPalette)
-  const theme = useApp(currentTheme)
-  const accent = useApp((s) => s.config.settings.accent)
+  const drawn = useApp(drawnTheme)
   return (
     <div className="srow">
       <div>
         <h3 id="palette-h">Terminal colors</h3>
         <p className="ex">
-          Match app follows the theme and accent. The others keep their own colors in both themes.
+          Match app uses the theme's own terminal colors. The others keep theirs in every theme.
         </p>
       </div>
       <div className="ctl">
         <div className="palettes" role="radiogroup" aria-labelledby="palette-h">
           {TERMINAL_PALETTES.map((p) => {
-            const t = terminalTheme(p, theme, accent)
+            const t = terminalTheme(p, drawn)
             return (
               <button
                 key={p}
@@ -499,6 +730,49 @@ function CloseRow() {
           Running agents keep using CPU, memory and API usage. With agents kept, the tray icon
           offers to open Wraithgrid or stop them all; no notifications arrive while the window is
           closed.
+        </span>
+      </div>
+    </div>
+  )
+}
+
+const VIEW_OPTIONS: { id: PaneView; label: string }[] = [
+  { id: 'chat', label: 'Chat' },
+  { id: 'terminal', label: 'Terminal' }
+]
+
+function PaneViewRow() {
+  const actions = useActions()
+  const view = useApp((s) => s.config.settings.newPaneView)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="view-h">New panes open as</h3>
+        <p className="ex">
+          Chat runs the agent CLI in the background and shows its answers, tool calls and approvals
+          as a conversation. Terminal shows the CLI's own screen. Each pane can switch from its
+          header.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="recent" role="radiogroup" aria-labelledby="view-h">
+          {VIEW_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`rchip${view === o.id ? ' on' : ''}`}
+              role="radio"
+              aria-checked={view === o.id}
+              onClick={() => actions.updateSettings({ newPaneView: o.id })}
+              style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <span className="hint">
+          Chat is for Claude Code for now; other CLIs open as terminals. A pane signs in from the
+          terminal view. Chat agents stop when Wraithgrid quits and carry on the conversation at the
+          next launch.
         </span>
       </div>
     </div>
@@ -996,6 +1270,136 @@ function SharedRow() {
   )
 }
 
+type SettingsTab = 'general' | 'chat' | 'appearance' | 'agents' | 'advanced' | 'keyboard' | 'about'
+
+const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'chat', label: 'Chat' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'agents', label: 'Agents & CLIs' },
+  { id: 'advanced', label: 'Advanced' },
+  { id: 'keyboard', label: 'Keyboard' },
+  { id: 'about', label: 'About' }
+]
+
+/** claude's own aliases (from its model list), offered before any chat has started. */
+const FALLBACK_MODELS: ChatModel[] = [
+  {
+    value: 'opus',
+    label: 'Opus',
+    description: 'For complex work and everyday tasks',
+    efforts: [...CHAT_EFFORTS]
+  },
+  {
+    value: 'sonnet',
+    label: 'Sonnet',
+    description: 'Most efficient for simpler tasks',
+    efforts: [...CHAT_EFFORTS]
+  },
+  {
+    value: 'haiku',
+    label: 'Haiku',
+    description: 'Fastest for quick answers',
+    efforts: [...CHAT_EFFORTS]
+  }
+]
+
+function ChatDefaultsRow() {
+  const actions = useActions()
+  const model = useApp((s) => s.config.settings.chatModel)
+  const effort = useApp((s) => s.config.settings.chatEffort)
+  const mode = useApp((s) => s.config.settings.chatMode)
+  // The default account's own list, once one of its chats has started.
+  const known = useApp((s) => {
+    const id = s.config.settings.defaultAccountId ?? s.config.accounts[0]?.id
+    return (id ? s.accountInfo[id]?.models : undefined) ?? null
+  })
+  const models = (known?.length ? known : FALLBACK_MODELS).filter((m) => m.value !== 'default')
+  return (
+    <>
+      <div className="srow">
+        <div>
+          <h3 id="chat-model-h">Model for new chats</h3>
+          <p className="ex">
+            Each chat can switch from the model button in its message box. Default follows the
+            account's own setting.
+          </p>
+        </div>
+        <div className="ctl">
+          <div className="seg wrap" role="radiogroup" aria-labelledby="chat-model-h">
+            {[{ value: null, label: 'Default' }, ...models].map((m) => (
+              <button
+                key={m.value ?? 'default'}
+                role="radio"
+                aria-checked={model === m.value}
+                className={`seg-btn${model === m.value ? ' on' : ''}`}
+                onClick={() => actions.updateSettings({ chatModel: m.value })}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="srow">
+        <div>
+          <h3 id="chat-effort-h">Effort for new chats</h3>
+          <p className="ex">
+            How hard the model thinks before it answers. Higher is slower and uses more of your
+            plan.
+          </p>
+        </div>
+        <div className="ctl">
+          <div className="seg" role="radiogroup" aria-labelledby="chat-effort-h">
+            {([null, ...CHAT_EFFORTS] as const).map((e) => (
+              <button
+                key={e ?? 'default'}
+                role="radio"
+                aria-checked={effort === e}
+                className={`seg-btn${effort === e ? ' on' : ''}`}
+                onClick={() => actions.updateSettings({ chatEffort: e })}
+              >
+                {e === null ? 'Default' : EFFORT_LABEL[e]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="srow">
+        <div>
+          <h3 id="chat-mode-h">Mode for new chats</h3>
+          <p className="ex">
+            How much a chat may do without asking. Each chat can switch from its mode button or with
+            Shift+Tab.
+          </p>
+        </div>
+        <div className="ctl">
+          <div className="seg wrap" role="radiogroup" aria-labelledby="chat-mode-h">
+            {(['default', 'acceptEdits', 'plan', 'auto', 'dontAsk'] as const).map((m) => {
+              const on = (mode ?? 'default') === m
+              return (
+                <button
+                  key={m}
+                  role="radio"
+                  aria-checked={on}
+                  title={CHAT_MODE_HINT[m]}
+                  className={`seg-btn${on ? ' on' : ''}`}
+                  onClick={() => actions.updateSettings({ chatMode: m === 'default' ? null : m })}
+                >
+                  {CHAT_MODE_LABEL[m]}
+                </button>
+              )
+            })}
+          </div>
+          <span className="hint">
+            Bypass permissions is only offered per chat, never by default.
+          </span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function SettingsView() {
   const { api } = useServices()
   const actions = useActions()
@@ -1004,9 +1408,7 @@ export function SettingsView() {
   const configPath = useApp((s) => s.info.configPath)
   const home = useApp((s) => s.info.homeDir)
   const [defDir, setDefDir] = useState(settings.defaultCwd)
-  const term = useApp((s) =>
-    terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
-  )
+  const term = useApp((s) => terminalTheme(s.config.settings.terminalPalette, drawnTheme(s)))
 
   const setDefaultCwd = (v: string): void => {
     setDefDir(v)
@@ -1017,183 +1419,217 @@ export function SettingsView() {
     if (picked) setDefaultCwd(contractHome(picked, home))
   }
 
+  const anchor = useApp((s) => s.settingsAnchor)
+  const [tab, setTab] = useState<SettingsTab>(anchor === 'updates' ? 'about' : 'general')
+  // "Show updates" from a notification or the status bar opens About.
+  if (anchor === 'updates' && tab !== 'about') setTab('about')
+
   return (
-    <div className="page">
-      <div className="set">
-        <div className="pg-hd" style={{ paddingBottom: 18 }}>
-          <div>
-            <h1>Settings</h1>
-            <p>
-              Saved to <span className="mono">{configPath}</span>
-            </p>
-          </div>
-        </div>
+    <div className="page set-page">
+      <nav
+        className="set-nav"
+        role="tablist"
+        aria-label="Settings sections"
+        aria-orientation="vertical"
+      >
+        <h1>Settings</h1>
+        {SETTINGS_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`set-tab${tab === t.id ? ' on' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+        <p className="set-path" title={configPath}>
+          Saved to <span className="mono">{configPath}</span>
+        </p>
+      </nav>
+      <div
+        className="set"
+        role="tabpanel"
+        aria-label={SETTINGS_TABS.find((t) => t.id === tab)?.label}
+      >
+        <h2 className="set-title">{SETTINGS_TABS.find((t) => t.id === tab)?.label}</h2>
+        {tab === 'general' ? (
+          <>
+            <div className="srow">
+              <div>
+                <h3 id="defacc-h">Default account</h3>
+                <p className="ex">Pre-selected in the New pane dialog.</p>
+              </div>
+              <div className="ctl">
+                {accounts.length === 0 ? (
+                  <span className="hint">No accounts yet.</span>
+                ) : (
+                  <div className="recent" role="radiogroup" aria-labelledby="defacc-h">
+                    {accounts.map((a) => (
+                      <button
+                        key={a.id}
+                        className={`rchip${settings.defaultAccountId === a.id ? ' on' : ''}`}
+                        role="radio"
+                        aria-checked={settings.defaultAccountId === a.id}
+                        onClick={() => actions.updateSettings({ defaultAccountId: a.id })}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontFamily: 'inherit',
+                          fontSize: 12.5,
+                          height: 30
+                        }}
+                      >
+                        <Initial name={a.name} size={16} />
+                        {a.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <h2 className="sgrp">General</h2>
-        <ClaudeBinaryRow />
-        <CliPathsRow />
-
-        <div className="srow">
-          <div>
-            <h3 id="defacc-h">Default account</h3>
-            <p className="ex">Pre-selected in the New pane dialog.</p>
-          </div>
-          <div className="ctl">
-            {accounts.length === 0 ? (
-              <span className="hint">No accounts yet.</span>
-            ) : (
-              <div className="recent" role="radiogroup" aria-labelledby="defacc-h">
-                {accounts.map((a) => (
-                  <button
-                    key={a.id}
-                    className={`rchip${settings.defaultAccountId === a.id ? ' on' : ''}`}
-                    role="radio"
-                    aria-checked={settings.defaultAccountId === a.id}
-                    onClick={() => actions.updateSettings({ defaultAccountId: a.id })}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontFamily: 'inherit',
-                      fontSize: 12.5,
-                      height: 30
-                    }}
-                  >
-                    <AccountIcon account={a} size={16} />
-                    {a.name}
+            <div className="srow">
+              <div>
+                <h3>
+                  <label htmlFor="defdir">Default working directory</label>
+                </h3>
+                <p className="ex">Where the folder picker opens and Login panes start.</p>
+              </div>
+              <div className="ctl">
+                <div className="inrow">
+                  <input
+                    id="defdir"
+                    className="inpt"
+                    value={defDir}
+                    onChange={(e) => setDefaultCwd(e.target.value)}
+                    spellCheck={false}
+                  />
+                  <button className="btn" onClick={() => void browseDir()}>
+                    <IconFolder />
+                    Browse…
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <SharedRow />
-        <ShellRow />
-        <CloseRow />
-        <CliRow />
-        <MachinesRow />
-
-        <div className="srow">
-          <div>
-            <h3>
-              <label htmlFor="defdir">Default working directory</label>
-            </h3>
-            <p className="ex">Where the folder picker opens and Login panes start.</p>
-          </div>
-          <div className="ctl">
-            <div className="inrow">
-              <input
-                id="defdir"
-                className="inpt"
-                value={defDir}
-                onChange={(e) => setDefaultCwd(e.target.value)}
-                spellCheck={false}
-              />
-              <button className="btn" onClick={() => void browseDir()}>
-                <IconFolder />
-                Browse…
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <h2 className="sgrp">Appearance</h2>
-        <ThemeRow />
-        <AccentRow />
-        <PaletteRow />
-        <div className="srow">
-          <div>
-            <h3 id="font-h">Terminal font</h3>
-            <p className="ex">
-              Applies to every pane. Monospace fonts only; a font that is not installed falls back
-              to your system monospace.
-            </p>
-          </div>
-          <div className="ctl">
-            <div className="fonts" role="radiogroup" aria-labelledby="font-h">
-              {TERMINAL_FONTS.map((f) => (
-                <button
-                  key={f}
-                  className={`fopt${settings.fontFamily === f ? ' on' : ''}`}
-                  role="radio"
-                  aria-checked={settings.fontFamily === f}
-                  style={{ fontFamily: terminalFontStack(f) }}
-                  onClick={() => actions.updateSettings({ fontFamily: f })}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="lbl">Size</span>
-              <div className="step">
-                <button
-                  aria-label="Decrease font size"
-                  disabled={settings.fontSize <= FONT_SIZE_MIN}
-                  onClick={() =>
-                    actions.updateSettings({
-                      fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1)
-                    })
-                  }
-                >
-                  −
-                </button>
-                <span aria-live="polite">{settings.fontSize} px</span>
-                <button
-                  aria-label="Increase font size"
-                  disabled={settings.fontSize >= FONT_SIZE_MAX}
-                  onClick={() =>
-                    actions.updateSettings({
-                      fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1)
-                    })
-                  }
-                >
-                  +
-                </button>
+                </div>
               </div>
             </div>
-            <div
-              className="prev"
-              style={
-                {
-                  fontFamily: terminalFontStack(settings.fontFamily),
-                  fontSize: settings.fontSize,
-                  '--pv-bg': term.background,
-                  '--pv-fg': term.foreground,
-                  '--pv-dim': term.brightBlack,
-                  '--pv-acc': term.cursor,
-                  '--pv-ok': term.green
-                } as CSSProperties
-              }
-              aria-label="Font preview"
-            >
-              <span className="a">&gt; </span>
-              <span className="b">fix the failing auth test</span>
-              {'\n'}
-              <span className="g">● </span>
-              <span className="b">Bash</span>
-              <span className="d">(pnpm test auth)</span>
-              {'\n'}
-              <span className="d">{'  ⎿  '}</span>
-              <span className="g">PASS</span>
-              <span className="d"> src/auth/auth.controller.spec.ts</span>
-              {'\n'}
-              <span className="ladd">{"  13 + import { Throttle } from '@nestjs/throttler';"}</span>
-              {'\n'}
-              <span className="d">{'  0O 1lI {}[] => !== ─│╭╮ ✻ ⎿'}</span>
+
+            <PaneViewRow />
+            <CloseRow />
+            <NotifyRow />
+          </>
+        ) : null}
+        {tab === 'chat' ? <ChatDefaultsRow /> : null}
+        {tab === 'appearance' ? (
+          <>
+            <ThemeRow />
+            <ZoomRow />
+            <AccentRow />
+            <PaletteRow />
+            <div className="srow">
+              <div>
+                <h3 id="font-h">Terminal font</h3>
+                <p className="ex">
+                  Applies to every pane. Monospace fonts only; a font that is not installed falls
+                  back to your system monospace.
+                </p>
+              </div>
+              <div className="ctl">
+                <div className="fonts" role="radiogroup" aria-labelledby="font-h">
+                  {TERMINAL_FONTS.map((f) => (
+                    <button
+                      key={f}
+                      className={`fopt${settings.fontFamily === f ? ' on' : ''}`}
+                      role="radio"
+                      aria-checked={settings.fontFamily === f}
+                      style={{ fontFamily: terminalFontStack(f) }}
+                      onClick={() => actions.updateSettings({ fontFamily: f })}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span className="lbl">Size</span>
+                  <div className="step">
+                    <button
+                      aria-label="Decrease font size"
+                      disabled={settings.fontSize <= FONT_SIZE_MIN}
+                      onClick={() =>
+                        actions.updateSettings({
+                          fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1)
+                        })
+                      }
+                    >
+                      −
+                    </button>
+                    <span aria-live="polite">{settings.fontSize} px</span>
+                    <button
+                      aria-label="Increase font size"
+                      disabled={settings.fontSize >= FONT_SIZE_MAX}
+                      onClick={() =>
+                        actions.updateSettings({
+                          fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1)
+                        })
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="prev"
+                  style={
+                    {
+                      fontFamily: terminalFontStack(settings.fontFamily),
+                      fontSize: settings.fontSize,
+                      '--pv-bg': term.background,
+                      '--pv-fg': term.foreground,
+                      '--pv-dim': term.brightBlack,
+                      '--pv-acc': term.cursor,
+                      '--pv-ok': term.green
+                    } as CSSProperties
+                  }
+                  aria-label="Font preview"
+                >
+                  <span className="a">&gt; </span>
+                  <span className="b">fix the failing auth test</span>
+                  {'\n'}
+                  <span className="g">● </span>
+                  <span className="b">Bash</span>
+                  <span className="d">(pnpm test auth)</span>
+                  {'\n'}
+                  <span className="d">{'  ⎿  '}</span>
+                  <span className="g">PASS</span>
+                  <span className="d"> src/auth/auth.controller.spec.ts</span>
+                  {'\n'}
+                  <span className="ladd">
+                    {"  13 + import { Throttle } from '@nestjs/throttler';"}
+                  </span>
+                  {'\n'}
+                  <span className="d">{'  0O 1lI {}[] => !== ─│╭╮ ✻ ⎿'}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <h2 className="sgrp">Keyboard</h2>
-        <ShortcutsRow />
-
-        <h2 className="sgrp">Notifications</h2>
-        <NotifyRow />
-
-        <h2 className="sgrp">About</h2>
-        <UpdatesRow />
+          </>
+        ) : null}
+        {tab === 'agents' ? (
+          <>
+            <ClaudeBinaryRow />
+            <CliPathsRow />
+            <SharedRow />
+            <ShellRow />
+          </>
+        ) : null}
+        {tab === 'advanced' ? (
+          <>
+            <CliRow />
+            <MachinesRow />
+          </>
+        ) : null}
+        {tab === 'keyboard' ? <ShortcutsRow /> : null}
+        {tab === 'about' ? <UpdatesRow /> : null}
       </div>
     </div>
   )

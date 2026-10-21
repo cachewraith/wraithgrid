@@ -39,11 +39,17 @@ const sample = (): Config => ({
           shell: false,
           title: 'proj',
           resume: true,
-          hasConversation: false
+          hasConversation: false,
+          view: 'terminal',
+          chatSessionId: null,
+          model: null,
+          effort: null,
+          chatMode: null
         }
       ],
       layout: { type: 'pane', paneId: 'p1' },
-      machineId: null
+      machineId: null,
+      history: []
     }
   ],
   machines: [],
@@ -78,7 +84,8 @@ describe('config schema', () => {
     expect(r.ok && r.config.settings).toMatchObject({
       fontSize: 14,
       theme: 'light',
-      accent: 'violet',
+      themeLight: 'daylight',
+      accent: 'theme',
       terminalPalette: 'match',
       checkUpdatesOnLaunch: true
     })

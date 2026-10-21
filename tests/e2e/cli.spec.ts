@@ -99,7 +99,10 @@ test('the wraithgrid command lists, reads, types into, waits on and opens panes'
     expect(refused).toMatchObject({ code: 1 })
     expect((refused as { stderr: string }).stderr).toMatch(/Settings → Command line/)
 
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Advanced' }).click()
     await win.getByRole('switch', { name: 'Allow wraithgrid commands' }).click()
     await win.locator('header.top button.gh').first().click() // back to the grid
 

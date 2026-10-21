@@ -26,7 +26,9 @@ test('a shortcut rebound in Settings works at once, is refused when taken, and p
   })
   try {
     const win = await app.firstWindow()
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Keyboard' }).click()
 
     // A chord another action has is refused with its name.
     await win.getByRole('button', { name: 'Change shortcut: Search panes and commands' }).click()

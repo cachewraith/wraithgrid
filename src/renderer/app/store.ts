@@ -14,9 +14,24 @@ import type {
   WraithApi
 } from '@shared/ipc-contract'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
-import { ICON_MAX } from '@shared/icons'
+import type {
+  ApprovalDecision,
+  ChatAccountInfo,
+  ChatEffort,
+  ChatMode,
+  ChatImage,
+  ChatModel
+} from '@shared/chat'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
+import { EMPTY_USAGE, type UsageData } from '@shared/usage'
+import {
+  BUILT_IN_THEMES,
+  pickTheme,
+  withAccent,
+  type AppTheme,
+  type ThemeFile
+} from '@shared/themes'
 import {
   ACCOUNT_COLORS,
   type Account,
@@ -25,11 +40,13 @@ import {
   type LayoutNode,
   type Pane,
   type PaneStatus,
+  type PaneView,
   resolveTheme,
   type Settings,
   type SharedMode,
   type ThemeName,
-  type Workspace
+  type Workspace,
+  HISTORY_MAX
 } from '@shared/types'
 import { neighborInDirection, type Direction } from '../layout/focus'
 import { buildPreset, type PresetId } from '../layout/presets'
@@ -44,6 +61,7 @@ import {
   type Path
 } from '../layout/tree'
 import { newId } from '../lib/ids'
+import type { ChatBus } from '../lib/chat-bus'
 import type { PtyBus } from '../lib/pty-bus'
 import type { RectRegistry } from '../lib/scheduling'
 import { StaggeredQueue } from '../lib/scheduling'
@@ -69,9 +87,12 @@ export interface PaneRuntime {
   loginFlow: boolean
   /** The user pressed "Run /login" in the banner. */
   loginStarted: boolean
+  /** When it last ran (the sidebar's "2m"); null until it has, this session. */
+  activeAt: number | null
 }
 
-export type View = 'grid' | 'accounts' | 'mods' | 'settings'
+/** `project`: the active workspace's chats and history (the sidebar's project click). */
+export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings' | 'usage'
 export type AccountsMode = 'list' | 'add' | 'import'
 export type Modal =
   | { kind: 'newPane'; slotId: string | null }
@@ -89,6 +110,8 @@ export interface NewPaneInput {
   args: string[]
   shell: boolean
   slotId: string | null
+  /** Overrides settings.newPaneView (a `wraithgrid new` pane must be a terminal). */
+  view?: PaneView
 }
 
 export interface AppState {
@@ -122,8 +145,16 @@ export interface AppState {
   git: Record<string, GitStatus>
   /** The diff panel beside the grid, showing the focused pane's folder. */
   diffOpen: boolean
+  /** Each account's plan and models, as its CLI said when a chat last started (not saved). */
+  accountInfo: Record<string, { info: ChatAccountInfo | null; models: ChatModel[] }>
   /** Installed mods per claude account, as each account's CLI last listed them. */
   mods: { loading: boolean; accounts: AccountMods[] | null }
+  /** Built-in themes, then the user's from ~/.wraithgrid/themes. */
+  themes: AppTheme[]
+  /** Theme files that could not be loaded, and why. */
+  themeProblems: { file: string; error: string }[]
+  /** Chat usage and plan limits from main; limits also update live from chat events. */
+  usage: UsageData
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -138,9 +169,32 @@ export interface AppState {
   markConversation(paneId: string): void
   /** The per-pane "continue the conversation on restore" toggle. */
   setPaneResume(paneId: string, resume: boolean): void
+  /** Chat or terminal (ADR 0002): stops the pane's process and starts it in the other view. */
+  setPaneView(paneId: string, view: PaneView): void
+  chatSend(paneId: string, text: string, images: ChatImage[]): void
+  chatApprove(paneId: string, reqId: string, decision: ApprovalDecision): void
+  chatInterrupt(paneId: string): void
+  /** Starts a new conversation in a chat pane; the old one stays in the CLI's history. */
+  chatNew(paneId: string): void
+  /** Switches a chat's model; a running chat switches at once. */
+  chatSetModel(paneId: string, model: string | null): void
+  /** Switches a chat's permission mode; live when it runs, else at its next start. */
+  chatSetMode(paneId: string, mode: ChatMode): void
+  /** Sets a chat's effort; the chat restarts and carries on the conversation. */
+  chatSetEffort(paneId: string, effort: ChatEffort | null): void
+  /** Opens a project's screen: its open chats and history. */
+  openProject(wsId: string): void
+  /** Reopens a closed chat from History; it carries on its conversation. */
+  reopenChat(wsId: string, paneId: string): void
+  /** Deletes a History entry and its saved view. */
+  deleteHistory(wsId: string, paneId: string): void
+  /** The pane's name in its header and the sidebar; empty goes back to the folder name. */
+  renamePane(paneId: string, title: string): void
   focusPane(paneId: string | null): void
   focusDirection(dir: Direction): void
   toggleZoom(paneId?: string): void
+  /** Types into a terminal pane as if from the keyboard. */
+  typeInPane(paneId: string, text: string): void
   runLogin(paneId: string): void
   /** Switches to the pane's workspace, puts it in the grid if hidden, and focuses it. */
   revealPane(paneId: string): void
@@ -172,18 +226,12 @@ export interface AppState {
   addMachine(name: string, sshHost: string): string | null
   /** Removes a machine; its workspaces run here again (their panes there keep running). */
   removeMachine(id: string): void
-  /** An icon id or emoji ('' for the first letter), and optionally a tint ('' = neutral). */
-  setWorkspaceIcon(id: string, icon: string, color?: string): void
   deleteWorkspace(id: string): void
 
   // accounts
   addAccount(name: string, color: string, cli?: AgentCli): Promise<string | null>
   importAccount(dir: string): string | null
   renameAccount(id: string, name: string): void
-  /** An icon id or emoji ('' for the first letter); a color also recolors the account. */
-  setAccountIcon(id: string, icon: string, color?: string): void
-  /** An icon id or emoji ('' for the folder glyph) and a tint ('' = neutral). */
-  setFolderIcon(id: string, icon: string, color?: string): void
   /** null moves the account out of any folder. */
   moveAccountToFolder(id: string, folderId: string | null): void
   createFolder(name: string): string | null
@@ -203,6 +251,16 @@ export interface AppState {
   loadMods(): Promise<void>
   /** Enables or disables one listed mod; resolves an error message, or null. */
   setModEnabled(accountId: string, mod: ModInfo, enabled: boolean): Promise<string | null>
+
+  loadUsage(): Promise<void>
+
+  // themes
+  loadThemes(): Promise<void>
+  /** Draws this theme now; it also becomes the theme for its mode when following the OS. */
+  chooseTheme(id: string): void
+  /** Asks for a theme file and adds it; resolves an error message, or null. */
+  importTheme(): Promise<string | null>
+  deleteTheme(id: string): Promise<string | null>
 
   // settings
   updateSettings(patch: Partial<Settings>): void
@@ -227,6 +285,7 @@ export interface AppState {
 export interface StoreDeps {
   api: WraithApi
   bus: PtyBus
+  chat: ChatBus
   rects: RectRegistry
   now?: () => number
   /** Whether the window has the user's attention; notifications only fire when it doesn't. */
@@ -258,11 +317,58 @@ export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): Theme
   return resolveTheme(s.config.settings.theme, s.systemTheme === 'dark')
 }
 
+const drawnCache = new WeakMap<AppTheme, Map<string, ThemeFile>>()
+
+/** The theme being drawn, with the accent laid over it. Same inputs, same object. */
+export function drawnTheme(s: Pick<AppState, 'config' | 'systemTheme' | 'themes'>): ThemeFile {
+  const mode = currentTheme(s)
+  const { themeDark, themeLight, accent } = s.config.settings
+  const t = pickTheme(s.themes, mode === 'dark' ? themeDark : themeLight, mode)
+  let byAccent = drawnCache.get(t)
+  if (!byAccent) drawnCache.set(t, (byAccent = new Map()))
+  let d = byAccent.get(accent)
+  if (!d) byAccent.set(accent, (d = withAccent(t, accent)))
+  return d
+}
+
 /** Same rule as the config schema's ssh host: no leading `-`, no spaces or quotes. */
 const SSH_HOST = /^[A-Za-z0-9_.@%:[\]][A-Za-z0-9_.@%:[\]-]*$/
 
 export function accountById(config: Config, id: string | null): Account | undefined {
   return id ? config.accounts.find((a) => a.id === id) : undefined
+}
+
+/**
+ * How a pane is shown. Chat only for an agent pane whose CLI has a chat adapter and runs
+ * on this computer (ADR 0002); everything else is a terminal, whatever was saved.
+ */
+export function paneView(config: Config, paneId: string): PaneView {
+  const found = findPane(config, paneId)
+  if (!found || found.pane.shell || found.pane.view !== 'chat' || found.ws.machineId)
+    return 'terminal'
+  const cli = accountById(config, found.pane.accountId)?.cli ?? 'claude'
+  return AGENT_CLI_SPECS[cli].chat ? 'chat' : 'terminal'
+}
+
+/** Whether the pane could be shown as a chat (the header's Chat/Terminal switch). */
+export function canChat(config: Config, paneId: string): boolean {
+  const found = findPane(config, paneId)
+  if (!found || found.pane.shell || found.ws.machineId) return false
+  return AGENT_CLI_SPECS[accountById(config, found.pane.accountId)?.cli ?? 'claude'].chat
+}
+
+/** A pane's name before anyone named it: its folder (`home` for ~), or `shell`. */
+export function autoTitle(pane: Pick<Pane, 'shell' | 'cwd'>): string {
+  return pane.shell ? 'shell' : baseName(pane.cwd) === '~' ? 'home' : baseName(pane.cwd)
+}
+
+/** A chat's name from its first message, like a chat app's history: one line, ~6 words. */
+export function titleFromMessage(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim()
+  if (line.length <= 48) return line
+  const cut = line.slice(0, 48)
+  const word = cut.lastIndexOf(' ')
+  return `${(word > 24 ? cut.slice(0, word) : cut).replace(/[\s,.;:!?-]+$/, '')}…`
 }
 
 /** Six or more visible panes switch to the compact 8-pane density. */
@@ -286,11 +392,6 @@ function uniqueSlug(base: string, taken: Set<string>): string {
   return slug
 }
 
-/** A picked tint: '#rrggbb' or '' (neutral); undefined or anything else keeps `current`. */
-function tint(color: string | undefined, current: string): string {
-  return color === '' || (color && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : current
-}
-
 function freshRuntime(extra: Partial<PaneRuntime> = {}): PaneRuntime {
   return {
     requested: false,
@@ -300,6 +401,7 @@ function freshRuntime(extra: Partial<PaneRuntime> = {}): PaneRuntime {
     exit: null,
     loginFlow: false,
     loginStarted: false,
+    activeAt: null,
     ...extra
   }
 }
@@ -333,6 +435,7 @@ const RESTART_MARK = (t: Date): string =>
 export function createAppStore({
   api,
   bus,
+  chat,
   rects,
   now = () => Date.now(),
   windowFocused = () => typeof document === 'undefined' || document.hasFocus()
@@ -344,6 +447,8 @@ export function createAppStore({
   const spawned = new Set<string>()
   /** When each pane's last unseen run ended (its "done" status). */
   const doneAt = new Map<string, number>()
+  /** Panes just switched between chat and terminal: the next start continues the conversation. */
+  const switched = new Set<string>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -364,14 +469,48 @@ export function createAppStore({
       )
     }
 
+    const spawnChat = async (paneId: string, pane: Pane): Promise<void> => {
+      switched.delete(paneId)
+      await chat.load(paneId)
+      if (!pane.accountId) return
+      const res = await api.chat.start({
+        paneId,
+        accountId: pane.accountId,
+        cwd: pane.cwd,
+        args: pane.args,
+        sessionId: pane.chatSessionId,
+        // A conversation begun in the terminal view carries on here.
+        continueLast: !pane.chatSessionId && pane.hasConversation && pane.resume,
+        model: pane.model,
+        effort: pane.effort,
+        mode: pane.chatMode
+      })
+      if (!get().runtime[paneId]) {
+        if (res.ok) api.chat.stop(paneId, false)
+        return
+      }
+      if (res.ok) patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
+      else {
+        chat.notice(paneId, 'error', res.error)
+        patchRuntime(paneId, {
+          started: false,
+          pid: null,
+          status: 'exited',
+          exit: { code: -1, signal: null, at: now(), message: res.error, spawnError: true }
+        })
+      }
+    }
+
     const spawn = async (paneId: string): Promise<void> => {
       const found = findPane(get().config, paneId)
       if (!found) return
       const { pane } = found
+      if (paneView(get().config, paneId) === 'chat') return spawnChat(paneId, pane)
       const { cols, rows } = bus.size(paneId)
       // Only a pane's first start after launch resumes; a restart or a new pane starts fresh.
       const restored = !spawned.has(paneId)
       spawned.add(paneId)
+      const fromChat = switched.delete(paneId)
       const cli = accountById(get().config, pane.accountId)?.cli ?? 'claude'
       bus.setApprovalPattern(paneId, pane.shell ? null : AGENT_CLI_SPECS[cli].approval)
       const res = await api.pty.create({
@@ -380,8 +519,8 @@ export function createAppStore({
         cwd: pane.cwd,
         args: pane.args,
         shell: pane.shell,
-        resume: restored && !pane.shell && pane.resume && pane.hasConversation,
-        attach: restored,
+        resume: (restored || fromChat) && !pane.shell && pane.resume && pane.hasConversation,
+        attach: restored && !fromChat,
         cols,
         rows
       })
@@ -408,6 +547,8 @@ export function createAppStore({
 
     const onExit = (e: PtyExitEvent): void => {
       if (!get().runtime[e.paneId]) return
+      // The terminal this pane had before it switched to chat.
+      if (paneView(get().config, e.paneId) === 'chat') return
       // The link to its machine dropped: Restart first tries to reattach, as at launch.
       if (e.disconnected) spawned.delete(e.paneId)
       patchRuntime(e.paneId, {
@@ -461,7 +602,9 @@ export function createAppStore({
         cwd: action.cwd ?? base?.cwd ?? '~',
         args: shell ? [] : (action.args ?? base?.args ?? []),
         shell,
-        slotId: null
+        slotId: null,
+        // The command line drives panes through the pty host, where chat panes do not run.
+        view: 'terminal'
       })
       set({ view: 'grid' })
       return { ok: true, paneId }
@@ -484,15 +627,25 @@ export function createAppStore({
       const s = get()
       const ws = activeWorkspace(s)
       const id = newId('p')
+      const account = accountById(s.config, input.shell ? null : input.accountId)
       const pane: Pane = {
         id,
         accountId: input.shell ? null : input.accountId,
         cwd: input.cwd,
         args: input.shell ? [] : input.args,
         shell: input.shell,
-        title: input.shell ? 'shell' : baseName(input.cwd) === '~' ? 'home' : baseName(input.cwd),
+        title: autoTitle(input),
         resume: true,
-        hasConversation: false
+        hasConversation: false,
+        // Signing in happens in the CLI's own screen, so a login pane is a terminal.
+        view:
+          runtimeExtra.loginFlow || (account && !account.signedIn)
+            ? 'terminal'
+            : (input.view ?? s.config.settings.newPaneView),
+        chatSessionId: null,
+        model: s.config.settings.chatModel,
+        effort: s.config.settings.chatEffort,
+        chatMode: s.config.settings.chatMode
       }
       spawned.add(id)
       const layout = placePane(ws, id, input.slotId)
@@ -514,8 +667,11 @@ export function createAppStore({
       return id
     }
 
-    const dropPane = (paneId: string): void => {
+    /** Removes a pane; `archive` keeps it (and its saved chat view) in the project's History. */
+    const dropPane = (paneId: string, archive = false): void => {
       api.pty.kill(paneId)
+      api.chat.stop(paneId, !archive)
+      chat.forget(paneId, archive)
       bus.forget(paneId)
       const s = get()
       const found = findPane(s.config, paneId)
@@ -523,10 +679,14 @@ export function createAppStore({
       delete runtime[paneId]
       let config = s.config
       if (found) {
+        const kept = archive ? [{ pane: found.pane, closedAt: now() }, ...found.ws.history] : null
+        // Past the limit, the oldest entries go, with their saved views.
+        kept?.slice(HISTORY_MAX).forEach((h) => api.chat.stop(h.pane.id, true))
         config = withWorkspace(config, found.ws.id, (w) => ({
           ...w,
           panes: w.panes.filter((p) => p.id !== paneId),
-          layout: removePane(w.layout, paneId)
+          layout: removePane(w.layout, paneId),
+          history: kept ? kept.slice(0, HISTORY_MAX) : w.history
         }))
       }
       const nextFocus =
@@ -605,15 +765,26 @@ export function createAppStore({
         const account = found ? accountById(s.config, found.pane.accountId) : undefined
         const derived = rt.exit
           ? 'exited'
-          : deriveStatus({
-              started: rt.started,
-              exited: false,
-              loginNeeded: !!found && !found.pane.shell && !!account && !account.signedIn,
-              activity: bus.activity(paneId),
-              now: t
-            })
+          : paneView(s.config, paneId) === 'chat'
+            ? rt.started
+              ? chat.status(paneId)
+              : 'starting'
+            : deriveStatus({
+                started: rt.started,
+                exited: false,
+                loginNeeded: !!found && !found.pane.shell && !!account && !account.signedIn,
+                activity: bus.activity(paneId),
+                now: t
+              })
         const status = withDone(paneId, rt.status, derived, t)
-        runtime[paneId] = status === rt.status ? rt : { ...rt, status }
+        // Minute precision is all the sidebar shows: refresh it every few seconds, not ticks.
+        const activeAt =
+          status === 'running' && (rt.activeAt === null || t - rt.activeAt >= 5000)
+            ? t
+            : rt.activeAt
+        runtime[paneId] =
+          status === rt.status && activeAt === rt.activeAt ? rt : { ...rt, status, activeAt }
+        if (activeAt !== rt.activeAt) changed = true
         if (status !== rt.status) {
           changed = true
           if (!attending(paneId)) maybeNotify(paneId, rt.status, status)
@@ -649,6 +820,10 @@ export function createAppStore({
       git: {},
       diffOpen: false,
       mods: { loading: false, accounts: null },
+      themes: BUILT_IN_THEMES,
+      themeProblems: [],
+      usage: EMPTY_USAGE,
+      accountInfo: {},
 
       async init() {
         const [raw, info] = await Promise.all([api.config.get(), api.app.info()])
@@ -656,6 +831,55 @@ export function createAppStore({
         const ws = activeWorkspace({ config })
         bus.start()
         bus.onExit(onExit)
+        chat.start()
+        chat.onSession((paneId, id) => {
+          const pane = findPane(get().config, paneId)?.pane
+          if (pane && pane.chatSessionId !== id) patchPane(paneId, { chatSessionId: id })
+        })
+        chat.onCapabilities((paneId, e) => {
+          const accountId = findPane(get().config, paneId)?.pane.accountId
+          if (!accountId) return
+          set({
+            accountInfo: {
+              ...get().accountInfo,
+              [accountId]: { info: e.account, models: e.models }
+            }
+          })
+        })
+        let usageTimer: ReturnType<typeof setTimeout> | null = null
+        chat.onUsage((paneId, e) => {
+          if (e.t === 'limits') {
+            const accountId = findPane(get().config, paneId)?.pane.accountId
+            if (!accountId) return
+            const usage = get().usage
+            set({ usage: { ...usage, limits: { ...usage.limits, [accountId]: e.limits } } })
+          } else if (e.usage && !usageTimer) {
+            // Main has recorded the turn by now; read it back once things settle.
+            usageTimer = setTimeout(() => {
+              usageTimer = null
+              void get().loadUsage()
+            }, 400)
+          }
+        })
+        // claude can change mode itself (leaving plan mode): the next start keeps that.
+        chat.onMode((paneId, mode) => {
+          const pane = findPane(get().config, paneId)?.pane
+          const want = mode === 'default' ? null : mode
+          if (pane && pane.chatMode !== want) patchPane(paneId, { chatMode: want })
+        })
+        chat.onExit((paneId, e) => {
+          if (!get().runtime[paneId] || paneView(get().config, paneId) !== 'chat') return
+          patchRuntime(paneId, {
+            status: 'exited',
+            exit: {
+              code: e.code ?? -1,
+              signal: e.signal,
+              at: now(),
+              message: e.error,
+              spawnError: false
+            }
+          })
+        })
         bus.onLoginDetected((paneId) => {
           const found = findPane(get().config, paneId)
           const account = found && accountById(get().config, found.pane.accountId)
@@ -676,6 +900,8 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        void get().loadThemes()
+        void get().loadUsage()
         void get().refreshGit()
         if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
       },
@@ -706,7 +932,8 @@ export function createAppStore({
           return
         }
         const pane = findPane(get().config, paneId)?.pane
-        dropPane(paneId)
+        // A conversation is kept in the project's History; an unused pane or a shell is not.
+        dropPane(paneId, !!pane && !pane.shell && pane.hasConversation)
         // The last pane on a Wraithgrid worktree: offer to remove its folder.
         if (pane && isWorktreeCwd(pane.cwd) && !get().modal) {
           const used = get().config.workspaces.some((w) => w.panes.some((p) => p.cwd === pane.cwd))
@@ -720,6 +947,10 @@ export function createAppStore({
 
       restartPane(paneId) {
         if (!get().runtime[paneId]) return
+        if (paneView(get().config, paneId) === 'chat') {
+          api.chat.stop(paneId, false)
+          chat.notice(paneId, 'info', 'Restarted')
+        }
         bus.resetActivity(paneId)
         bus.writeLocal(paneId, RESTART_MARK(new Date(now())))
         set({
@@ -743,6 +974,121 @@ export function createAppStore({
 
       setPaneResume(paneId, resume) {
         patchPane(paneId, { resume })
+      },
+
+      setPaneView(paneId, view) {
+        const rt = get().runtime[paneId]
+        if (paneView(get().config, paneId) === view || !canChat(get().config, paneId)) return
+        // Stop the old view's process; the new view starts its own when it mounts.
+        if (view === 'terminal') api.chat.stop(paneId, false)
+        else api.pty.kill(paneId)
+        switched.add(paneId)
+        bus.resetActivity(paneId)
+        patchPane(paneId, { view })
+        set({
+          runtime: {
+            ...get().runtime,
+            [paneId]: freshRuntime({ loginFlow: rt?.loginFlow ?? false })
+          }
+        })
+      },
+
+      chatSend(paneId, text, images) {
+        const pane = findPane(get().config, paneId)?.pane
+        // The first message names a chat whose name was never changed.
+        if (pane && !pane.hasConversation && text.trim() && pane.title === autoTitle(pane))
+          patchPane(paneId, { title: titleFromMessage(text) })
+        chat.send(paneId, text, images)
+        get().markConversation(paneId)
+      },
+
+      chatSetModel(paneId, model) {
+        patchPane(paneId, { model })
+        // null (the default) needs the CLI's own default: claude names it `default`.
+        if (get().runtime[paneId]?.started) api.chat.setModel(paneId, model ?? 'default')
+      },
+
+      chatSetMode(paneId, mode) {
+        patchPane(paneId, { chatMode: mode === 'default' ? null : mode })
+        if (get().runtime[paneId]?.started) api.chat.setMode(paneId, mode)
+      },
+
+      chatSetEffort(paneId, effort) {
+        if (findPane(get().config, paneId)?.pane.effort === effort) return
+        patchPane(paneId, { effort })
+        // Effort is a start-up flag: restart quietly; the conversation resumes by its id.
+        if (!get().runtime[paneId]?.requested) return
+        api.chat.stop(paneId, false)
+        set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
+        startQueue.push(() => void spawn(paneId))
+      },
+
+      openProject(wsId) {
+        if (!get().config.workspaces.some((w) => w.id === wsId)) return
+        get().switchWorkspace(wsId)
+        set({ view: 'project' })
+      },
+
+      reopenChat(wsId, paneId) {
+        const ws = get().config.workspaces.find((w) => w.id === wsId)
+        const entry = ws?.history.find((h) => h.pane.id === paneId)
+        if (!ws || !entry || findPane(get().config, paneId)) return
+        get().switchWorkspace(wsId)
+        const s = get()
+        const active = activeWorkspace(s)
+        const layout = placePane(active, paneId, null)
+        // Same id as before: its saved chat view loads, and its first start resumes.
+        spawned.delete(paneId)
+        set({
+          config: withWorkspace(s.config, wsId, (w) => ({
+            ...w,
+            panes: [...w.panes, { ...entry.pane, resume: true }],
+            layout,
+            history: w.history.filter((h) => h.pane.id !== paneId)
+          })),
+          runtime: { ...s.runtime, [paneId]: freshRuntime() },
+          focusedPaneId: paneId,
+          zoomedPaneId: null,
+          view: 'grid'
+        })
+      },
+
+      deleteHistory(wsId, paneId) {
+        get().updateConfig((c) =>
+          withWorkspace(c, wsId, (w) => ({
+            ...w,
+            history: w.history.filter((h) => h.pane.id !== paneId)
+          }))
+        )
+        api.chat.stop(paneId, true)
+      },
+
+      renamePane(paneId, title) {
+        const pane = findPane(get().config, paneId)?.pane
+        if (!pane) return
+        patchPane(paneId, { title: title.trim().slice(0, 128) || autoTitle(pane) })
+      },
+
+      chatApprove(paneId, reqId, decision) {
+        chat.approve(paneId, reqId, decision)
+      },
+
+      chatInterrupt(paneId) {
+        chat.interrupt(paneId)
+      },
+
+      chatNew(paneId) {
+        if (paneView(get().config, paneId) !== 'chat') return
+        const pane = findPane(get().config, paneId)?.pane
+        // A new conversation is named by its own first message.
+        patchPane(paneId, {
+          chatSessionId: null,
+          hasConversation: false,
+          ...(pane ? { title: autoTitle(pane) } : {})
+        })
+        get().restartPane(paneId)
+        // After the restart's own notice: a new conversation starts on an empty view.
+        chat.clear(paneId)
       },
 
       focusPane(paneId) {
@@ -825,6 +1171,10 @@ export function createAppStore({
         if (diffOpen !== get().diffOpen) set({ diffOpen })
       },
 
+      typeInPane(paneId, text) {
+        bus.input(paneId, text)
+      },
+
       runLogin(paneId) {
         bus.input(paneId, '/login\r')
         patchRuntime(paneId, { loginStarted: true })
@@ -890,7 +1240,8 @@ export function createAppStore({
           color: '',
           machineId: null,
           panes: [],
-          layout: null
+          layout: null,
+          history: []
         }
         const s = get()
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
@@ -943,6 +1294,7 @@ export function createAppStore({
         const ws = s.config.workspaces.find((w) => w.id === id)
         if (!ws) return
         ws.panes.forEach((p) => dropPane(p.id))
+        ws.history.forEach((h) => api.chat.stop(h.pane.id, true))
         const after = get()
         const workspaces = after.config.workspaces.filter((w) => w.id !== id)
         const activated = { ...after.activated }
@@ -1010,37 +1362,6 @@ export function createAppStore({
           settings: { ...c.settings, defaultAccountId: c.settings.defaultAccountId ?? account.id }
         }))
         return null
-      },
-
-      setWorkspaceIcon(id, icon, color) {
-        const trimmed = icon.trim().slice(0, ICON_MAX)
-        get().updateConfig((c) => ({
-          ...c,
-          workspaces: c.workspaces.map((w) =>
-            w.id === id ? { ...w, icon: trimmed, color: tint(color, w.color) } : w
-          )
-        }))
-      },
-
-      setAccountIcon(id, icon, color) {
-        const trimmed = icon.trim().slice(0, ICON_MAX)
-        get().updateConfig((c) => ({
-          ...c,
-          accounts: c.accounts.map((a) =>
-            // An account always has a color (it marks its panes): '' keeps the current one.
-            a.id === id ? { ...a, icon: trimmed, color: tint(color, a.color) || a.color } : a
-          )
-        }))
-      },
-
-      setFolderIcon(id, icon, color) {
-        const trimmed = icon.trim().slice(0, ICON_MAX)
-        get().updateConfig((c) => ({
-          ...c,
-          accountFolders: c.accountFolders.map((f) =>
-            f.id === id ? { ...f, icon: trimmed, color: tint(color, f.color) } : f
-          )
-        }))
       },
 
       moveAccountToFolder(id, folderId) {
@@ -1195,6 +1516,42 @@ export function createAppStore({
         if (!found || !s.config.settings.notifyPanes || attending(paneId)) return
         const where = `${found.pane.title} · ${found.ws.name}`
         api.notify.pane(paneId, (title ? `${title} · ${where}` : where).slice(0, 120), body)
+      },
+
+      async loadUsage() {
+        set({ usage: await api.usage.get() })
+      },
+
+      // ---- themes --------------------------------------------------------------
+
+      async loadThemes() {
+        const r = await api.themes.list()
+        set({ themes: [...BUILT_IN_THEMES, ...r.themes], themeProblems: r.problems })
+      },
+
+      chooseTheme(id) {
+        const t = get().themes.find((x) => x.id === id)
+        if (!t) return
+        const slot = t.mode === 'dark' ? 'themeDark' : 'themeLight'
+        const follow = get().config.settings.theme === 'system'
+        // A theme comes with its own accent; picking one drops an accent laid over the last.
+        get().updateSettings({ [slot]: id, accent: 'theme', ...(follow ? {} : { theme: t.mode }) })
+      },
+
+      async importTheme() {
+        const r = await api.themes.import()
+        if (!r) return null
+        if (!r.ok) return r.error
+        await get().loadThemes()
+        get().chooseTheme(r.id)
+        return null
+      },
+
+      async deleteTheme(id) {
+        const r = await api.themes.delete(id)
+        if (!r.ok) return r.error
+        await get().loadThemes()
+        return null
       },
 
       // ---- settings ------------------------------------------------------------

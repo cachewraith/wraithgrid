@@ -1,4 +1,5 @@
 import { readFile, stat, mkdir, realpath, rm } from 'node:fs/promises'
+import { writeFileAtomic } from './config-store'
 import path from 'node:path'
 import {
   app,
@@ -15,6 +16,15 @@ import { marketplaceOf } from '@shared/mods'
 import { contractHome } from '@shared/paths'
 import {
   IPC,
+  chatApproveArgs,
+  chatPaneArgs,
+  chatSaveArgs,
+  chatSendArgs,
+  chatSetModelArgs,
+  chatSetModeArgs,
+  chatStartArgs,
+  chatStopArgs,
+  type ChatStartResult,
   accountCreateDirArgs,
   accountDeleteDirArgs,
   claudeDetectArgs,
@@ -39,6 +49,11 @@ import {
   modsMarketplaceRemoveArgs,
   modsListArgs,
   modsSetEnabledArgs,
+  themesDeleteArgs,
+  themesExportArgs,
+  themesNoArgs,
+  type ThemeImportResult,
+  type ThemeListResult,
   notifyPaneArgs,
   pickPathArgs,
   shellListArgs,
@@ -119,7 +134,11 @@ import {
   switchBranch,
   type GitRunner
 } from './git'
-import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
+import { accountsRoot, isStrictlyInside, resolveUserPath, themesRoot, worktreesRoot } from './paths'
+import { deleteTheme, importTheme, listThemes } from './themes'
+import type { UsageStore } from './usage-store'
+import { EMPTY_USAGE, type UsageData } from '@shared/usage'
+import { THEMES_FILE_MAX, themeSlug } from '@shared/themes'
 import { listShells, type DesktopInfo } from './platform'
 import {
   ensureSource,
@@ -132,6 +151,8 @@ import type { PaneRouter } from './pane-router'
 import { sshConfigHosts } from './ssh'
 import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
+import { chatAdapterFor } from './chat/adapter'
+import type { ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
 
@@ -156,6 +177,12 @@ export interface IpcDeps {
   git: GitRunner
   /** Shows an OS notification about a pane; a click should bring that pane forward. */
   notifyPane: (paneId: string, title: string, body: string) => void
+  /** Chat panes' headless CLI processes (ADR 0002). */
+  chats: ChatSessions
+  /** Where each chat pane's conversation view is saved (`<paneId>.json`). */
+  chatDir: string
+  /** Chat-turn usage and plan limits (userData/usage.json). */
+  usage?: Pick<UsageStore, 'get'>
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -299,6 +326,86 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Invalid request')
   )
 
+  // ---- Chat panes (ADR 0002) -------------------------------------------------------
+
+  const { chats } = deps
+  handle(
+    IPC.chatStart,
+    chatStartArgs,
+    async (a): Promise<ChatStartResult> => {
+      // The window reloaded (renderer crash): its process kept running.
+      if (chats.has(a.paneId)) return { ok: true, pid: null, attached: true }
+      const cfg = store.get()
+      if (machineOfPane(cfg, a.paneId))
+        return fail('Chat runs on this computer only. Switch this pane to Terminal.')
+      const account = cfg.accounts.find((x) => x.id === a.accountId)
+      if (!account) return fail('This pane has no account. Pick one in the New pane dialog.')
+      const adapter = chatAdapterFor(account.cli)
+      if (!adapter)
+        return fail(`${account.cli} has no chat view yet. Switch this pane to Terminal.`)
+      await deps.envReady
+      if (account.cli === 'claude') await syncShared(account.id)
+      const resolved = await resolveSpawn(
+        {
+          paneId: a.paneId,
+          cli: account.cli,
+          shell: false,
+          configDir: account.configDir,
+          cwd: a.cwd,
+          args: [
+            ...a.args,
+            ...adapter.args({
+              sessionId: a.sessionId,
+              continueLast: a.continueLast,
+              model: a.model,
+              effort: a.effort,
+              mode: a.mode
+            })
+          ],
+          resume: false,
+          cols: 80,
+          rows: 24
+        },
+        {
+          platform: process.platform,
+          env: process.env,
+          homeDir,
+          claudePath: cfg.claudePath,
+          cliPaths: cfg.settings.cliPaths,
+          shellPath: cfg.settings.shellPath,
+          shellArgs: cfg.settings.shellArgs,
+          modDirs: cfg.settings.modDirs
+        }
+      )
+      if (!resolved.ok) return fail(resolved.error)
+      const { file, args, cwd, env } = resolved.req
+      const { pid } = chats.start(a.paneId, { file, args, cwd, env }, adapter)
+      return { ok: true, pid, attached: false }
+    },
+    fail('Invalid request')
+  )
+  listen(IPC.chatSend, chatSendArgs, (a) => chats.send(a.paneId, a.text, a.images))
+  listen(IPC.chatApprove, chatApproveArgs, (a) => chats.approve(a.paneId, a.reqId, a.decision))
+  listen(IPC.chatInterrupt, chatPaneArgs, (a) => chats.interrupt(a.paneId))
+  listen(IPC.chatSetModel, chatSetModelArgs, (a) => chats.setModel(a.paneId, a.model))
+  listen(IPC.chatSetMode, chatSetModeArgs, (a) => chats.setMode(a.paneId, a.mode))
+  const chatFile = (paneId: string): string => path.join(deps.chatDir, `${paneId}.json`)
+  listen(IPC.chatStop, chatStopArgs, (a) => {
+    void chats.stop(a.paneId)
+    if (a.forget) void rm(chatFile(a.paneId), { force: true }).catch(() => {})
+  })
+  handle(
+    IPC.chatLoad,
+    chatPaneArgs,
+    (a) => readFile(chatFile(a.paneId), 'utf8').catch(() => null),
+    null
+  )
+  listen(IPC.chatSave, chatSaveArgs, (a) => {
+    void mkdir(deps.chatDir, { recursive: true, mode: 0o700 })
+      .then(() => writeFileAtomic(chatFile(a.paneId), a.data))
+      .catch((err: Error) => log(`could not save chat ${a.paneId}: ${err.message}`))
+  })
+
   listen(IPC.ptyWrite, ptyWriteArgs, (a) => ptys.write(a.paneId, a.data))
   listen(IPC.ptyResize, ptyResizeArgs, (a) => ptys.resize(a.paneId, a.cols, a.rows))
   listen(IPC.ptyKill, ptyKillArgs, (a) => ptys.kill(a.paneId))
@@ -331,6 +438,74 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   }
   handle(IPC.dialogPickFolder, pickPathArgs, (a) => pick('openDirectory', a.defaultPath), null)
   handle(IPC.dialogPickFile, pickPathArgs, (a) => pick('openFile', a.defaultPath), null)
+
+  // ---- Usage -------------------------------------------------------------------------
+
+  handle(IPC.usageGet, themesNoArgs, (): UsageData => deps.usage?.get() ?? EMPTY_USAGE, EMPTY_USAGE)
+
+  // ---- Themes (~/.wraithgrid/themes) ------------------------------------------------
+
+  const themesDir = themesRoot(homeDir)
+  handle(IPC.themesList, themesNoArgs, (): Promise<ThemeListResult> => listThemes(themesDir), {
+    themes: [],
+    problems: []
+  })
+  handle(
+    IPC.themesImport,
+    themesNoArgs,
+    async (): Promise<ThemeImportResult | null> => {
+      const win = deps.getWindow()
+      if (!win) return null
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Import theme',
+        properties: ['openFile'],
+        filters: [{ name: 'Wraithgrid theme', extensions: ['json'] }],
+        defaultPath: homeDir
+      })
+      const file = res.canceled ? null : res.filePaths[0]
+      if (!file) return null
+      const r = await importTheme(file, themesDir)
+      if (r.ok) log(`imported theme ${r.id}`)
+      return r
+    },
+    fail('Could not import the theme')
+  )
+  handle(
+    IPC.themesDelete,
+    themesDeleteArgs,
+    async (a): Promise<SimpleResult> =>
+      (await deleteTheme(a.id, themesDir)) ? { ok: true } : fail('Not a theme of yours.'),
+    fail('Could not delete the theme')
+  )
+  handle(
+    IPC.themesExport,
+    themesExportArgs,
+    async (a): Promise<SimpleResult | null> => {
+      const win = deps.getWindow()
+      if (!win) return null
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Export theme',
+        defaultPath: path.join(homeDir, `${themeSlug(a.theme.name)}.json`),
+        filters: [{ name: 'Wraithgrid theme', extensions: ['json'] }]
+      })
+      if (res.canceled || !res.filePath) return null
+      const text = `${JSON.stringify(a.theme, null, 2)}\n`
+      if (text.length > THEMES_FILE_MAX) return fail('Theme is too large.')
+      await writeFileAtomic(res.filePath, text)
+      return { ok: true }
+    },
+    fail('Could not export the theme')
+  )
+  handle(
+    IPC.themesOpenFolder,
+    themesNoArgs,
+    async (): Promise<SimpleResult> => {
+      await mkdir(themesDir, { recursive: true })
+      const err = await shell.openPath(themesDir)
+      return err ? fail(err) : { ok: true }
+    },
+    fail('Could not open the themes folder')
+  )
 
   // ---- Window ----------------------------------------------------------------------
 

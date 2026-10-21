@@ -19,6 +19,9 @@ import { autoUpdater, type ProgressInfo } from 'electron-updater'
 import trayIconPath from '../../build/icon.png?asset'
 import { IPC } from '@shared/ipc-channels'
 import type { PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
+import type { ChatEventMessage } from '@shared/chat'
+import { ChatSessions } from './chat/sessions'
+import { forceKillTree, spawnChatChild } from './chat/spawn'
 import type { GitRunner } from './git'
 import { resolveTheme, type CloseMode, type Machine, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
@@ -26,6 +29,7 @@ import { machineOfPane, registerIpc, type IpcHandle } from './ipc'
 import { PaneRouter } from './pane-router'
 import { openSshLink, sshArgs, type SshLink } from './ssh'
 import { configFilePath, userDataDir } from './paths'
+import { UsageStore } from './usage-store'
 import {
   detectDesktop,
   extraBinDirs,
@@ -77,11 +81,34 @@ const envReady: Promise<void> = (async () => {
 
 function send(
   channel: string,
-  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | string
+  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | ChatEventMessage | string
 ): void {
   const wc = mainWindow?.webContents
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
 }
+
+// What chat turns used and each account's plan limits, as the chat events pass by.
+const usage = new UsageStore({
+  file: path.join(app.getPath('userData'), 'usage.json'),
+  owner: (paneId) => {
+    for (const w of store.get().workspaces) {
+      const p = w.panes.find((x) => x.id === paneId)
+      if (p) return { accountId: p.accountId, workspaceId: w.id, title: p.title }
+    }
+    return null
+  }
+})
+void usage.load()
+
+// Chat panes' headless CLIs (ADR 0002) run here, not in the host: they stop on quit.
+const chats = new ChatSessions({
+  spawn: spawnChatChild,
+  emit: (paneId, event) => {
+    usage.onChatEvent(paneId, event)
+    send(IPC.chatEvent, { paneId, event })
+  },
+  forceKill: forceKillTree
+})
 
 // ---- Background pty host (ADR 0001): panes live there, so they can outlive this process.
 
@@ -286,8 +313,10 @@ const silentIntent = (): QuitIntent => (closeMode() === 'keep' ? 'keep' : 'stop'
 function cleanup(intent: QuitIntent): Promise<void> {
   cleaning ??= Promise.allSettled([
     intent === 'keep' ? ptys.detach() : ptys.stopAll(),
+    chats.stopAll(),
     router.detachRemotes(),
-    store.flush()
+    store.flush(),
+    usage.flush()
   ]).then(() => {
     cleanedUp = true
   })
@@ -607,6 +636,9 @@ void app.whenReady().then(() => {
     isPackaged: app.isPackaged,
     git: runGit,
     notifyPane: showPaneNotice,
+    chats,
+    chatDir: path.join(app.getPath('userData'), 'chats'),
+    usage,
     onConfigChanged: (prev, next) => {
       if (prev.settings.cliAccess !== next.settings.cliAccess) {
         ptys.setCliAccess(next.settings.cliAccess)

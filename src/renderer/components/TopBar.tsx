@@ -1,3 +1,4 @@
+import { useState, type MouseEvent } from 'react'
 import { useActions, useApp } from '../app/services'
 import { activeWorkspace } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
@@ -11,10 +12,13 @@ import {
   IconPreset3,
   IconPreset4,
   IconMods,
+  IconMore,
   IconSettings,
   IconUnzoom,
   IconZoom
 } from './icons'
+import { ContextMenu, type MenuPoint } from './ContextMenu'
+import { UsageButton } from './UsageView'
 
 const PRESET_ICON: Record<PresetId, () => React.JSX.Element> = {
   '1': () => <IconPreset1 />,
@@ -34,6 +38,23 @@ export function TopBar() {
   const zoomedPane = zoomedId ? ws.panes.find((p) => p.id === zoomedId) : undefined
   const preset = detectPreset(ws.layout)
 
+  if (view === 'project') {
+    return (
+      <header className="top">
+        <span className="top-title">{ws.name}</span>
+        <span className="top-sub">Project</span>
+        <div className="top-sp" />
+        {ws.panes.length ? (
+          <button className="btn" onClick={() => actions.setView('grid')}>
+            Open chats
+            <span className="top-cnt">{ws.panes.length}</span>
+          </button>
+        ) : null}
+        <UtilityButtons />
+      </header>
+    )
+  }
+
   if (view !== 'grid') {
     return (
       <header className="top">
@@ -47,7 +68,13 @@ export function TopBar() {
         </button>
         <div className="vsep" />
         <span className="top-title">
-          {view === 'accounts' ? 'Accounts' : view === 'mods' ? 'Mods' : 'Settings'}
+          {view === 'accounts'
+            ? 'Accounts'
+            : view === 'mods'
+              ? 'Mods'
+              : view === 'usage'
+                ? 'Usage'
+                : 'Settings'}
         </span>
         <div className="top-sp" />
         <UtilityButtons />
@@ -90,9 +117,16 @@ export function TopBar() {
   const empty = !ws.layout
   return (
     <header className="top">
-      <span className="top-title">{ws.name}</span>
-      <span className="top-sub">
-        {empty ? 'No panes yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'pane' : 'panes'}`}
+      <button
+        className="top-link"
+        title="Project overview: open chats and history"
+        onClick={() => actions.openProject(ws.id)}
+      >
+        <IconBack />
+        <span className="top-title">{ws.name}</span>
+      </button>
+      <span className="top-chip">
+        {empty ? 'No chats yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'chat' : 'chats'}`}
       </span>
       {hiddenCount > 0 ? (
         <button
@@ -119,52 +153,68 @@ export function TopBar() {
                 {PRESET_ICON[p.id]()}
               </button>
             ))}
+            <span className="seg-sep" aria-hidden="true" />
+            <button
+              className="seg-btn"
+              onClick={() => actions.toggleZoom()}
+              disabled={ws.panes.length === 0}
+              aria-label={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
+              title={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
+            >
+              <IconZoom />
+            </button>
           </div>
-          <button
-            className="btn gh"
-            onClick={() => actions.toggleZoom()}
-            disabled={ws.panes.length === 0}
-            title={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
-          >
-            <IconZoom />
-            Zoom<kbd>{SHORTCUT_HINT.zoom}</kbd>
-          </button>
         </>
       )}
-      <div className="vsep" />
       <UtilityButtons />
     </header>
   )
 }
 
+/** Shortcuts, Mods and Settings behind one button: they are also in the account menu. */
 function UtilityButtons() {
   const actions = useActions()
+  const [menu, setMenu] = useState<{ at: MenuPoint; width: number } | null>(null)
+  const open = (e: MouseEvent<HTMLButtonElement>): void => {
+    const r = e.currentTarget.getBoundingClientRect()
+    // Right-aligned under the button.
+    setMenu({ at: { x: r.right - 260, y: r.bottom + 6 }, width: 260 })
+  }
   return (
     <>
+      <UsageButton />
       <button
-        className="icon-btn"
-        aria-label={`Keyboard shortcuts (${SHORTCUT_HINT.shortcuts})`}
-        title={`Keyboard shortcuts (${SHORTCUT_HINT.shortcuts})`}
-        onClick={() => actions.openModal({ kind: 'shortcuts' })}
+        className={`icon-btn top-more${menu ? ' open' : ''}`}
+        aria-label="More"
+        aria-haspopup="menu"
+        title="More"
+        onClick={open}
       >
-        <IconKeyboard />
+        <IconMore />
       </button>
-      <button
-        className="icon-btn"
-        aria-label="Mods"
-        title="Mods"
-        onClick={() => actions.setView('mods')}
-      >
-        <IconMods />
-      </button>
-      <button
-        className="icon-btn"
-        aria-label="Settings"
-        title="Settings"
-        onClick={() => actions.setView('settings')}
-      >
-        <IconSettings />
-      </button>
+      {menu ? (
+        <ContextMenu
+          at={menu.at}
+          width={menu.width}
+          className="top-menu"
+          label="More"
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              label: 'Keyboard shortcuts',
+              kbd: SHORTCUT_HINT.shortcuts,
+              icon: <IconKeyboard small />,
+              onSelect: () => actions.openModal({ kind: 'shortcuts' })
+            },
+            { label: 'Mods', icon: <IconMods small />, onSelect: () => actions.setView('mods') },
+            {
+              label: 'Settings',
+              icon: <IconSettings small />,
+              onSelect: () => actions.setView('settings')
+            }
+          ]}
+        />
+      ) : null}
     </>
   )
 }

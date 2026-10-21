@@ -46,7 +46,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Paste screenshots**          | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                                                   |
 | **Flexible layouts**           | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                                                         |
 | **Workspaces**                 | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                                                 |
-| **Folders & icons**            | Group accounts into sidebar folders by drag and drop, and give accounts, workspaces and folders an emoji or one of ~6,500 Material and Lucide icons.                                                       |
+| **Account folders**            | Group accounts into folders by drag and drop on the Accounts page.                                                                                                                                         |
 | **Live pane status**           | Each pane shows whether its CLI is running (animated), waiting for your approval, done (finished while you looked elsewhere) or idle. Tuned for `claude`; other CLIs' prompts are matched from their docs. |
 | **Git changes & worktrees**    | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch.                            |
 | **Pick up where you left off** | Panes you prompted continue their conversation when Wraithgrid restarts (`claude --continue`, `codex resume --last`…). Right-click a pane's header to turn it off.                                         |
@@ -58,7 +58,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Command line**               | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                          |
 | **Other machines**             | A workspace can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                   |
 | **Survives restarts**          | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                    |
-| **Themes**                     | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                                                    |
+| **Themes**                     | Five built-in themes (Wraith, Midnight, Clay, Daylight, Paper), your own theme files to import and share ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes.                 |
 | **Native everywhere**          | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                          |
 | **Private by design**          | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                       |
 
@@ -217,11 +217,9 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    branches, newest first, and remote ones you don't have yet, or type a new name to create it.
    Uncommitted changes come along; git refuses if they would be overwritten and says why.
    Every pane on that folder sees the new branch.
-9. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
-   to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
-   Click an account's badge on the Accounts page, a workspace's badge in **Manage**, or
-   right-click a folder, to pick an icon (search Material and Lucide icons, or any emoji) and a
-   tint.
+9. **Account folders.** On the Accounts page (the account button at the bottom of the sidebar →
+   **Manage accounts**), **+** creates a folder (double-click to rename). Drag an account onto a
+   folder to move it in, or onto the list to take it out.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
 **Restart** button. On the next launch your workspaces, layouts, accounts and folders come
@@ -293,8 +291,8 @@ folders and account logins; the sidebar shows the machine's name next to the wor
 | Switch workspace                    | `Ctrl+Shift+1` … `9` |
 | Show / hide the git changes         | `Ctrl+Shift+D`       |
 | New line in claude                  | `Shift+Enter`        |
-| Terminal text bigger / smaller      | `Ctrl+=` / `Ctrl+-`  |
-| Reset terminal text size            | `Ctrl+0`             |
+| Zoom the whole app in / out         | `Ctrl+=` / `Ctrl+-`  |
+| Reset the zoom                      | `Ctrl+0`             |
 | Copy / paste in a terminal          | `Ctrl+Shift+C` / `V` |
 | Paste an image (screenshot)         | `Ctrl+V`             |
 | All shortcuts                       | `Ctrl+Shift+/`       |
@@ -322,7 +320,7 @@ never saves terminal content.
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - the shell plain shell panes run (automatic, any detected shell, or a custom path)
 - desktop notifications for panes that finish or need approval
-- theme (dark, light or system), accent color and terminal color palette
+- theme (five built in, or your own JSON theme files in `~/.wraithgrid/themes`, see [docs/THEMES.md](docs/THEMES.md)), following the OS light/dark setting, accent color and terminal color palette
 - the terminal font and size
 - update checks against GitHub releases, with a desktop notification once per new version
   (nothing is downloaded or installed for you)

@@ -2,14 +2,27 @@
 // its sections form stacking contexts while they fade in. Kept inside the window; closed by
 // Escape, an outside click or a pick. Arrow keys move between items; Shift+F10 or the Menu
 // key opens it from the keyboard.
-import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { IconCheck } from './icons'
 
 export interface MenuItem {
   label: string
   icon?: ReactNode
   danger?: boolean
   disabled?: boolean
+  /** A second, quieter line under the label (an account's plan). */
+  sub?: string
+  /** Draws `sub` in the warning color ("Login needed"). */
+  subWarn?: boolean
+  /** A check at the end: the current choice. */
+  checked?: boolean
+  /** A small heading drawn above this item, starting a section. */
+  heading?: string
+  /** The item's shortcut, at the end. */
+  kbd?: string
+  /** A line drawn above this item. */
+  divider?: boolean
   /** Return false to keep the menu open (a two-step delete). */
   onSelect(): void | false
 }
@@ -34,12 +47,19 @@ export function ContextMenu({
   at,
   label,
   items,
-  onClose
+  onClose,
+  above = false,
+  width,
+  className
 }: {
   at: MenuPoint
   label: string
   items: MenuItem[]
   onClose(): void
+  /** Opens upwards: `at.y` is where the menu's bottom edge goes. */
+  above?: boolean
+  width?: number
+  className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState(at)
@@ -48,13 +68,14 @@ export function ContextMenu({
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const { width, height } = el.getBoundingClientRect()
+    const r = el.getBoundingClientRect()
+    const y = above ? at.y - r.height : at.y
     setPos({
-      x: Math.max(EDGE, Math.min(at.x, window.innerWidth - width - EDGE)),
-      y: Math.max(EDGE, Math.min(at.y, window.innerHeight - height - EDGE))
+      x: Math.max(EDGE, Math.min(at.x, window.innerWidth - r.width - EDGE)),
+      y: Math.max(EDGE, Math.min(y, window.innerHeight - r.height - EDGE))
     })
     el.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
-  }, [at])
+  }, [at, above])
 
   const move = (step: 1 | -1): void => {
     const buttons = [...(ref.current?.querySelectorAll('button:not(:disabled)') ?? [])]
@@ -75,10 +96,10 @@ export function ContextMenu({
       />
       <div
         ref={ref}
-        className="cm"
+        className={`cm${above ? ' up' : ''}${className ? ` ${className}` : ''}`}
         role="menu"
         aria-label={label}
-        style={{ left: pos.x, top: pos.y }}
+        style={{ left: pos.x, top: pos.y, width }}
         onContextMenu={(e) => e.preventDefault()}
         onKeyDown={(e) => {
           e.stopPropagation()
@@ -95,21 +116,40 @@ export function ContextMenu({
         }}
       >
         {items.map((it, i) => (
-          <button
+          <Fragment
             // By position: a two-step item changes its label between clicks.
             key={i}
-            role="menuitem"
-            className={`cm-it${it.danger ? ' danger' : ''}`}
-            disabled={it.disabled}
-            onClick={() => {
-              if (it.onSelect() !== false) onClose()
-            }}
           >
-            <span className="cm-ic" aria-hidden="true">
-              {it.icon}
-            </span>
-            {it.label}
-          </button>
+            {it.divider ? <div className="cm-sep" role="separator" /> : null}
+            {it.heading ? (
+              <div className="cm-hd" aria-hidden="true">
+                {it.heading}
+              </div>
+            ) : null}
+            <button
+              role={it.checked === undefined ? 'menuitem' : 'menuitemradio'}
+              aria-checked={it.checked}
+              className={`cm-it${it.danger ? ' danger' : ''}${it.sub ? ' two' : ''}`}
+              disabled={it.disabled}
+              onClick={() => {
+                if (it.onSelect() !== false) onClose()
+              }}
+            >
+              <span className="cm-ic" aria-hidden="true">
+                {it.icon}
+              </span>
+              {it.sub ? (
+                <span className="cm-tx">
+                  <span className="cm-lb">{it.label}</span>
+                  <span className={`cm-sub${it.subWarn ? ' warn' : ''}`}>{it.sub}</span>
+                </span>
+              ) : (
+                it.label
+              )}
+              {it.kbd ? <kbd className="cm-kbd">{it.kbd}</kbd> : null}
+              {it.checked ? <IconCheck small className="cm-ck" /> : null}
+            </button>
+          </Fragment>
         ))}
       </div>
     </>,

@@ -49,7 +49,9 @@ test('overall mode links every account to ~/.claude', async () => {
   })
   try {
     const win = await app.firstWindow()
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     const group = win.getByRole('radiogroup', { name: 'Shared CLAUDE.md and skills' })
 
     // Overall: work links to ~/.claude, and its own file is kept aside.
@@ -68,7 +70,8 @@ test('overall mode links every account to ~/.claude', async () => {
 
     // An account added later is linked as soon as a pane starts for it.
     await win.locator('.top .btn.gh').click()
-    await win.getByRole('button', { name: 'New account' }).click()
+    await win.getByRole('button', { name: /Switch account/ }).click()
+    await win.getByRole('menuitem', { name: 'New account' }).click()
     await win.locator('#acc-name').fill('late')
     await win.getByRole('button', { name: 'Add account', exact: true }).last().click()
     await win.locator('.tr', { hasText: 'late' }).getByRole('button', { name: 'Login' }).click()
@@ -81,7 +84,9 @@ test('overall mode links every account to ~/.claude', async () => {
       .toBe(path.join(personal, 'CLAUDE.md'))
 
     // Each account its own: links go, and work gets its own CLAUDE.md back.
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     await group.getByRole('radio', { name: 'Each account its own' }).click()
     await expect.poll(() => fs.lstatSync(path.join(work, 'CLAUDE.md')).isSymbolicLink()).toBe(false)
     expect(fs.readFileSync(path.join(work, 'CLAUDE.md'), 'utf8')).toBe('# work only\n')

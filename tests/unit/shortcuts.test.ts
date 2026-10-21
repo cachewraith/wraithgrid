@@ -69,11 +69,11 @@ describe('matchShortcut', () => {
   it('maps Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 to font size, leaving Ctrl+_ to the terminal', () => {
     const ctrl = (code: string, k: string, shiftKey = false): KeyLike =>
       key({ code, key: k, ctrlKey: true, shiftKey })
-    expect(match(ctrl('Equal', '='))).toEqual({ type: 'fontSize', delta: 1 })
-    expect(match(ctrl('Equal', '+', true))).toEqual({ type: 'fontSize', delta: 1 })
-    expect(match(ctrl('NumpadAdd', '+'))).toEqual({ type: 'fontSize', delta: 1 })
-    expect(match(ctrl('Minus', '-'))).toEqual({ type: 'fontSize', delta: -1 })
-    expect(match(ctrl('Digit0', '0'))).toEqual({ type: 'fontSize', delta: 0 })
+    expect(match(ctrl('Equal', '='))).toEqual({ type: 'uiZoom', delta: 1 })
+    expect(match(ctrl('Equal', '+', true))).toEqual({ type: 'uiZoom', delta: 1 })
+    expect(match(ctrl('NumpadAdd', '+'))).toEqual({ type: 'uiZoom', delta: 1 })
+    expect(match(ctrl('Minus', '-'))).toEqual({ type: 'uiZoom', delta: -1 })
+    expect(match(ctrl('Digit0', '0'))).toEqual({ type: 'uiZoom', delta: 0 })
     expect(match(ctrl('Minus', '_', true))).toBeNull()
   })
 })
@@ -89,7 +89,7 @@ describe('macOS bindings', () => {
       index: 1
     })
     expect(matchShortcut(cmd({ code: 'Equal', key: '=' }), true)).toEqual({
-      type: 'fontSize',
+      type: 'uiZoom',
       delta: 1
     })
     expect(matchShortcut(cmd({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }), true)).toEqual(

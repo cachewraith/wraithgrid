@@ -25,6 +25,11 @@ export function worktreesRoot(homeDir: string): string {
   return path.join(homeDir, '.wraithgrid', 'worktrees')
 }
 
+/** Theme files people make or import: ~/.wraithgrid/themes/<id>.json */
+export function themesRoot(homeDir: string): string {
+  return path.join(homeDir, '.wraithgrid', 'themes')
+}
+
 /** Expands `~` and makes the path absolute. */
 export function resolveUserPath(p: string, homeDir: string): string {
   return path.resolve(expandHome(p, homeDir))

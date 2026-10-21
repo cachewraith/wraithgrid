@@ -4,6 +4,10 @@ if [ "$1" = "--version" ]; then
   echo "0.0.0 (fake claude)"
   exit 0
 fi
+# The chat view runs claude headless (`-p` with stream-json): a scripted session.
+case " $* " in
+  *" --input-format stream-json "*) exec "$(dirname "$0")/fake-claude-chat.sh" "$@" ;;
+esac
 # `claude plugin …`: one mod that toggles (state kept in the config dir) and one that fails.
 if [ "$1" = "plugin" ]; then
   mkdir -p "${CLAUDE_CONFIG_DIR}"

@@ -102,7 +102,9 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
       )
       .toContain(`PLUGIN_DIRS=${path.join(home, 'mods', 'tally')}`)
 
-    await win.getByRole('button', { name: 'Mods', exact: true }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+
+    await win.getByRole('menuitem', { name: 'Mods' }).click()
     await expect(win.getByRole('heading', { name: 'Mods', level: 1 })).toBeVisible()
 
     // The accounts' own `claude plugin list --json`, shown as one list with one switch per mod.

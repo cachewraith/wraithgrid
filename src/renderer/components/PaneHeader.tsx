@@ -1,16 +1,22 @@
 import type { MouseEvent } from 'react'
 import type { DraggableSyntheticListeners } from '@dnd-kit/core'
 import type { GitStatus } from '@shared/ipc-contract'
-import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
+import { PANE_STATUS_LABEL, type PaneStatus, type PaneView } from '@shared/types'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { AccountIcon } from './AccountIcon'
-import { IconBranch, IconClose, IconUnzoom, IconZoom } from './icons'
+import { Initial } from './AccountIcon'
+import {
+  IconBranch,
+  IconChat,
+  IconClose,
+  IconCompose,
+  IconTerminal,
+  IconUnzoom,
+  IconZoom
+} from './icons'
 
 interface Props {
   title: string
   accountName: string | null
-  accountColor: string | null
-  accountIcon: string
   cwdLabel: string
   status: PaneStatus
   zoomed: boolean
@@ -24,6 +30,12 @@ interface Props {
   onMenu: (e: MouseEvent<HTMLElement>) => void
   /** Right-click on the branch chip: the branch picker. */
   onBranches: (e: MouseEvent<HTMLElement>) => void
+  /** The Chat/Terminal switch; null when the pane can only be a terminal. */
+  view: PaneView | null
+  /** The chat's permission mode when it is not the default ("Plan", "Auto"…). */
+  mode?: { id: string; label: string } | null
+  onView: (view: PaneView) => void
+  onNewChat: () => void
 }
 
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
@@ -46,16 +58,9 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
         {p.title}
       </button>
       {p.accountName ? (
-        <span className="chip">
-          <AccountIcon
-            account={{
-              color: p.accountColor ?? 'var(--fa)',
-              icon: p.accountIcon,
-              name: p.accountName
-            }}
-            size={16}
-          />
-          {p.accountName}
+        <span className="chip" title={p.accountName}>
+          <Initial name={p.accountName} size={16} />
+          <span className="chip-nm">{p.accountName}</span>
         </span>
       ) : null}
       <span className="cwd" title={p.cwdLabel}>
@@ -78,9 +83,40 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
           {p.git.changed ? <span className="gitc-n">{p.git.changed}</span> : null}
         </button>
       ) : null}
-      <span className={`st st-${p.status}`}>
+      {p.view ? (
+        <div className="vsw" role="group" aria-label="Show pane as">
+          {(['chat', 'terminal'] as const).map((v) => (
+            <button
+              key={v}
+              className={p.view === v ? 'on' : ''}
+              aria-pressed={p.view === v}
+              aria-label={v === 'chat' ? 'Chat' : 'Terminal'}
+              title={v === 'chat' ? 'Chat view' : "Terminal view (the CLI's own screen)"}
+              onClick={() => p.onView(v)}
+            >
+              {v === 'chat' ? <IconChat small /> : <IconTerminal small />}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {p.view === 'chat' ? (
+        <button
+          className="icon-btn sm ph-new"
+          aria-label="New conversation"
+          title="New conversation"
+          onClick={p.onNewChat}
+        >
+          <IconCompose small />
+        </button>
+      ) : null}
+      {p.mode ? (
+        <span className={`ph-mode mode-${p.mode.id}`} title={`Mode: ${p.mode.label}`}>
+          {p.mode.label}
+        </span>
+      ) : null}
+      <span className={`st st-${p.status}`} title={PANE_STATUS_LABEL[p.status]}>
         <span className="sd" />
-        {PANE_STATUS_LABEL[p.status]}
+        <span className="st-tx">{PANE_STATUS_LABEL[p.status]}</span>
       </span>
       <button className="icon-btn sm" aria-label={zoomLabel} title={zoomLabel} onClick={p.onZoom}>
         {p.zoomed ? <IconUnzoom small /> : <IconZoom small />}

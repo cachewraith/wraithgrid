@@ -32,6 +32,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
 - `src/main/pane-host.ts`: GUI side of the pty host: find/start it, hello + token, create/attach/write/kill, version mismatch
 - `src/host/`: background pty host (ADR 0001), built as `out/main/host.js`, never imports electron: `index.ts` entry (lock, token, socket), `server.ts` panes + clients, `protocol.ts` NDJSON frames (zod), `paths.ts` socket/token paths per user-data dir, `screen.ts` headless xterm + serialize, `fds.ts` inherited-fd masking, `pty-manager.ts` spawns/kills pane processes (per-OS KillPolicy)
+- `src/main/chat/`: chat panes (ADR 0002): `sessions.ts` runs one headless CLI per pane (pipes, JSON lines), `adapter.ts` registry, `claude.ts` stream-json ↔ ChatEvent (+ approvals), `spawn.ts` masked fds/process group; add a CLI = one adapter + `chat: true` in agent-clis
 - `src/main/clipboard-image.ts`: clipboard image → temp file → text to paste (path, or `@path` for gemini/agy)
 - `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; mod folders as `CLAUDE_CODE_PLUGIN_DIRS` for claude; strips the launching terminal's vars; UTF-8 locale fallback)
 - `src/main/config-store.ts`: config.json load/save, atomic write, bad-file quarantine
@@ -51,22 +52,29 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/shared/schema.ts`: persisted config schema, migrate/sanitize/parse
 - `src/shared/agent-clis.ts`: agent CLI registry (bin, config-dir var, sign-in isolation, image paste, new-line key, resume args, approval prompt); add a CLI here
 - `src/shared/types.ts`: domain types, themes, accents, palettes, fonts
-- `src/shared/icons.ts`: icon value format (`''` letter, `material:x`/`lucide:x`, else emoji), tints
 - `src/shared/args.ts`, `src/shared/paths.ts`: launch-args parsing, pure path helpers
 - `src/shared/mods.ts`: split a mod id (`name@marketplace`)
+- `src/shared/themes.ts`: built-in themes (5), theme-file schema (hex only), theme → CSS vars, accent presets, terminal colors
+- `src/renderer/lib/slash.ts` + `components/chat/SlashMenu.tsx`: the `/` menu (items from the CLI's commands, ranking, Wraithgrid's own commands)
+- `src/renderer/components/UsageView.tsx`: Usage screen (`view: 'usage'`) and the top-bar pill
+- `src/shared/usage.ts` + `src/main/usage-store.ts`: chat-turn usage buckets, plan limits, summaries; recorded in main from chat events into userData/usage.json
+- `src/main/themes.ts`: list/import/delete theme files in `~/.wraithgrid/themes`
+- `src/shared/chat.ts`: CLI-agnostic `ChatEvent` model, image/text limits, session id schema
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, BranchPicker = switch/create branch of a pane's folder, Settings/Accounts views; Sidebar = nav + workspaces with their panes; EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = folders + drag-drop; AccountIcon/Avatar = badges (letter, emoji or library icon); IconPicker/IconPopover = searchable icon library + tints; ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, BranchPicker = switch/create branch of a pane's folder, Settings (tabs: General, Chat, Appearance, Agents & CLIs, Advanced, Keyboard, About)/Accounts views; Sidebar = nav + Projects (workspaces) only, two-line rows (chat count · status/last active), sliding highlight + bar, footer account switcher (two-line account menu with plans), icon rail when collapsed; ProjectView = a project's screen (Open chats, History, search; `view: 'project'`); EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = account folders + drag-drop (on the Accounts page); AccountIcon = `Initial` (a name's letter in a circle); ContextMenu = right-click menus (also the account menu: sub lines, checks, headings, dividers, opens above); CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
+- `src/renderer/components/chat/`: ChatView (pane body: messages, working indicator, approval/exit bars), Composer (autogrow, image paste, Stop), ModelPicker (model list from the CLI, effort), ToolCard + ApprovalBar, Markdown (AST → React, never HTML)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
-- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists)
-- `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
-- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell,demo-claude}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars; demo-claude = scripted sessions for README shots)
-- `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide); `install.sh` = one-line installer (SHA256SUMS check); `update-packaging.sh <ver>` = fill packaging/ from a release
+- `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists), chat-thread (pure ChatEvent reducer + save format), chat-bus (per-pane threads outside React), markdown (parser), time (`ago`)
+- `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS + `chat.css` (chat view and its motion) + `sidebar.css` (sidebar) + `polish.css` (app-wide refinements, settings tabs, model picker; loaded last)
+- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell,demo-claude,fake-claude-chat}.sh`, `claude-chat.ndjson`: tests + fake CLIs (fake-claude execs fake-claude-chat for `--input-format stream-json`; the ndjson is real claude 2.1.306 output, cleaned) (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars; demo-claude = scripted sessions for README shots)
+- `scripts/`: Docker Linux build, multi-distro package smoke test; `install.sh` = one-line installer (SHA256SUMS check); `update-packaging.sh <ver>` = fill packaging/ from a release
 - `packaging/`: Homebrew cask, winget manifests, AUR PKGBUILD (publish steps in its README)
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `.claude/agents/`: project subagents: wraithgrid-engineer (build), wraithgrid-reviewer (read-only review), wraithgrid-bug-hunter (diagnose reports)
 - `docs/adr/`: longer ADRs (0001 background pty host, accepted + review)
+- `docs/THEMES.md`: theme file format for users
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
@@ -112,7 +120,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
 - Use `bun run <script>`, never bare `bun test` (that is Bun's own test runner, not Vitest). For one-off tools call `./node_modules/.bin/<tool>` directly.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
-- Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect `minimumReleaseAge` in bunfig.toml (pin an older version rather than adding an exclude).
+- No icons or emoji for accounts/projects/folders (removed 2026-10-21): `icon`/`color` fields stay in the schema so old configs load, and are ignored; accounts show `<Initial>`.
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots. README images: `bun run build`, then `WRAITHGRID_README_SHOTS=docs/screenshots ./node_modules/.bin/playwright test readme-shots` (skipped without the env).
@@ -131,5 +139,17 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - A mod that redraws all the time (animated band, clock) is output, so its pane reads `running` and never notifies "done".
 - Unit tests run on Windows CI too: `path.resolve` gives `D:\…` there, so never force `platform: 'linux'` on a test that resolves paths.
 
+- Closing a pane with `hasConversation` archives it to `workspace.history` (saved chat view kept, `chat:stop` without forget); reopening reuses the same pane id so the view and session come back. Deleting from History or the project deletes the view.
+- Chat panes (ADR 0002) run in main, not the host: they stop on quit (resume by session id), and `wraithgrid list/read/send` can't see them; CLI-made panes are terminals. A pane's view is `paneView()` in store.ts, never `pane.view` directly (shell/machine/CLI rules).
+- claude headless needs the `initialize` control request first and `--permission-prompt-tool stdio`, or every tool needing approval is auto-denied (`permission_denied`). An interrupt ends with `is_error: true` (`error_during_execution`): not a failure.
+- Themes are inline CSS vars on `<html>` (`themeVars`), so they beat any stylesheet rule: change colors in `src/shared/themes.ts`, not tokens.css (its values are first paint only). `settings.theme` is the mode (dark/light/system); `themeDark`/`themeLight` pick the theme; `accent: 'theme'` keeps the theme's own. Read a theme via `drawnTheme(s)` (cached object).
+- Responsive = container queries on `.main` (`main`) and `.pane` (`pane`); both are containing blocks for `position: fixed` inside them, so popups must keep portaling to <body>. Sidebar folds to the rail below 900 CSS px (`NARROW_PX`, zoom counts) without touching `sidebarCollapsed`; expanding then opens `.side.drawer`.
+- Usage limits come only from claude's `rate_limit_event` (`unifiedWindows.five_hour/seven_day`, utilization 0–1, resetsAt in seconds), sent per turn: an account shows limits after its first chat turn. Cost is API list price (`costBasis: list`), not what Pro/Max pays.
+- Chat mode = claude's permission mode: live via `set_permission_mode` (values `default|acceptEdits|plan|auto|dontAsk|bypassPermissions`; the start flag takes the same except `default`, which is omitted); claude reports the mode in force in `system` init/status, and `pane.chatMode` follows it. Auto only where the model says `supportsAutoMode`. Fast mode is not offered: headless claude needs an SDK opt-in.
+- The message box is a combobox once the CLI lists commands: e2e find it with `getByLabel('Message', { exact: true })`, not the textbox role. Commands come from claude's `initialize` answer (no tokens); terminal-only names from its first `system/init`, so they show after the first turn.
+- Ctrl+=/-/0 zoom the whole app (`uiZoom`, `webFrame.setZoomFactor` in preload), not the terminal font.
+- Top bar has no Settings/Mods/Shortcuts buttons: e2e click `More` then the menuitem. Sidebar and `.main` are cards inside `.row` (8px padding, `--frame` behind).
+- CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
+
 ## Current focus
-v1.10.0 released (H1 background pty host: agents survive quit/crash, tray, close choice; H6 `wraithgrid` CLI; H7 `attach`; H5 machines over ssh; branch switch). Verified by hand on Linux only. Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts). Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.
+Chat panes (ADR 0002) built: claude adapter verified live; next adapters codex/gemini/cursor/opencode need real-output fixtures. v1.10.0 released (H1 background pty host: agents survive quit/crash, tray, close choice; H6 `wraithgrid` CLI; H7 `attach`; H5 machines over ssh; branch switch). Verified by hand on Linux only. Next: verify host + CLI on Windows and macOS, a real ssh machine, NFR-1 memory check with 8 busy panes; publish packaging H8 (needs accounts). Still to verify by hand: codex/cursor/copilot/opencode with real accounts, mods on real accounts, Hyprland screenshot paste, macOS hardware.

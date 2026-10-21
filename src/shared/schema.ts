@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CHAT_EFFORTS, CHAT_MODES, CHAT_MODEL_PATTERN, chatSessionIdSchema } from './chat'
 import {
   ACCENTS,
   ACCOUNT_COLORS,
@@ -14,6 +15,7 @@ import {
   MOD_DIRS_MAX,
   SHARED_MODES,
   CLOSE_MODES,
+  PANE_VIEWS,
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
@@ -22,7 +24,6 @@ import {
   type Config,
   type LayoutNode
 } from './types'
-import { ICON_MAX } from './icons'
 
 export const idSchema = z
   .string()
@@ -34,11 +35,8 @@ const pathSchema = z.string().min(1).max(4096)
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 /** An icon tint; '' means neutral. Cosmetic, so a bad value resets instead of failing the file. */
 const tintSchema = z.union([z.literal(''), colorSchema]).catch('')
-/**
- * An icon id ("material:rocket-launch") or an emoji; rendered as text or looked up in the
- * bundled sets, never as HTML. Cosmetic, so a bad value resets to the letter.
- */
-const iconSchema = z.string().max(ICON_MAX).catch('')
+/** Kept so older config files still load; the app no longer draws icons or emoji. */
+const iconSchema = z.string().max(64).catch('')
 
 export const layoutNodeSchema: z.ZodType<LayoutNode> = z.lazy(() =>
   z.discriminatedUnion('type', [
@@ -83,7 +81,13 @@ export const paneSchema = z.object({
   shell: z.boolean().default(false),
   title: z.string().max(128).default(''),
   resume: z.boolean().default(true),
-  hasConversation: z.boolean().default(false)
+  hasConversation: z.boolean().default(false),
+  // Panes saved before chat views existed stay terminals (their agent may still run).
+  view: z.enum(PANE_VIEWS).default('terminal').catch('terminal'),
+  chatSessionId: chatSessionIdSchema.nullable().default(null).catch(null),
+  model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null)
 })
 
 export const workspaceSchema = z.object({
@@ -93,7 +97,12 @@ export const workspaceSchema = z.object({
   color: tintSchema,
   panes: z.array(paneSchema).max(64),
   layout: layoutNodeSchema.nullable(),
-  machineId: idSchema.nullable().default(null)
+  machineId: idSchema.nullable().default(null),
+  history: z
+    .array(z.object({ pane: paneSchema, closedAt: z.number().int().nonnegative() }))
+    .max(200)
+    .default([])
+    .catch([])
 })
 
 /** Never starts with `-` (it would be read as an ssh option) and has no spaces or quotes. */
@@ -112,8 +121,11 @@ export const machineSchema = z.object({
 export const settingsSchema = z.object({
   fontFamily: z.enum(TERMINAL_FONTS).default('JetBrains Mono'),
   fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(FONT_SIZE_DEFAULT),
+  uiZoom: z.number().min(0.67).max(2).default(1).catch(1),
   theme: z.enum(['system', 'dark', 'light']).default('dark'),
-  accent: z.enum(ACCENTS).default('violet'),
+  themeDark: idSchema.default('wraith').catch('wraith'),
+  themeLight: idSchema.default('daylight').catch('daylight'),
+  accent: z.enum(['theme', ...ACCENTS]).default('theme'),
   terminalPalette: z.enum(TERMINAL_PALETTES).default('match'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
@@ -152,6 +164,10 @@ export const settingsSchema = z.object({
   gpuTerminal: z.boolean().default(false),
   onWindowClose: z.enum(CLOSE_MODES).default('ask').catch('ask'),
   cliAccess: z.boolean().default(false),
+  newPaneView: z.enum(PANE_VIEWS).default('chat').catch('chat'),
+  chatModel: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
+  chatEffort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
   cliPaths: z
     .partialRecord(
       z.enum(AGENT_CLIS),
@@ -202,7 +218,8 @@ export function defaultConfig(): Config {
         color: '',
         panes: [],
         layout: null,
-        machineId: null
+        machineId: null,
+        history: []
       }
     ],
     machines: [],

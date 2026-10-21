@@ -39,21 +39,24 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
     const win = await app.firstWindow()
     const side = win.getByRole('complementary', { name: 'Sidebar' })
 
-    // Folder: rename from the menu.
-    await side.locator('.fold-hd', { hasText: 'Folder 1' }).click({ button: 'right' })
+    // Folder (on the Accounts page): rename from the menu.
+    await side.getByRole('button', { name: /Switch account/ }).click()
+    await win.getByRole('menuitem', { name: 'Manage accounts' }).click()
+    const org = win.getByLabel('Account folders')
+    await org.locator('.fold-hd', { hasText: 'Folder 1' }).click({ button: 'right' })
     const folderMenu = win.getByRole('menu', { name: 'Folder Folder 1' })
     await expect(folderMenu.getByRole('menuitem').first()).toBeFocused()
     await folderMenu.getByRole('menuitem', { name: 'Rename' }).click()
-    await side.getByLabel('Folder name').fill('Clients')
-    await side.getByLabel('Folder name').press('Enter')
+    await org.getByLabel('Folder name').fill('Clients')
+    await org.getByLabel('Folder name').press('Enter')
     await expect.poll(() => saved().accountFolders[0].name).toBe('Clients')
 
     // Escape closes a menu without doing anything.
-    await side.locator('.fold-hd', { hasText: 'Clients' }).click({ button: 'right' })
+    await org.locator('.fold-hd', { hasText: 'Clients' }).click({ button: 'right' })
     await win.keyboard.press('Escape')
     await expect(win.getByRole('menu')).toHaveCount(0)
 
-    // Workspace: rename, change icon, then a two-step delete.
+    // Workspace: rename (no icon to change), then a two-step delete.
     const beta = side.locator('.ws-row', { hasText: 'beta' })
     await beta.click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Rename' }).click()
@@ -63,10 +66,8 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
 
     const review = side.locator('.ws-row', { hasText: 'review' })
     await review.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Change icon' }).click()
-    await win.getByRole('tab', { name: 'Emoji' }).click()
-    await win.getByRole('button', { name: 'Use 🚀' }).click()
-    await expect.poll(() => saved().workspaces[1].icon).toBe('🚀')
+    await expect(win.getByRole('menuitem', { name: 'Change icon' })).toHaveCount(0)
+    await win.keyboard.press('Escape')
 
     await review.click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Delete workspace' }).click()

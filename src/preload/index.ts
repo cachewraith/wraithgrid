@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type {
   CliAction,
@@ -7,6 +7,7 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
+import type { ChatEventMessage } from '@shared/chat'
 import type { CloseMode } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -24,6 +25,19 @@ const api: WraithApi = {
     kill: (paneId) => ipcRenderer.send(IPC.ptyKill, { paneId }),
     onData: (cb) => subscribe<PtyDataEvent>(IPC.ptyData, cb),
     onExit: (cb) => subscribe<PtyExitEvent>(IPC.ptyExit, cb)
+  },
+  chat: {
+    start: (args) => ipcRenderer.invoke(IPC.chatStart, args),
+    send: (paneId, text, images) => ipcRenderer.send(IPC.chatSend, { paneId, text, images }),
+    approve: (paneId, reqId, decision) =>
+      ipcRenderer.send(IPC.chatApprove, { paneId, reqId, decision }),
+    interrupt: (paneId) => ipcRenderer.send(IPC.chatInterrupt, { paneId }),
+    setModel: (paneId, model) => ipcRenderer.send(IPC.chatSetModel, { paneId, model }),
+    setMode: (paneId, mode) => ipcRenderer.send(IPC.chatSetMode, { paneId, mode }),
+    stop: (paneId, forget) => ipcRenderer.send(IPC.chatStop, { paneId, forget }),
+    onEvent: (cb) => subscribe<ChatEventMessage>(IPC.chatEvent, cb),
+    load: (paneId) => ipcRenderer.invoke(IPC.chatLoad, { paneId }),
+    save: (paneId, data) => ipcRenderer.send(IPC.chatSave, { paneId, data })
   },
   config: {
     get: () => ipcRenderer.invoke(IPC.configGet),
@@ -53,7 +67,10 @@ const api: WraithApi = {
     apply: (mode) => ipcRenderer.invoke(IPC.sharedApply, { mode })
   },
   app: {
-    info: () => ipcRenderer.invoke(IPC.appInfo)
+    info: () => ipcRenderer.invoke(IPC.appInfo),
+    setZoom: (factor) => {
+      if (Number.isFinite(factor)) webFrame.setZoomFactor(Math.min(2, Math.max(0.67, factor)))
+    }
   },
   update: {
     check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason }),
@@ -78,6 +95,16 @@ const api: WraithApi = {
   },
   clipboard: {
     image: (paneId) => ipcRenderer.invoke(IPC.clipboardImage, { paneId })
+  },
+  usage: {
+    get: () => ipcRenderer.invoke(IPC.usageGet, {})
+  },
+  themes: {
+    list: () => ipcRenderer.invoke(IPC.themesList, {}),
+    import: () => ipcRenderer.invoke(IPC.themesImport, {}),
+    delete: (id) => ipcRenderer.invoke(IPC.themesDelete, { id }),
+    export: (theme) => ipcRenderer.invoke(IPC.themesExport, { theme }),
+    openFolder: () => ipcRenderer.invoke(IPC.themesOpenFolder, {})
   },
   mods: {
     list: () => ipcRenderer.invoke(IPC.modsList, {}),

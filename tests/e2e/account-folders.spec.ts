@@ -7,7 +7,7 @@ const ROOT = path.resolve(__dirname, '../..')
 const SHOTS = process.env.WRAITHGRID_E2E_SHOTS
 const MAIN = path.join(ROOT, 'out/main/index.js')
 
-test('accounts drag into sidebar folders; accounts and workspaces take a custom icon', async () => {
+test('accounts drag into folders on the Accounts page; no icons', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-folders-e2e-'))
   const home = path.join(tmp, 'home')
   const userData = path.join(tmp, 'userdata')
@@ -44,13 +44,17 @@ test('accounts drag into sidebar folders; accounts and workspaces take a custom 
   try {
     const win = await app.firstWindow()
     const side = win.getByRole('complementary', { name: 'Sidebar' })
-    await side.getByRole('button', { name: 'New folder' }).click()
-    const folder = side.locator('.fold', { hasText: 'Folder 1' })
+    // Folders live on the Accounts page, reached from the sidebar's account switcher.
+    await side.getByRole('button', { name: /Switch account/ }).click()
+    await win.getByRole('menuitem', { name: 'Manage accounts' }).click()
+    const org = win.getByLabel('Account folders')
+    await org.getByRole('button', { name: 'New folder' }).click()
+    const folder = org.locator('.fold', { hasText: 'Folder 1' })
     await expect(folder).toBeVisible()
 
     // Drag the account row onto the folder.
     await win.waitForTimeout(500)
-    const row = side.locator('.acc-row', { hasText: 'work' })
+    const row = org.locator('.acc-row', { hasText: 'work' })
     const from = (await row.boundingBox())!
     const to = (await folder.locator('.fold-hd').boundingBox())!
     await win.mouse.move(from.x + 20, from.y + from.height / 2)
@@ -72,35 +76,10 @@ test('accounts drag into sidebar folders; accounts and workspaces take a custom 
     await expect(folder.locator('.acc-row', { hasText: 'work' })).toBeVisible()
     await expect.poll(() => saved().accounts[0].folderId).toBe(saved().accountFolders[0]?.id)
 
-    // Pick an icon on the Accounts page.
-    await side.getByRole('button', { name: 'Manage' }).last().click()
-    await win.getByRole('button', { name: 'Change the icon of work' }).click()
-    await win.getByRole('tab', { name: 'Emoji' }).click()
-    await win.getByRole('button', { name: 'Use 🦊' }).click()
-    await expect.poll(() => saved().accounts[0].icon).toBe('🦊')
-    await expect(side.locator('.avatar', { hasText: '🦊' })).toBeVisible()
-
-    // Workspaces take a library icon and a tint, from the switcher.
-    await side.getByRole('button', { name: 'Manage' }).first().click()
-    await win.getByRole('button', { name: 'Change the icon of main' }).click()
-    await win.getByRole('radio', { name: 'Color #14b8a6' }).click()
-    await expect.poll(() => saved().workspaces[0].color).toBe('#14b8a6')
-    await win.getByRole('textbox', { name: 'Search icons' }).fill('rocket launch')
-    if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'icon-picker.png') })
-    await win.getByRole('option', { name: 'Use Material rocket launch' }).click()
-    await expect.poll(() => saved().workspaces[0].icon).toBe('material:rocket-launch')
-    await win.keyboard.press('Escape')
-    await expect(side.locator('.ws-row .avatar.glyph svg')).toBeVisible()
-
-    // Folders too, from their right-click menu.
-    await side.locator('.fold-hd').first().click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Change icon' }).click()
-    await win.getByRole('radio', { name: 'Lucide' }).click()
-    await win.getByRole('textbox', { name: 'Search icons' }).fill('briefcase')
-    await win.getByRole('option', { name: 'Use Lucide briefcase', exact: true }).click()
-    await expect.poll(() => saved().accountFolders[0].icon).toBe('lucide:briefcase')
-    await expect(side.locator('.fold-hd .avatar.glyph svg')).toBeVisible()
-    if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'icons-sidebar.png') })
+    // No icons any more: accounts show their initial, projects plain text.
+    await expect(org.locator('.acc-row', { hasText: 'work' }).locator('.initial')).toHaveText('W')
+    await expect(side.locator('.ws-row .initial, .ws-row .avatar')).toHaveCount(0)
+    if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'account-folders.png') })
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

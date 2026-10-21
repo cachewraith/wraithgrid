@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useStore, type StoreApi } from 'zustand'
 import type { WraithApi } from '@shared/ipc-contract'
+import type { ChatBus } from '../lib/chat-bus'
 import type { PtyBus } from '../lib/pty-bus'
 import type { RectRegistry } from '../lib/scheduling'
 import type { AppState } from './store'
@@ -9,6 +10,7 @@ import type { AppState } from './store'
 export interface Services {
   api: WraithApi
   bus: PtyBus
+  chat: ChatBus
   rects: RectRegistry
   store: StoreApi<AppState>
 }
