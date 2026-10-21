@@ -392,6 +392,30 @@ describe('chat sessions', () => {
     expect(sessions.count).toBe(0)
   })
 
+  it('a message queued while a turn runs keeps the chat busy until its own turn ends', async () => {
+    const { child, events, sessions } = setup()
+    const result = `${JSON.stringify({ type: 'result', subtype: 'success', is_error: false })}\n`
+    const busy = () =>
+      events.filter((e) => e.t === 'busy').map((e) => (e as { busy: boolean }).busy)
+    sessions.send('p1', 'first', [])
+    sessions.send('p1', 'queued', [])
+    child.stdout.write(result)
+    await tick()
+    // The first turn ended, the queued one runs: still busy.
+    expect(busy()).toEqual([true, true])
+    expect(events.filter((e) => e.t === 'turnEnd')).toHaveLength(1)
+    child.stdout.write(result)
+    await tick()
+    expect(busy()).toEqual([true, true, false])
+    // An interrupt ends everything at once, queued turns included.
+    sessions.send('p1', 'a', [])
+    sessions.send('p1', 'b', [])
+    sessions.interrupt('p1')
+    child.stdout.write(result)
+    await tick()
+    expect(busy().at(-1)).toBe(false)
+  })
+
   it('interrupt goes over the pipe, not a signal', async () => {
     const { child, sessions } = setup()
     sessions.interrupt('p1')

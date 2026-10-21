@@ -38,6 +38,10 @@ interface Session {
   /** Set once stop() was asked, so the exit is not reported as a failure. */
   stopping: boolean
   stderr: string
+  /** Turns sent and not finished: a message sent while one runs is queued by the CLI. */
+  turns: number
+  /** Stop was asked: the next turn end clears the queue too. */
+  interrupted: boolean
 }
 
 const LINE_MAX = 16_000_000
@@ -59,7 +63,14 @@ export class ChatSessions {
 
   start(paneId: string, launch: ChatLaunch, adapter: ChatAdapter): { pid: number | null } {
     const child = this.deps.spawn(launch)
-    const s: Session = { child, adapter, stopping: false, stderr: '' }
+    const s: Session = {
+      child,
+      adapter,
+      stopping: false,
+      stderr: '',
+      turns: 0,
+      interrupted: false
+    }
     this.sessions.set(paneId, s)
     const emit = (e: ChatEvent): void => this.deps.emit(paneId, e)
 
@@ -117,7 +128,15 @@ export class ChatSessions {
     }
     const { events, replies } = s.adapter.decode(msg)
     for (const r of replies) this.write(s, r)
-    for (const e of events) this.deps.emit(paneId, e)
+    for (const e of events) {
+      if (e.t === 'busy' && !e.busy) {
+        // An earlier turn ending must not mark the chat idle while a queued one runs.
+        s.turns = s.interrupted ? 0 : Math.max(0, s.turns - 1)
+        s.interrupted = false
+        if (s.turns > 0) continue
+      }
+      this.deps.emit(paneId, e)
+    }
   }
 
   private write(s: Session, msg: unknown): void {
@@ -128,6 +147,7 @@ export class ChatSessions {
     const s = this.sessions.get(paneId)
     if (!s) return false
     this.write(s, s.adapter.user(text, images))
+    s.turns++
     this.deps.emit(paneId, { t: 'busy', busy: true })
     return true
   }
@@ -162,6 +182,7 @@ export class ChatSessions {
   interrupt(paneId: string): void {
     const s = this.sessions.get(paneId)
     if (!s) return
+    s.interrupted = true
     const line = s.adapter.interrupt()
     if (line) this.write(s, line)
     else s.child.kill('SIGINT')
