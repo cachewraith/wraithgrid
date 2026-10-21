@@ -16,7 +16,7 @@ const ROWS: { label: string; id?: ShortcutId; keys?: string[] }[] = [
   },
   { label: 'Switch workspace', keys: chordKeys(['mod', 'shift', '1', '…', '9']) },
   { label: 'Show / hide the git diff', id: 'diff' },
-  { label: 'Terminal text bigger / smaller / reset', keys: chordKeys(['mod', '+', '-', '0']) },
+  { label: 'Zoom the app in / out / reset', keys: chordKeys(['mod', '+', '-', '0']) },
   { label: 'New line in claude', keys: ['Shift', 'Enter'] },
   {
     label: 'Copy / paste in a terminal',

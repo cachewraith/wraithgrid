@@ -3,7 +3,7 @@
 // They live in main, not the pty host, so they stop when Wraithgrid quits; the next start
 // resumes the conversation by its session id.
 import type { Readable, Writable } from 'node:stream'
-import type { ApprovalDecision, ChatEvent, ChatImage } from '@shared/chat'
+import type { ApprovalDecision, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
 import type { ChatAdapter } from './adapter'
 
 export interface ChatChild {
@@ -145,6 +145,15 @@ export class ChatSessions {
   setModel(paneId: string, model: string): boolean {
     const s = this.sessions.get(paneId)
     const line = s?.adapter.setModel(model)
+    if (!s || !line) return false
+    this.write(s, line)
+    return true
+  }
+
+  /** Switches the permission mode live; false when the CLI can't. */
+  setMode(paneId: string, mode: ChatMode): boolean {
+    const s = this.sessions.get(paneId)
+    const line = s?.adapter.setMode?.(mode)
     if (!s || !line) return false
     this.write(s, line)
     return true

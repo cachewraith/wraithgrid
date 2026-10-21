@@ -40,9 +40,9 @@ describe('detectDesktop', () => {
     expect(detectDesktop('win32', { XDG_CURRENT_DESKTOP: 'Hyprland' }).chrome).toBe('overlay')
   })
 
-  it('relaxes the minimum size only for tiling compositors', () => {
-    expect(minimumWindowSize('custom')).toEqual({ width: 1100, height: 700 })
-    expect(minimumWindowSize('overlay')).toEqual({ width: 1100, height: 700 })
+  it('lets the window shrink to 640×420 everywhere, below a half tile', () => {
+    for (const c of ['custom', 'overlay', 'tiling'] as const)
+      expect(minimumWindowSize(c)).toEqual({ width: 640, height: 420 })
     expect(minimumWindowSize('tiling').width).toBeLessThan(960)
   })
 })
@@ -160,9 +160,9 @@ describe('login-shell PATH', () => {
 })
 
 describe('macOS', () => {
-  it('uses the inset traffic lights and a normal minimum size', () => {
+  it('uses the inset traffic lights and the same minimum size', () => {
     expect(detectDesktop('darwin', {})).toEqual({ chrome: 'mac', desktop: 'macOS', wayland: false })
-    expect(minimumWindowSize('mac')).toEqual({ width: 1100, height: 700 })
+    expect(minimumWindowSize('mac')).toEqual({ width: 640, height: 420 })
   })
 
   it('looks for claude in Homebrew too', () => {

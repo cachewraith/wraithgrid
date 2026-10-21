@@ -17,7 +17,9 @@ export function TitleBar() {
         ? 'Accounts'
         : view === 'mods'
           ? 'Mods'
-          : wsName
+          : view === 'usage'
+            ? 'Usage'
+            : wsName
 
   useEffect(() => {
     document.title = `Wraithgrid — ${subtitle}`

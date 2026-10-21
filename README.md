@@ -58,7 +58,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Command line**               | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                          |
 | **Other machines**             | A workspace can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                   |
 | **Survives restarts**          | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                    |
-| **Themes**                     | Dark, light or system, five accent colors, and terminal palettes such as Dracula, Nord and Tokyo Night.                                                                                                    |
+| **Themes**                     | Five built-in themes (Wraith, Midnight, Clay, Daylight, Paper), your own theme files to import and share ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes.                 |
 | **Native everywhere**          | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                          |
 | **Private by design**          | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                       |
 
@@ -291,8 +291,8 @@ folders and account logins; the sidebar shows the machine's name next to the wor
 | Switch workspace                    | `Ctrl+Shift+1` … `9` |
 | Show / hide the git changes         | `Ctrl+Shift+D`       |
 | New line in claude                  | `Shift+Enter`        |
-| Terminal text bigger / smaller      | `Ctrl+=` / `Ctrl+-`  |
-| Reset terminal text size            | `Ctrl+0`             |
+| Zoom the whole app in / out         | `Ctrl+=` / `Ctrl+-`  |
+| Reset the zoom                      | `Ctrl+0`             |
 | Copy / paste in a terminal          | `Ctrl+Shift+C` / `V` |
 | Paste an image (screenshot)         | `Ctrl+V`             |
 | All shortcuts                       | `Ctrl+Shift+/`       |
@@ -320,7 +320,7 @@ never saves terminal content.
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - the shell plain shell panes run (automatic, any detected shell, or a custom path)
 - desktop notifications for panes that finish or need approval
-- theme (dark, light or system), accent color and terminal color palette
+- theme (five built in, or your own JSON theme files in `~/.wraithgrid/themes`, see [docs/THEMES.md](docs/THEMES.md)), following the OS light/dark setting, accent color and terminal color palette
 - the terminal font and size
 - update checks against GitHub releases, with a desktop notification once per new version
   (nothing is downloaded or installed for you)

@@ -20,6 +20,7 @@ import {
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
+import { CHAT_MODE_LABEL } from '@shared/chat'
 
 interface Props {
   paneId: string
@@ -147,6 +148,11 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         onMenu={(e) => setMenu(menuPoint(e))}
         onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
         view={chatable ? view : null}
+        mode={
+          isChat && pane.chatMode && pane.chatMode !== 'default'
+            ? { id: pane.chatMode, label: CHAT_MODE_LABEL[pane.chatMode] }
+            : null
+        }
         onView={(v) => actions.setPaneView(paneId, v)}
         onNewChat={() => actions.chatNew(paneId)}
       />

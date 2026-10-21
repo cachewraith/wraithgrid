@@ -54,11 +54,16 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/shared/types.ts`: domain types, themes, accents, palettes, fonts
 - `src/shared/args.ts`, `src/shared/paths.ts`: launch-args parsing, pure path helpers
 - `src/shared/mods.ts`: split a mod id (`name@marketplace`)
+- `src/shared/themes.ts`: built-in themes (5), theme-file schema (hex only), theme → CSS vars, accent presets, terminal colors
+- `src/renderer/lib/slash.ts` + `components/chat/SlashMenu.tsx`: the `/` menu (items from the CLI's commands, ranking, Wraithgrid's own commands)
+- `src/renderer/components/UsageView.tsx`: Usage screen (`view: 'usage'`) and the top-bar pill
+- `src/shared/usage.ts` + `src/main/usage-store.ts`: chat-turn usage buckets, plan limits, summaries; recorded in main from chat events into userData/usage.json
+- `src/main/themes.ts`: list/import/delete theme files in `~/.wraithgrid/themes`
 - `src/shared/chat.ts`: CLI-agnostic `ChatEvent` model, image/text limits, session id schema
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)
 - `src/renderer/app/{App,services,shortcuts}`: root view, DI context, key matching
-- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, BranchPicker = switch/create branch of a pane's folder, Settings (tabs: General, Chat, Appearance, Agents & CLIs, Advanced, Keyboard, About)/Accounts views; Sidebar = nav + Projects (workspaces) only, text like Claude/Codex desktop, sliding highlight, footer account switcher with the plan, icon rail when collapsed; ProjectView = a project's screen (Open chats, History, search; `view: 'project'`); EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = account folders + drag-drop (on the Accounts page); AccountIcon = `Initial` (a name's letter in a circle); ContextMenu = right-click menus; CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
+- `src/renderer/components/`: UI (PaneGrid, Pane, Terminal, dialogs, BranchPicker = switch/create branch of a pane's folder, Settings (tabs: General, Chat, Appearance, Agents & CLIs, Advanced, Keyboard, About)/Accounts views; Sidebar = nav + Projects (workspaces) only, two-line rows (chat count · status/last active), sliding highlight + bar, footer account switcher (two-line account menu with plans), icon rail when collapsed; ProjectView = a project's screen (Open chats, History, search; `view: 'project'`); EdgeResizer = drag handle for sidebar/Changes panel width; SidebarAccounts = account folders + drag-drop (on the Accounts page); AccountIcon = `Initial` (a name's letter in a circle); ContextMenu = right-click menus (also the account menu: sub lines, checks, headings, dividers, opens above); CommandPalette = Ctrl+Shift+P search; DiffPanel = git changes beside the grid; ModsView = one mod list for all claude accounts, catalog search + install to every account, mod folders, GPU toggle)
 - `src/renderer/components/chat/`: ChatView (pane body: messages, working indicator, approval/exit bars), Composer (autogrow, image paste, Stop), ModelPicker (model list from the CLI, effort), ToolCard + ApprovalBar, Markdown (AST → React, never HTML)
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists), chat-thread (pure ChatEvent reducer + save format), chat-bus (per-pane threads outside React), markdown (parser), time (`ago`)
@@ -69,6 +74,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
 - `.claude/agents/`: project subagents: wraithgrid-engineer (build), wraithgrid-reviewer (read-only review), wraithgrid-bug-hunter (diagnose reports)
 - `docs/adr/`: longer ADRs (0001 background pty host, accepted + review)
+- `docs/THEMES.md`: theme file format for users
 - `docs/WHATS-NEW.md`: user-facing notes for the unreleased update
 - `docs/REQUIREMENTS.md`: original requirements (FR-*/NFR-* IDs); `docs/screenshots/`
 
@@ -136,6 +142,13 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Closing a pane with `hasConversation` archives it to `workspace.history` (saved chat view kept, `chat:stop` without forget); reopening reuses the same pane id so the view and session come back. Deleting from History or the project deletes the view.
 - Chat panes (ADR 0002) run in main, not the host: they stop on quit (resume by session id), and `wraithgrid list/read/send` can't see them; CLI-made panes are terminals. A pane's view is `paneView()` in store.ts, never `pane.view` directly (shell/machine/CLI rules).
 - claude headless needs the `initialize` control request first and `--permission-prompt-tool stdio`, or every tool needing approval is auto-denied (`permission_denied`). An interrupt ends with `is_error: true` (`error_during_execution`): not a failure.
+- Themes are inline CSS vars on `<html>` (`themeVars`), so they beat any stylesheet rule: change colors in `src/shared/themes.ts`, not tokens.css (its values are first paint only). `settings.theme` is the mode (dark/light/system); `themeDark`/`themeLight` pick the theme; `accent: 'theme'` keeps the theme's own. Read a theme via `drawnTheme(s)` (cached object).
+- Responsive = container queries on `.main` (`main`) and `.pane` (`pane`); both are containing blocks for `position: fixed` inside them, so popups must keep portaling to <body>. Sidebar folds to the rail below 900 CSS px (`NARROW_PX`, zoom counts) without touching `sidebarCollapsed`; expanding then opens `.side.drawer`.
+- Usage limits come only from claude's `rate_limit_event` (`unifiedWindows.five_hour/seven_day`, utilization 0–1, resetsAt in seconds), sent per turn: an account shows limits after its first chat turn. Cost is API list price (`costBasis: list`), not what Pro/Max pays.
+- Chat mode = claude's permission mode: live via `set_permission_mode` (values `default|acceptEdits|plan|auto|dontAsk|bypassPermissions`; the start flag takes the same except `default`, which is omitted); claude reports the mode in force in `system` init/status, and `pane.chatMode` follows it. Auto only where the model says `supportsAutoMode`. Fast mode is not offered: headless claude needs an SDK opt-in.
+- The message box is a combobox once the CLI lists commands: e2e find it with `getByLabel('Message', { exact: true })`, not the textbox role. Commands come from claude's `initialize` answer (no tokens); terminal-only names from its first `system/init`, so they show after the first turn.
+- Ctrl+=/-/0 zoom the whole app (`uiZoom`, `webFrame.setZoomFactor` in preload), not the terminal font.
+- Top bar has no Settings/Mods/Shortcuts buttons: e2e click `More` then the menuitem. Sidebar and `.main` are cards inside `.row` (8px padding, `--frame` behind).
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
 
 ## Current focus

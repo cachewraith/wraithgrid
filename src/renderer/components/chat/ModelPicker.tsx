@@ -1,47 +1,57 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+// The controls under the chat box, like Claude Code's: model, effort and permission mode.
+// Each is a chip that opens a short list above it (portaled: the pane clips and is a
+// container). Lists come from the CLI itself; nothing here is hard-coded per model.
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { CHAT_EFFORTS, EFFORT_LABEL, type ChatEffort, type ChatModel } from '@shared/chat'
+import {
+  CHAT_EFFORTS,
+  CHAT_MODE_HINT,
+  CHAT_MODE_LABEL,
+  CHAT_MODES,
+  EFFORT_LABEL,
+  type ChatEffort,
+  type ChatMode,
+  type ChatModel
+} from '@shared/chat'
 import { IconCheck, IconChevron } from '../icons'
 
-interface Props {
-  /** What the CLI offered; empty until the chat's process said. */
-  models: ChatModel[]
-  /** The pane's pick; null: the CLI's default. */
-  model: string | null
-  effort: ChatEffort | null
-  /** The model the CLI reported running, shown until the list arrives. */
-  running: string | null
-  /** Effort restarts the process: not while a turn runs. */
-  busy: boolean
-  onModel: (model: string | null) => void
-  onEffort: (effort: ChatEffort | null) => void
-}
-
-/** "Opus 5.5 ⌄" in the message box, like Claude's: switch the model, set the effort. */
-export function ModelPicker({ models, model, effort, running, busy, onModel, onEffort }: Props) {
+/** A chip that opens a list above it; Esc or a click outside closes it. */
+function ChipMenu({
+  label,
+  ariaLabel,
+  popLabel,
+  className = '',
+  openSignal = 0,
+  width = 320,
+  children
+}: {
+  label: ReactNode
+  ariaLabel: string
+  popLabel: string
+  className?: string
+  /** Opens the list whenever it changes (a `/` command). */
+  openSignal?: number
+  width?: number
+  children: (close: () => void) => ReactNode
+}) {
   const [open, setOpen] = useState(false)
+  const [seenSignal, setSeenSignal] = useState(openSignal)
+  if (openSignal !== seenSignal) {
+    setSeenSignal(openSignal)
+    setOpen(true)
+  }
   const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
-
-  // `default` is the CLI's own "Default (recommended)" entry; picking it clears the choice.
-  const chosen = models.find((m) => m.value === (model ?? 'default'))
-  const label =
-    chosen?.value === 'default'
-      ? (chosen.description.split('·')[0]?.trim() ?? 'Default')
-      : (chosen?.label ?? model ?? running ?? 'Model')
-  const efforts = ((chosen ?? models[0])?.efforts ?? []).filter((e): e is ChatEffort =>
-    (CHAT_EFFORTS as readonly string[]).includes(e)
-  )
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
     setPos({
-      left: Math.max(8, Math.min(r.left, window.innerWidth - 328)),
+      left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
       bottom: window.innerHeight - r.top + 6
     })
-  }, [open])
+  }, [open, width])
 
   useEffect(() => {
     if (!open) return
@@ -68,14 +78,14 @@ export function ModelPicker({ models, model, effort, running, busy, onModel, onE
     <>
       <button
         ref={btnRef}
-        className={`mp-btn${open ? ' open' : ''}`}
+        className={`mp-btn ${className}${open ? ' open' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Model: ${label}${effort ? `, ${EFFORT_LABEL[effort]} effort` : ''}. Change`}
+        aria-label={ariaLabel}
+        title={ariaLabel}
         onClick={() => setOpen(!open)}
       >
-        <span>{label}</span>
-        {effort ? <span className="mp-eff">{EFFORT_LABEL[effort]}</span> : null}
+        {label}
         <IconChevron small className="mp-chev" />
       </button>
       {open && pos
@@ -84,62 +94,223 @@ export function ModelPicker({ models, model, effort, running, busy, onModel, onE
               ref={popRef}
               className="mp-pop"
               role="dialog"
-              aria-label="Model"
-              style={{ left: pos.left, bottom: pos.bottom }}
+              aria-label={popLabel}
+              style={{ left: pos.left, bottom: pos.bottom, width }}
             >
-              {models.length === 0 ? (
-                <div className="mp-empty">The model list appears once the chat has started.</div>
-              ) : (
-                <div className="mp-list" role="listbox" aria-label="Models">
-                  {models.map((m) => {
-                    const on = m.value === (model ?? 'default')
-                    return (
-                      <button
-                        key={m.value}
-                        role="option"
-                        aria-selected={on}
-                        className={`mp-opt${on ? ' on' : ''}`}
-                        onClick={() => {
-                          onModel(m.value === 'default' ? null : m.value)
-                          setOpen(false)
-                        }}
-                      >
-                        <span className="mp-txt">
-                          <span className="mp-nm">{m.label}</span>
-                          {m.description ? <span className="mp-ds">{m.description}</span> : null}
-                        </span>
-                        {on ? <IconCheck small /> : null}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              {efforts.length ? (
-                <div className="mp-eff-row">
-                  <span className="mp-eff-h" id="mp-eff-h">
-                    Effort
-                  </span>
-                  <div className="seg" role="radiogroup" aria-labelledby="mp-eff-h">
-                    {([null, ...efforts] as (ChatEffort | null)[]).map((e) => (
-                      <button
-                        key={e ?? 'default'}
-                        role="radio"
-                        aria-checked={effort === e}
-                        className={`seg-btn${effort === e ? ' on' : ''}`}
-                        disabled={busy}
-                        title={busy ? 'After this turn' : 'Restarts the chat; it carries on'}
-                        onClick={() => onEffort(e)}
-                      >
-                        {e === null ? 'Auto' : EFFORT_LABEL[e]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              {children(() => setOpen(false))}
             </div>,
             document.body
           )
         : null}
     </>
+  )
+}
+
+function Option({
+  on,
+  name,
+  hint,
+  tone,
+  disabled,
+  onPick
+}: {
+  on: boolean
+  name: string
+  hint?: string
+  tone?: string
+  disabled?: boolean
+  onPick: () => void
+}) {
+  return (
+    <button
+      role="option"
+      aria-selected={on}
+      className={`mp-opt${on ? ' on' : ''}${tone ? ` ${tone}` : ''}`}
+      disabled={disabled}
+      onClick={onPick}
+    >
+      <span className="mp-txt">
+        <span className="mp-nm">{name}</span>
+        {hint ? <span className="mp-ds">{hint}</span> : null}
+      </span>
+      {on ? <IconCheck small /> : null}
+    </button>
+  )
+}
+
+export function ModelPicker({
+  models,
+  model,
+  running,
+  openSignal,
+  onModel
+}: {
+  /** What the CLI offered; empty until the chat's process said. */
+  models: ChatModel[]
+  /** The pane's pick; null: the CLI's default. */
+  model: string | null
+  /** The model the CLI reported running, shown until the list arrives. */
+  running: string | null
+  openSignal?: number
+  onModel: (model: string | null) => void
+}) {
+  // `default` is the CLI's own "Default (recommended)" entry; picking it clears the choice.
+  const chosen = models.find((m) => m.value === (model ?? 'default'))
+  const label =
+    chosen?.value === 'default'
+      ? (chosen.description.split('·')[0]?.trim() ?? 'Default')
+      : (chosen?.label ?? model ?? running ?? 'Model')
+  return (
+    <ChipMenu
+      label={<span>{label}</span>}
+      ariaLabel={`Model: ${label}. Change`}
+      popLabel="Model"
+      openSignal={openSignal}
+    >
+      {(close) =>
+        models.length === 0 ? (
+          <div className="mp-empty">The model list appears once the chat has started.</div>
+        ) : (
+          <div className="mp-list" role="listbox" aria-label="Models">
+            {models.map((m) => (
+              <Option
+                key={m.value}
+                on={m.value === (model ?? 'default')}
+                name={m.label}
+                hint={m.description}
+                onPick={() => {
+                  onModel(m.value === 'default' ? null : m.value)
+                  close()
+                }}
+              />
+            ))}
+          </div>
+        )
+      }
+    </ChipMenu>
+  )
+}
+
+const EFFORT_HINT: Record<ChatEffort, string> = {
+  low: 'Quickest answers, least thinking',
+  medium: 'Balanced',
+  high: 'Thinks longer on hard problems',
+  xhigh: 'Even longer',
+  max: 'As long as it takes'
+}
+
+export function EffortPicker({
+  efforts,
+  effort,
+  busy,
+  openSignal,
+  onEffort
+}: {
+  /** What the chosen model takes (the CLI says); empty: no picker. */
+  efforts: string[]
+  effort: ChatEffort | null
+  /** Effort restarts the process: not while a turn runs. */
+  busy: boolean
+  openSignal?: number
+  onEffort: (effort: ChatEffort | null) => void
+}) {
+  const levels = efforts.filter((e): e is ChatEffort =>
+    (CHAT_EFFORTS as readonly string[]).includes(e)
+  )
+  if (!levels.length) return null
+  const label = effort ? EFFORT_LABEL[effort] : 'Auto effort'
+  return (
+    <ChipMenu
+      label={<span>{label}</span>}
+      ariaLabel={`Effort: ${label}. Change`}
+      popLabel="Effort"
+      openSignal={openSignal}
+      width={280}
+    >
+      {(close) => (
+        <>
+          <div className="mp-list" role="listbox" aria-label="Effort">
+            {([null, ...levels] as (ChatEffort | null)[]).map((e) => (
+              <Option
+                key={e ?? 'auto'}
+                on={effort === e}
+                name={e === null ? 'Auto' : EFFORT_LABEL[e]}
+                hint={e === null ? "The model's own default" : EFFORT_HINT[e]}
+                disabled={busy}
+                onPick={() => {
+                  onEffort(e)
+                  close()
+                }}
+              />
+            ))}
+          </div>
+          <p className="mp-foot">
+            {busy ? 'Can change after this turn.' : 'Changing it restarts the chat; it carries on.'}
+          </p>
+        </>
+      )}
+    </ChipMenu>
+  )
+}
+
+export function ModePicker({
+  mode,
+  autoMode,
+  openSignal,
+  onMode
+}: {
+  mode: ChatMode
+  /** The model can run in auto mode. */
+  autoMode: boolean
+  openSignal?: number
+  onMode: (mode: ChatMode) => void
+}) {
+  const [confirm, setConfirm] = useState(false)
+  const modes = CHAT_MODES.filter((m) => m !== 'auto' || autoMode || mode === 'auto')
+  return (
+    <ChipMenu
+      label={
+        <>
+          <span className={`mp-dot mode-${mode}`} aria-hidden="true" />
+          <span>{CHAT_MODE_LABEL[mode]}</span>
+        </>
+      }
+      ariaLabel={`Mode: ${CHAT_MODE_LABEL[mode]}. Change (Shift+Tab)`}
+      popLabel="Mode"
+      className={`mode-chip mode-${mode}`}
+      openSignal={openSignal}
+    >
+      {(close) => (
+        <>
+          <div className="mp-list" role="listbox" aria-label="Modes">
+            {modes.map((m) => {
+              const asking = m === 'bypassPermissions' && confirm && mode !== m
+              return (
+                <Option
+                  key={m}
+                  on={mode === m}
+                  name={asking ? 'Click again to bypass permissions' : CHAT_MODE_LABEL[m]}
+                  hint={CHAT_MODE_HINT[m]}
+                  tone={m === 'bypassPermissions' ? 'danger' : undefined}
+                  onPick={() => {
+                    // Running everything unasked takes a second click.
+                    if (m === 'bypassPermissions' && mode !== m && !confirm) {
+                      setConfirm(true)
+                      return
+                    }
+                    setConfirm(false)
+                    onMode(m)
+                    close()
+                  }}
+                />
+              )
+            })}
+          </div>
+          <p className="mp-foot">
+            Shift+Tab switches between the first {autoMode ? 'four' : 'three'}.
+          </p>
+        </>
+      )}
+    </ChipMenu>
   )
 }

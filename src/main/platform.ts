@@ -54,12 +54,12 @@ export function detectDesktop(platform: NodeJS.Platform, env: NodeJS.ProcessEnv)
 }
 
 /**
- * The approved minimum is 1100×700. A tiling compositor sizes windows itself (a half
- * tile on 1920 px is 960 px), and a larger minimum would make the window overflow its
- * tile, so there the minimum only keeps the layout usable.
+ * The layout adapts to small windows (sidebar folds to a rail, headers and Settings compact),
+ * so every desktop gets the size a tiling compositor needed: a half tile on 1920 px is 960 px.
+ * (Was 1100×700 outside tiling compositors; see DECISIONS 2026-10-21.)
  */
-export function minimumWindowSize(chrome: WindowChrome): { width: number; height: number } {
-  return chrome === 'tiling' ? { width: 640, height: 420 } : { width: 1100, height: 700 }
+export function minimumWindowSize(_chrome: WindowChrome): { width: number; height: number } {
+  return { width: 640, height: 420 }
 }
 
 /** Where the traffic lights sit so they center in our 36 px title bar. */

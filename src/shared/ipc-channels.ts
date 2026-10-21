@@ -12,6 +12,7 @@ export const IPC = {
   chatInterrupt: 'chat:interrupt',
   chatStop: 'chat:stop',
   chatSetModel: 'chat:setModel',
+  chatSetMode: 'chat:setMode',
   chatEvent: 'chat:event',
   chatLoad: 'chat:load',
   chatSave: 'chat:save',
@@ -61,5 +62,11 @@ export const IPC = {
   modsPull: 'mods:pull',
   modsMarketplaces: 'mods:marketplaces',
   modsMarketplaceAdd: 'mods:marketplaceAdd',
-  modsMarketplaceRemove: 'mods:marketplaceRemove'
+  modsMarketplaceRemove: 'mods:marketplaceRemove',
+  themesList: 'themes:list',
+  themesImport: 'themes:import',
+  themesDelete: 'themes:delete',
+  themesExport: 'themes:export',
+  themesOpenFolder: 'themes:openFolder',
+  usageGet: 'usage:get'
 } as const

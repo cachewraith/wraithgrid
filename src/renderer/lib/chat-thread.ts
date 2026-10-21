@@ -3,7 +3,9 @@
 import type {
   ApprovalDecision,
   ChatAccountInfo,
+  ChatCommand,
   ChatEvent,
+  ChatMode,
   ChatModel,
   ToolKind,
   ToolPreview
@@ -55,6 +57,11 @@ export interface ChatThread {
   /** The models the CLI offered and whose account it runs as (empty until it said). */
   models: ChatModel[]
   account: ChatAccountInfo | null
+  /** Slash commands and skills the CLI offers, and the ones that need its own screen. */
+  commands: ChatCommand[]
+  terminalOnly: string[]
+  /** The permission mode the CLI says is in force; null until it said. */
+  mode: ChatMode | null
 }
 
 export const EMPTY_THREAD: ChatThread = {
@@ -66,7 +73,10 @@ export const EMPTY_THREAD: ChatThread = {
   seq: 0,
   restored: 0,
   models: [],
-  account: null
+  account: null,
+  commands: [],
+  terminalOnly: [],
+  mode: null
 }
 
 /** The saved view keeps this many items; older ones are dropped from the view only. */
@@ -116,9 +126,14 @@ export function addNotice(t: ChatThread, level: 'info' | 'error', text: string):
 export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatThread {
   switch (e.t) {
     case 'session':
-      return { ...t, sessionId: e.id, model: e.model ?? t.model }
+      return {
+        ...t,
+        sessionId: e.id,
+        model: e.model ?? t.model,
+        terminalOnly: e.terminalOnly ?? t.terminalOnly
+      }
     case 'capabilities':
-      return { ...t, models: e.models, account: e.account }
+      return { ...t, models: e.models, account: e.account, commands: e.commands ?? t.commands }
     case 'busy':
       return {
         ...t,
@@ -204,6 +219,10 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
         ]
       }
     }
+    case 'limits':
+      return t
+    case 'mode':
+      return t.mode === e.mode ? t : { ...t, mode: e.mode }
     case 'notice':
       return addNotice(t, e.level, e.text)
     case 'exit': {

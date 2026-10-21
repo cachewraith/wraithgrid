@@ -1,76 +1,10 @@
 import type { ITheme } from '@xterm/xterm'
-import type { AccentName, TerminalPalette, ThemeName } from '@shared/types'
+import { ANSI_NAMES, hexToRgba, themeTerminal, type ThemeFile } from '@shared/themes'
+import type { TerminalPalette } from '@shared/types'
 
 /** `#rrggbb` → `rgba(r, g, b, a)`. */
 function alpha(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1), 16)
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
-}
-
-// Built from the design tokens so terminals follow the app theme.
-export const TERMINAL_THEMES: Record<ThemeName, ITheme> = {
-  dark: {
-    background: '#1c1c1c',
-    foreground: '#ececec',
-    cursor: '#a996ff',
-    cursorAccent: '#1c1c1c',
-    selectionBackground: 'rgba(124, 92, 255, 0.38)',
-    scrollbarSliderBackground: 'rgba(143, 143, 143, 0.25)',
-    scrollbarSliderHoverBackground: 'rgba(143, 143, 143, 0.4)',
-    scrollbarSliderActiveBackground: 'rgba(169, 150, 255, 0.5)',
-    black: '#2b2b2b',
-    red: '#fb7185',
-    green: '#4ade80',
-    yellow: '#fbbf24',
-    blue: '#8ab4ff',
-    magenta: '#a996ff',
-    cyan: '#7dd3fc',
-    white: '#ececec',
-    brightBlack: '#8f8f8f',
-    brightRed: '#fda4af',
-    brightGreen: '#86efac',
-    brightYellow: '#fde68a',
-    brightBlue: '#b4ccff',
-    brightMagenta: '#c4b8ff',
-    brightCyan: '#bae6fd',
-    brightWhite: '#ffffff'
-  },
-  light: {
-    background: '#ffffff',
-    foreground: '#1f1f1f',
-    cursor: '#5a3de0',
-    cursorAccent: '#ffffff',
-    selectionBackground: 'rgba(90, 61, 224, 0.22)',
-    scrollbarSliderBackground: 'rgba(107, 107, 107, 0.25)',
-    scrollbarSliderHoverBackground: 'rgba(107, 107, 107, 0.4)',
-    scrollbarSliderActiveBackground: 'rgba(90, 61, 224, 0.45)',
-    black: '#1f1f1f',
-    red: '#be123c',
-    green: '#15803d',
-    yellow: '#a16207',
-    blue: '#1d4ed8',
-    magenta: '#5a3de0',
-    cyan: '#0369a1',
-    white: '#d4d4d0',
-    brightBlack: '#6b6b6b',
-    brightRed: '#e11d48',
-    brightGreen: '#16a34a',
-    brightYellow: '#ca8a04',
-    brightBlue: '#2563eb',
-    brightMagenta: '#6d4cf0',
-    brightCyan: '#0284c7',
-    brightWhite: '#4a4a4a'
-  }
-}
-
-/** Cursor and selection colors per accent, mirroring --acct/--acc in tokens.css. */
-// prettier-ignore
-const ACCENT_TERMINAL: Record<AccentName, Record<ThemeName, { cursor: string; sel: string }>> = {
-  violet: { dark: { cursor: '#a996ff', sel: '#7c5cff' }, light: { cursor: '#5a3de0', sel: '#5a3de0' } },
-  blue: { dark: { cursor: '#93c5fd', sel: '#3b82f6' }, light: { cursor: '#1d4ed8', sel: '#2563eb' } },
-  teal: { dark: { cursor: '#5eead4', sel: '#14b8a6' }, light: { cursor: '#0f766e', sel: '#0d9488' } },
-  amber: { dark: { cursor: '#fcd34d', sel: '#f59e0b' }, light: { cursor: '#b45309', sel: '#d97706' } },
-  rose: { dark: { cursor: '#fda4af', sel: '#f43f5e' }, light: { cursor: '#be123c', sel: '#e11d48' } }
+  return hexToRgba(hex, a)
 }
 
 interface Scheme {
@@ -160,12 +94,7 @@ const SCHEMES: Record<Exclude<TerminalPalette, 'match'>, Scheme> = {
   }
 }
 
-// prettier-ignore
-const ANSI_KEYS = [
-  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-  'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-  'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite'
-] as const
+const ANSI_KEYS = ANSI_NAMES
 
 function fromScheme(s: Scheme): ITheme {
   const theme: ITheme = {
@@ -191,32 +120,39 @@ export const PALETTE_LABEL: Record<TerminalPalette, string> = {
 }
 
 const cache = new Map<string, ITheme>()
+const matchCache = new WeakMap<ThemeFile, ITheme>()
+
+/** The app theme's own terminal colors as an xterm theme. */
+function fromAppTheme(t: ThemeFile): ITheme {
+  const c = themeTerminal(t)
+  const sel = c.selection.length === 9 ? hexToRgba(c.selection) : alpha(c.selection, 0.3)
+  const theme: ITheme = {
+    background: c.background,
+    foreground: c.foreground,
+    cursor: c.cursor,
+    cursorAccent: c.background,
+    selectionBackground: sel,
+    scrollbarSliderBackground: alpha(c.foreground, 0.2),
+    scrollbarSliderHoverBackground: alpha(c.foreground, 0.35),
+    scrollbarSliderActiveBackground: alpha(c.cursor, 0.5)
+  }
+  for (const k of ANSI_KEYS) theme[k] = c[k]
+  return theme
+}
 
 /**
- * The xterm theme for the current settings. Results are cached, so the same inputs
- * always return the same object and can be used straight from a store selector.
+ * The xterm theme for the current settings: `match` follows the drawn app theme (accent
+ * included), the rest are fixed schemes. Cached, so the same inputs return the same object
+ * and it can be used straight from a store selector.
  */
-export function terminalTheme(
-  palette: TerminalPalette,
-  theme: ThemeName,
-  accent: AccentName
-): ITheme {
-  const key = palette === 'match' ? `match:${theme}:${accent}` : palette
-  let t = cache.get(key)
-  if (!t) {
-    if (palette === 'match') {
-      const a = ACCENT_TERMINAL[accent][theme]
-      t = {
-        ...TERMINAL_THEMES[theme],
-        cursor: a.cursor,
-        selectionBackground: alpha(a.sel, theme === 'dark' ? 0.38 : 0.22),
-        scrollbarSliderActiveBackground: alpha(a.cursor, theme === 'dark' ? 0.5 : 0.45)
-      }
-    } else {
-      t = fromScheme(SCHEMES[palette])
-    }
-    cache.set(key, t)
+export function terminalTheme(palette: TerminalPalette, drawn: ThemeFile): ITheme {
+  if (palette === 'match') {
+    let t = matchCache.get(drawn)
+    if (!t) matchCache.set(drawn, (t = fromAppTheme(drawn)))
+    return t
   }
+  let t = cache.get(palette)
+  if (!t) cache.set(palette, (t = fromScheme(SCHEMES[palette])))
   return t
 }
 

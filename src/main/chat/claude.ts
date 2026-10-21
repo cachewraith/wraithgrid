@@ -4,11 +4,15 @@
 import {
   clip,
   type ApprovalDecision,
+  CHAT_MODES,
+  type ChatCommand,
+  type ChatMode,
   type ChatModel,
   type ToolKind,
   type ToolPreview
 } from '@shared/chat'
 import type { ChatAdapter, Decoded } from './adapter'
+import type { UsageWindow } from '@shared/usage'
 
 type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -142,10 +146,22 @@ export function createClaudeAdapter(): ChatAdapter {
     const push = out.events.push.bind(out.events)
 
     switch (msg.type) {
-      case 'system':
+      case 'system': {
+        // claude says which mode is in force at start and after every switch (`status`).
+        const mode = str(msg.permissionMode)
+        if ((CHAT_MODES as readonly string[]).includes(mode))
+          push({ t: 'mode', mode: mode as ChatMode })
         if (msg.subtype === 'init' && str(msg.session_id))
-          push({ t: 'session', id: str(msg.session_id), model: str(msg.model) || null })
+          push({
+            t: 'session',
+            id: str(msg.session_id),
+            model: str(msg.model) || null,
+            terminalOnly: Array.isArray(msg.terminal_slash_commands)
+              ? msg.terminal_slash_commands.map(str).filter(Boolean).slice(0, 200)
+              : []
+          })
         break
+      }
 
       case 'stream_event': {
         const ev = isObj(msg.event) ? msg.event : {}
@@ -200,16 +216,47 @@ export function createClaudeAdapter(): ChatAdapter {
         break
       }
 
+      case 'rate_limit_event': {
+        // claude 2.1.306: rate_limit_info.unifiedWindows.{five_hour,seven_day} =
+        // { utilization: 0–1, resetsAt: unix seconds }.
+        const info = isObj(msg.rate_limit_info) ? msg.rate_limit_info : {}
+        const w = isObj(info.unifiedWindows) ? info.unifiedWindows : {}
+        const win = (x: unknown): UsageWindow | null =>
+          isObj(x) && typeof x.utilization === 'number' && typeof x.resetsAt === 'number'
+            ? { utilization: Math.max(0, x.utilization), resetsAt: x.resetsAt * 1000 }
+            : null
+        const fiveHour = win(w.five_hour)
+        const sevenDay = win(w.seven_day)
+        if (fiveHour || sevenDay)
+          push({ t: 'limits', limits: { fiveHour, sevenDay, at: Date.now() } })
+        break
+      }
+
       case 'result': {
         const failed = msg.is_error === true && !interrupted
         interrupted = false
+        const cost = typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null
+        const u = isObj(msg.usage) ? msg.usage : {}
+        const n = (v: unknown): number => (typeof v === 'number' && v > 0 ? v : 0)
+        const model = isObj(msg.modelUsage) ? (Object.keys(msg.modelUsage)[0] ?? null) : null
         push({
           t: 'turnEnd',
-          costUsd: typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null,
+          costUsd: cost,
           durationMs: typeof msg.duration_ms === 'number' ? msg.duration_ms : null,
           error: failed
             ? str(msg.result) || `The turn failed (${str(msg.subtype) || 'error'}).`
-            : null
+            : null,
+          usage:
+            cost === null && !isObj(msg.usage)
+              ? null
+              : {
+                  model,
+                  costUsd: cost ?? 0,
+                  input: n(u.input_tokens),
+                  output: n(u.output_tokens),
+                  cacheRead: n(u.cache_read_input_tokens),
+                  cacheWrite: n(u.cache_creation_input_tokens)
+                }
         })
         push({ t: 'busy', busy: false })
         break
@@ -229,11 +276,29 @@ export function createClaudeAdapter(): ChatAdapter {
             efforts:
               m.supportsEffort === true && Array.isArray(m.supportedEffortLevels)
                 ? m.supportedEffortLevels.filter((e): e is string => typeof e === 'string')
-                : []
+                : [],
+            autoMode: m.supportsAutoMode === true
           }))
         const acc = isObj(info.account) ? info.account : null
+        // Names are plain tokens (`plugin:skill`); anything else is not a command we can type.
+        const commands: ChatCommand[] = (Array.isArray(info.commands) ? info.commands : [])
+          .filter(isObj)
+          .filter(
+            (c) => /^[A-Za-z0-9_.:-]{1,100}$/.test(str(c.name)) && !str(c.name).startsWith('_')
+          )
+          .slice(0, 500)
+          .map((c) => ({
+            name: str(c.name),
+            description: str(c.description).slice(0, 400),
+            argumentHint: str(c.argumentHint).slice(0, 120),
+            aliases: Array.isArray(c.aliases)
+              ? c.aliases.map(str).filter((a) => /^[A-Za-z0-9_.:-]{1,100}$/.test(a))
+              : [],
+            builtin: c.builtin === true
+          }))
         push({
           t: 'capabilities',
+          commands,
           models,
           account: acc
             ? { email: str(acc.email) || null, plan: str(acc.subscriptionType) || null }
@@ -275,7 +340,7 @@ export function createClaudeAdapter(): ChatAdapter {
   }
 
   return {
-    args: ({ sessionId, continueLast, model, effort }) => [
+    args: ({ sessionId, continueLast, model, effort, mode }) => [
       '-p',
       '--input-format',
       'stream-json',
@@ -287,12 +352,18 @@ export function createClaudeAdapter(): ChatAdapter {
       'stdio',
       ...(sessionId ? ['--resume', sessionId] : continueLast ? ['--continue'] : []),
       ...(model ? ['--model', model] : []),
-      ...(effort ? ['--effort', effort] : [])
+      ...(effort ? ['--effort', effort] : []),
+      ...(mode && mode !== 'default' ? ['--permission-mode', mode] : [])
     ],
     hello: () => {
       helloId = reqId()
       return [{ type: 'control_request', request_id: helloId, request: { subtype: 'initialize' } }]
     },
+    setMode: (mode) => ({
+      type: 'control_request',
+      request_id: reqId(),
+      request: { subtype: 'set_permission_mode', mode }
+    }),
     setModel: (model) => ({
       type: 'control_request',
       request_id: reqId(),

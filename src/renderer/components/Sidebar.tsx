@@ -21,6 +21,7 @@ import { EdgeResizer } from './EdgeResizer'
 import {
   IconChevron,
   IconCompose,
+  IconGauge,
   IconMods,
   IconMonitor,
   IconPlus,
@@ -29,14 +30,31 @@ import {
   IconSettings,
   IconSidebar,
   IconTrash,
-  IconUserPlus
+  IconUserPlus,
+  IconUsers
 } from './icons'
+import { ago } from '../lib/time'
+import { useNow } from './ProjectView'
+import { useSessionLimit } from './UsageView'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
   const ws = config.workspaces.find((w) => w.id === wsId)
   if (!ws) return []
   const ids = [...new Set(ws.panes.map((p) => p.accountId).filter((x): x is string => !!x))]
   return ids.flatMap((id) => config.accounts.find((a) => a.id === id)?.color ?? [])
+}
+
+/** Below this window width (CSS px, so zoom counts) the sidebar folds to its rail. */
+const NARROW_PX = 900
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < NARROW_PX)
+  useEffect(() => {
+    const sync = (): void => setNarrow(window.innerWidth < NARROW_PX)
+    window.addEventListener('resize', sync)
+    return () => window.removeEventListener('resize', sync)
+  }, [])
+  return narrow
 }
 
 /** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
@@ -56,12 +74,32 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
       return st === 'approval' || st === 'login'
     })
   )
+  const lastAt = useApp((s) =>
+    w.panes.reduce<number | null>((m, p) => {
+      const t = s.runtime[p.id]?.activeAt ?? null
+      return t !== null && (m === null || t > m) ? t : m
+    }, null)
+  )
+  const now = useNow()
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
   const key = index < 9 ? index + 1 : null
   const canDelete = config.workspaces.length > 1
   const panes = w.panes.length
+  const history = w.history.length
+  const count = panes
+    ? `${panes} ${panes === 1 ? 'chat' : 'chats'}`
+    : history
+      ? `${history} in history`
+      : 'No chats yet'
+  const state = waiting
+    ? 'needs you'
+    : running
+      ? 'working'
+      : lastAt !== null
+        ? ago(lastAt, now)
+        : null
   const machine = config.machines.find((m) => m.id === w.machineId)
   // Where the panes run can change only while there are none: running ones stay where they are.
   const runOn = [
@@ -123,7 +161,13 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             setMenu(menuPoint(e))
           }}
         >
-          <span className="ws-name">{w.name}</span>
+          <span className="ws-txt">
+            <span className="ws-name">{w.name}</span>
+            <span className={`ws-sub${waiting ? ' warn' : running ? ' busy' : ''}`}>
+              {count}
+              {state ? ` · ${state}` : null}
+            </span>
+          </span>
           {machine ? (
             <span className="ws-mach" title={`Runs on ${machine.name} (${machine.sshHost})`}>
               {machine.name}
@@ -133,15 +177,6 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             <span className="ws-wait" title="A chat needs you" />
           ) : running ? (
             <span className="pn-spin" title="A chat is working" />
-          ) : null}
-          {panes ? (
-            <span
-              className="cnt"
-              aria-label={`${panes} open`}
-              title={`${panes} open ${panes === 1 ? 'chat' : 'chats'}`}
-            >
-              {panes}
-            </span>
           ) : null}
         </button>
         <button
@@ -188,18 +223,37 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   )
 }
 
+/** "Usage" under New chat and Search, with the session limit on the right once known. */
+function UsageNavRow() {
+  const actions = useActions()
+  const on = useApp((s) => s.view === 'usage')
+  const limit = useSessionLimit()
+  return (
+    <button
+      className={`nav-row${on ? ' on' : ''}`}
+      aria-current={on ? 'page' : undefined}
+      onClick={() => actions.setView('usage')}
+    >
+      <IconGauge />
+      <span>Usage</span>
+      {limit ? <span className={`nav-pct sev-${limit.sev}`}>{limit.pct}%</span> : null}
+    </button>
+  )
+}
+
 /** The footer: who new chats run as, ChatGPT-style; the menu switches it and leads to accounts. */
 function AccountSwitcher({ compact }: { compact: boolean }) {
   const actions = useActions()
   const accounts = useApp((s) => s.config.accounts)
   const defaultId = useApp((s) => s.config.settings.defaultAccountId)
-  const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const [menu, setMenu] = useState<{ at: MenuPoint; width: number } | null>(null)
   const current = accounts.find((a) => a.id === defaultId) ?? accounts[0]
-  const plan = useApp((s) => (current ? s.accountInfo[current.id]?.info?.plan : null) ?? null)
+  const plans = useApp((s) => s.accountInfo)
+  const plan = (current ? plans[current.id]?.info?.plan : null) ?? null
   const open = (e: MouseEvent<HTMLButtonElement>): void => {
     const r = e.currentTarget.getBoundingClientRect()
-    // Opens upwards: the menu is pulled back inside the window from below.
-    setMenu({ x: r.left, y: r.top - 8 - (accounts.length + 4) * 32 })
+    // Sits on top of the button, as wide as it (a little wider than the icon rail's).
+    setMenu({ at: { x: r.left, y: r.top - 6 }, width: Math.max(r.width, 240) })
   }
   const label = current ? current.name : 'No account'
   return (
@@ -236,13 +290,20 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
       </button>
       {menu ? (
         <ContextMenu
-          at={menu}
+          at={menu.at}
+          width={menu.width}
+          above
+          className="acct-menu"
           label="Accounts"
           onClose={() => setMenu(null)}
           items={[
-            ...accounts.map((a) => ({
-              label: `${a.name}${a.id === current?.id ? '  ✓' : ''}${a.signedIn ? '' : ' · login needed'}`,
-              icon: <Initial name={a.name} size={16} />,
+            ...accounts.map((a, i) => ({
+              label: a.name,
+              sub: a.signedIn ? (plans[a.id]?.info?.plan ?? 'Signed in') : 'Login needed',
+              subWarn: !a.signedIn,
+              checked: a.id === current?.id,
+              heading: i === 0 ? 'Accounts' : undefined,
+              icon: <Initial name={a.name} size={26} />,
               onSelect: () => actions.updateSettings({ defaultAccountId: a.id })
             })),
             {
@@ -251,8 +312,14 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
               onSelect: () => actions.setAccountsMode('add')
             },
             {
+              label: 'Usage',
+              icon: <IconGauge small />,
+              divider: true,
+              onSelect: () => actions.setView('usage')
+            },
+            {
               label: 'Manage accounts',
-              icon: <IconRename small />,
+              icon: <IconUsers small />,
               onSelect: () => actions.setView('accounts')
             },
             { label: 'Mods', icon: <IconMods small />, onSelect: () => actions.setView('mods') },
@@ -270,7 +337,15 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
 
 export function Sidebar() {
   const actions = useActions()
-  const collapsed = useApp((s) => s.config.settings.sidebarCollapsed)
+  const savedCollapsed = useApp((s) => s.config.settings.sidebarCollapsed)
+  const activeWs = useApp((s) => s.config.activeWorkspace)
+  // A narrow window shows the rail; expanding it opens the full sidebar over the content
+  // (a drawer) without changing the saved choice.
+  const narrow = useNarrow()
+  const [drawer, setDrawer] = useState(false)
+  if (drawer && !narrow) setDrawer(false)
+  const collapsed = narrow ? !drawer : savedCollapsed
+  const toggle = narrow ? (): void => setDrawer(!drawer) : actions.toggleSidebar
   const width = useApp((s) => s.config.settings.sidebarWidth)
   const chatFirst = useApp((s) => s.config.settings.newPaneView === 'chat')
   const sideRef = useRef<HTMLElement>(null)
@@ -279,6 +354,22 @@ export function Sidebar() {
   const config = useApp((s) => s.config)
   const view = useApp((s) => s.view)
   const { workspaces } = config
+
+  // The drawer closes once you go somewhere, or on Escape.
+  const place = `${view}:${activeWs}`
+  const [lastPlace, setLastPlace] = useState(place)
+  if (place !== lastPlace) {
+    setLastPlace(place)
+    setDrawer(false)
+  }
+  useEffect(() => {
+    if (!drawer) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setDrawer(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawer])
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar'
   const newLabel = chatFirst ? 'New chat' : 'New pane'
 
@@ -329,7 +420,7 @@ export function Sidebar() {
     <>
       <aside
         ref={sideRef}
-        className={`side${collapsed ? ' col' : ''}${moving ? ' moving' : ''}`}
+        className={`side${collapsed ? ' col' : ''}${moving ? ' moving' : ''}${narrow && drawer ? ' drawer' : ''}`}
         aria-label="Sidebar"
         style={{ '--side-width': `${width}px` } as CSSProperties}
       >
@@ -338,7 +429,7 @@ export function Sidebar() {
             className="icon-btn"
             aria-label={toggleLabel}
             title={toggleLabel}
-            onClick={actions.toggleSidebar}
+            onClick={toggle}
           >
             <IconSidebar />
           </button>
@@ -373,6 +464,14 @@ export function Sidebar() {
               >
                 <IconSearch />
               </button>
+              <button
+                className={`icon-btn${view === 'usage' ? ' on' : ''}`}
+                aria-label="Usage"
+                title="Usage"
+                onClick={() => actions.setView('usage')}
+              >
+                <IconGauge />
+              </button>
             </div>
             <div className="side-ft">
               <AccountSwitcher compact />
@@ -399,11 +498,14 @@ export function Sidebar() {
                 <span>Search</span>
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
+              <UsageNavRow />
             </nav>
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
               <div className="sec-hd">
-                <span>Projects</span>
+                <span>
+                  Projects <span className="sec-n">{workspaces.length}</span>
+                </span>
                 <button
                   onClick={() => actions.openModal({ kind: 'workspaces' })}
                   title="New or manage projects"
@@ -422,7 +524,10 @@ export function Sidebar() {
           </>
         )}
       </aside>
-      {collapsed ? null : (
+      {narrow && drawer ? (
+        <div className="side-scrim" aria-hidden="true" onClick={() => setDrawer(false)} />
+      ) : null}
+      {collapsed || narrow ? null : (
         <EdgeResizer
           target={sideRef}
           cssVar="--side-w"

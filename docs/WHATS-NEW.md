@@ -18,6 +18,14 @@ mods.
 | Group accounts in folders | Accounts page (from the account button → Manage accounts) |
 | Change the model | The model button in the message box (Opus, Sonnet, Haiku…, and effort) |
 | Defaults for new chats | **Settings → Chat** |
+| Change the look | **Settings → Appearance**: Wraith, Midnight, Clay, Daylight, Paper |
+| See your usage | **Usage** in the sidebar, the account menu, the top-bar gauge, or `/usage`: session and weekly limits per account, cost per day, project and chat |
+| Plan, accept edits, auto… | The Mode button under the message box, or Shift+Tab |
+| Effort | The Effort button under the message box (low to max) |
+| Run a skill or command | Type `/` in the message box: pick with ↑/↓ and Enter |
+| Make everything bigger or smaller | `Ctrl+=` / `Ctrl+-` (`Ctrl+0` resets), or **Settings → Appearance → Interface size** |
+| Use a small window | The window now goes down to 640×420: the sidebar folds to a rail (open it as a drawer), pane headers and Settings compact |
+| Make or share a theme | **Import theme…**, or right-click a theme → Export ([format](THEMES.md)) |
 
 - Answers stream in as formatted text, with code blocks you can copy. Commands, file edits
   (as a diff), searches and task lists show as small cards that open to show their output.

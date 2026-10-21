@@ -90,7 +90,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
 
   // The only pane; its title changes to the first message.
   const pane = (win: Page) => win.locator('section.pane').first()
-  const composer = (win: Page) => pane(win).getByRole('textbox', { name: 'Message' })
+  const composer = (win: Page) => pane(win).getByLabel('Message', { exact: true })
 
   try {
     let { app, win } = await launch(home, userData)
@@ -110,26 +110,58 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(answer).not.toContainText('(full copy)')
     await expect(pane(win).locator('.cturn')).toContainText('1s')
     // The account's models, from the CLI's own list; Default reads as the model it means.
-    await expect(pane(win).locator('.mp-btn')).toHaveText(/Opus 5\.5/)
+    await expect(pane(win).getByRole('button', { name: /^Model:/ })).toHaveText(/Opus 5\.5/)
     await expect(win.locator('.acct-sub')).toHaveText('Claude Pro')
 
     // ---- Switch model mid-chat (no restart), then effort (restart, same conversation).
-    await pane(win).locator('.mp-btn').click()
+    await pane(win)
+      .getByRole('button', { name: /^Model:/ })
+      .click()
     await win.getByRole('option', { name: /Sonnet 5\.5/ }).click()
-    await expect(pane(win).locator('.mp-btn')).toHaveText(/Sonnet 5\.5/)
+    await expect(pane(win).getByRole('button', { name: /^Model:/ })).toHaveText(/Sonnet 5\.5/)
     await composer(win).fill('which model')
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('model sonnet, effort auto')
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
-    await pane(win).locator('.mp-btn').click()
-    await win.getByRole('radio', { name: 'High', exact: true }).click()
-    await win.keyboard.press('Escape')
+    await pane(win)
+      .getByRole('button', { name: /^Effort:/ })
+      .click()
+    await win.getByRole('option', { name: /^High/ }).click()
     await expect(composer(win)).toHaveAttribute('placeholder', /Message Claude Code/)
     await composer(win).fill('which effort')
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
       'session resumed-fake-new, model sonnet, effort high'
     )
+
+    // ---- Mode: switched live (no restart), Shift+Tab steps on, the header says so.
+    const modeBtn = pane(win).getByRole('button', { name: /^Mode:/ })
+    await expect(modeBtn).toHaveText('Ask before edits')
+    await modeBtn.click()
+    await win.getByRole('option', { name: /^Plan/ }).click()
+    await expect(modeBtn).toHaveText('Plan')
+    await expect(pane(win).locator('.ph-mode')).toHaveText('Plan')
+    await composer(win).fill('which mode')
+    await composer(win).press('Enter')
+    await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
+      'session resumed-fake-new, model sonnet, effort high, mode plan'
+    )
+    // Sonnet has no auto mode here, so Shift+Tab goes Plan → Ask → Accept edits.
+    await composer(win).press('Shift+Tab')
+    await expect(modeBtn).toHaveText('Ask before edits')
+    await composer(win).press('Shift+Tab')
+    await expect(modeBtn).toHaveText('Accept edits')
+    // Bypass takes a second click; auto is not offered for this model.
+    await modeBtn.click()
+    await expect(win.getByRole('option', { name: /^Auto/ })).toHaveCount(0)
+    await win.getByRole('option', { name: /^Bypass permissions/ }).click()
+    await expect(win.getByRole('option', { name: /^Click again to bypass/ })).toBeVisible()
+    await win.keyboard.press('Escape')
+    await expect(modeBtn).toHaveText('Accept edits')
+    await modeBtn.click()
+    await win.getByRole('option', { name: /^Ask before edits/ }).click()
+    await expect(modeBtn).toHaveText('Ask before edits')
+    await expect(pane(win).locator('.ph-mode')).toHaveCount(0)
 
     // ---- A tool that needs approval: the pane says so, Allow runs it.
     await composer(win).fill('run it')

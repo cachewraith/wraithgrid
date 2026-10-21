@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
 import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
@@ -9,6 +9,7 @@ import {
   bindingFromEvent,
   bindingKeys,
   bindingProblem,
+  chord,
   currentBinding,
   defaultBinding,
   formatBinding,
@@ -21,26 +22,35 @@ import {
   SHORTCUT_IDS,
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
+  UI_ZOOM_STEPS,
+  stepZoom,
   type AccentName,
   type CloseMode,
   type PaneView,
   type SharedMode,
-  type ShortcutId,
-  type ThemePreference
+  type ShortcutId
 } from '@shared/types'
-import { CHAT_EFFORTS, EFFORT_LABEL, type ChatModel } from '@shared/chat'
+import {
+  CHAT_EFFORTS,
+  CHAT_MODE_HINT,
+  CHAT_MODE_LABEL,
+  EFFORT_LABEL,
+  type ChatModel
+} from '@shared/chat'
 import { Initial } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
-import { currentTheme } from '../app/store'
+import { currentTheme, drawnTheme } from '../app/store'
+import { pickTheme, themeVars, type AppTheme, type ThemeFile } from '@shared/themes'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { PALETTE_LABEL, terminalFontStack, terminalTheme } from '../lib/term-theme'
 import {
   IconCheck,
+  IconExport,
   IconFolder,
   IconImport,
-  IconMonitor,
-  IconMoon,
+  IconMore,
   IconRestart,
-  IconSun,
+  IconTrash,
   IconWarn
 } from './icons'
 
@@ -53,50 +63,248 @@ const ACCENT_SWATCH: Record<AccentName, string> = {
   rose: '#f43f5e'
 }
 
-const THEME_OPTIONS: { id: ThemePreference; label: string; icon: ReactNode }[] = [
-  { id: 'system', label: 'System', icon: <IconMonitor small /> },
-  { id: 'dark', label: 'Dark', icon: <IconMoon small /> },
-  { id: 'light', label: 'Light', icon: <IconSun small /> }
-]
+/** A small window drawn in a theme's own colors: sidebar, a chat bubble, the accent. */
+function ThemePreview({ t }: { t: AppTheme }) {
+  return (
+    <span className="thm-prev" style={themeVars(t) as CSSProperties} aria-hidden="true">
+      <span className="thm-side">
+        <span className="thm-ln on" />
+        <span className="thm-ln" />
+        <span className="thm-ln short" />
+      </span>
+      <span className="thm-main">
+        <span className="thm-bub" />
+        <span className="thm-ln" />
+        <span className="thm-ln short" />
+        <span className="thm-btn" />
+      </span>
+    </span>
+  )
+}
 
 function ThemeRow() {
   const actions = useActions()
+  const { api } = useServices()
+  const themes = useApp((s) => s.themes)
+  const problems = useApp((s) => s.themeProblems)
   const pref = useApp((s) => s.config.settings.theme)
+  const themeDark = useApp((s) => s.config.settings.themeDark)
+  const themeLight = useApp((s) => s.config.settings.themeLight)
+  const mode = useApp(currentTheme)
+  const drawn = useApp(drawnTheme)
   const systemTheme = useApp((s) => s.systemTheme)
+  const [error, setError] = useState<string | null>(null)
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const [cardMenu, setCardMenu] = useState<{ at: MenuPoint; t: AppTheme } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const follow = pref === 'system'
+  const darkId = pickTheme(themes, themeDark, 'dark').id
+  const lightId = pickTheme(themes, themeLight, 'light').id
+  const drawnId = mode === 'dark' ? darkId : lightId
+
+  const run = async (p: Promise<string | null>): Promise<void> => setError(await p)
+  const exportTheme = async (t: ThemeFile): Promise<void> => {
+    const { name, mode, author, colors, terminal } = t
+    const r = await api.themes.export({ name, mode, author, colors, terminal })
+    setError(r && !r.ok ? r.error : null)
+  }
+
+  return (
+    <div className="srow thm-row">
+      <div className="thm-hd">
+        <div>
+          <h3 id="theme-h">Theme</h3>
+          <p className="ex">
+            Five built in, or your own: a theme is a small JSON file of colors you can import and
+            share.
+          </p>
+        </div>
+        <div className="thm-acts">
+          <button className="btn" onClick={() => void run(actions.importTheme())}>
+            <IconImport small />
+            Import theme…
+          </button>
+          <button
+            className="icon-btn"
+            aria-label="More theme actions"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              setMenu({ x: r.right - 240, y: r.bottom + 6 })
+            }}
+          >
+            <IconMore />
+          </button>
+        </div>
+      </div>
+      <div className="thm-grid" role="radiogroup" aria-labelledby="theme-h">
+        {themes.map((t) => {
+          const on = t.id === drawnId
+          const slot = follow && !on && (t.id === darkId || t.id === lightId)
+          return (
+            <button
+              key={t.id}
+              className={`thm${on ? ' on' : ''}`}
+              role="radio"
+              aria-checked={on}
+              aria-label={t.name}
+              title={t.author ? `${t.name} by ${t.author}` : t.name}
+              onClick={() => actions.chooseTheme(t.id)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setConfirmDelete(false)
+                setCardMenu({ at: menuPoint(e), t })
+              }}
+            >
+              <ThemePreview t={t} />
+              <span className="thm-nm">
+                {t.name}
+                {on ? <IconCheck small /> : null}
+              </span>
+              <span className="thm-sub">
+                {t.mode === 'dark' ? 'Dark' : 'Light'}
+                {t.builtIn ? '' : ' · yours'}
+                {slot ? ' · when the OS is ' + t.mode : ''}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="swrow">
+        <button
+          className={`sw${follow ? ' on' : ''}`}
+          role="switch"
+          aria-checked={follow}
+          aria-labelledby="thm-follow"
+          onClick={() => actions.updateSettings({ theme: follow ? mode : 'system' })}
+        />
+        <span id="thm-follow">Follow the OS light or dark setting</span>
+      </div>
+      <span className="theme-note">
+        {follow
+          ? `Your desktop is ${systemTheme} now. Dark uses ${pickTheme(themes, themeDark, 'dark').name}, light uses ${pickTheme(themes, themeLight, 'light').name}: pick a card of each kind to change them.`
+          : `${drawn.name} is on for the whole app.`}
+      </span>
+      {error ? (
+        <span className="hint warn" role="alert">
+          {error}
+        </span>
+      ) : null}
+      {problems.length ? (
+        <div className="thm-probs" role="status">
+          {problems.length === 1 ? 'A theme file' : `${problems.length} theme files`} could not be
+          loaded:
+          {problems.map((p) => (
+            <span key={p.file}>
+              <span className="mono">{p.file}</span> — {p.error}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          width={240}
+          label="Theme actions"
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              label: `Export ${drawn.name}…`,
+              icon: <IconExport small />,
+              onSelect: () => void exportTheme(drawn)
+            },
+            {
+              label: 'Open themes folder',
+              icon: <IconFolder small />,
+              onSelect: () =>
+                void api.themes.openFolder().then((r) => setError(r.ok ? null : r.error))
+            },
+            {
+              label: 'Reload themes',
+              icon: <IconRestart small />,
+              onSelect: () => void actions.loadThemes()
+            }
+          ]}
+        />
+      ) : null}
+      {cardMenu ? (
+        <ContextMenu
+          at={cardMenu.at}
+          label={`Theme ${cardMenu.t.name}`}
+          onClose={() => setCardMenu(null)}
+          items={[
+            {
+              label: 'Use this theme',
+              icon: <IconCheck small />,
+              onSelect: () => actions.chooseTheme(cardMenu.t.id)
+            },
+            {
+              label: cardMenu.t.builtIn ? 'Export as a starting point…' : 'Export…',
+              icon: <IconExport small />,
+              onSelect: () => void exportTheme(cardMenu.t)
+            },
+            ...(cardMenu.t.builtIn
+              ? []
+              : [
+                  {
+                    label: confirmDelete ? 'Click again to delete' : 'Delete theme',
+                    icon: <IconTrash small />,
+                    danger: true,
+                    divider: true,
+                    onSelect: () => {
+                      if (!confirmDelete) {
+                        setConfirmDelete(true)
+                        return false as const
+                      }
+                      void run(actions.deleteTheme(cardMenu.t.id))
+                    }
+                  }
+                ])
+          ]}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ZoomRow() {
+  const actions = useActions()
+  const zoom = useApp((s) => s.config.settings.uiZoom)
+  const set = (delta: -1 | 0 | 1): void => actions.updateSettings({ uiZoom: stepZoom(zoom, delta) })
   return (
     <div className="srow">
       <div>
-        <h3 id="theme-h">Theme</h3>
-        <p className="ex">System follows your desktop's light or dark setting as it changes.</p>
+        <h3 id="zoom-h">Interface size</h3>
+        <p className="ex">
+          Everything at once: sidebar, chats and terminals. Also {chord(['mod', '+'])} /{' '}
+          {chord(['mod', '-'])}, and {chord(['mod', '0'])} to reset.
+        </p>
       </div>
       <div className="ctl">
-        <div
-          className="seg"
-          role="radiogroup"
-          aria-labelledby="theme-h"
-          style={{ width: 'max-content' }}
-        >
-          {THEME_OPTIONS.map((o) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="step" role="group" aria-labelledby="zoom-h">
             <button
-              key={o.id}
-              className={`seg-btn${pref === o.id ? ' on' : ''}`}
-              role="radio"
-              aria-checked={pref === o.id}
-              onClick={() => actions.updateSettings({ theme: o.id })}
-              style={{ padding: '0 14px' }}
+              aria-label="Smaller"
+              disabled={zoom <= UI_ZOOM_STEPS[0]}
+              onClick={() => set(-1)}
             >
-              {o.icon}
-              {o.label}
+              −
             </button>
-          ))}
+            <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button
+              aria-label="Bigger"
+              disabled={zoom >= UI_ZOOM_STEPS[UI_ZOOM_STEPS.length - 1]!}
+              onClick={() => set(1)}
+            >
+              +
+            </button>
+          </div>
+          {zoom !== 1 ? (
+            <button className="btn gh" onClick={() => set(0)}>
+              Reset
+            </button>
+          ) : null}
         </div>
-        <span className="theme-note">
-          {pref === 'system'
-            ? `Your desktop is using ${systemTheme} right now.`
-            : pref === 'dark'
-              ? 'Dark is the default.'
-              : 'Light theme is on for the whole app.'}
-        </span>
       </div>
     </div>
   )
@@ -105,14 +313,36 @@ function ThemeRow() {
 function AccentRow() {
   const actions = useActions()
   const accent = useApp((s) => s.config.settings.accent)
+  const themeAccent = useApp(
+    (s) =>
+      pickTheme(
+        s.themes,
+        currentTheme(s) === 'dark' ? s.config.settings.themeDark : s.config.settings.themeLight,
+        currentTheme(s)
+      ).colors.accent
+  )
   return (
     <div className="srow">
       <div>
         <h3 id="accent-h">Accent color</h3>
-        <p className="ex">Buttons, selection, focus rings and the terminal cursor.</p>
+        <p className="ex">
+          Buttons, selection, focus rings and the terminal cursor. Theme keeps the theme's own.
+        </p>
       </div>
       <div className="ctl">
         <div className="accents" role="radiogroup" aria-labelledby="accent-h">
+          <button
+            className={`accent auto${accent === 'theme' ? ' on' : ''}`}
+            role="radio"
+            aria-checked={accent === 'theme'}
+            aria-label="Theme accent"
+            title="The theme's own accent"
+            style={{ '--sw': themeAccent } as CSSProperties}
+            onClick={() => actions.updateSettings({ accent: 'theme' })}
+          >
+            {accent === 'theme' ? <IconCheck small /> : null}
+          </button>
+          <span className="accents-sep" aria-hidden="true" />
           {ACCENTS.map((a) => (
             <button
               key={a}
@@ -136,20 +366,19 @@ function AccentRow() {
 function PaletteRow() {
   const actions = useActions()
   const palette = useApp((s) => s.config.settings.terminalPalette)
-  const theme = useApp(currentTheme)
-  const accent = useApp((s) => s.config.settings.accent)
+  const drawn = useApp(drawnTheme)
   return (
     <div className="srow">
       <div>
         <h3 id="palette-h">Terminal colors</h3>
         <p className="ex">
-          Match app follows the theme and accent. The others keep their own colors in both themes.
+          Match app uses the theme's own terminal colors. The others keep theirs in every theme.
         </p>
       </div>
       <div className="ctl">
         <div className="palettes" role="radiogroup" aria-labelledby="palette-h">
           {TERMINAL_PALETTES.map((p) => {
-            const t = terminalTheme(p, theme, accent)
+            const t = terminalTheme(p, drawn)
             return (
               <button
                 key={p}
@@ -1079,6 +1308,7 @@ function ChatDefaultsRow() {
   const actions = useActions()
   const model = useApp((s) => s.config.settings.chatModel)
   const effort = useApp((s) => s.config.settings.chatEffort)
+  const mode = useApp((s) => s.config.settings.chatMode)
   // The default account's own list, once one of its chats has started.
   const known = useApp((s) => {
     const id = s.config.settings.defaultAccountId ?? s.config.accounts[0]?.id
@@ -1135,6 +1365,37 @@ function ChatDefaultsRow() {
           </div>
         </div>
       </div>
+      <div className="srow">
+        <div>
+          <h3 id="chat-mode-h">Mode for new chats</h3>
+          <p className="ex">
+            How much a chat may do without asking. Each chat can switch from its mode button or with
+            Shift+Tab.
+          </p>
+        </div>
+        <div className="ctl">
+          <div className="seg wrap" role="radiogroup" aria-labelledby="chat-mode-h">
+            {(['default', 'acceptEdits', 'plan', 'auto', 'dontAsk'] as const).map((m) => {
+              const on = (mode ?? 'default') === m
+              return (
+                <button
+                  key={m}
+                  role="radio"
+                  aria-checked={on}
+                  title={CHAT_MODE_HINT[m]}
+                  className={`seg-btn${on ? ' on' : ''}`}
+                  onClick={() => actions.updateSettings({ chatMode: m === 'default' ? null : m })}
+                >
+                  {CHAT_MODE_LABEL[m]}
+                </button>
+              )
+            })}
+          </div>
+          <span className="hint">
+            Bypass permissions is only offered per chat, never by default.
+          </span>
+        </div>
+      </div>
     </>
   )
 }
@@ -1147,9 +1408,7 @@ export function SettingsView() {
   const configPath = useApp((s) => s.info.configPath)
   const home = useApp((s) => s.info.homeDir)
   const [defDir, setDefDir] = useState(settings.defaultCwd)
-  const term = useApp((s) =>
-    terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
-  )
+  const term = useApp((s) => terminalTheme(s.config.settings.terminalPalette, drawnTheme(s)))
 
   const setDefaultCwd = (v: string): void => {
     setDefDir(v)
@@ -1265,6 +1524,7 @@ export function SettingsView() {
         {tab === 'appearance' ? (
           <>
             <ThemeRow />
+            <ZoomRow />
             <AccentRow />
             <PaletteRow />
             <div className="srow">

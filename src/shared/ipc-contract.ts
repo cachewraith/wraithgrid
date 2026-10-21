@@ -4,15 +4,19 @@ import {
   CHAT_IMAGE_TYPES,
   CHAT_IMAGES_MAX,
   CHAT_EFFORTS,
+  CHAT_MODES,
   CHAT_MODEL_PATTERN,
   CHAT_SAVE_MAX,
   CHAT_TEXT_MAX,
   chatSessionIdSchema,
   type ApprovalDecision,
+  type ChatMode,
   type ChatEventMessage,
   type ChatImage
 } from './chat'
 import { idSchema, sshHostSchema } from './schema'
+import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
+import type { UsageData } from './usage'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
 
 export { IPC } from './ipc-channels'
@@ -52,7 +56,8 @@ export const chatStartArgs = z.object({
   sessionId: chatSessionIdSchema.nullable(),
   continueLast: z.boolean().default(false),
   model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null),
-  effort: z.enum(CHAT_EFFORTS).nullable().default(null)
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null),
+  mode: z.enum(CHAT_MODES).nullable().default(null)
 })
 export type ChatStartArgs = z.infer<typeof chatStartArgs>
 export const chatSendArgs = z.object({
@@ -80,6 +85,7 @@ export const chatSetModelArgs = z.object({
   paneId: idSchema,
   model: z.string().regex(CHAT_MODEL_PATTERN)
 })
+export const chatSetModeArgs = z.object({ paneId: idSchema, mode: z.enum(CHAT_MODES) })
 export const chatStopArgs = z.object({ paneId: idSchema, forget: z.boolean() })
 export const chatSaveArgs = z.object({ paneId: idSchema, data: z.string().max(CHAT_SAVE_MAX) })
 
@@ -137,6 +143,10 @@ export const modsPullArgs = z.object({ name: z.string().min(1).max(120) })
 export const modsMarketplacesArgs = z.object({})
 export const modsMarketplaceAddArgs = z.object({ source: z.string().min(1).max(500) })
 export const modsMarketplaceRemoveArgs = z.object({ name: z.string().min(1).max(120) })
+export const themesNoArgs = z.object({})
+/** A theme file's id (its name in ~/.wraithgrid/themes); main builds the path. */
+export const themesDeleteArgs = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/) })
+export const themesExportArgs = z.object({ theme: themeFileSchema })
 const cliArgs = z
   .array(
     z
@@ -392,6 +402,13 @@ export type ChatStartResult =
   { ok: true; pid: number | null; attached: boolean } | { ok: false; error: string }
 
 export type SimpleResult = { ok: true } | { ok: false; error: string }
+
+export interface ThemeListResult {
+  themes: AppTheme[]
+  /** Files in the themes folder that could not be loaded, and why. */
+  problems: { file: string; error: string }[]
+}
+export type ThemeImportResult = { ok: true; id: string } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
 /** Shape of `window.wraith`, exposed by the preload script. */
@@ -412,6 +429,8 @@ export interface WraithApi {
     interrupt(paneId: string): void
     /** Switches the running chat's model at once (the next turn uses it). */
     setModel(paneId: string, model: string): void
+    /** Switches the running chat's permission mode at once. */
+    setMode(paneId: string, mode: ChatMode): void
     /** Stops the process; `forget` also deletes the saved conversation view. */
     stop(paneId: string, forget: boolean): void
     onEvent(cb: (m: ChatEventMessage) => void): () => void
@@ -450,6 +469,8 @@ export interface WraithApi {
   }
   app: {
     info(): Promise<AppInfo>
+    /** Zooms the whole page (Chromium page zoom, so terminal mouse input stays exact). */
+    setZoom(factor: number): void
   }
   update: {
     /** Asks GitHub Releases whether a newer version than this one is published. */
@@ -495,6 +516,18 @@ export interface WraithApi {
      * this agent pane (its path, or `@path` for gemini/agy); null when there is no image.
      */
     image(paneId: string): Promise<string | null>
+  }
+  /** Chat-turn cost and tokens (90 days) and plan limits, recorded in main. */
+  usage: {
+    get(): Promise<UsageData>
+  }
+  /** Theme files in ~/.wraithgrid/themes. Import and export ask for a file; null = canceled. */
+  themes: {
+    list(): Promise<ThemeListResult>
+    import(): Promise<ThemeImportResult | null>
+    delete(id: string): Promise<SimpleResult>
+    export(theme: ThemeFile): Promise<SimpleResult | null>
+    openFolder(): Promise<SimpleResult>
   }
   mods: {
     /** Asks each claude account's CLI for its installed mods. */

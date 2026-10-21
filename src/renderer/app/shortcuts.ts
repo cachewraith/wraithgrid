@@ -16,8 +16,8 @@ export type ShortcutAction =
   | { type: 'shortcuts' }
   | { type: 'palette' }
   | { type: 'diff' }
-  /** +1 / -1 steps the terminal font size; 0 resets it. */
-  | { type: 'fontSize'; delta: -1 | 0 | 1 }
+  /** +1 / -1 zooms the whole app a step; 0 resets it to 100%. */
+  | { type: 'uiZoom'; delta: -1 | 0 | 1 }
 
 export interface KeyLike {
   key: string
@@ -183,15 +183,15 @@ export function matchShortcut(e: KeyLike, mac = IS_MAC): ShortcutAction | null {
     const dir = ARROWS[e.key]
     return dir ? { type: 'focus', dir } : null
   }
-  // Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0, like a browser. Ctrl+Shift+- stays with the
+  // Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 zoom the app, like a browser. Ctrl+Shift+- stays with the
   // terminal: it is claude's undo (Ctrl+_).
   if (mod && !e.altKey) {
     if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.key === '+')
-      return { type: 'fontSize', delta: 1 }
+      return { type: 'uiZoom', delta: 1 }
     if (!e.shiftKey && (e.code === 'Minus' || e.code === 'NumpadSubtract'))
-      return { type: 'fontSize', delta: -1 }
+      return { type: 'uiZoom', delta: -1 }
     if (!e.shiftKey && (e.code === 'Digit0' || e.code === 'Numpad0'))
-      return { type: 'fontSize', delta: 0 }
+      return { type: 'uiZoom', delta: 0 }
   }
   if (mod && e.shiftKey && !e.altKey) {
     const digit = /^Digit([1-9])$/.exec(e.code)

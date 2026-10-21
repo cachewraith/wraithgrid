@@ -4,6 +4,7 @@
 import type { AgentCli } from '@shared/agent-clis'
 import type { ApprovalDecision, ChatEvent, ChatImage } from '@shared/chat'
 import { createClaudeAdapter } from './claude'
+import type { ChatMode } from '@shared/chat'
 
 export interface Decoded {
   events: ChatEvent[]
@@ -21,6 +22,7 @@ export interface ChatAdapter {
     continueLast: boolean
     model: string | null
     effort: string | null
+    mode?: ChatMode | null
   }): string[]
   /** Lines written right after the process starts. */
   hello(): unknown[]
@@ -29,6 +31,8 @@ export interface ChatAdapter {
   interrupt(): unknown | null
   /** The line that switches the model of the running session, or null when it can't. */
   setModel(model: string): unknown | null
+  /** The line that switches the permission mode live, or null when it can't. */
+  setMode?(mode: ChatMode): unknown | null
   /** The answer to an approval request, or null when it is not pending (any more). */
   answer(reqId: string, decision: ApprovalDecision): unknown | null
   /** One output line, already parsed from JSON. */

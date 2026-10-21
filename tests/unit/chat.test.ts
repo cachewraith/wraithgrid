@@ -80,14 +80,17 @@ describe('claude chat adapter', () => {
     expect(out.events).toEqual([
       {
         t: 'capabilities',
+        // This answer lists no commands.
+        commands: [],
         models: [
           {
             value: 'sonnet',
             label: 'Sonnet 5.5',
             description: 'Most efficient for simpler tasks',
-            efforts: ['low', 'high']
+            efforts: ['low', 'high'],
+            autoMode: false
           },
-          { value: 'x', label: 'X', description: '', efforts: [] }
+          { value: 'x', label: 'X', description: '', efforts: [], autoMode: false }
         ],
         account: { email: 'me@example.com', plan: 'Claude Pro' }
       }
@@ -116,7 +119,8 @@ describe('claude chat adapter', () => {
     expect(events[0]).toEqual({
       t: 'session',
       id: 'dd6d7ff1-33ba-479a-93f6-7d4d4c475db9',
-      model: 'claude-haiku-5-5'
+      model: 'claude-haiku-5-5',
+      terminalOnly: []
     })
     const tool = events.find((e) => e.t === 'tool')
     expect(tool).toMatchObject({

@@ -7,7 +7,7 @@ import '@xterm/xterm/css/xterm.css'
 import { AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import { IS_MAC, matchShortcut } from '../app/shortcuts'
 import { useApp, useServices } from '../app/services'
-import { currentTheme } from '../app/store'
+import { drawnTheme } from '../app/store'
 import { Osc99Reader, osc52Text, osc777Notice, osc9Notice, type TermNotice } from '../lib/term-osc'
 import { terminalFontStack, terminalTheme } from '../lib/term-theme'
 
@@ -31,9 +31,7 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
   const termRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   // Cached by terminalTheme, so this is a stable reference between unrelated renders.
-  const theme = useApp((s) =>
-    terminalTheme(s.config.settings.terminalPalette, currentTheme(s), s.config.settings.accent)
-  )
+  const theme = useApp((s) => terminalTheme(s.config.settings.terminalPalette, drawnTheme(s)))
   const gpu = useApp((s) => s.config.settings.gpuTerminal)
   const canTakeFocus = useApp(
     (s) => s.view === 'grid' && s.modal === null && s.closingPaneId !== paneId

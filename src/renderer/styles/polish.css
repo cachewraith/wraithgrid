@@ -166,6 +166,79 @@
   font-size: 13px;
   gap: 10px;
 }
+.cm.up {
+  transform-origin: bottom left;
+  animation: cm-up 0.16s var(--ease-out);
+}
+.cm-hd {
+  padding: 6px 8px 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fa);
+}
+.cm-sep {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--line);
+}
+.cm-it.two {
+  min-height: 44px;
+  padding: 6px 10px 6px 6px;
+}
+.cm-it.two .cm-ic {
+  width: 26px;
+}
+.cm-tx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+}
+.cm-lb,
+.cm-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cm-lb {
+  font-weight: 500;
+}
+.cm-sub {
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.cm-sub.warn {
+  color: var(--warn);
+}
+.cm-ck {
+  margin-left: auto;
+  flex: none;
+  color: var(--tx);
+}
+.cm-it[aria-checked='true'] {
+  background: var(--sel);
+}
+.acct-menu {
+  max-height: min(520px, calc(100vh - 80px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.acct-menu .cm-it:not(.two) {
+  padding-left: 11px;
+  gap: 15px;
+}
+@keyframes cm-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm.up {
+    animation: none;
+  }
+}
 
 /* ---- Settings: sections on the left, one panel on the right ------------------------- */
 
@@ -251,15 +324,6 @@
 .set-page .srow h3 {
   font-size: 13.5px;
   font-weight: 500;
-}
-@media (max-width: 900px) {
-  .page.set-page {
-    grid-template-columns: 170px minmax(0, 1fr);
-  }
-  .set-page .srow {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
 }
 
 /* ---- Accounts page ------------------------------------------------------------------ */
@@ -633,4 +697,725 @@
    height basis to 0, so rows there keep their own height. */
 .pj-list > .pj-row {
   flex: none;
+}
+
+/* ---- Panels: the sidebar and the main area as rounded cards on the window ------------ */
+
+:root {
+  --frame: color-mix(in srgb, var(--bg2) 78%, #000);
+  --panel-r: 12px;
+  --panel-gap: 8px;
+}
+:root[data-theme='light'] {
+  --frame: color-mix(in srgb, var(--bg2) 93%, #000);
+}
+.app {
+  background: var(--frame);
+}
+.tb,
+.sbar {
+  background: transparent;
+  border-color: transparent;
+}
+.row {
+  padding: 0 var(--panel-gap);
+  gap: 0;
+}
+.row > .side,
+.row > .main {
+  border: 1px solid var(--line);
+  border-radius: var(--panel-r);
+  box-shadow: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.row > .side {
+  overflow: hidden auto;
+}
+.row > .main {
+  margin-left: var(--panel-gap);
+  background: var(--bg);
+}
+/* The resize handle fills the gap between the two cards. */
+.row > .side-resize {
+  width: var(--panel-gap);
+}
+.row > .side-resize + .main {
+  margin-left: 0;
+}
+.row > .side-resize::after {
+  inset: 18px calc(var(--panel-gap) / 2 - 1px);
+  border-radius: 2px;
+}
+:root[data-theme='light'] .row > .side,
+:root[data-theme='light'] .row > .main {
+  box-shadow: 0 4px 18px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Top bar: project link + count, one control group, a More menu ------------------ */
+
+.top {
+  height: 44px;
+  padding: 0 8px 0 14px;
+  border-bottom-color: transparent;
+}
+.main:has(.grid-root .pane) .top {
+  border-bottom-color: var(--line);
+}
+.top-chip {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--sel);
+  color: var(--mu);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.top .seg {
+  padding: 2px;
+  gap: 1px;
+  background: var(--bg2);
+  border-color: var(--line);
+  border-radius: 9px;
+}
+.top .seg-btn {
+  height: 26px;
+  min-width: 30px;
+  padding: 0 7px;
+  border-radius: 7px;
+}
+.top .seg-btn:disabled {
+  opacity: 0.4;
+}
+.seg-sep {
+  width: 1px;
+  margin: 5px 3px;
+  background: var(--line2);
+}
+.top-more.open {
+  background: var(--hover);
+  color: var(--tx);
+}
+.cm-kbd {
+  margin-left: auto;
+  padding-left: 16px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--fa);
+  background: none;
+  border: 0;
+}
+
+/* ---- Appearance: theme cards ------------------------------------------------------ */
+
+.set-page .srow.thm-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.thm-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.thm-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.thm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.thm {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s var(--ease-out);
+}
+.thm:hover {
+  border-color: var(--line2);
+  transform: translateY(-1px);
+}
+.thm.on {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc);
+}
+.thm-nm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.thm-nm .i {
+  color: var(--acct);
+}
+.thm-sub {
+  margin: 0 4px;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+/* The preview draws with the card's own --bg, --tx… (the theme's, set inline). */
+.thm-prev {
+  display: flex;
+  height: 78px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--frame);
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: 5px;
+  gap: 4px;
+}
+.thm-side {
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 5px;
+  border-radius: 5px;
+  background: var(--bg2);
+}
+.thm-main {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 7px;
+  border-radius: 5px;
+  background: var(--bg);
+}
+.thm-ln {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fa);
+  opacity: 0.55;
+}
+.thm-ln.short {
+  width: 60%;
+}
+.thm-ln.on {
+  background: var(--tx);
+  opacity: 0.9;
+}
+.thm-bub {
+  align-self: flex-end;
+  width: 45%;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--raise);
+}
+.thm-btn {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--acc);
+}
+.thm-probs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--banner-bg);
+  box-shadow: inset 0 0 0 1px var(--banner-line);
+  font-size: 12px;
+  color: var(--mu);
+}
+.accents {
+  align-items: center;
+}
+.accents-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line2);
+}
+.accent.auto {
+  background: conic-gradient(
+    from 200deg,
+    var(--sw),
+    color-mix(in srgb, var(--sw) 40%, var(--bg)),
+    var(--sw)
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .thm {
+    transition: none;
+  }
+}
+
+/* ---- Zoom badge ------------------------------------------------------------------- */
+
+.zoom-badge {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  z-index: 60;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow-pop);
+  color: var(--tx);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: zoom-badge 1.2s var(--ease-out) both;
+}
+@keyframes zoom-badge {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.92);
+  }
+  12%,
+  75% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zoom-badge {
+    animation: none;
+  }
+}
+
+/* ---- Responsive: sizes come from the space a part has (container queries), so they follow
+   the window, the zoom and the sidebar alike ------------------------------------------ */
+
+.main {
+  container: main / inline-size;
+}
+.pane {
+  container: pane / inline-size;
+}
+
+/* A narrow window: the sidebar is a rail; expanding it opens a drawer over the content. */
+.row {
+  position: relative;
+}
+.row > .side.drawer {
+  position: absolute;
+  top: 0;
+  bottom: var(--panel-gap);
+  left: var(--panel-gap);
+  z-index: 31;
+  width: min(var(--side-width, 236px), calc(100vw - 72px));
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+}
+/* The content keeps the rail's place while the drawer is over it. */
+.row:has(> .side.drawer) {
+  padding-left: calc(var(--panel-gap) + 52px);
+}
+.side-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--scrim) 70%, transparent);
+  animation: chat-fade 0.2s ease-out;
+}
+
+/* Pane headers: the title and the close button always stay; the rest gives way. */
+.ph-title {
+  flex: 0 1 auto;
+  min-width: 36px;
+}
+.ph .chip {
+  min-width: 0;
+  overflow: hidden;
+}
+.chip-nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@container pane (max-width: 560px) {
+  .ph .cwd,
+  .ph .gitc-b {
+    display: none;
+  }
+  .ph-title {
+    max-width: none;
+    margin-right: auto;
+  }
+}
+@container pane (max-width: 440px) {
+  .ph .chip-nm,
+  .ph .st-tx {
+    display: none;
+  }
+}
+@container pane (max-width: 330px) {
+  .ph .chip,
+  .ph .vsw,
+  .ph .gitc,
+  .ph .ph-new {
+    display: none;
+  }
+}
+
+/* Top bar */
+@container main (max-width: 640px) {
+  .top-chip {
+    display: none;
+  }
+}
+@container main (max-width: 520px) {
+  .top .seg > .seg-btn:not(:last-child),
+  .top .seg-sep {
+    display: none;
+  }
+}
+
+/* Settings: tabs move on top; rows go to one column when the panel is narrow. */
+@container main (max-width: 980px) {
+  .set-page .srow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+@container main (max-width: 760px) {
+  .page.set-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .set-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: auto hidden;
+    scrollbar-width: none;
+  }
+  .set-nav h1,
+  .set-path {
+    display: none;
+  }
+  .set-tab {
+    flex: none;
+    height: 30px;
+  }
+  .set-page .set {
+    padding: 18px 18px 40px;
+  }
+}
+
+/* Project screen */
+@container main (max-width: 560px) {
+  .pj-hd {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .pj-row {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+  .pj-row .pj-m {
+    display: none;
+  }
+}
+
+/* Status bar: counts stay, hints go. */
+@media (max-width: 720px) {
+  .sbar .sbar-hint {
+    display: none;
+  }
+}
+
+/* ---- Usage: limits as rows, spend as a sentence, a chart and tables ----------------- */
+
+.sev-ok {
+  --sev: var(--mu);
+}
+.sev-warn {
+  --sev: var(--warn);
+}
+.sev-err {
+  --sev: var(--err);
+}
+
+/* Top-bar button: "42%" in plain text; color only near the limit. */
+.u-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.u-pill:hover,
+.u-pill.on {
+  background: var(--hover);
+  color: var(--tx);
+}
+.u-pill.sev-warn,
+.u-pill.sev-err {
+  color: var(--sev);
+}
+
+.u-page .page-in {
+  max-width: 760px;
+}
+.u-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.u-head h1 {
+  margin: 0;
+}
+.u-sec {
+  padding: 22px 0 6px;
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+}
+.u-sec h2 {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.u-acct + .u-acct {
+  margin-top: 20px;
+}
+.u-acct-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+}
+.u-acct-hd span {
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.ul-row {
+  display: grid;
+  /* A fixed reset column, so every bar in the list is the same length. */
+  grid-template-columns: 120px minmax(80px, 1fr) 44px 220px;
+  align-items: center;
+  gap: 14px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+.ul-lbl {
+  color: var(--mu);
+}
+.ul-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.ul-fill {
+  display: block;
+  height: 100%;
+  width: var(--w);
+  border-radius: 2px;
+  background: var(--sev);
+  animation: u-grow 0.25s var(--ease-out) both;
+}
+.ul-pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.sev-warn .ul-pct,
+.sev-err .ul-pct,
+.ul-warn {
+  color: var(--sev);
+}
+.ul-reset {
+  font-size: 12.5px;
+  color: var(--fa);
+  white-space: nowrap;
+}
+.u-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.u-sum {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--mu);
+}
+.u-sum b {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* Daily cost columns */
+.uc {
+  margin: 0 0 22px;
+}
+.uc-cap {
+  height: 18px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--fa);
+}
+.uc-cap b {
+  color: var(--tx);
+  font-weight: 600;
+}
+.uc-cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 88px;
+  border-bottom: 1px solid var(--line);
+}
+.uc-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.uc-bar {
+  width: min(100%, 24px);
+  height: var(--h);
+  border-radius: 3px 3px 0 0;
+  background: var(--line2);
+  transform-origin: bottom;
+  animation: u-rise 0.25s var(--ease-out) both;
+  transition: background 0.12s;
+}
+.uc-col.in .uc-bar {
+  background: var(--fa);
+}
+.uc-col.on .uc-bar {
+  background: var(--tx);
+}
+.uc-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fa);
+}
+.uc-axis span {
+  flex: 1;
+  text-align: center;
+}
+.uc-axis span:first-child:nth-last-child(2) {
+  text-align: left;
+}
+.uc-axis span:last-child:nth-child(2) {
+  text-align: right;
+}
+
+/* Tables */
+.u-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+.u-tbl th {
+  padding: 0 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fa);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.u-tbl td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.u-tbl th:not(:first-child),
+.u-tbl td:not(:first-child) {
+  width: 15%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.u-tbl td.u-dim {
+  color: var(--fa);
+  width: 22%;
+}
+.u-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fa);
+}
+@container main (max-width: 560px) {
+  .ul-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 4px 12px;
+  }
+  .ul-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .ul-reset {
+    grid-column: 1 / -1;
+  }
+  .u-tbl th:nth-child(3),
+  .u-tbl td:nth-child(3) {
+    display: none;
+  }
+}
+
+@keyframes u-grow {
+  from {
+    width: 0;
+  }
+}
+@keyframes u-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ul-fill,
+  .uc-bar {
+    animation: none;
+  }
 }

@@ -165,7 +165,8 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
     await expect.poll(() => paneText(win, 'gamma')).toContain('got:overssh')
 
     // Settings → Machines → Test reaches it.
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Advanced' }).click()
     await win.getByRole('button', { name: 'Test' }).click()
     await expect(win.getByText(/Connected: Wraithgrid .*, 1 agent running/)).toBeVisible({

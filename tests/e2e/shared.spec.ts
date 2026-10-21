@@ -49,7 +49,8 @@ test('overall mode links every account to ~/.claude', async () => {
   })
   try {
     const win = await app.firstWindow()
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     const group = win.getByRole('radiogroup', { name: 'Shared CLAUDE.md and skills' })
 
@@ -83,7 +84,8 @@ test('overall mode links every account to ~/.claude', async () => {
       .toBe(path.join(personal, 'CLAUDE.md'))
 
     // Each account its own: links go, and work gets its own CLAUDE.md back.
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     await group.getByRole('radio', { name: 'Each account its own' }).click()
     await expect.poll(() => fs.lstatSync(path.join(work, 'CLAUDE.md')).isSymbolicLink()).toBe(false)

@@ -21,6 +21,7 @@ import {
   chatSaveArgs,
   chatSendArgs,
   chatSetModelArgs,
+  chatSetModeArgs,
   chatStartArgs,
   chatStopArgs,
   type ChatStartResult,
@@ -48,6 +49,11 @@ import {
   modsMarketplaceRemoveArgs,
   modsListArgs,
   modsSetEnabledArgs,
+  themesDeleteArgs,
+  themesExportArgs,
+  themesNoArgs,
+  type ThemeImportResult,
+  type ThemeListResult,
   notifyPaneArgs,
   pickPathArgs,
   shellListArgs,
@@ -128,7 +134,11 @@ import {
   switchBranch,
   type GitRunner
 } from './git'
-import { accountsRoot, isStrictlyInside, resolveUserPath, worktreesRoot } from './paths'
+import { accountsRoot, isStrictlyInside, resolveUserPath, themesRoot, worktreesRoot } from './paths'
+import { deleteTheme, importTheme, listThemes } from './themes'
+import type { UsageStore } from './usage-store'
+import { EMPTY_USAGE, type UsageData } from '@shared/usage'
+import { THEMES_FILE_MAX, themeSlug } from '@shared/themes'
 import { listShells, type DesktopInfo } from './platform'
 import {
   ensureSource,
@@ -171,6 +181,8 @@ export interface IpcDeps {
   chats: ChatSessions
   /** Where each chat pane's conversation view is saved (`<paneId>.json`). */
   chatDir: string
+  /** Chat-turn usage and plan limits (userData/usage.json). */
+  usage?: Pick<UsageStore, 'get'>
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -346,7 +358,8 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
               sessionId: a.sessionId,
               continueLast: a.continueLast,
               model: a.model,
-              effort: a.effort
+              effort: a.effort,
+              mode: a.mode
             })
           ],
           resume: false,
@@ -375,6 +388,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   listen(IPC.chatApprove, chatApproveArgs, (a) => chats.approve(a.paneId, a.reqId, a.decision))
   listen(IPC.chatInterrupt, chatPaneArgs, (a) => chats.interrupt(a.paneId))
   listen(IPC.chatSetModel, chatSetModelArgs, (a) => chats.setModel(a.paneId, a.model))
+  listen(IPC.chatSetMode, chatSetModeArgs, (a) => chats.setMode(a.paneId, a.mode))
   const chatFile = (paneId: string): string => path.join(deps.chatDir, `${paneId}.json`)
   listen(IPC.chatStop, chatStopArgs, (a) => {
     void chats.stop(a.paneId)
@@ -424,6 +438,74 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   }
   handle(IPC.dialogPickFolder, pickPathArgs, (a) => pick('openDirectory', a.defaultPath), null)
   handle(IPC.dialogPickFile, pickPathArgs, (a) => pick('openFile', a.defaultPath), null)
+
+  // ---- Usage -------------------------------------------------------------------------
+
+  handle(IPC.usageGet, themesNoArgs, (): UsageData => deps.usage?.get() ?? EMPTY_USAGE, EMPTY_USAGE)
+
+  // ---- Themes (~/.wraithgrid/themes) ------------------------------------------------
+
+  const themesDir = themesRoot(homeDir)
+  handle(IPC.themesList, themesNoArgs, (): Promise<ThemeListResult> => listThemes(themesDir), {
+    themes: [],
+    problems: []
+  })
+  handle(
+    IPC.themesImport,
+    themesNoArgs,
+    async (): Promise<ThemeImportResult | null> => {
+      const win = deps.getWindow()
+      if (!win) return null
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Import theme',
+        properties: ['openFile'],
+        filters: [{ name: 'Wraithgrid theme', extensions: ['json'] }],
+        defaultPath: homeDir
+      })
+      const file = res.canceled ? null : res.filePaths[0]
+      if (!file) return null
+      const r = await importTheme(file, themesDir)
+      if (r.ok) log(`imported theme ${r.id}`)
+      return r
+    },
+    fail('Could not import the theme')
+  )
+  handle(
+    IPC.themesDelete,
+    themesDeleteArgs,
+    async (a): Promise<SimpleResult> =>
+      (await deleteTheme(a.id, themesDir)) ? { ok: true } : fail('Not a theme of yours.'),
+    fail('Could not delete the theme')
+  )
+  handle(
+    IPC.themesExport,
+    themesExportArgs,
+    async (a): Promise<SimpleResult | null> => {
+      const win = deps.getWindow()
+      if (!win) return null
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Export theme',
+        defaultPath: path.join(homeDir, `${themeSlug(a.theme.name)}.json`),
+        filters: [{ name: 'Wraithgrid theme', extensions: ['json'] }]
+      })
+      if (res.canceled || !res.filePath) return null
+      const text = `${JSON.stringify(a.theme, null, 2)}\n`
+      if (text.length > THEMES_FILE_MAX) return fail('Theme is too large.')
+      await writeFileAtomic(res.filePath, text)
+      return { ok: true }
+    },
+    fail('Could not export the theme')
+  )
+  handle(
+    IPC.themesOpenFolder,
+    themesNoArgs,
+    async (): Promise<SimpleResult> => {
+      await mkdir(themesDir, { recursive: true })
+      const err = await shell.openPath(themesDir)
+      return err ? fail(err) : { ok: true }
+    },
+    fail('Could not open the themes folder')
+  )
 
   // ---- Window ----------------------------------------------------------------------
 

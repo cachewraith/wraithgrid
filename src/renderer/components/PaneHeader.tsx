@@ -32,6 +32,8 @@ interface Props {
   onBranches: (e: MouseEvent<HTMLElement>) => void
   /** The Chat/Terminal switch; null when the pane can only be a terminal. */
   view: PaneView | null
+  /** The chat's permission mode when it is not the default ("Plan", "Auto"…). */
+  mode?: { id: string; label: string } | null
   onView: (view: PaneView) => void
   onNewChat: () => void
 }
@@ -56,9 +58,9 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
         {p.title}
       </button>
       {p.accountName ? (
-        <span className="chip">
+        <span className="chip" title={p.accountName}>
           <Initial name={p.accountName} size={16} />
-          {p.accountName}
+          <span className="chip-nm">{p.accountName}</span>
         </span>
       ) : null}
       <span className="cwd" title={p.cwdLabel}>
@@ -99,7 +101,7 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       ) : null}
       {p.view === 'chat' ? (
         <button
-          className="icon-btn sm"
+          className="icon-btn sm ph-new"
           aria-label="New conversation"
           title="New conversation"
           onClick={p.onNewChat}
@@ -107,9 +109,14 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
           <IconCompose small />
         </button>
       ) : null}
-      <span className={`st st-${p.status}`}>
+      {p.mode ? (
+        <span className={`ph-mode mode-${p.mode.id}`} title={`Mode: ${p.mode.label}`}>
+          {p.mode.label}
+        </span>
+      ) : null}
+      <span className={`st st-${p.status}`} title={PANE_STATUS_LABEL[p.status]}>
         <span className="sd" />
-        {PANE_STATUS_LABEL[p.status]}
+        <span className="st-tx">{PANE_STATUS_LABEL[p.status]}</span>
       </span>
       <button className="icon-btn sm" aria-label={zoomLabel} title={zoomLabel} onClick={p.onZoom}>
         {p.zoomed ? <IconUnzoom small /> : <IconZoom small />}

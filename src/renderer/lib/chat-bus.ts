@@ -1,4 +1,4 @@
-import type { ApprovalDecision, ChatEvent, ChatImage } from '@shared/chat'
+import type { ApprovalDecision, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
 import type { WraithApi } from '@shared/ipc-contract'
 import {
   EMPTY_THREAD,
@@ -29,6 +29,10 @@ export class ChatBus {
   private readonly exitListeners = new Set<
     (paneId: string, e: Extract<ChatEvent, { t: 'exit' }>) => void
   >()
+  private readonly usageListeners = new Set<
+    (paneId: string, e: Extract<ChatEvent, { t: 'limits' | 'turnEnd' }>) => void
+  >()
+  private readonly modeListeners = new Set<(paneId: string, mode: ChatMode) => void>()
   private unsubscribe: (() => void) | null = null
 
   constructor(
@@ -50,6 +54,8 @@ export class ChatBus {
     if (e.t === 'session') this.sessionListeners.forEach((cb) => cb(paneId, e.id))
     if (e.t === 'exit') this.exitListeners.forEach((cb) => cb(paneId, e))
     if (e.t === 'capabilities') this.capabilityListeners.forEach((cb) => cb(paneId, e))
+    if (e.t === 'mode') this.modeListeners.forEach((cb) => cb(paneId, e.mode))
+    if (e.t === 'limits' || e.t === 'turnEnd') this.usageListeners.forEach((cb) => cb(paneId, e))
     // Streaming text is saved once the turn settles, not on every delta.
     if (e.t !== 'text' && e.t !== 'thinking') this.scheduleSave(paneId)
   }
@@ -79,6 +85,19 @@ export class ChatBus {
   ): () => void {
     this.capabilityListeners.add(cb)
     return () => this.capabilityListeners.delete(cb)
+  }
+
+  onMode(cb: (paneId: string, mode: ChatMode) => void): () => void {
+    this.modeListeners.add(cb)
+    return () => this.modeListeners.delete(cb)
+  }
+
+  /** Plan limits and finished turns, for the usage panel. */
+  onUsage(
+    cb: (paneId: string, e: Extract<ChatEvent, { t: 'limits' | 'turnEnd' }>) => void
+  ): () => void {
+    this.usageListeners.add(cb)
+    return () => this.usageListeners.delete(cb)
   }
 
   onExit(cb: (paneId: string, e: Extract<ChatEvent, { t: 'exit' }>) => void): () => void {

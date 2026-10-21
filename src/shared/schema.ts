@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CHAT_EFFORTS, CHAT_MODEL_PATTERN, chatSessionIdSchema } from './chat'
+import { CHAT_EFFORTS, CHAT_MODES, CHAT_MODEL_PATTERN, chatSessionIdSchema } from './chat'
 import {
   ACCENTS,
   ACCOUNT_COLORS,
@@ -86,7 +86,8 @@ export const paneSchema = z.object({
   view: z.enum(PANE_VIEWS).default('terminal').catch('terminal'),
   chatSessionId: chatSessionIdSchema.nullable().default(null).catch(null),
   model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
-  effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null)
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null)
 })
 
 export const workspaceSchema = z.object({
@@ -120,8 +121,11 @@ export const machineSchema = z.object({
 export const settingsSchema = z.object({
   fontFamily: z.enum(TERMINAL_FONTS).default('JetBrains Mono'),
   fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(FONT_SIZE_DEFAULT),
+  uiZoom: z.number().min(0.67).max(2).default(1).catch(1),
   theme: z.enum(['system', 'dark', 'light']).default('dark'),
-  accent: z.enum(ACCENTS).default('violet'),
+  themeDark: idSchema.default('wraith').catch('wraith'),
+  themeLight: idSchema.default('daylight').catch('daylight'),
+  accent: z.enum(['theme', ...ACCENTS]).default('theme'),
   terminalPalette: z.enum(TERMINAL_PALETTES).default('match'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
@@ -163,6 +167,7 @@ export const settingsSchema = z.object({
   newPaneView: z.enum(PANE_VIEWS).default('chat').catch('chat'),
   chatModel: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
   chatEffort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
   cliPaths: z
     .partialRecord(
       z.enum(AGENT_CLIS),

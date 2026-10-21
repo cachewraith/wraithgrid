@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore
@@ -12,9 +13,11 @@ import { baseName, contractHome, expandHome } from '@shared/paths'
 import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
 import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
+import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
 import { IconArrowDown, IconRestart, IconTerminal } from '../icons'
 import { Composer } from './Composer'
-import { ModelPicker } from './ModelPicker'
+import { cycleModes } from '@shared/chat'
+import { EffortPicker, ModePicker, ModelPicker } from './ModelPicker'
 import { CopyButton, Markdown } from './Markdown'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
@@ -70,7 +73,7 @@ const Item = memo(function Item({
                 {item.images} image{item.images === 1 ? '' : 's'}
               </span>
             ) : null}
-            {item.text}
+            <UserText text={item.text} />
           </div>
         </div>
       )
@@ -165,6 +168,14 @@ export function ChatView({ paneId, visible, focused }: Props) {
   const still = Math.max(opened, thread.restored)
 
   const elapsed = useElapsed(thread.busy ? thread.turnStartedAt : null)
+  // The `/` menu: the CLI's commands for this chat.
+  const [modelSignal, setModelSignal] = useState(0)
+  const [effortSignal, setEffortSignal] = useState(0)
+  const [modeSignal, setModeSignal] = useState(0)
+  const slashItems = useMemo(
+    () => buildSlashItems(thread.commands, thread.terminalOnly),
+    [thread.commands, thread.terminalOnly]
+  )
   if (!pane) return null
 
   const cwdAbs = expandHome(pane.cwd, home)
@@ -175,6 +186,27 @@ export function ChatView({ paneId, visible, focused }: Props) {
   const streamingId = thread.busy && last?.kind === 'assistant' ? last.id : null
   const ready = started && !exit
   const notSignedIn = !!account && !account.signedIn
+
+  // What the `/` menu's own commands do.
+  const chosenModel =
+    thread.models.find((m) => m.value === (pane.model ?? 'default')) ?? thread.models[0]
+  const autoMode = chosenModel?.autoMode === true
+  // What the CLI says is in force; before it said, what this chat asked for.
+  const mode = thread.mode ?? pane.chatMode ?? 'default'
+  const runCommand = (item: SlashItem): void => {
+    if (item.group === 'terminal') {
+      // The CLI's own screen starts (or comes forward); the command waits there for Enter.
+      actions.setPaneView(paneId, 'terminal')
+      setTimeout(() => actions.typeInPane(paneId, `/${item.name}`), 1500)
+      return
+    }
+    if (item.name === 'new') actions.chatNew(paneId)
+    else if (item.name === 'model') setModelSignal((n) => n + 1)
+    else if (item.name === 'effort') setEffortSignal((n) => n + 1)
+    else if (item.name === 'mode') setModeSignal((n) => n + 1)
+    else if (item.name === 'usage') actions.setView('usage')
+    else if (item.name === 'terminal') actions.setPaneView(paneId, 'terminal')
+  }
 
   const send = (text: string, images: Parameters<typeof actions.chatSend>[2]): void => {
     stick.current = true
@@ -282,23 +314,54 @@ export function ChatView({ paneId, visible, focused }: Props) {
           autoFocus={focused && visible && canTakeFocus}
           meta={[baseName(cwdLabel)]}
           model={
-            // Any CLI whose adapter reports models gets the picker.
+            // Any CLI whose adapter reports models gets the controls.
             thread.models.length || pane.model ? (
-              <ModelPicker
-                models={thread.models}
-                model={pane.model}
-                effort={pane.effort}
-                running={thread.model}
-                busy={thread.busy}
-                onModel={(m) => actions.chatSetModel(paneId, m)}
-                onEffort={(e) => actions.chatSetEffort(paneId, e)}
-              />
+              <>
+                <ModelPicker
+                  models={thread.models}
+                  model={pane.model}
+                  running={thread.model}
+                  openSignal={modelSignal}
+                  onModel={(m) => actions.chatSetModel(paneId, m)}
+                />
+                <EffortPicker
+                  efforts={chosenModel?.efforts ?? []}
+                  effort={pane.effort}
+                  busy={thread.busy}
+                  openSignal={effortSignal}
+                  onEffort={(e) => actions.chatSetEffort(paneId, e)}
+                />
+                <ModePicker
+                  mode={mode}
+                  autoMode={autoMode}
+                  openSignal={modeSignal}
+                  onMode={(m) => actions.chatSetMode(paneId, m)}
+                />
+              </>
             ) : null
           }
+          onCycleMode={() => {
+            const list = cycleModes(autoMode)
+            actions.chatSetMode(paneId, list[(list.indexOf(mode) + 1) % list.length]!)
+          }}
+          commands={slashItems}
+          onCommand={runCommand}
           onSend={send}
           onStop={() => actions.chatInterrupt(paneId)}
         />
       </div>
     </div>
+  )
+}
+
+/** A message that starts with `/command` shows the command as a chip. */
+function UserText({ text }: { text: string }) {
+  const cmd = leadingCommand(text)
+  if (!cmd) return <>{text}</>
+  return (
+    <>
+      <span className="cmd-chip">/{cmd.name}</span>
+      {cmd.rest ? ` ${cmd.rest}` : null}
+    </>
   )
 }

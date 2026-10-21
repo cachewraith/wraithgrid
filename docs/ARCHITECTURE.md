@@ -54,7 +54,7 @@
 Full list in `src/shared/ipc-channels.ts`; schemas in `src/shared/ipc-contract.ts`. Groups: pty,
 config, dialog, window, claude detect, account dir create/delete, openExternal (http/https only),
 shared apply, app info, update check/install (+ `update:progress`, `update:show` events),
-git status/diff/worktreeAdd, chat start/send/approve/interrupt/setModel/stop/load/save (+ `chat:event`), `shell:list`, `notify:pane` (+ `pane:reveal` event on notification click).
+git status/diff/worktreeAdd, chat start/send/approve/interrupt/setModel/stop/load/save (+ `chat:event`), `shell:list`, `notify:pane` (+ `pane:reveal` event on notification click), themes list/import/delete/export/openFolder (import and export open the file dialog in main), `usage:get`.
 
 ## External services
 - GitHub Releases API for `cachewraith/wraithgrid` (optional update check; fixed URL).
@@ -65,6 +65,8 @@ git status/diff/worktreeAdd, chat start/send/approve/interrupt/setModel/stop/loa
 - `config.json` in userData: `~/.config/wraithgrid/` (Linux), `~/Library/Application Support/wraithgrid/` (macOS), `%APPDATA%\wraithgrid\` (Windows).
 - Account config dirs default under `~/.wraithgrid/accounts/`. Wraithgrid does not read inside them.
 - Chat views: `userData/chats/<paneId>.json` (last 400 items); kept while the chat is open or in its project's History (`workspace.history` in config.json, last 100), deleted with the History entry.
+- Usage: `userData/usage.json`: chat-turn cost/tokens per day × account × project × chat (90 days) and each account's last plan limits; written by `src/main/usage-store.ts` as chat events pass through main. Terminal panes are not measured.
+- Theme files: `~/.wraithgrid/themes/<id>.json`; main lists, validates (`src/shared/themes.ts`: hex colors only) and writes imports back in normal form. The renderer sets the drawn theme as CSS variables on `<html>`.
 - Worktrees made from New pane: `~/.wraithgrid/worktrees/<repo>/<branch with / → ->`.
 
 ## Env vars (names only)

@@ -45,7 +45,8 @@ test('a custom shell runs with its args; panes never inherit the launching termi
     const win = await app.firstWindow()
 
     // Settings: the picker lists real shells; choose a custom one with arguments.
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     const picker = win.getByRole('radiogroup', { name: 'Shell for plain panes' })
     await expect(picker.getByRole('radio', { name: /Automatic/ })).toHaveAttribute(
@@ -66,7 +67,8 @@ test('a custom shell runs with its args; panes never inherit the launching termi
     await expect(rows).toContainText('LEAK= LANG-SET=yes')
 
     // A shell that is gone is reported, not swapped for another.
-    await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     await win.getByLabel('Shell path').fill('/nowhere/elvish')
     await win.keyboard.press('Control+Shift+N')

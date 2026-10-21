@@ -27,8 +27,8 @@ export function StatusBar() {
           Update available: {update}
         </button>
       ) : null}
-      <span>{SHORTCUT_HINT.focus} focus</span>
-      <button onClick={() => actions.openModal({ kind: 'shortcuts' })}>
+      <span className="sbar-hint">{SHORTCUT_HINT.focus} focus</span>
+      <button className="sbar-hint" onClick={() => actions.openModal({ kind: 'shortcuts' })}>
         <kbd>{SHORTCUT_HINT.shortcuts}</kbd>All shortcuts
       </button>
     </footer>

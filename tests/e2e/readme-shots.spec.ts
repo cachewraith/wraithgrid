@@ -134,7 +134,9 @@ test('README screenshots', async () => {
     await win.waitForTimeout(300)
     await shot('accounts.png')
 
-    await win.getByRole('button', { name: 'Settings', exact: true }).click()
+    await win.getByRole('button', { name: 'More' }).click()
+
+    await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('radio', { name: 'teal' }).click()
     await win
       .getByText('Appearance', { exact: true })

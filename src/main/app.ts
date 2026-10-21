@@ -29,6 +29,7 @@ import { machineOfPane, registerIpc, type IpcHandle } from './ipc'
 import { PaneRouter } from './pane-router'
 import { openSshLink, sshArgs, type SshLink } from './ssh'
 import { configFilePath, userDataDir } from './paths'
+import { UsageStore } from './usage-store'
 import {
   detectDesktop,
   extraBinDirs,
@@ -86,10 +87,26 @@ function send(
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
 }
 
+// What chat turns used and each account's plan limits, as the chat events pass by.
+const usage = new UsageStore({
+  file: path.join(app.getPath('userData'), 'usage.json'),
+  owner: (paneId) => {
+    for (const w of store.get().workspaces) {
+      const p = w.panes.find((x) => x.id === paneId)
+      if (p) return { accountId: p.accountId, workspaceId: w.id, title: p.title }
+    }
+    return null
+  }
+})
+void usage.load()
+
 // Chat panes' headless CLIs (ADR 0002) run here, not in the host: they stop on quit.
 const chats = new ChatSessions({
   spawn: spawnChatChild,
-  emit: (paneId, event) => send(IPC.chatEvent, { paneId, event }),
+  emit: (paneId, event) => {
+    usage.onChatEvent(paneId, event)
+    send(IPC.chatEvent, { paneId, event })
+  },
   forceKill: forceKillTree
 })
 
@@ -298,7 +315,8 @@ function cleanup(intent: QuitIntent): Promise<void> {
     intent === 'keep' ? ptys.detach() : ptys.stopAll(),
     chats.stopAll(),
     router.detachRemotes(),
-    store.flush()
+    store.flush(),
+    usage.flush()
   ]).then(() => {
     cleanedUp = true
   })
@@ -620,6 +638,7 @@ void app.whenReady().then(() => {
     notifyPane: showPaneNotice,
     chats,
     chatDir: path.join(app.getPath('userData'), 'chats'),
+    usage,
     onConfigChanged: (prev, next) => {
       if (prev.settings.cliAccess !== next.settings.cliAccess) {
         ptys.setCliAccess(next.settings.cliAccess)

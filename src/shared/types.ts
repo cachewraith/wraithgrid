@@ -1,5 +1,5 @@
 import type { AgentCli } from './agent-clis'
-import type { ChatEffort } from './chat'
+import type { ChatEffort, ChatMode } from './chat'
 
 // Domain model shared by main, preload and renderer. Persisted shape lives in schema.ts.
 
@@ -49,6 +49,17 @@ export type CloseMode = (typeof CLOSE_MODES)[number]
 export const FONT_SIZE_MIN = 10
 export const FONT_SIZE_MAX = 20
 export const FONT_SIZE_DEFAULT = 13
+
+/** App zoom (Ctrl+= / Ctrl+- / Ctrl+0), the steps a browser uses. */
+export const UI_ZOOM_STEPS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const
+
+/** The next zoom step up (+1) or down (-1) from `z`; 0 resets to 100%. */
+export function stepZoom(z: number, delta: -1 | 0 | 1): number {
+  if (delta === 0) return 1
+  const steps = UI_ZOOM_STEPS as readonly number[]
+  if (delta > 0) return steps.find((s) => s > z + 0.001) ?? steps[steps.length - 1]!
+  return [...steps].reverse().find((s) => s < z - 0.001) ?? steps[0]!
+}
 export const SIDEBAR_WIDTH_MIN = 180
 export const SIDEBAR_WIDTH_MAX = 480
 export const SIDEBAR_WIDTH_DEFAULT = 236
@@ -164,6 +175,8 @@ export interface Pane {
   model: string | null
   /** The chat's effort level; null: the CLI's default. */
   effort: ChatEffort | null
+  /** The chat's permission mode; null: the CLI's default (ask before edits). */
+  chatMode: ChatMode | null
 }
 
 export type SplitDir = 'row' | 'col'
@@ -209,8 +222,14 @@ export interface Machine {
 export interface Settings {
   fontFamily: TerminalFont
   fontSize: number
+  /** The whole app's zoom factor, 0.67–2. */
+  uiZoom: number
+  /** Dark, light, or follow the OS; which theme each mode draws is themeDark / themeLight. */
   theme: ThemePreference
-  accent: AccentName
+  themeDark: string
+  themeLight: string
+  /** `theme` keeps the theme's own accent. */
+  accent: AccentName | 'theme'
   terminalPalette: TerminalPalette
   defaultAccountId: string | null
   defaultCwd: string
@@ -252,6 +271,8 @@ export interface Settings {
   /** Model and effort new chats start with; null: the CLI's default. */
   chatModel: string | null
   chatEffort: ChatEffort | null
+  /** Permission mode for new chats; null: ask before edits. */
+  chatMode: ChatMode | null
 }
 
 export const CONFIG_VERSION = 1

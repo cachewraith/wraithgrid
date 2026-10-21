@@ -13,7 +13,7 @@ function matchesQuery(q: string, ...fields: string[]): boolean {
   return words.every((w) => hay.includes(w))
 }
 
-function useNow(): number {
+export function useNow(): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000)

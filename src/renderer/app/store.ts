@@ -18,11 +18,20 @@ import type {
   ApprovalDecision,
   ChatAccountInfo,
   ChatEffort,
+  ChatMode,
   ChatImage,
   ChatModel
 } from '@shared/chat'
 import { baseName, slugify } from '@shared/paths'
 import { defaultConfig } from '@shared/schema'
+import { EMPTY_USAGE, type UsageData } from '@shared/usage'
+import {
+  BUILT_IN_THEMES,
+  pickTheme,
+  withAccent,
+  type AppTheme,
+  type ThemeFile
+} from '@shared/themes'
 import {
   ACCOUNT_COLORS,
   type Account,
@@ -83,7 +92,7 @@ export interface PaneRuntime {
 }
 
 /** `project`: the active workspace's chats and history (the sidebar's project click). */
-export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings'
+export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings' | 'usage'
 export type AccountsMode = 'list' | 'add' | 'import'
 export type Modal =
   | { kind: 'newPane'; slotId: string | null }
@@ -140,6 +149,12 @@ export interface AppState {
   accountInfo: Record<string, { info: ChatAccountInfo | null; models: ChatModel[] }>
   /** Installed mods per claude account, as each account's CLI last listed them. */
   mods: { loading: boolean; accounts: AccountMods[] | null }
+  /** Built-in themes, then the user's from ~/.wraithgrid/themes. */
+  themes: AppTheme[]
+  /** Theme files that could not be loaded, and why. */
+  themeProblems: { file: string; error: string }[]
+  /** Chat usage and plan limits from main; limits also update live from chat events. */
+  usage: UsageData
 
   init(): Promise<void>
   updateConfig(fn: (c: Config) => Config): void
@@ -163,6 +178,8 @@ export interface AppState {
   chatNew(paneId: string): void
   /** Switches a chat's model; a running chat switches at once. */
   chatSetModel(paneId: string, model: string | null): void
+  /** Switches a chat's permission mode; live when it runs, else at its next start. */
+  chatSetMode(paneId: string, mode: ChatMode): void
   /** Sets a chat's effort; the chat restarts and carries on the conversation. */
   chatSetEffort(paneId: string, effort: ChatEffort | null): void
   /** Opens a project's screen: its open chats and history. */
@@ -176,6 +193,8 @@ export interface AppState {
   focusPane(paneId: string | null): void
   focusDirection(dir: Direction): void
   toggleZoom(paneId?: string): void
+  /** Types into a terminal pane as if from the keyboard. */
+  typeInPane(paneId: string, text: string): void
   runLogin(paneId: string): void
   /** Switches to the pane's workspace, puts it in the grid if hidden, and focuses it. */
   revealPane(paneId: string): void
@@ -233,6 +252,16 @@ export interface AppState {
   /** Enables or disables one listed mod; resolves an error message, or null. */
   setModEnabled(accountId: string, mod: ModInfo, enabled: boolean): Promise<string | null>
 
+  loadUsage(): Promise<void>
+
+  // themes
+  loadThemes(): Promise<void>
+  /** Draws this theme now; it also becomes the theme for its mode when following the OS. */
+  chooseTheme(id: string): void
+  /** Asks for a theme file and adds it; resolves an error message, or null. */
+  importTheme(): Promise<string | null>
+  deleteTheme(id: string): Promise<string | null>
+
   // settings
   updateSettings(patch: Partial<Settings>): void
   setClaudePath(path: string): void
@@ -286,6 +315,20 @@ export function findPane(config: Config, paneId: string): { ws: Workspace; pane:
 /** The theme being drawn: the user's pick, or the OS setting for `system`. */
 export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): ThemeName {
   return resolveTheme(s.config.settings.theme, s.systemTheme === 'dark')
+}
+
+const drawnCache = new WeakMap<AppTheme, Map<string, ThemeFile>>()
+
+/** The theme being drawn, with the accent laid over it. Same inputs, same object. */
+export function drawnTheme(s: Pick<AppState, 'config' | 'systemTheme' | 'themes'>): ThemeFile {
+  const mode = currentTheme(s)
+  const { themeDark, themeLight, accent } = s.config.settings
+  const t = pickTheme(s.themes, mode === 'dark' ? themeDark : themeLight, mode)
+  let byAccent = drawnCache.get(t)
+  if (!byAccent) drawnCache.set(t, (byAccent = new Map()))
+  let d = byAccent.get(accent)
+  if (!d) byAccent.set(accent, (d = withAccent(t, accent)))
+  return d
 }
 
 /** Same rule as the config schema's ssh host: no leading `-`, no spaces or quotes. */
@@ -439,7 +482,8 @@ export function createAppStore({
         // A conversation begun in the terminal view carries on here.
         continueLast: !pane.chatSessionId && pane.hasConversation && pane.resume,
         model: pane.model,
-        effort: pane.effort
+        effort: pane.effort,
+        mode: pane.chatMode
       })
       if (!get().runtime[paneId]) {
         if (res.ok) api.chat.stop(paneId, false)
@@ -600,7 +644,8 @@ export function createAppStore({
             : (input.view ?? s.config.settings.newPaneView),
         chatSessionId: null,
         model: s.config.settings.chatModel,
-        effort: s.config.settings.chatEffort
+        effort: s.config.settings.chatEffort,
+        chatMode: s.config.settings.chatMode
       }
       spawned.add(id)
       const layout = placePane(ws, id, input.slotId)
@@ -775,6 +820,9 @@ export function createAppStore({
       git: {},
       diffOpen: false,
       mods: { loading: false, accounts: null },
+      themes: BUILT_IN_THEMES,
+      themeProblems: [],
+      usage: EMPTY_USAGE,
       accountInfo: {},
 
       async init() {
@@ -797,6 +845,27 @@ export function createAppStore({
               [accountId]: { info: e.account, models: e.models }
             }
           })
+        })
+        let usageTimer: ReturnType<typeof setTimeout> | null = null
+        chat.onUsage((paneId, e) => {
+          if (e.t === 'limits') {
+            const accountId = findPane(get().config, paneId)?.pane.accountId
+            if (!accountId) return
+            const usage = get().usage
+            set({ usage: { ...usage, limits: { ...usage.limits, [accountId]: e.limits } } })
+          } else if (e.usage && !usageTimer) {
+            // Main has recorded the turn by now; read it back once things settle.
+            usageTimer = setTimeout(() => {
+              usageTimer = null
+              void get().loadUsage()
+            }, 400)
+          }
+        })
+        // claude can change mode itself (leaving plan mode): the next start keeps that.
+        chat.onMode((paneId, mode) => {
+          const pane = findPane(get().config, paneId)?.pane
+          const want = mode === 'default' ? null : mode
+          if (pane && pane.chatMode !== want) patchPane(paneId, { chatMode: want })
         })
         chat.onExit((paneId, e) => {
           if (!get().runtime[paneId] || paneView(get().config, paneId) !== 'chat') return
@@ -831,6 +900,8 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        void get().loadThemes()
+        void get().loadUsage()
         void get().refreshGit()
         if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
       },
@@ -935,6 +1006,11 @@ export function createAppStore({
         patchPane(paneId, { model })
         // null (the default) needs the CLI's own default: claude names it `default`.
         if (get().runtime[paneId]?.started) api.chat.setModel(paneId, model ?? 'default')
+      },
+
+      chatSetMode(paneId, mode) {
+        patchPane(paneId, { chatMode: mode === 'default' ? null : mode })
+        if (get().runtime[paneId]?.started) api.chat.setMode(paneId, mode)
       },
 
       chatSetEffort(paneId, effort) {
@@ -1093,6 +1169,10 @@ export function createAppStore({
       toggleDiff(open) {
         const diffOpen = open ?? !get().diffOpen
         if (diffOpen !== get().diffOpen) set({ diffOpen })
+      },
+
+      typeInPane(paneId, text) {
+        bus.input(paneId, text)
       },
 
       runLogin(paneId) {
@@ -1436,6 +1516,42 @@ export function createAppStore({
         if (!found || !s.config.settings.notifyPanes || attending(paneId)) return
         const where = `${found.pane.title} · ${found.ws.name}`
         api.notify.pane(paneId, (title ? `${title} · ${where}` : where).slice(0, 120), body)
+      },
+
+      async loadUsage() {
+        set({ usage: await api.usage.get() })
+      },
+
+      // ---- themes --------------------------------------------------------------
+
+      async loadThemes() {
+        const r = await api.themes.list()
+        set({ themes: [...BUILT_IN_THEMES, ...r.themes], themeProblems: r.problems })
+      },
+
+      chooseTheme(id) {
+        const t = get().themes.find((x) => x.id === id)
+        if (!t) return
+        const slot = t.mode === 'dark' ? 'themeDark' : 'themeLight'
+        const follow = get().config.settings.theme === 'system'
+        // A theme comes with its own accent; picking one drops an accent laid over the last.
+        get().updateSettings({ [slot]: id, accent: 'theme', ...(follow ? {} : { theme: t.mode }) })
+      },
+
+      async importTheme() {
+        const r = await api.themes.import()
+        if (!r) return null
+        if (!r.ok) return r.error
+        await get().loadThemes()
+        get().chooseTheme(r.id)
+        return null
+      },
+
+      async deleteTheme(id) {
+        const r = await api.themes.delete(id)
+        if (!r.ok) return r.error
+        await get().loadThemes()
+        return null
       },
 
       // ---- settings ------------------------------------------------------------
