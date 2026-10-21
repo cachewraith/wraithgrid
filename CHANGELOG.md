@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-21
+
+- [test] account-folders e2e flake (~1 in 24 with parallel workers): release the drag only once the folder shows `over` (dnd-kit lagged the pointer); 160/160 runs pass (files: tests/e2e/account-folders.spec.ts)
+
 ## 2026-10-20
 
 - [release] v1.10.0: agents keep running after the window closes (background pty host, tray), `wraithgrid` CLI (list/read/send/wait/new/split/stop/attach), workspaces on other machines over ssh, branch switch (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)

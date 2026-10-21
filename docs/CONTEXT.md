@@ -100,7 +100,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Sandboxed preload can't require node_modules: preload is bundled (`externalizeDeps: false`).
 - Single-instance lock: a second launch exits.
 - Tests use `WRAITHGRID_USER_DATA_DIR` for a throwaway config dir.
-- dnd-kit measures drop zones async after drag start: e2e drags must move in paced steps.
+- dnd-kit measures drop zones async after drag start: e2e drags must move in paced steps and release only once the target shows its `over` class.
 - CI skips pushes touching only `*.md`/`docs/**`; installers build only on a `v*.*.*` tag.
 - AppImage on Ubuntu 24.04+/Kali blocked by AppArmor; prefer .deb.
 - macOS: app shortcuts are ⌘ (`matchShortcut(e, mac)`; tests must pass `mac` explicitly since Node on a Mac reports a Mac platform); Ctrl always goes to the terminal; ⌘C/V work through the app menu's Edit roles, so never drop that menu on darwin.

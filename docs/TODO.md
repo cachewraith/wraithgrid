@@ -21,7 +21,6 @@
 ## Next
 - Mods: only the listed mod of a multi-mod claudemod.com repo is shown; mark which catalog entries change claude's screen (the catalog doesn't say); downloaded mods (`~/.wraithgrid/mods`) have no update button yet (git pull)
 - Mods (2026-10-19): try Update/Uninstall/marketplace add-remove and a claudemod.com Download with real accounts (fake CLI only so far); `plugin update` of a command-source mod needs `--accept-command`, shown as claude's error
-- e2e flake: account-folders.spec.ts drag into a folder fails ~1 in 4 runs (also on main, 2026-10-19): dnd-kit drop timing; pace the drag more or wait for the drop zone
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there
 - Test an in-app update 1.3.0 → 1.3.1 (1.3.0 is the first release with it; install 1.3.0 by hand once)
@@ -33,6 +32,9 @@ H1–H7 built (2026-10-19, unreleased, see Done); H8 publishing needs the accoun
 ## Later
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 - Chat-style pane (`claude -p --output-format stream-json`): rejected for now (2026-10-05), revisit if asked
+
+## Done (2026-10-21)
+- account-folders e2e flake fixed (wait for the drop target)
 
 ## Done (2026-10-19)
 - Switch branch from the pane chip, Changes panel, pane menu and palette (branch picker)
