@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { downloadedModName } from '../../src/shared/mods'
 import type { AccountMods, CatalogMod, ModInfo } from '../../src/shared/ipc-contract'
 import {
   lastLine,
@@ -396,5 +397,16 @@ describe('mod changes', () => {
       ['b@x', 2],
       ['c@y', 3]
     ])
+  })
+})
+
+describe('downloaded mod folders', () => {
+  it('names the mod of a folder Download made, on either separator', () => {
+    expect(downloadedModName('~/.wraithgrid/mods/burn-meter')).toBe('burn-meter')
+    expect(downloadedModName('~\\.wraithgrid\\mods\\burn-meter\\')).toBe('burn-meter')
+    expect(downloadedModName('~/mods/tally')).toBeNull()
+    expect(downloadedModName('~/.wraithgrid/mods/a/b')).toBeNull()
+    expect(downloadedModName('~/.wraithgrid/mods/..')).toBeNull()
+    expect(downloadedModName('/home/x/.wraithgrid/mods/m')).toBeNull()
   })
 })

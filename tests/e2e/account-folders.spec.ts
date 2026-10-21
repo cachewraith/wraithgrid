@@ -61,8 +61,13 @@ test('accounts drag into sidebar folders; accounts and workspaces take a custom 
       await win.mouse.move(from.x + 30 + (10 * i) / 8, from.y + ((to.y - from.y) * i) / 8)
       await win.waitForTimeout(30)
     }
-    await win.mouse.move(to.x + 40, to.y + to.height / 2)
-    await win.waitForTimeout(100)
+    // Release only once dnd-kit has the folder as the drop target: it measures zones and
+    // runs collisions asynchronously, so a busy runner can lag behind the pointer.
+    let nudge = 0
+    await expect(async () => {
+      await win.mouse.move(to.x + 40 + (nudge++ % 2), to.y + to.height / 2)
+      await expect(folder).toHaveClass(/\bover\b/, { timeout: 250 })
+    }).toPass({ timeout: 5000 })
     await win.mouse.up()
     await expect(folder.locator('.acc-row', { hasText: 'work' })).toBeVisible()
     await expect.poll(() => saved().accounts[0].folderId).toBe(saved().accountFolders[0]?.id)

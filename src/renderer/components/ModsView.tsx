@@ -10,7 +10,7 @@ import type {
   ModCatalogResult,
   ModInstallResult
 } from '@shared/ipc-contract'
-import { marketplaceOf, modNameOf } from '@shared/mods'
+import { downloadedModName, marketplaceOf, modNameOf } from '@shared/mods'
 import { contractHome } from '@shared/paths'
 import { MOD_DIRS_MAX, MOD_PANE_MIN_COLS, type Account } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
@@ -563,7 +563,16 @@ function ModFoldersRow({ onChanged }: { onChanged: () => void }) {
   const dirs = useApp((s) => s.config.settings.modDirs)
   const home = useApp((s) => s.info.homeDir)
   const full = dirs.length >= MOD_DIRS_MAX
+  // Per downloaded mod: null while its update runs, else what the last one said.
+  const [pulled, setPulled] = useState<Record<string, string | null>>({})
 
+  const pull = async (name: string): Promise<void> => {
+    setPulled((p) => ({ ...p, [name]: null }))
+    const r = await api.mods.pull(name)
+    const said = r.ok ? (r.changed ? 'Updated' : 'Up to date') : r.error
+    setPulled((p) => ({ ...p, [name]: said }))
+    if (r.ok && r.changed) onChanged()
+  }
   const save = (next: string[]): void => {
     actions.updateSettings({ modDirs: next })
     onChanged()
@@ -587,21 +596,41 @@ function ModFoldersRow({ onChanged }: { onChanged: () => void }) {
       <div className="ctl">
         {dirs.length ? (
           <div className="mod-list" role="list" aria-labelledby="moddirs-h">
-            {dirs.map((d) => (
-              <div className="mod-row" role="listitem" key={d}>
-                <span className="mod-dir" title={d}>
-                  {d}
-                </span>
-                <button
-                  className="icon-btn"
-                  aria-label={`Remove ${d}`}
-                  title="Remove"
-                  onClick={() => save(dirs.filter((x) => x !== d))}
-                >
-                  <IconClose />
-                </button>
-              </div>
-            ))}
+            {dirs.map((d) => {
+              const name = downloadedModName(d)
+              const said = name ? pulled[name] : undefined
+              return (
+                <div className="mod-row" role="listitem" key={d}>
+                  <span className="mod-dir" title={d}>
+                    {d}
+                  </span>
+                  {said ? (
+                    <span className="hint" role="status">
+                      {said}
+                    </span>
+                  ) : null}
+                  {name ? (
+                    <button
+                      className="btn"
+                      aria-label={`Update ${name}`}
+                      title="Get the newest version from its repository"
+                      disabled={said === null}
+                      onClick={() => void pull(name)}
+                    >
+                      {said === null ? 'Updating…' : 'Update'}
+                    </button>
+                  ) : null}
+                  <button
+                    className="icon-btn"
+                    aria-label={`Remove ${d}`}
+                    title="Remove"
+                    onClick={() => save(dirs.filter((x) => x !== d))}
+                  >
+                    <IconClose />
+                  </button>
+                </div>
+              )
+            })}
           </div>
         ) : null}
         <button

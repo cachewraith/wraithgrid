@@ -61,7 +61,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/layout/`: pure split-tree ops, presets, directional focus
 - `src/renderer/lib/`: PtyBus, status detection, terminal themes, ANSI strip, scheduling, diff parsing, palette search, term-osc (OSC 52 copy, OSC 9/777/99 notifications), mod-catalog (catalog search, merging the accounts' mod lists)
 - `src/renderer/styles/`: design tokens (neutral greys; accent only for focus/state) + base CSS
-- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars)
+- `tests/unit/`, `tests/e2e/`, `tests/fixtures/{fake-claude,raw-keys,fake-shell,demo-claude}.sh`: tests + fake CLIs (raw-keys prints input bytes as hex; fake-shell prints its args and leaked vars; demo-claude = scripted sessions for README shots)
 - `scripts/`: Docker Linux build, multi-distro package smoke test; `icon-sets.ts` = Vite plugin building `virtual:icon-sets` (trimmed Material + Lucide); `install.sh` = one-line installer (SHA256SUMS check); `update-packaging.sh <ver>` = fill packaging/ from a release
 - `packaging/`: Homebrew cask, winget manifests, AUR PKGBUILD (publish steps in its README)
 - `build/`: icons; `.github/workflows/`: build.yml (CI checks; packages only when release.yml calls it), release.yml (tag → release)
@@ -100,7 +100,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Sandboxed preload can't require node_modules: preload is bundled (`externalizeDeps: false`).
 - Single-instance lock: a second launch exits.
 - Tests use `WRAITHGRID_USER_DATA_DIR` for a throwaway config dir.
-- dnd-kit measures drop zones async after drag start: e2e drags must move in paced steps.
+- dnd-kit measures drop zones async after drag start: e2e drags must move in paced steps and release only once the target shows its `over` class.
 - CI skips pushes touching only `*.md`/`docs/**`; installers build only on a `v*.*.*` tag.
 - AppImage on Ubuntu 24.04+/Kali blocked by AppArmor; prefer .deb.
 - macOS: app shortcuts are ⌘ (`matchShortcut(e, mac)`; tests must pass `mac` explicitly since Node on a Mac reports a Mac platform); Ctrl always goes to the terminal; ⌘C/V work through the app menu's Edit roles, so never drop that menu on darwin.
@@ -115,7 +115,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Icons: SVG bodies only come from bundled data via `iconBody` (own keys); never render an icon string from config as HTML. New icon packages must respect `minimumReleaseAge` in bunfig.toml (pin an older version rather than adding an exclude).
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
-- Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots.
+- Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots. README images: `bun run build`, then `WRAITHGRID_README_SHOTS=docs/screenshots ./node_modules/.bin/playwright test readme-shots` (skipped without the env).
 - Electron 44's main `clipboard` is the async web-style API (`read()` → ClipboardItem, `getType`); no `readImage`.
 - Image paste: claude's own Ctrl+V clipboard read misses some screenshots; Wraithgrid intercepts Ctrl+V in agent panes (not on macOS) and pastes a saved file path instead.
 - `agy` and opencode have no per-account dir (shared sign-in); codex/cursor/copilot may keep the sign-in in the keyring (`dir-unchecked`). Non-claude binaries: `settings.cliPaths`, else PATH.

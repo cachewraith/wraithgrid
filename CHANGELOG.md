@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-21
+
+- [test] account-folders e2e flake (~1 in 24 with parallel workers): release the drag only once the folder shows `over` (dnd-kit lagged the pointer); 160/160 runs pass (files: tests/e2e/account-folders.spec.ts)
+- [mods] claudemod.com: a repository's marketplace lists all its mods (the site entry's first, up to 20), shared repos listed once (files: src/main/mod-community.ts, tests/unit/mod-community.test.ts)
+- [mods] **Update** on downloaded mod folders (`~/.wraithgrid/mods/<name>`): `mods:pull` runs `git pull --ff-only`, says Updated / Up to date (files: src/shared/{ipc-channels,ipc-contract,mods}.ts, src/preload/index.ts, src/main/ipc.ts, src/renderer/components/ModsView.tsx, tests/unit/mods.test.ts, tests/e2e/mods.spec.ts)
+- [docs] TODO: Herdr parity notes said "unreleased"; H1–H7 shipped in v1.10.0 (files: docs/TODO.md)
+- [docs] README screenshots retaken for the current UI from a staged demo; repeatable via `readme-shots.spec.ts` + `demo-claude.sh` (files: docs/screenshots/*.png, README.md, tests/e2e/readme-shots.spec.ts, tests/fixtures/demo-claude.sh)
+
 ## 2026-10-20
 
 - [release] v1.10.0: agents keep running after the window closes (background pty host, tray), `wraithgrid` CLI (list/read/send/wait/new/split/stop/attach), workspaces on other machines over ssh, branch switch (files: package.json, docs/CONTEXT.md, docs/WHATS-NEW.md)

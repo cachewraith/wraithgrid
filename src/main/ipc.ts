@@ -34,6 +34,7 @@ import {
   modsInstallArgs,
   modsChangeArgs,
   modsMarketplacesArgs,
+  modsPullArgs,
   modsMarketplaceAddArgs,
   modsMarketplaceRemoveArgs,
   modsListArgs,
@@ -59,6 +60,7 @@ import {
   type GitActionResult,
   type ModCatalogResult,
   type ModCloneResult,
+  type ModPullResult,
   type MarketplaceInfo,
   type MarketplacesResult,
   type CatalogMod,
@@ -1028,6 +1030,35 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return { ok: true, dir: contractHome(dir, homeDir) }
     },
     fail('Could not download the mod')
+  )
+
+  handle(
+    IPC.modsPull,
+    modsPullArgs,
+    async (a): Promise<ModPullResult> => {
+      // Only a clone Download made: a folder of the user's own is theirs to update.
+      if (!MARKETPLACE_NAME.test(a.name)) return fail('Not a mod name.')
+      const root = path.join(homeDir, '.wraithgrid', 'mods')
+      const dir = path.join(root, a.name)
+      if (!isStrictlyInside(dir, root)) return fail('Not a safe folder name.')
+      try {
+        await stat(path.join(dir, '.git'))
+      } catch {
+        return fail(`${contractHome(dir, homeDir)} is not a downloaded mod.`)
+      }
+      await deps.envReady
+      try {
+        const before = await deps.git(['rev-parse', 'HEAD'], dir)
+        await deps.git(['pull', '--ff-only'], dir, { slow: true })
+        const after = await deps.git(['rev-parse', 'HEAD'], dir)
+        if (before.trim() !== after.trim()) log(`updated mod ${a.name}`)
+        return { ok: true, changed: before.trim() !== after.trim() }
+      } catch (err) {
+        const e = err as { stderr?: string; message?: string }
+        return fail(lastLine(e.stderr || e.message || '') ?? 'git pull failed')
+      }
+    },
+    fail('Could not update the mod')
   )
 
   // ---- Pane notifications ----------------------------------------------------------

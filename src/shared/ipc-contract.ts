@@ -78,6 +78,8 @@ export const modsChangeArgs = z.object({
   id: z.string().min(1).max(200),
   change: z.enum(['uninstall', 'update'])
 })
+/** A downloaded mod's folder name under ~/.wraithgrid/mods; main resolves the folder. */
+export const modsPullArgs = z.object({ name: z.string().min(1).max(120) })
 export const modsMarketplacesArgs = z.object({})
 export const modsMarketplaceAddArgs = z.object({ source: z.string().min(1).max(500) })
 export const modsMarketplaceRemoveArgs = z.object({ name: z.string().min(1).max(120) })
@@ -320,6 +322,9 @@ export type MarketplacesResult =
 
 export type ModCloneResult = { ok: true; dir: string } | { ok: false; error: string }
 
+/** `changed` is false when the mod was already up to date. */
+export type ModPullResult = { ok: true; changed: boolean } | { ok: false; error: string }
+
 export type ModCatalogResult = { ok: true; mods: CatalogMod[] } | { ok: false; error: string }
 
 /** An install covers every claude account; `failed` names the ones claude refused it for. */
@@ -438,6 +443,8 @@ export interface WraithApi {
     change(id: string, change: 'uninstall' | 'update'): Promise<ModInstallResult>
     /** Downloads a community bare-plugin mod into ~/.wraithgrid/mods; returns its folder. */
     clone(id: string): Promise<ModCloneResult>
+    /** Pulls the newest commit of a downloaded mod (`~/.wraithgrid/mods/<name>`). */
+    pull(name: string): Promise<ModPullResult>
     /** The marketplaces of all claude accounts, merged by name. */
     marketplaces(): Promise<MarketplacesResult>
     /** Adds a marketplace (`owner/repo` or an https address) to every account that lacks it. */
