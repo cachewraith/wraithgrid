@@ -1,34 +1,36 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { ICON_COLORS } from '@shared/icons'
 import {
-  PANE_STATUS_LABEL,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent
+} from 'react'
+import {
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
   type Config,
-  type Pane,
   type Workspace
 } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { AccountIcon, Avatar } from './AccountIcon'
+import { Initial } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
-import { IconPopover } from './IconPicker'
 import {
   IconChevron,
   IconCompose,
-  IconGrid4,
+  IconMods,
   IconMonitor,
+  IconPlus,
   IconRename,
   IconSearch,
+  IconSettings,
   IconSidebar,
-  IconSun,
   IconTrash,
   IconUserPlus
 } from './icons'
-import { SidebarAccounts } from './SidebarAccounts'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
   const ws = config.workspaces.find((w) => w.id === wsId)
@@ -40,52 +42,23 @@ export function accountColorsFor(config: Config, wsId: string): string[] {
 /** How long the collapse/expand transition runs (matches `.side` in base.css), plus slack. */
 const SIDE_MOVE_MS = 260
 
-/** A pane under its workspace, like a chat in a chat app's history: click to jump to it. */
-function PaneRow({ pane }: { pane: Pane }) {
-  const actions = useActions()
-  const account = useApp((s) => accountById(s.config, pane.accountId))
-  const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
-  const on = useApp((s) => s.focusedPaneId === pane.id && s.view === 'grid')
-  const branch = useApp((s) => s.git[pane.id]?.branch ?? null)
-  const loud = status === 'approval' || status === 'login' || status === 'exited'
-  return (
-    <button
-      className={`pn-row${on ? ' on' : ''}`}
-      aria-current={on ? 'true' : undefined}
-      title={`${pane.title}${account ? ` · ${account.name}` : ' · shell'}${branch ? ` · ${branch}` : ''}`}
-      onClick={() => actions.revealPane(pane.id)}
-    >
-      <span className={`pn-dot st-${status ?? 'idle'}`} aria-hidden="true" />
-      <span className="pn-name">{pane.title}</span>
-      {status && loud ? (
-        <span className={`pn-st st-${status}`}>{PANE_STATUS_LABEL[status]}</span>
-      ) : (
-        <span className="pn-acc">{account?.name ?? 'shell'}</span>
-      )}
-    </button>
-  )
-}
-
-/** One workspace in the sidebar: click to switch, right-click to rename, re-icon or delete. */
-function WorkspaceRow({
-  w,
-  index,
-  expanded,
-  onToggle
-}: {
-  w: Workspace
-  index: number
-  expanded: boolean
-  onToggle: () => void
-}) {
+/** One project (workspace): click to switch, right-click to rename, re-icon or delete. */
+function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   const actions = useActions()
   const config = useApp((s) => s.config)
-  const on = useApp((s) => s.config.activeWorkspace === w.id && s.view === 'grid')
+  const on = useApp(
+    (s) => s.config.activeWorkspace === w.id && (s.view === 'grid' || s.view === 'project')
+  )
+  const running = useApp((s) => w.panes.some((p) => s.runtime[p.id]?.status === 'running'))
+  const waiting = useApp((s) =>
+    w.panes.some((p) => {
+      const st = s.runtime[p.id]?.status
+      return st === 'approval' || st === 'login'
+    })
+  )
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
-  const [iconAt, setIconAt] = useState<{ top: number; left: number } | null>(null)
-  const rowRef = useRef<HTMLButtonElement>(null)
   const key = index < 9 ? index + 1 : null
   const canDelete = config.workspaces.length > 1
   const panes = w.panes.length
@@ -107,11 +80,14 @@ function WorkspaceRow({
     if (renaming?.trim()) actions.renameWorkspace(w.id, renaming)
     setRenaming(null)
   }
+  const newChat = (): void => {
+    actions.switchWorkspace(w.id)
+    actions.openModal({ kind: 'newPane', slotId: null })
+  }
 
   if (renaming !== null) {
     return (
       <div className="ws-row on">
-        <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
         <input
           className="inpt sans ws-in"
           value={renaming}
@@ -134,76 +110,57 @@ function WorkspaceRow({
   }
 
   return (
-    <>
-      <div className="ws-wrap">
+    <div className="proj">
+      <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
-          className="ws-tg"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Hide' : 'Show'} panes of ${w.name}`}
-          disabled={panes === 0}
-          onClick={onToggle}
-        >
-          <IconChevron small className={`chev-i${expanded ? ' open' : ''}`} />
-        </button>
-        <button
-          ref={rowRef}
           className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
           aria-current={on ? 'true' : undefined}
-          title={
-            key ? `Switch to ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Switch to ${w.name}`
-          }
-          onClick={() => actions.switchWorkspace(w.id)}
+          title={key ? `Open ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Open ${w.name}`}
+          onClick={() => actions.openProject(w.id)}
           onContextMenu={(e) => {
             e.preventDefault()
             setConfirmDelete(false)
             setMenu(menuPoint(e))
           }}
         >
-          <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />
           <span className="ws-name">{w.name}</span>
           {machine ? (
             <span className="ws-mach" title={`Runs on ${machine.name} (${machine.sshHost})`}>
               {machine.name}
             </span>
           ) : null}
-          <span className="dots">
-            {accountColorsFor(config, w.id).map((c) => (
-              <span key={c} className="dot" style={{ background: c }} />
-            ))}
-          </span>
-          <span
-            className="cnt"
-            aria-label={`${panes} panes`}
-            title={`${panes} ${panes === 1 ? 'pane' : 'panes'}`}
-          >
-            {panes}
-          </span>
-          {key ? <kbd className="ws-key">{key}</kbd> : null}
+          {waiting ? (
+            <span className="ws-wait" title="A chat needs you" />
+          ) : running ? (
+            <span className="pn-spin" title="A chat is working" />
+          ) : null}
+          {panes ? (
+            <span
+              className="cnt"
+              aria-label={`${panes} open`}
+              title={`${panes} open ${panes === 1 ? 'chat' : 'chats'}`}
+            >
+              {panes}
+            </span>
+          ) : null}
+        </button>
+        <button
+          className="ws-add"
+          aria-label={`New chat in ${w.name}`}
+          title={`New chat in ${w.name}`}
+          onClick={newChat}
+        >
+          <IconPlus small />
         </button>
       </div>
-      {expanded && panes ? (
-        <div className="pn-list">
-          {w.panes.map((p) => (
-            <PaneRow key={p.id} pane={p} />
-          ))}
-        </div>
-      ) : null}
       {menu ? (
         <ContextMenu
           at={menu}
           label={`Workspace ${w.name}`}
           onClose={() => setMenu(null)}
           items={[
+            { label: 'New chat', icon: <IconCompose small />, onSelect: newChat },
             { label: 'Rename', icon: <IconRename small />, onSelect: () => setRenaming(w.name) },
-            {
-              label: 'Change icon',
-              icon: <IconSun small />,
-              // The icon grid opens under the row.
-              onSelect: () => {
-                const r = rowRef.current?.getBoundingClientRect()
-                if (r) setIconAt({ top: r.bottom + 6, left: r.left + 8 })
-              }
-            },
             ...(config.machines.length ? runOn : []),
             {
               label: !canDelete
@@ -227,18 +184,84 @@ function WorkspaceRow({
           ]}
         />
       ) : null}
-      {iconAt ? (
-        <IconPopover
-          at={iconAt}
-          icon={w.icon}
-          color={w.color}
-          colors={ICON_COLORS}
-          name={w.name}
-          onPick={(c, done) => {
-            actions.setWorkspaceIcon(w.id, c.icon, c.color)
-            if (done) setIconAt(null)
-          }}
-          onClose={() => setIconAt(null)}
+    </div>
+  )
+}
+
+/** The footer: who new chats run as, ChatGPT-style; the menu switches it and leads to accounts. */
+function AccountSwitcher({ compact }: { compact: boolean }) {
+  const actions = useActions()
+  const accounts = useApp((s) => s.config.accounts)
+  const defaultId = useApp((s) => s.config.settings.defaultAccountId)
+  const [menu, setMenu] = useState<MenuPoint | null>(null)
+  const current = accounts.find((a) => a.id === defaultId) ?? accounts[0]
+  const plan = useApp((s) => (current ? s.accountInfo[current.id]?.info?.plan : null) ?? null)
+  const open = (e: MouseEvent<HTMLButtonElement>): void => {
+    const r = e.currentTarget.getBoundingClientRect()
+    // Opens upwards: the menu is pulled back inside the window from below.
+    setMenu({ x: r.left, y: r.top - 8 - (accounts.length + 4) * 32 })
+  }
+  const label = current ? current.name : 'No account'
+  return (
+    <>
+      <button
+        className={`acct-sw${compact ? ' compact' : ''}${menu ? ' open' : ''}`}
+        aria-label={`Account: ${label}. Switch account`}
+        aria-haspopup="menu"
+        title={compact ? label : undefined}
+        onClick={open}
+      >
+        {current ? (
+          <Initial name={current.name} size={compact ? 26 : 28} />
+        ) : (
+          <span className="acct-none">
+            <IconUserPlus small />
+          </span>
+        )}
+        {compact ? null : (
+          <>
+            <span className="acct-txt">
+              <span className="acct-nm">{label}</span>
+              <span className="acct-sub">
+                {accounts.length === 0
+                  ? 'Add one to start'
+                  : current && !current.signedIn
+                    ? 'Login needed'
+                    : (plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`)}
+              </span>
+            </span>
+            <IconChevron small className="acct-chev" />
+          </>
+        )}
+      </button>
+      {menu ? (
+        <ContextMenu
+          at={menu}
+          label="Accounts"
+          onClose={() => setMenu(null)}
+          items={[
+            ...accounts.map((a) => ({
+              label: `${a.name}${a.id === current?.id ? '  ✓' : ''}${a.signedIn ? '' : ' · login needed'}`,
+              icon: <Initial name={a.name} size={16} />,
+              onSelect: () => actions.updateSettings({ defaultAccountId: a.id })
+            })),
+            {
+              label: 'New account',
+              icon: <IconUserPlus small />,
+              onSelect: () => actions.setAccountsMode('add')
+            },
+            {
+              label: 'Manage accounts',
+              icon: <IconRename small />,
+              onSelect: () => actions.setView('accounts')
+            },
+            { label: 'Mods', icon: <IconMods small />, onSelect: () => actions.setView('mods') },
+            {
+              label: 'Settings',
+              icon: <IconSettings small />,
+              onSelect: () => actions.setView('settings')
+            }
+          ]}
         />
       ) : null}
     </>
@@ -249,10 +272,16 @@ export function Sidebar() {
   const actions = useActions()
   const collapsed = useApp((s) => s.config.settings.sidebarCollapsed)
   const width = useApp((s) => s.config.settings.sidebarWidth)
+  const chatFirst = useApp((s) => s.config.settings.newPaneView === 'chat')
   const sideRef = useRef<HTMLElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const indRef = useRef<HTMLDivElement>(null)
   const config = useApp((s) => s.config)
-  const { workspaces, accounts } = config
+  const view = useApp((s) => s.view)
+  const { workspaces } = config
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+  const newLabel = chatFirst ? 'New chat' : 'New pane'
+
   // While the width animates, the content keeps a fixed width (`.moving`) so it is revealed
   // or clipped instead of reflowing. Only then: at rest it must fit beside a scrollbar.
   const [shown, setShown] = useState(collapsed)
@@ -269,10 +298,32 @@ export function Sidebar() {
 
   const newPane = (): void => actions.openModal({ kind: 'newPane', slotId: null })
   const search = (): void => actions.openModal({ kind: 'palette' })
-  // Which workspaces show their panes: the active one opens by default; UI state only.
-  const activeId = config.activeWorkspace
-  const [toggled, setToggled] = useState<Record<string, boolean>>({})
-  const isExpanded = (id: string): boolean => toggled[id] ?? id === activeId
+
+  // One highlight that slides to the selected row: the focused chat if its project is open,
+  // else the active project. Moved by style, not state, so it never re-renders the list.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    const ind = indRef.current
+    if (!list || !ind) return
+    const place = (): void => {
+      const row = list.querySelector<HTMLElement>('.ws-row.on')
+      if (!row) {
+        ind.style.opacity = '0'
+        return
+      }
+      const top =
+        row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop
+      ind.style.opacity = '1'
+      ind.style.transform = `translateY(${top}px)`
+      ind.style.height = `${row.offsetHeight}px`
+      ind.style.left = `${row.getBoundingClientRect().left - list.getBoundingClientRect().left}px`
+      ind.style.width = `${row.offsetWidth}px`
+    }
+    place()
+    const ro = new ResizeObserver(place)
+    ro.observe(list)
+    return () => ro.disconnect()
+  }, [view, config, collapsed, width])
 
   return (
     <>
@@ -294,8 +345,8 @@ export function Sidebar() {
           {collapsed ? null : (
             <button
               className="icon-btn"
-              aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
-              title={`New pane (${SHORTCUT_HINT.newPane})`}
+              aria-label={`${newLabel} (${SHORTCUT_HINT.newPane})`}
+              title={`${newLabel} (${SHORTCUT_HINT.newPane})`}
               onClick={newPane}
             >
               <IconCompose />
@@ -305,24 +356,11 @@ export function Sidebar() {
 
         {collapsed ? (
           <>
-            <div className="cdots" aria-label="Accounts">
-              {accounts.map((a) => (
-                <span
-                  key={a.id}
-                  role="img"
-                  title={`${a.name} — ${a.signedIn ? 'signed in' : 'login needed'}`}
-                  aria-label={`${a.name}, ${a.signedIn ? 'signed in' : 'login needed'}`}
-                  style={{ display: 'inline-flex' }}
-                >
-                  <AccountIcon account={a} size={20} />
-                </span>
-              ))}
-            </div>
-            <div className="side-ft">
+            <div className="rail">
               <button
                 className="icon-btn"
-                aria-label={`New pane (${SHORTCUT_HINT.newPane})`}
-                title={`New pane (${SHORTCUT_HINT.newPane})`}
+                aria-label={`${newLabel} (${SHORTCUT_HINT.newPane})`}
+                title={`${newLabel} (${SHORTCUT_HINT.newPane})`}
                 onClick={newPane}
               >
                 <IconCompose />
@@ -335,14 +373,9 @@ export function Sidebar() {
               >
                 <IconSearch />
               </button>
-              <button
-                className="icon-btn"
-                aria-label="Switch workspace"
-                title={`Switch workspace (${SHORTCUT_HINT.workspace})`}
-                onClick={() => actions.openModal({ kind: 'workspaces' })}
-              >
-                <IconGrid4 />
-              </button>
+            </div>
+            <div className="side-ft">
+              <AccountSwitcher compact />
             </div>
           </>
         ) : (
@@ -351,10 +384,10 @@ export function Sidebar() {
               <button
                 className="nav-row"
                 onClick={newPane}
-                title={`New pane (${SHORTCUT_HINT.newPane})`}
+                title={`${newLabel} (${SHORTCUT_HINT.newPane})`}
               >
                 <IconCompose />
-                <span>New pane</span>
+                <span>{newLabel}</span>
                 <kbd>{SHORTCUT_HINT.newPane}</kbd>
               </button>
               <button
@@ -367,27 +400,24 @@ export function Sidebar() {
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
             </nav>
-            <div className="sec">
+            <div className="sec side-list" ref={listRef}>
+              <div className="side-ind" ref={indRef} aria-hidden="true" />
               <div className="sec-hd">
-                <span>Workspaces</span>
-                <button onClick={() => actions.openModal({ kind: 'workspaces' })}>Manage</button>
+                <span>Projects</span>
+                <button
+                  onClick={() => actions.openModal({ kind: 'workspaces' })}
+                  title="New or manage projects"
+                  aria-label="Manage projects"
+                >
+                  <IconPlus small />
+                </button>
               </div>
               {workspaces.map((w, i) => (
-                <WorkspaceRow
-                  key={w.id}
-                  w={w}
-                  index={i}
-                  expanded={isExpanded(w.id)}
-                  onToggle={() => setToggled((t) => ({ ...t, [w.id]: !isExpanded(w.id) }))}
-                />
+                <WorkspaceRow key={w.id} w={w} index={i} />
               ))}
             </div>
-            <SidebarAccounts />
             <div className="side-ft">
-              <button className="btn gh full" onClick={() => actions.setAccountsMode('add')}>
-                <IconUserPlus />
-                New account
-              </button>
+              <AccountSwitcher compact={false} />
             </div>
           </>
         )}

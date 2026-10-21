@@ -1,0 +1,636 @@
+/* One visual language across the app, after Claude and Codex desktop: softer radii, quiet
+   surfaces, text-first rows, and small motions that confirm what happened. Loaded last, so
+   it refines base.css (and the chat and sidebar sheets) without rewriting it. */
+
+:root {
+  --r-sm: 7px;
+  --r: 10px;
+  --r-lg: 14px;
+  --shadow-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--line2);
+}
+:root[data-theme='light'] {
+  --shadow-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line2);
+}
+
+/* ---- Initials (no icons or emoji) --------------------------------------------------- */
+
+.initial {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--raise);
+  box-shadow: inset 0 0 0 1px var(--line2);
+  color: var(--tx);
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ---- Controls ----------------------------------------------------------------------- */
+
+.btn {
+  border-radius: var(--r-sm);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.12s;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.5;
+}
+.icon-btn {
+  border-radius: var(--r-sm);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.inpt {
+  border-radius: var(--r-sm);
+  background: var(--bg2);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.inpt:focus {
+  border-color: var(--hover-line);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 16%, transparent);
+}
+.seg {
+  border-radius: var(--r-sm);
+}
+.seg.wrap {
+  flex-wrap: wrap;
+  width: fit-content;
+}
+.seg-btn {
+  border-radius: 5px;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+.seg-btn:disabled {
+  opacity: 0.45;
+}
+.rchip {
+  border-radius: var(--r-sm);
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+.sw {
+  transition: background 0.2s;
+}
+.sw::after {
+  transition: transform 0.25s var(--ease-spring);
+}
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent);
+  outline-offset: 1px;
+}
+.inpt:focus-visible,
+.cc textarea:focus-visible {
+  outline: none;
+}
+
+/* ---- Top bar and pane headers -------------------------------------------------------- */
+
+.top {
+  height: 48px;
+  gap: 8px;
+  padding: 0 10px 0 18px;
+}
+.top-title {
+  font-size: 14.5px;
+}
+.top .seg {
+  background: none;
+  border-color: transparent;
+}
+.ph {
+  height: 34px;
+  gap: 10px;
+  padding: 0 6px 0 12px;
+}
+.ph-title {
+  font-size: 13px;
+}
+.chip {
+  gap: 6px;
+  font-size: 12px;
+}
+.pane.focused .ph {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--acc) 70%, transparent);
+}
+.st {
+  font-size: 11.5px;
+}
+
+/* ---- Dialogs and menus --------------------------------------------------------------- */
+
+.scrim {
+  backdrop-filter: blur(2px);
+  animation: chat-fade 0.18s ease-out;
+}
+.dlg {
+  border-radius: 18px;
+  border-color: var(--line2);
+  box-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.5);
+  animation: pol-pop 0.22s var(--ease-out);
+}
+.dlg-hd {
+  padding: 18px 16px 6px 22px;
+}
+.dlg-bd {
+  padding: 12px 22px 20px;
+}
+.dlg-ft {
+  padding: 12px 22px;
+}
+.cm {
+  min-width: 210px;
+  padding: 5px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  border: 0;
+}
+.cm-it {
+  min-height: 30px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  gap: 10px;
+}
+
+/* ---- Settings: sections on the left, one panel on the right ------------------------- */
+
+.page.set-page {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+.set-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 26px 12px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--bg2);
+  overflow: auto;
+}
+.set-nav h1 {
+  margin: 0 10px 14px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.set-tab {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.set-tab:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+.set-tab.on {
+  background: var(--sel);
+  color: var(--tx);
+  font-weight: 500;
+}
+.set-path {
+  margin: auto 10px 0;
+  padding-top: 16px;
+  font-size: 11px;
+  color: var(--fa);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.set-page .set {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 26px clamp(20px, 5vw, 64px) 48px;
+  overflow: auto;
+  animation: chat-fade 0.2s ease-out;
+}
+.set-page .set > * {
+  max-width: 760px;
+}
+.set-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.set-page .srow {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}
+.set-page .srow:first-of-type {
+  border-top: 0;
+}
+.set-page .srow h3 {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+@media (max-width: 900px) {
+  .page.set-page {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .set-page .srow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
+/* ---- Accounts page ------------------------------------------------------------------ */
+
+.page-in h1 {
+  letter-spacing: -0.01em;
+}
+.tbl {
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+/* ---- Model picker (chat message box) ------------------------------------------------- */
+
+.mp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--raise);
+  color: var(--mu);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.mp-btn:hover,
+.mp-btn.open {
+  color: var(--tx);
+  background: var(--selr);
+}
+.mp-eff {
+  color: var(--fa);
+  font-weight: 400;
+}
+.mp-chev {
+  width: 10px;
+  height: 10px;
+  transform: rotate(90deg);
+  transition: transform 0.2s var(--ease-out);
+}
+.mp-btn.open .mp-chev {
+  transform: rotate(-90deg);
+}
+.mp-pop {
+  position: fixed;
+  z-index: 50;
+  width: 320px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow-pop);
+  animation: pol-up 0.2s var(--ease-out);
+  transform-origin: bottom left;
+}
+.mp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mp-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.mp-opt:hover,
+.mp-opt:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.mp-opt .i {
+  color: var(--acct);
+}
+.mp-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mp-nm {
+  font-size: 13px;
+  font-weight: 500;
+}
+.mp-ds {
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.mp-empty {
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.mp-eff-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 10px 10px 6px;
+  border-top: 1px solid var(--line);
+}
+.mp-eff-h {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fa);
+}
+.mp-eff-row .seg {
+  flex-wrap: wrap;
+}
+.mp-eff-row .seg-btn {
+  flex: 1;
+  font-size: 11.5px;
+  padding: 0 6px;
+}
+.cc-meta {
+  align-items: center;
+}
+
+@keyframes pol-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@keyframes pol-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dlg,
+  .mp-pop,
+  .set-page .set {
+    animation: none;
+  }
+  .btn,
+  .sw::after,
+  .mp-chev {
+    transition: none;
+  }
+}
+
+/* ---- Project screen (a project's chats and history) ---------------------------------- */
+
+.top-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--tx);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.top-link .i {
+  color: var(--fa);
+}
+.top-link:hover {
+  background: var(--hover);
+}
+.top-cnt {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--sel);
+  font-size: 11.5px;
+  color: var(--mu);
+}
+.pj-page {
+  padding: 0;
+}
+.pj {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 32px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  animation: pol-pop 0.25s var(--ease-out);
+}
+.pj-hd {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pj-hd h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.pj-hd p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--fa);
+}
+.pj-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--fa);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.pj-search:focus-within {
+  border-color: var(--hover-line);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 14%, transparent);
+}
+.pj-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  font-size: 14px;
+}
+.pj-h {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fa);
+}
+.pj-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+.pj-hrow {
+  position: relative;
+  display: flex;
+}
+.pj-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 72px;
+  align-items: center;
+  gap: 16px;
+  height: 52px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  animation: side-row-in 0.28s var(--ease-out) both;
+  transition: background 0.15s;
+}
+.pj-row:hover {
+  background: var(--hover);
+}
+.pj-t {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-m {
+  font-size: 12.5px;
+  color: var(--fa);
+  white-space: nowrap;
+}
+.pj-st {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fa);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pj-st.st-approval,
+.pj-st.st-login {
+  color: var(--warn);
+}
+.pj-st.st-exited {
+  color: var(--err);
+}
+.pj-hrow .pj-row {
+  padding-right: 48px;
+}
+.pj-del {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--fa);
+  opacity: 0;
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+.pj-hrow:hover .pj-del,
+.pj-del:focus-visible {
+  opacity: 1;
+}
+.pj-del:hover {
+  background: var(--raise);
+  color: var(--err);
+}
+.pj-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--fa);
+}
+.pj-empty h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.pj-empty p,
+.pj-none {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fa);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pj,
+  .pj-row {
+    animation: none;
+  }
+}
+/* `flex: 1` fills a History row's wrapper; in the Open list (a column) it would set the
+   height basis to 0, so rows there keep their own height. */
+.pj-list > .pj-row {
+  flex: none;
+}

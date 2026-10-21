@@ -4,11 +4,8 @@ import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@sh
 import { ACCOUNT_COLORS, type Account } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
 import { nextFreeColor } from '../app/store'
-import { IconPicker } from './IconPicker'
-import { ICON_COLORS } from '@shared/icons'
 
 /** Accounts always have a color (it marks their panes), so no neutral choice. */
-const ACCOUNT_TINTS = ICON_COLORS.filter((c) => c !== '')
 import { Dialog } from './Dialog'
 import {
   IconCheck,
@@ -20,6 +17,8 @@ import {
   IconTrash,
   IconWarn
 } from './icons'
+import { Initial } from './AccountIcon'
+import { SidebarAccounts } from './SidebarAccounts'
 
 function AddAccountForm() {
   const actions = useActions()
@@ -216,13 +215,7 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
   return (
     <div className="tr" role="row">
       <span className="nm" role="cell">
-        <IconPicker
-          icon={account.icon}
-          name={account.name}
-          color={account.color}
-          colors={ACCOUNT_TINTS}
-          onPick={(c) => actions.setAccountIcon(account.id, c.icon, c.color)}
-        />
+        <Initial name={account.name} size={24} />
         {renaming ? (
           <input
             className="inpt sans"
@@ -322,6 +315,7 @@ export function AccountsView() {
   const mode = useApp((s) => s.accountsMode)
   const accounts = useApp((s) => s.config.accounts)
   const workspaces = useApp((s) => s.config.workspaces)
+  const hasFolders = useApp((s) => s.config.accountFolders.length > 0)
   const uses = (id: string): number =>
     workspaces.reduce((n, w) => n + w.panes.filter((p) => p.accountId === id).length, 0)
 
@@ -350,6 +344,8 @@ export function AccountsView() {
 
         {mode === 'add' ? <AddAccountForm /> : null}
         {mode === 'import' ? <ImportAccountForm /> : null}
+
+        {accounts.length > 0 || hasFolders ? <SidebarAccounts /> : null}
 
         {accounts.length > 0 ? (
           <div className="tbl" role="table" aria-label="Accounts">

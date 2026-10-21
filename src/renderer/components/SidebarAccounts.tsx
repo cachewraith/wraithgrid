@@ -13,13 +13,11 @@ import {
   type CollisionDetection,
   type DragEndEvent
 } from '@dnd-kit/core'
-import { ICON_COLORS } from '@shared/icons'
 import type { Account, AccountFolder } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { AccountIcon, Avatar } from './AccountIcon'
+import { Initial } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
-import { IconPopover } from './IconPicker'
-import { IconClose, IconFolder, IconPlus, IconRename, IconSun, IconTrash } from './icons'
+import { IconClose, IconFolder, IconPlus, IconRename, IconTrash } from './icons'
 
 const ROOT = 'folder:root'
 // The zone under the pointer; if none, the one the dragged row overlaps.
@@ -47,7 +45,7 @@ function AccountRow({ account }: { account: Account }) {
       {...attributes}
       aria-roledescription="draggable account"
     >
-      <AccountIcon account={account} />
+      <Initial name={account.name} />
       <span className="nm">{account.name}</span>
       {account.signedIn ? null : <span className="acc-sub warn">login needed</span>}
     </div>
@@ -61,7 +59,6 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(folder.name)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
-  const [iconAt, setIconAt] = useState<{ top: number; left: number } | null>(null)
   const headRef = useRef<HTMLDivElement>(null)
   const save = (): void => {
     actions.renameFolder(folder.id, name)
@@ -93,13 +90,9 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
           </span>
         </button>
         <span className="fold-ic">
-          {folder.icon ? (
-            <Avatar icon={folder.icon} name={folder.name} color={folder.color || 'var(--fa)'} />
-          ) : (
-            <span style={{ color: folder.color || 'var(--fa)', display: 'flex' }}>
-              <IconFolder small />
-            </span>
-          )}
+          <span style={{ color: 'var(--fa)', display: 'flex' }}>
+            <IconFolder small />
+          </span>
         </span>
         {renaming ? (
           <input
@@ -146,14 +139,6 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
           items={[
             { label: 'Rename', icon: <IconRename small />, onSelect: startRename },
             {
-              label: 'Change icon',
-              icon: <IconSun small />,
-              onSelect: () => {
-                const r = headRef.current?.getBoundingClientRect()
-                if (r) setIconAt({ top: r.bottom + 6, left: r.left + 8 })
-              }
-            },
-            {
               label: folder.collapsed ? 'Expand' : 'Collapse',
               icon: <IconFolder small />,
               onSelect: () => actions.toggleFolder(folder.id)
@@ -171,20 +156,6 @@ function FolderRow({ folder, accounts }: { folder: AccountFolder; accounts: Acco
               onSelect: () => actions.deleteFolder(folder.id)
             }
           ]}
-        />
-      ) : null}
-      {iconAt ? (
-        <IconPopover
-          at={iconAt}
-          icon={folder.icon}
-          color={folder.color}
-          colors={ICON_COLORS}
-          name={folder.name}
-          onPick={(c, done) => {
-            actions.setFolderIcon(folder.id, c.icon, c.color)
-            if (done) setIconAt(null)
-          }}
-          onClose={() => setIconAt(null)}
         />
       ) : null}
       {folder.collapsed ? null : (
@@ -214,6 +185,8 @@ function RootZone({ accounts, hint }: { accounts: Account[]; hint: boolean }) {
   )
 }
 
+/** Accounts in folders, dragged between them. Lives on the Accounts page (the sidebar's footer
+ * switches accounts). */
 export function SidebarAccounts() {
   const actions = useActions()
   const accounts = useApp((s) => s.config.accounts)
@@ -231,9 +204,9 @@ export function SidebarAccounts() {
   const loose = accounts.filter((a) => !a.folderId)
 
   return (
-    <div className="sec">
+    <div className="sec acc-org" aria-label="Account folders">
       <div className="sec-hd">
-        <span>Accounts</span>
+        <span>Folders · drag accounts to group them</span>
         <span style={{ display: 'flex', gap: 2 }}>
           <button
             onClick={() => actions.createFolder(`Folder ${folders.length + 1}`)}
@@ -243,7 +216,6 @@ export function SidebarAccounts() {
           >
             <IconPlus small />
           </button>
-          <button onClick={() => actions.setView('accounts')}>Manage</button>
         </span>
       </div>
       {accounts.length === 0 ? <div className="side-empty">No accounts yet.</div> : null}

@@ -39,6 +39,8 @@ export interface AgentCliSpec {
   resumeArgs: string[] | null
   /** Output that means "waiting for the user to approve something". */
   approval: RegExp
+  /** Has a chat-view adapter (src/main/chat/); without one its panes are terminals only. */
+  chat: boolean
   /** Accounts screen hint shown when adding an account. */
   note: string
 }
@@ -64,6 +66,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: '\x1b\r',
     resumeArgs: ['--continue'],
     approval: CLAUDE_APPROVAL,
+    chat: true,
     note: 'After saving, use Login to open a pane running claude under this account and run /login there.'
   },
   gemini: {
@@ -75,6 +78,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['--resume', 'latest'],
     approval: GEMINI_APPROVAL,
+    chat: false,
     note: 'Panes run gemini with GEMINI_CLI_HOME set to this config dir; it asks you to sign in on first launch.'
   },
   agy: {
@@ -86,6 +90,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: null,
     approval: GEMINI_APPROVAL,
+    chat: false,
     note: 'Panes run agy. It keeps its sign-in in the system keyring, so every Antigravity account on this machine uses the same Google login; it asks on first launch.'
   },
   codex: {
@@ -97,6 +102,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['resume', '--last'],
     approval: CODEX_APPROVAL,
+    chat: false,
     note: 'Panes run codex with CODEX_HOME set to this config dir. Its sign-in stays separate per account only while codex stores credentials in a file (cli_auth_credentials_store = "file"); with the keyring, accounts share one login.'
   },
   opencode: {
@@ -110,6 +116,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['--continue'],
     approval: GENERIC_APPROVAL,
+    chat: false,
     note: 'Panes run opencode. It keeps provider keys in one place for your user (~/.local/share/opencode), so every opencode account on this machine shares them.'
   },
   cursor: {
@@ -121,6 +128,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['--continue'],
     approval: GENERIC_APPROVAL,
+    chat: false,
     note: 'Panes run cursor-agent with CURSOR_CONFIG_DIR set to this config dir. Cursor does not document where it keeps the sign-in, so accounts may share one login; run cursor-agent login in a pane to check.'
   },
   copilot: {
@@ -132,6 +140,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['--continue'],
     approval: GENERIC_APPROVAL,
+    chat: false,
     note: 'Panes run copilot with COPILOT_HOME set to this config dir. Copilot may keep its GitHub token in the system keychain, so accounts may share one login; use /login in a pane to check.'
   }
 }

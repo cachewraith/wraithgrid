@@ -21,6 +21,7 @@ test('theme, accent and terminal colors apply live and persist', async () => {
     const win = await app.firstWindow()
     const root = win.locator('html')
     await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Appearance' }).click()
 
     const theme = win.getByRole('radiogroup', { name: 'Theme' })
     await theme.getByRole('radio', { name: 'Light' }).click()
@@ -53,6 +54,7 @@ test('theme, accent and terminal colors apply live and persist', async () => {
     expect(termBg).toBe('#2e3440')
 
     // Unpackaged builds skip the launch check, so nothing has been fetched.
+    await win.getByRole('tab', { name: 'About' }).click()
     await expect(win.getByText('Not checked yet.')).toBeVisible()
     await win.getByRole('switch', { name: 'Check when Wraithgrid starts' }).click()
 

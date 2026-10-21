@@ -1,16 +1,22 @@
 import type { MouseEvent } from 'react'
 import type { DraggableSyntheticListeners } from '@dnd-kit/core'
 import type { GitStatus } from '@shared/ipc-contract'
-import { PANE_STATUS_LABEL, type PaneStatus } from '@shared/types'
+import { PANE_STATUS_LABEL, type PaneStatus, type PaneView } from '@shared/types'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { AccountIcon } from './AccountIcon'
-import { IconBranch, IconClose, IconUnzoom, IconZoom } from './icons'
+import { Initial } from './AccountIcon'
+import {
+  IconBranch,
+  IconChat,
+  IconClose,
+  IconCompose,
+  IconTerminal,
+  IconUnzoom,
+  IconZoom
+} from './icons'
 
 interface Props {
   title: string
   accountName: string | null
-  accountColor: string | null
-  accountIcon: string
   cwdLabel: string
   status: PaneStatus
   zoomed: boolean
@@ -24,6 +30,10 @@ interface Props {
   onMenu: (e: MouseEvent<HTMLElement>) => void
   /** Right-click on the branch chip: the branch picker. */
   onBranches: (e: MouseEvent<HTMLElement>) => void
+  /** The Chat/Terminal switch; null when the pane can only be a terminal. */
+  view: PaneView | null
+  onView: (view: PaneView) => void
+  onNewChat: () => void
 }
 
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
@@ -47,14 +57,7 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       </button>
       {p.accountName ? (
         <span className="chip">
-          <AccountIcon
-            account={{
-              color: p.accountColor ?? 'var(--fa)',
-              icon: p.accountIcon,
-              name: p.accountName
-            }}
-            size={16}
-          />
+          <Initial name={p.accountName} size={16} />
           {p.accountName}
         </span>
       ) : null}
@@ -76,6 +79,32 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
           <IconBranch small />
           <span className="gitc-b">{p.git.branch ?? 'detached'}</span>
           {p.git.changed ? <span className="gitc-n">{p.git.changed}</span> : null}
+        </button>
+      ) : null}
+      {p.view ? (
+        <div className="vsw" role="group" aria-label="Show pane as">
+          {(['chat', 'terminal'] as const).map((v) => (
+            <button
+              key={v}
+              className={p.view === v ? 'on' : ''}
+              aria-pressed={p.view === v}
+              aria-label={v === 'chat' ? 'Chat' : 'Terminal'}
+              title={v === 'chat' ? 'Chat view' : "Terminal view (the CLI's own screen)"}
+              onClick={() => p.onView(v)}
+            >
+              {v === 'chat' ? <IconChat small /> : <IconTerminal small />}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {p.view === 'chat' ? (
+        <button
+          className="icon-btn sm"
+          aria-label="New conversation"
+          title="New conversation"
+          onClick={p.onNewChat}
+        >
+          <IconCompose small />
         </button>
       ) : null}
       <span className={`st st-${p.status}`}>

@@ -1,4 +1,5 @@
 import { readFile, stat, mkdir, realpath, rm } from 'node:fs/promises'
+import { writeFileAtomic } from './config-store'
 import path from 'node:path'
 import {
   app,
@@ -15,6 +16,14 @@ import { marketplaceOf } from '@shared/mods'
 import { contractHome } from '@shared/paths'
 import {
   IPC,
+  chatApproveArgs,
+  chatPaneArgs,
+  chatSaveArgs,
+  chatSendArgs,
+  chatSetModelArgs,
+  chatStartArgs,
+  chatStopArgs,
+  type ChatStartResult,
   accountCreateDirArgs,
   accountDeleteDirArgs,
   claudeDetectArgs,
@@ -132,6 +141,8 @@ import type { PaneRouter } from './pane-router'
 import { sshConfigHosts } from './ssh'
 import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
+import { chatAdapterFor } from './chat/adapter'
+import type { ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
 
@@ -156,6 +167,10 @@ export interface IpcDeps {
   git: GitRunner
   /** Shows an OS notification about a pane; a click should bring that pane forward. */
   notifyPane: (paneId: string, title: string, body: string) => void
+  /** Chat panes' headless CLI processes (ADR 0002). */
+  chats: ChatSessions
+  /** Where each chat pane's conversation view is saved (`<paneId>.json`). */
+  chatDir: string
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -298,6 +313,84 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     },
     fail('Invalid request')
   )
+
+  // ---- Chat panes (ADR 0002) -------------------------------------------------------
+
+  const { chats } = deps
+  handle(
+    IPC.chatStart,
+    chatStartArgs,
+    async (a): Promise<ChatStartResult> => {
+      // The window reloaded (renderer crash): its process kept running.
+      if (chats.has(a.paneId)) return { ok: true, pid: null, attached: true }
+      const cfg = store.get()
+      if (machineOfPane(cfg, a.paneId))
+        return fail('Chat runs on this computer only. Switch this pane to Terminal.')
+      const account = cfg.accounts.find((x) => x.id === a.accountId)
+      if (!account) return fail('This pane has no account. Pick one in the New pane dialog.')
+      const adapter = chatAdapterFor(account.cli)
+      if (!adapter)
+        return fail(`${account.cli} has no chat view yet. Switch this pane to Terminal.`)
+      await deps.envReady
+      if (account.cli === 'claude') await syncShared(account.id)
+      const resolved = await resolveSpawn(
+        {
+          paneId: a.paneId,
+          cli: account.cli,
+          shell: false,
+          configDir: account.configDir,
+          cwd: a.cwd,
+          args: [
+            ...a.args,
+            ...adapter.args({
+              sessionId: a.sessionId,
+              continueLast: a.continueLast,
+              model: a.model,
+              effort: a.effort
+            })
+          ],
+          resume: false,
+          cols: 80,
+          rows: 24
+        },
+        {
+          platform: process.platform,
+          env: process.env,
+          homeDir,
+          claudePath: cfg.claudePath,
+          cliPaths: cfg.settings.cliPaths,
+          shellPath: cfg.settings.shellPath,
+          shellArgs: cfg.settings.shellArgs,
+          modDirs: cfg.settings.modDirs
+        }
+      )
+      if (!resolved.ok) return fail(resolved.error)
+      const { file, args, cwd, env } = resolved.req
+      const { pid } = chats.start(a.paneId, { file, args, cwd, env }, adapter)
+      return { ok: true, pid, attached: false }
+    },
+    fail('Invalid request')
+  )
+  listen(IPC.chatSend, chatSendArgs, (a) => chats.send(a.paneId, a.text, a.images))
+  listen(IPC.chatApprove, chatApproveArgs, (a) => chats.approve(a.paneId, a.reqId, a.decision))
+  listen(IPC.chatInterrupt, chatPaneArgs, (a) => chats.interrupt(a.paneId))
+  listen(IPC.chatSetModel, chatSetModelArgs, (a) => chats.setModel(a.paneId, a.model))
+  const chatFile = (paneId: string): string => path.join(deps.chatDir, `${paneId}.json`)
+  listen(IPC.chatStop, chatStopArgs, (a) => {
+    void chats.stop(a.paneId)
+    if (a.forget) void rm(chatFile(a.paneId), { force: true }).catch(() => {})
+  })
+  handle(
+    IPC.chatLoad,
+    chatPaneArgs,
+    (a) => readFile(chatFile(a.paneId), 'utf8').catch(() => null),
+    null
+  )
+  listen(IPC.chatSave, chatSaveArgs, (a) => {
+    void mkdir(deps.chatDir, { recursive: true, mode: 0o700 })
+      .then(() => writeFileAtomic(chatFile(a.paneId), a.data))
+      .catch((err: Error) => log(`could not save chat ${a.paneId}: ${err.message}`))
+  })
 
   listen(IPC.ptyWrite, ptyWriteArgs, (a) => ptys.write(a.paneId, a.data))
   listen(IPC.ptyResize, ptyResizeArgs, (a) => ptys.resize(a.paneId, a.cols, a.rows))

@@ -1,4 +1,17 @@
 import { z } from 'zod'
+import {
+  CHAT_IMAGE_MAX,
+  CHAT_IMAGE_TYPES,
+  CHAT_IMAGES_MAX,
+  CHAT_EFFORTS,
+  CHAT_MODEL_PATTERN,
+  CHAT_SAVE_MAX,
+  CHAT_TEXT_MAX,
+  chatSessionIdSchema,
+  type ApprovalDecision,
+  type ChatEventMessage,
+  type ChatImage
+} from './chat'
 import { idSchema, sshHostSchema } from './schema'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
 
@@ -28,6 +41,47 @@ export const ptyCreateArgs = z.object({
   rows: dim
 })
 export type PtyCreateArgs = z.infer<typeof ptyCreateArgs>
+
+/** A chat pane's CLI (ADR 0002); the account is resolved in main, as for pty:create. */
+export const chatStartArgs = z.object({
+  paneId: idSchema,
+  accountId: idSchema,
+  cwd: z.string().min(1).max(4096),
+  args: ptyCreateArgs.shape.args,
+  /** The conversation to resume; null starts one (or continues the folder's last). */
+  sessionId: chatSessionIdSchema.nullable(),
+  continueLast: z.boolean().default(false),
+  model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null),
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null)
+})
+export type ChatStartArgs = z.infer<typeof chatStartArgs>
+export const chatSendArgs = z.object({
+  paneId: idSchema,
+  text: z.string().max(CHAT_TEXT_MAX),
+  images: z
+    .array(
+      z.object({
+        mediaType: z.enum(CHAT_IMAGE_TYPES),
+        data: z
+          .string()
+          .max(CHAT_IMAGE_MAX)
+          .regex(/^[A-Za-z0-9+/=]*$/)
+      })
+    )
+    .max(CHAT_IMAGES_MAX)
+})
+export const chatApproveArgs = z.object({
+  paneId: idSchema,
+  reqId: z.string().min(1).max(200),
+  decision: z.enum(['allow', 'always', 'deny'])
+})
+export const chatPaneArgs = z.object({ paneId: idSchema })
+export const chatSetModelArgs = z.object({
+  paneId: idSchema,
+  model: z.string().regex(CHAT_MODEL_PATTERN)
+})
+export const chatStopArgs = z.object({ paneId: idSchema, forget: z.boolean() })
+export const chatSaveArgs = z.object({ paneId: idSchema, data: z.string().max(CHAT_SAVE_MAX) })
 
 export const ptyWriteArgs = z.object({ paneId: idSchema, data: z.string().max(1_000_000) })
 export const ptyResizeArgs = z.object({ paneId: idSchema, cols: dim, rows: dim })
@@ -334,6 +388,9 @@ export type ModInstallResult =
 export type AccountMods =
   { accountId: string; ok: true; mods: ModInfo[] } | { accountId: string; ok: false; error: string }
 
+export type ChatStartResult =
+  { ok: true; pid: number | null; attached: boolean } | { ok: false; error: string }
+
 export type SimpleResult = { ok: true } | { ok: false; error: string }
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
@@ -346,6 +403,21 @@ export interface WraithApi {
     kill(paneId: string): void
     onData(cb: (e: PtyDataEvent) => void): () => void
     onExit(cb: (e: PtyExitEvent) => void): () => void
+  }
+  /** Chat panes (ADR 0002): the CLI runs headless and speaks ChatEvents. */
+  chat: {
+    start(args: ChatStartArgs): Promise<ChatStartResult>
+    send(paneId: string, text: string, images: ChatImage[]): void
+    approve(paneId: string, reqId: string, decision: ApprovalDecision): void
+    interrupt(paneId: string): void
+    /** Switches the running chat's model at once (the next turn uses it). */
+    setModel(paneId: string, model: string): void
+    /** Stops the process; `forget` also deletes the saved conversation view. */
+    stop(paneId: string, forget: boolean): void
+    onEvent(cb: (m: ChatEventMessage) => void): () => void
+    /** The conversation view saved for this pane, as `save` got it. */
+    load(paneId: string): Promise<string | null>
+    save(paneId: string, data: string): void
   }
   config: {
     get(): Promise<Config>

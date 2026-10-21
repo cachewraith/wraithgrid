@@ -4,10 +4,19 @@ import { contractHome, expandHome } from '@shared/paths'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { DENSE_FONT_SIZE, PANE_STATUS_LABEL } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { accountById, findPane } from '../app/store'
+import { accountById, canChat, findPane, paneView } from '../app/store'
 import type { Rect } from '../layout/focus'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
-import { IconBranch, IconCheck, IconClose, IconRestart } from './icons'
+import { ChatView } from './chat/ChatView'
+import {
+  IconBranch,
+  IconChat,
+  IconCheck,
+  IconClose,
+  IconCompose,
+  IconRestart,
+  IconTerminal
+} from './icons'
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
@@ -59,6 +68,8 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const settings = useApp((s) => s.config.settings)
   const home = useApp((s) => s.info.homeDir)
   const git = useApp((s) => s.git[paneId])
+  const view = useApp((s) => paneView(s.config, paneId))
+  const chatable = useApp((s) => canChat(s.config, paneId))
   const actions = useActions()
   const [bannerHidden, setBannerHidden] = useState(false)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
@@ -88,7 +99,8 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const command = pane.shell ? 'shell' : AGENT_CLI_SPECS[cli].bin
   const canResume = !pane.shell && !!AGENT_CLI_SPECS[cli].resumeArgs
   const cwd = contractHome(expandHome(pane.cwd, home), home)
-  const loginNeeded = !pane.shell && !!account && !account.signedIn && !exited
+  const isChat = view === 'chat'
+  const loginNeeded = !isChat && !pane.shell && !!account && !account.signedIn && !exited
   const compact = !!rect && rect.width < 460
 
   const className = [
@@ -97,7 +109,8 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
     rect ? '' : 'hidden',
     drop.isOver && !drag.isDragging ? 'drop-target' : '',
     drag.isDragging ? 'dragging' : '',
-    compact ? 'compact' : ''
+    compact ? 'compact' : '',
+    isChat ? 'is-chat' : ''
   ]
     .filter(Boolean)
     .join(' ')
@@ -118,8 +131,6 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
       <PaneHeader
         title={pane.title}
         accountName={account?.name ?? (pane.shell ? null : 'no account')}
-        accountColor={account?.color ?? null}
-        accountIcon={account?.icon ?? ''}
         cwdLabel={pane.shell ? `${cwd} · shell` : cwd}
         status={status}
         zoomed={zoomed}
@@ -135,20 +146,31 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         }}
         onMenu={(e) => setMenu(menuPoint(e))}
         onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
+        view={chatable ? view : null}
+        onView={(v) => actions.setPaneView(paneId, v)}
+        onNewChat={() => actions.chatNew(paneId)}
       />
-      <div
-        className={`term-host${dense ? ' sm' : ''}${zoomed ? ' lg' : ''}${exited ? ' dim' : ''}`}
-      >
-        <PaneErrorBoundary>
-          <Terminal
-            paneId={paneId}
-            visible={!!rect}
-            focused={focused}
-            fontFamily={settings.fontFamily}
-            fontSize={dense ? Math.min(settings.fontSize, DENSE_FONT_SIZE) : settings.fontSize}
-          />
-        </PaneErrorBoundary>
-      </div>
+      {isChat ? (
+        <div className={`chat-host${zoomed ? ' lg' : ''}`}>
+          <PaneErrorBoundary>
+            <ChatView paneId={paneId} visible={!!rect} focused={focused} />
+          </PaneErrorBoundary>
+        </div>
+      ) : (
+        <div
+          className={`term-host${dense ? ' sm' : ''}${zoomed ? ' lg' : ''}${exited ? ' dim' : ''}`}
+        >
+          <PaneErrorBoundary>
+            <Terminal
+              paneId={paneId}
+              visible={!!rect}
+              focused={focused}
+              fontFamily={settings.fontFamily}
+              fontSize={dense ? Math.min(settings.fontSize, DENSE_FONT_SIZE) : settings.fontSize}
+            />
+          </PaneErrorBoundary>
+        </div>
+      )}
       {loginNeeded && account && !bannerHidden ? (
         <LoginBanner
           accountName={account.name}
@@ -162,7 +184,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           onHide={() => setBannerHidden(true)}
         />
       ) : null}
-      {rt?.exit ? (
+      {rt?.exit && !isChat ? (
         <ExitedOverlay
           exit={rt.exit}
           command={command}
@@ -175,7 +197,25 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           label={`Pane ${pane.title}`}
           onClose={() => setMenu(null)}
           items={[
-            ...(canResume
+            ...(chatable
+              ? [
+                  {
+                    label: isChat ? 'Show as terminal' : 'Show as chat',
+                    icon: isChat ? <IconTerminal small /> : <IconChat small />,
+                    onSelect: () => actions.setPaneView(paneId, isChat ? 'terminal' : 'chat')
+                  }
+                ]
+              : []),
+            ...(isChat
+              ? [
+                  {
+                    label: 'New conversation',
+                    icon: <IconCompose small />,
+                    onSelect: () => actions.chatNew(paneId)
+                  }
+                ]
+              : []),
+            ...(canResume && !isChat
               ? [
                   {
                     label: pane.resume

@@ -149,6 +149,7 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
   try {
     let { app, win } = await launch()
     await win.locator('.ws-row', { hasText: 'labwork' }).click()
+    await win.getByRole('button', { name: /Open chats/ }).click()
     // Resolved on the other machine: its home, its account dir, its claude.
     await expect
       .poll(() => paneText(win, 'gamma'), { timeout: 20_000 })
@@ -165,6 +166,7 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
 
     // Settings → Machines → Test reaches it.
     await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Advanced' }).click()
     await win.getByRole('button', { name: 'Test' }).click()
     await expect(win.getByText(/Connected: Wraithgrid .*, 1 agent running/)).toBeVisible({
       timeout: 20_000
@@ -182,6 +184,7 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
     // The next launch reattaches it, screen and all.
     ;({ app, win } = await launch())
     await win.locator('.ws-row', { hasText: 'labwork' }).click()
+    await win.getByRole('button', { name: /Open chats/ }).click()
     await expect.poll(() => paneText(win, 'gamma'), { timeout: 20_000 }).toContain('got:overssh')
     expect(pids(labClaude)).toEqual([remoteAgent])
     await app.close()

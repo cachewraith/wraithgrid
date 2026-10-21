@@ -1,4 +1,35 @@
-# What's new in 1.10: agents that keep running
+# What's new (unreleased): chat panes
+
+Agent panes can now be a chat, like ChatGPT, Claude Desktop or T3 Code, with the official CLI
+still doing the work in the background: same account, same folder, same CLAUDE.md, skills and
+mods.
+
+| Feature | How to use it |
+|---|---|
+| Chat with an agent | New panes open as chat (**Settings → New panes open as**) |
+| Switch a pane | The Chat / Terminal switch in the pane header, or right-click the header |
+| Approve a tool | **Allow**, **Always allow** or **Deny** above the message box |
+| Stop a turn | **Stop** or Esc |
+| Start over | The new-conversation button in the header |
+| Paste a screenshot | Ctrl+V in the message box |
+| Find a chat | Click a project in the sidebar: its open chats and History, with search |
+| Pick up an old chat | Project → History → click it: it carries on where it stopped |
+| Switch account | The account button at the bottom of the sidebar (new chats use it) |
+| Group accounts in folders | Accounts page (from the account button → Manage accounts) |
+| Change the model | The model button in the message box (Opus, Sonnet, Haiku…, and effort) |
+| Defaults for new chats | **Settings → Chat** |
+
+- Answers stream in as formatted text, with code blocks you can copy. Commands, file edits
+  (as a diff), searches and task lists show as small cards that open to show their output.
+- The sidebar and the whole app are text first, like Claude and Codex desktop: no icons or emoji, Settings in tabs.
+- Quit and come back: the conversation is still there and carries on.
+- Chat is for Claude Code for now; other CLIs open as terminals. Signing in, `/config` and
+  other interactive commands are in the terminal view. Chat agents stop when Wraithgrid quits
+  (terminal panes can keep running), and the `wraithgrid` command sees terminal panes only.
+
+---
+
+## Previously, in 1.10: agents that keep running
 
 *v1.10.0 · 2026-10-20*
 

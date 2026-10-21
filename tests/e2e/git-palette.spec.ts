@@ -96,10 +96,12 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.setViewportSize({ width: 1440, height: 860 })
     const side = win.getByRole('complementary', { name: 'Sidebar' })
 
-    // The active workspace lists its panes; clicking one focuses it.
-    await expect(side.locator('.pn-row', { hasText: 'api' })).toBeVisible()
-    await side.locator('.pn-row', { hasText: 'notes' }).click()
-    await expect(side.locator('.pn-row.on', { hasText: 'notes' })).toBeVisible()
+    // A project's screen lists its chats; clicking one focuses it in the grid.
+    await side.locator('.ws-row.on').click()
+    const open = win.getByRole('region', { name: 'Open chats' })
+    await expect(open.locator('.pj-row', { hasText: 'api' })).toBeVisible()
+    await open.locator('.pj-row', { hasText: 'notes' }).click()
+    await expect(win.locator('section.pane.focused .ph-title')).toHaveText('notes')
 
     // The repo pane shows its branch and one changed file; the other folder shows none.
     const apiPane = win.locator('section.pane', {
@@ -188,7 +190,7 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.getByRole('switch', { name: 'Work on a new branch (git worktree)' }).click()
     await win.locator('#np-branch').fill('feat/limit')
     if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'new-pane-light.png') })
-    await win.getByRole('button', { name: 'Create pane' }).click()
+    await win.getByRole('button', { name: /Create pane|Start chat/ }).click()
     const wtPane = win.locator('section.pane', {
       has: win.locator('.ph-title', { hasText: 'feat-limit' })
     })
@@ -201,7 +203,7 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.locator('#np-dir').fill('~/proj/api')
     await win.getByRole('switch', { name: 'Work on a new branch (git worktree)' }).click()
     await win.locator('#np-branch').fill('feat/limit')
-    await win.getByRole('button', { name: 'Create pane' }).click()
+    await win.getByRole('button', { name: /Create pane|Start chat/ }).click()
     await expect(win.getByRole('alert')).toContainText('already exists')
     // Esc closes it, though the busy button let go of the focus.
     await win.keyboard.press('Escape')

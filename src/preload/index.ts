@@ -7,6 +7,7 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
+import type { ChatEventMessage } from '@shared/chat'
 import type { CloseMode } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -24,6 +25,18 @@ const api: WraithApi = {
     kill: (paneId) => ipcRenderer.send(IPC.ptyKill, { paneId }),
     onData: (cb) => subscribe<PtyDataEvent>(IPC.ptyData, cb),
     onExit: (cb) => subscribe<PtyExitEvent>(IPC.ptyExit, cb)
+  },
+  chat: {
+    start: (args) => ipcRenderer.invoke(IPC.chatStart, args),
+    send: (paneId, text, images) => ipcRenderer.send(IPC.chatSend, { paneId, text, images }),
+    approve: (paneId, reqId, decision) =>
+      ipcRenderer.send(IPC.chatApprove, { paneId, reqId, decision }),
+    interrupt: (paneId) => ipcRenderer.send(IPC.chatInterrupt, { paneId }),
+    setModel: (paneId, model) => ipcRenderer.send(IPC.chatSetModel, { paneId, model }),
+    stop: (paneId, forget) => ipcRenderer.send(IPC.chatStop, { paneId, forget }),
+    onEvent: (cb) => subscribe<ChatEventMessage>(IPC.chatEvent, cb),
+    load: (paneId) => ipcRenderer.invoke(IPC.chatLoad, { paneId }),
+    save: (paneId, data) => ipcRenderer.send(IPC.chatSave, { paneId, data })
   },
   config: {
     get: () => ipcRenderer.invoke(IPC.configGet),

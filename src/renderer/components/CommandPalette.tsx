@@ -6,12 +6,13 @@ import { useActions, useApp } from '../app/services'
 import { currentTheme, type AppState } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { matches } from '../lib/search'
-import { AccountIcon, Avatar } from './AccountIcon'
+import { Initial } from './AccountIcon'
 import { Dialog } from './Dialog'
 import {
   IconBranch,
   IconCompose,
   IconDiff,
+  IconFolder,
   IconKeyboard,
   IconMoon,
   IconSearch,
@@ -47,11 +48,7 @@ function buildItems(s: AppState): Item[] {
         sub: [account?.name ?? 'shell', ws.name, branch, status ? PANE_STATUS_LABEL[status] : null]
           .filter(Boolean)
           .join(' · '),
-        icon: account ? (
-          <AccountIcon account={account} size={18} />
-        ) : (
-          <Avatar icon="" name="$" color="var(--fa)" />
-        ),
+        icon: account ? <Initial name={account.name} size={18} /> : <Initial name="$" size={18} />,
         run: () => s.revealPane(p.id)
       })
     }
@@ -152,7 +149,7 @@ function buildItems(s: AppState): Item[] {
       group: 'Workspaces',
       label: w.name,
       sub: `${w.panes.length} ${w.panes.length === 1 ? 'pane' : 'panes'}`,
-      icon: <Avatar icon={w.icon} name={w.name} color={w.color || 'var(--fa)'} />,
+      icon: <IconFolder />,
       hint: i < 9 ? SHORTCUT_HINT.workspaceN(i + 1) : undefined,
       run: () => s.switchWorkspace(w.id)
     })
@@ -164,7 +161,7 @@ function buildItems(s: AppState): Item[] {
       group: 'Accounts',
       label: `New claude pane as ${a.name}`,
       sub: `in ${cwd}`,
-      icon: <AccountIcon account={a} size={18} />,
+      icon: <Initial name={a.name} size={18} />,
       run: () => {
         s.createPane({ accountId: a.id, cwd, args: [], shell: false, slotId: null })
       }

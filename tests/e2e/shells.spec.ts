@@ -46,6 +46,7 @@ test('a custom shell runs with its args; panes never inherit the launching termi
 
     // Settings: the picker lists real shells; choose a custom one with arguments.
     await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     const picker = win.getByRole('radiogroup', { name: 'Shell for plain panes' })
     await expect(picker.getByRole('radio', { name: /Automatic/ })).toHaveAttribute(
       'aria-checked',
@@ -66,6 +67,7 @@ test('a custom shell runs with its args; panes never inherit the launching termi
 
     // A shell that is gone is reported, not swapped for another.
     await win.getByRole('button', { name: 'Settings' }).click()
+    await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     await win.getByLabel('Shell path').fill('/nowhere/elvish')
     await win.keyboard.press('Control+Shift+N')
     await win.getByRole('button', { name: 'Create pane' }).click()

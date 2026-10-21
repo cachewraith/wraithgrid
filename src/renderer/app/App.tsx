@@ -6,6 +6,7 @@ import { BranchPicker } from '../components/BranchPicker'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
+import { ProjectView } from '../components/ProjectView'
 import { ModsView } from '../components/ModsView'
 import { SettingsView } from '../components/SettingsView'
 import { ShortcutsSheet } from '../components/ShortcutsSheet'
@@ -159,6 +160,7 @@ export function App() {
           <div className="work">
             <div className="content">
               <PaneGrid />
+              {view === 'project' ? <ProjectView /> : null}
               {view === 'accounts' ? <AccountsView /> : null}
               {view === 'mods' ? <ModsView /> : null}
               {view === 'settings' ? <SettingsView /> : null}

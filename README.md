@@ -46,7 +46,7 @@ Wraithgrid never reads, copies or proxies anything inside those folders.
 | **Paste screenshots**          | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                                                   |
 | **Flexible layouts**           | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                                                         |
 | **Workspaces**                 | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                                                 |
-| **Folders & icons**            | Group accounts into sidebar folders by drag and drop, and give accounts, workspaces and folders an emoji or one of ~6,500 Material and Lucide icons.                                                       |
+| **Account folders**            | Group accounts into folders by drag and drop on the Accounts page.                                                                                                                                         |
 | **Live pane status**           | Each pane shows whether its CLI is running (animated), waiting for your approval, done (finished while you looked elsewhere) or idle. Tuned for `claude`; other CLIs' prompts are matched from their docs. |
 | **Git changes & worktrees**    | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch.                            |
 | **Pick up where you left off** | Panes you prompted continue their conversation when Wraithgrid restarts (`claude --continue`, `codex resume --last`…). Right-click a pane's header to turn it off.                                         |
@@ -217,11 +217,9 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    branches, newest first, and remote ones you don't have yet, or type a new name to create it.
    Uncommitted changes come along; git refuses if they would be overwritten and says why.
    Every pane on that folder sees the new branch.
-9. **Folders and icons.** In the sidebar, **+** next to Accounts creates a folder (double-click
-   to rename). Drag an account onto a folder to move it in, or onto the list to take it out.
-   Click an account's badge on the Accounts page, a workspace's badge in **Manage**, or
-   right-click a folder, to pick an icon (search Material and Lucide icons, or any emoji) and a
-   tint.
+9. **Account folders.** On the Accounts page (the account button at the bottom of the sidebar →
+   **Manage accounts**), **+** creates a folder (double-click to rename). Drag an account onto a
+   folder to move it in, or onto the list to take it out.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
 **Restart** button. On the next launch your workspaces, layouts, accounts and folders come

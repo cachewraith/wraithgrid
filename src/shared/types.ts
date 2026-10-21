@@ -1,4 +1,5 @@
 import type { AgentCli } from './agent-clis'
+import type { ChatEffort } from './chat'
 
 // Domain model shared by main, preload and renderer. Persisted shape lives in schema.ts.
 
@@ -36,6 +37,10 @@ export type TerminalFont = (typeof TERMINAL_FONTS)[number]
 
 export const SHARED_MODES = ['overall', 'per-account'] as const
 export type SharedMode = (typeof SHARED_MODES)[number]
+
+/** How an agent pane is shown: a chat over the CLI's headless mode, or its own terminal UI. */
+export const PANE_VIEWS = ['chat', 'terminal'] as const
+export type PaneView = (typeof PANE_VIEWS)[number]
 
 /** What closing the window does while agents run: ask, stop them, or keep them running. */
 export const CLOSE_MODES = ['ask', 'stop', 'keep'] as const
@@ -151,6 +156,14 @@ export interface Pane {
   resume: boolean
   /** Something was sent to the agent, so there is a conversation to continue. */
   hasConversation: boolean
+  /** Chat or terminal; shell panes and CLIs without a chat adapter are always terminals. */
+  view: PaneView
+  /** The chat view's conversation id, resumed when the pane starts again. */
+  chatSessionId: string | null
+  /** The chat's model (a CLI alias like `sonnet`); null: the account's default. */
+  model: string | null
+  /** The chat's effort level; null: the CLI's default. */
+  effort: ChatEffort | null
 }
 
 export type SplitDir = 'row' | 'col'
@@ -172,7 +185,18 @@ export interface Workspace {
   layout: LayoutNode | null
   /** The machine its panes run on (H5); null: this computer. */
   machineId: string | null
+  /** Chats closed here, newest first: the project screen's History, reopened from there. */
+  history: ArchivedChat[]
 }
+
+/** A closed chat, kept so it can be reopened and carry on (its saved view keeps its id). */
+export interface ArchivedChat {
+  pane: Pane
+  closedAt: number
+}
+
+/** History entries kept per project; older ones are dropped with their saved views. */
+export const HISTORY_MAX = 100
 
 /** Another computer whose Wraithgrid runs this workspace's panes, reached with `ssh` (H5). */
 export interface Machine {
@@ -223,6 +247,11 @@ export interface Settings {
   onWindowClose: CloseMode
   /** Let `wraithgrid list|read|send|wait|new|split|stop` reach panes (H6). Off by default. */
   cliAccess: boolean
+  /** How new agent panes open, when their CLI has a chat view (ADR 0002). */
+  newPaneView: PaneView
+  /** Model and effort new chats start with; null: the CLI's default. */
+  chatModel: string | null
+  chatEffort: ChatEffort | null
 }
 
 export const CONFIG_VERSION = 1

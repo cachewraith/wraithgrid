@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome } from '@shared/paths'
 import { AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
-import { AccountIcon } from './AccountIcon'
+import { Initial } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { Dialog } from './Dialog'
 import { IconCheck, IconClose, IconFolder } from './icons'
@@ -37,6 +37,8 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const [worktree, setWorktree] = useState(false)
   const [branch, setBranch] = useState('')
   const [busy, setBusy] = useState(false)
+  // Opens as a chat: the dialog says so (a shell, or Terminal as the default, is a pane).
+  const chatLike = !shell && settings.newPaneView === 'chat'
   const [error, setError] = useState<string | null>(null)
 
   const account = accounts.find((a) => a.id === accountId)
@@ -82,7 +84,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
     <Dialog onClose={actions.closeModal} labelledBy="np-t" className="pinned">
       <form onSubmit={(e) => void submit(e)}>
         <div className="dlg-hd">
-          <h2 id="np-t">New pane</h2>
+          <h2 id="np-t">{chatLike ? 'New chat' : 'New pane'}</h2>
           <button
             type="button"
             className="icon-btn"
@@ -132,7 +134,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                       disabled={shell}
                       onClick={() => setAccountId(a.id)}
                     >
-                      <AccountIcon account={a} size={20} />
+                      <Initial name={a.name} size={20} />
                       <span className="tx">
                         <span className="nm">{a.name}</span>
                         <span className="sb" title={AGENT_CLI_LABEL[a.cli]}>
@@ -299,7 +301,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
             Cancel
           </button>
           <button type="submit" className="btn pri" disabled={!canCreate}>
-            {busy ? 'Creating worktree…' : 'Create pane'}
+            {busy ? 'Creating worktree…' : chatLike ? 'Start chat' : 'Create pane'}
           </button>
         </div>
       </form>

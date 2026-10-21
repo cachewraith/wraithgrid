@@ -128,7 +128,8 @@ test('README screenshots', async () => {
     await win.keyboard.press('Escape')
 
     const side = win.getByRole('complementary', { name: 'Sidebar' })
-    await side.getByRole('button', { name: 'Manage' }).last().click()
+    await side.getByRole('button', { name: /Switch account/ }).click()
+    await win.getByRole('menuitem', { name: 'Manage accounts' }).click()
     await expect(win.getByRole('button', { name: 'Change the icon of work' })).toBeVisible()
     await win.waitForTimeout(300)
     await shot('accounts.png')
@@ -144,6 +145,7 @@ test('README screenshots', async () => {
     await win.getByRole('radio', { name: 'Light', exact: true }).click()
     await expect(win.locator('html')).toHaveAttribute('data-theme', 'light')
     await side.locator('.ws-row', { hasText: 'main' }).click()
+    await win.getByRole('button', { name: /Open chats/ }).click()
     await expect(pane('api-server')).toBeVisible()
     await pane('api-server').locator('.xterm-screen').click()
     await win.waitForTimeout(800)

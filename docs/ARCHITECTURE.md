@@ -21,18 +21,22 @@
 | `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens Settings → Updates |
 | `update-install.ts` | `UpdateInstaller`: facade over electron-updater; check, download (progress events), install and relaunch |
 | `paths.ts` | Config file path, accounts root, worktrees root, `~` resolution, `isStrictlyInside` guard |
+| `chat/` | Chat panes (ADR 0002): `sessions.ts` `ChatSessions` runs one headless CLI per pane on pipes (JSON lines in/out, quiet stop, crash = exit event with last stderr line); `adapter.ts` registry; `claude.ts` stream-json ↔ `ChatEvent`, keeps pending approvals; `spawn.ts` masked fds + own process group |
 | `git.ts` | `gitStatus`/`gitDiff` for a pane's folder (resolved from main's config by paneId), `addWorktree` on a validated new branch; git via an injected `execFile` runner, no shell |
 
 ## Renderer
 - `main.tsx` builds `Services` (API bridge, PtyBus, store) and provides them via context.
 - `app/store.ts` (zustand): config + runtime pane state, all actions; persists via `config:set`.
 - `lib/pty-bus.ts`: fans out `pty:data`/`pty:exit` events to panes.
+- `lib/chat-bus.ts` + `lib/chat-thread.ts`: chat panes' conversations folded from `chat:event`
+  (pure reducer), saved debounced via `chat:save`; `components/chat/` draws them (markdown via
+  `lib/markdown.ts`, no HTML); `store.paneView()` decides chat vs terminal.
 - `lib/status.ts`: derives running/idle/awaiting-approval/login from output (ANSI-stripped).
 - `layout/tree.ts`: pure split-tree ops; `presets.ts`, `focus.ts` on top.
 - `lib/scheduling.ts`: `StaggeredQueue` starts restored panes 150 ms apart (NFR-2).
 - Store polls `git:status` every 5 s for the active workspace (one call per folder) into `git[paneId]`;
   status transitions (→ approval, running ≥ 8 s → idle) raise `notify:pane` when the pane isn't in view.
-- Icons: `scripts/icon-sets.ts` (Vite plugin) builds `virtual:icon-sets` from `@iconify-json/material-symbols` (one style + aliases) and `@iconify-json/lucide`; `lib/icon-sets.ts` imports it lazily; `Avatar` looks names up with `iconBody`.
+- No icon library: accounts show their initial (`AccountIcon.tsx` `Initial`), projects and chats are text.
 - `lib/diff.ts` parses `git diff` for `DiffPanel`; `lib/search.ts` matches palette queries.
 
 ## Data flow
@@ -40,14 +44,17 @@
 2. Pane start → `pty:create {paneId, accountId, cwd, args}` → main resolves account from its own
    config → `buildPaneEnv` → `PtyManager.spawn` → `pty:data`/`pty:exit` events back.
 3. Keystrokes → `pty:write`; resize → `pty:resize`; close → `pty:kill` (process tree).
+3b. Chat pane → `chat:start {paneId, accountId, cwd, args, sessionId}` → main resolves the
+   spawn like a pty pane, adds the adapter's headless args → `chat:event` stream back;
+   `chat:send` / `chat:approve` / `chat:interrupt` / `chat:stop`.
 4. Any config change → store → `config:set` (validated) → atomic write.
-5. Quit → every pane's process tree killed.
+5. Quit → pty panes stop or stay in the host (ADR 0001); chat processes always stop.
 
 ## IPC surface
 Full list in `src/shared/ipc-channels.ts`; schemas in `src/shared/ipc-contract.ts`. Groups: pty,
 config, dialog, window, claude detect, account dir create/delete, openExternal (http/https only),
 shared apply, app info, update check/install (+ `update:progress`, `update:show` events),
-git status/diff/worktreeAdd, `shell:list`, `notify:pane` (+ `pane:reveal` event on notification click).
+git status/diff/worktreeAdd, chat start/send/approve/interrupt/setModel/stop/load/save (+ `chat:event`), `shell:list`, `notify:pane` (+ `pane:reveal` event on notification click).
 
 ## External services
 - GitHub Releases API for `cachewraith/wraithgrid` (optional update check; fixed URL).
@@ -57,6 +64,7 @@ git status/diff/worktreeAdd, `shell:list`, `notify:pane` (+ `pane:reveal` event 
 ## Persistence
 - `config.json` in userData: `~/.config/wraithgrid/` (Linux), `~/Library/Application Support/wraithgrid/` (macOS), `%APPDATA%\wraithgrid\` (Windows).
 - Account config dirs default under `~/.wraithgrid/accounts/`. Wraithgrid does not read inside them.
+- Chat views: `userData/chats/<paneId>.json` (last 400 items); kept while the chat is open or in its project's History (`workspace.history` in config.json, last 100), deleted with the History entry.
 - Worktrees made from New pane: `~/.wraithgrid/worktrees/<repo>/<branch with / → ->`.
 
 ## Env vars (names only)

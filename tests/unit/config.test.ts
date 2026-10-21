@@ -39,11 +39,16 @@ const sample = (): Config => ({
           shell: false,
           title: 'proj',
           resume: true,
-          hasConversation: false
+          hasConversation: false,
+          view: 'terminal',
+          chatSessionId: null,
+          model: null,
+          effort: null
         }
       ],
       layout: { type: 'pane', paneId: 'p1' },
-      machineId: null
+      machineId: null,
+      history: []
     }
   ],
   machines: [],

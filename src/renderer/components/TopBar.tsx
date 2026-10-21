@@ -34,6 +34,23 @@ export function TopBar() {
   const zoomedPane = zoomedId ? ws.panes.find((p) => p.id === zoomedId) : undefined
   const preset = detectPreset(ws.layout)
 
+  if (view === 'project') {
+    return (
+      <header className="top">
+        <span className="top-title">{ws.name}</span>
+        <span className="top-sub">Project</span>
+        <div className="top-sp" />
+        {ws.panes.length ? (
+          <button className="btn" onClick={() => actions.setView('grid')}>
+            Open chats
+            <span className="top-cnt">{ws.panes.length}</span>
+          </button>
+        ) : null}
+        <UtilityButtons />
+      </header>
+    )
+  }
+
   if (view !== 'grid') {
     return (
       <header className="top">
@@ -90,9 +107,16 @@ export function TopBar() {
   const empty = !ws.layout
   return (
     <header className="top">
-      <span className="top-title">{ws.name}</span>
+      <button
+        className="top-link"
+        title="Project overview: open chats and history"
+        onClick={() => actions.openProject(ws.id)}
+      >
+        <IconBack />
+        <span className="top-title">{ws.name}</span>
+      </button>
       <span className="top-sub">
-        {empty ? 'No panes yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'pane' : 'panes'}`}
+        {empty ? 'No chats yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'chat' : 'chats'}`}
       </span>
       {hiddenCount > 0 ? (
         <button
