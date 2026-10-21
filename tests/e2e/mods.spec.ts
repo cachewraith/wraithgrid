@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -17,6 +18,21 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
   const accountDir = path.join(home, '.wraithgrid', 'accounts', 'personal')
   fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
   fs.mkdirSync(userData, { recursive: true })
+  // A downloaded mod: a clone of a local origin that gets a new commit after the download.
+  const origin = path.join(tmp, 'meter-origin')
+  const meter = path.join(home, '.wraithgrid', 'mods', 'meter')
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd }).toString()
+  fs.mkdirSync(path.join(origin, '.claude-plugin'), { recursive: true })
+  fs.writeFileSync(path.join(origin, '.claude-plugin', 'plugin.json'), '{"name":"meter"}')
+  git(origin, 'init', '-q')
+  git(origin, 'add', '.')
+  git(origin, 'commit', '-qm', 'one')
+  fs.mkdirSync(path.dirname(meter), { recursive: true })
+  git(tmp, 'clone', '-q', origin, meter)
+  fs.writeFileSync(path.join(origin, 'README.md'), 'two')
+  git(origin, 'add', '.')
+  git(origin, 'commit', '-qm', 'two')
   const cfgFile = path.join(userData, 'config.json')
   fs.writeFileSync(
     cfgFile,
@@ -51,7 +67,7 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
       ],
       activeWorkspace: 'ws-a',
       recentFolders: [],
-      settings: { sharedMode: 'per-account', modDirs: ['~/mods/tally'] }
+      settings: { sharedMode: 'per-account', modDirs: ['~/mods/tally', '~/.wraithgrid/mods/meter'] }
     })
   )
   // Written after a debounce: tolerate a missing or half-written file.
@@ -166,7 +182,17 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
     await win.getByRole('switch', { name: 'Draw panes with the GPU' }).click()
     await expect.poll(() => saved()?.settings.gpuTerminal).toBe(true)
 
+    // A downloaded mod updates from its repository; a folder of the user's own has no Update.
+    const folders = win.getByRole('list', { name: 'Mod folders' })
+    await expect(folders.getByRole('button', { name: /^Update / })).toHaveCount(1)
+    await folders.getByRole('button', { name: 'Update meter' }).click()
+    await expect(folders.getByRole('status').filter({ hasText: 'Updated' })).toBeVisible()
+    expect(fs.readFileSync(path.join(meter, 'README.md'), 'utf8')).toBe('two')
+    await folders.getByRole('button', { name: 'Update meter' }).click()
+    await expect(folders.getByRole('status').filter({ hasText: 'Up to date' })).toBeVisible()
+
     await win.getByRole('button', { name: 'Remove ~/mods/tally' }).click()
+    await win.getByRole('button', { name: 'Remove ~/.wraithgrid/mods/meter' }).click()
     await expect.poll(() => saved()?.settings.modDirs).toEqual([])
 
     await win.locator('header.top .btn', { hasText: 'alpha' }).click()

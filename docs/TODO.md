@@ -19,7 +19,7 @@
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
-- Mods: only the listed mod of a multi-mod claudemod.com repo is shown; mark which catalog entries change claude's screen (the catalog doesn't say); downloaded mods (`~/.wraithgrid/mods`) have no update button yet (git pull)
+- Mods: mark which catalog entries change claude's screen (the catalog doesn't say); try Update on a real downloaded mod and a real multi-mod claudemod.com repo
 - Mods (2026-10-19): try Update/Uninstall/marketplace add-remove and a claudemod.com Download with real accounts (fake CLI only so far); `plugin update` of a command-source mod needs `--accept-command`, shown as claude's error
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
 - macOS: Developer ID signing + notarization when an Apple developer account exists (CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID secrets), then enable in-app updates there
@@ -35,6 +35,7 @@ H1–H7 built (2026-10-19, unreleased, see Done); H8 publishing needs the accoun
 
 ## Done (2026-10-21)
 - account-folders e2e flake fixed (wait for the drop target)
+- Mods: Update button for downloaded mods; every mod of a multi-mod claudemod.com repo listed
 
 ## Done (2026-10-19)
 - Switch branch from the pane chip, Changes panel, pane menu and palette (branch picker)

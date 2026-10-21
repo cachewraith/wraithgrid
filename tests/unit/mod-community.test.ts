@@ -33,42 +33,49 @@ describe('claudemod.com list', () => {
 
   const entry = { slug: 'burn-meter', repo: 'OneWave-AI/claude-code-mods', stars: 13 }
 
-  it('offers the mod named like the entry, or the only one of the marketplace', () => {
+  it('offers every mod of the marketplace, the one named like the entry first', () => {
     const many = {
       name: 'claude-code-mods',
       plugins: [
         { name: 'code-pet', source: './code-pet' },
-        { name: 'burn-meter', description: ' Live  cost\n odometer ', version: '1.0.0' }
+        { name: 'burn-meter', description: ' Live  cost\n odometer ', version: '1.0.0' },
+        { name: 'a b; rm' }
       ]
     }
+    const url = 'https://github.com/OneWave-AI/claude-code-mods'
+    const row = { installs: null, stars: 13, clone: null, url, marketplace: 'claude-code-mods' }
     expect(communityMod(entry, many)).toEqual({
-      mod: {
-        id: 'burn-meter@claude-code-mods',
-        name: 'burn-meter',
-        description: 'Live cost odometer',
-        marketplace: 'claude-code-mods',
-        version: '1.0.0',
-        installs: null,
-        stars: 13,
-        clone: null,
-        url: 'https://github.com/OneWave-AI/claude-code-mods'
-      },
-      marketplace: {
-        name: 'claude-code-mods',
-        url: 'https://github.com/OneWave-AI/claude-code-mods',
-        add: 'OneWave-AI/claude-code-mods'
-      }
+      mods: [
+        {
+          ...row,
+          id: 'burn-meter@claude-code-mods',
+          name: 'burn-meter',
+          description: 'Live cost odometer',
+          version: '1.0.0'
+        },
+        {
+          ...row,
+          id: 'code-pet@claude-code-mods',
+          name: 'code-pet',
+          description: '',
+          version: null
+        }
+      ],
+      marketplace: { name: 'claude-code-mods', url, add: 'OneWave-AI/claude-code-mods' }
     })
     const one = { name: 'flightdeck-market', plugins: [{ name: 'flightdeck' }] }
-    expect(communityMod(entry, one)?.mod.id).toBe('flightdeck@flightdeck-market')
+    expect(communityMod(entry, one)?.mods.map((m) => m.id)).toEqual([
+      'flightdeck@flightdeck-market'
+    ])
+    const store = { name: 'm', plugins: Array.from({ length: 30 }, (_, i) => ({ name: `p${i}` })) }
+    expect(communityMod(entry, store)?.mods).toHaveLength(20)
   })
 
   it('offers nothing it could not install safely', () => {
-    const none = { name: 'm', plugins: [{ name: 'a' }, { name: 'b' }] }
-    expect(communityMod(entry, none)).toBeNull()
     expect(communityMod(entry, { name: '--scope', plugins: [{ name: 'burn-meter' }] })).toBeNull()
     expect(communityMod(entry, { name: 'm', plugins: [{ name: 'a b; rm' }] })).toBeNull()
     expect(communityMod(entry, { name: 'a@b', plugins: [{ name: 'burn-meter' }] })).toBeNull()
+    expect(communityMod(entry, { name: 'm', plugins: [] })).toBeNull()
     expect(communityMod(entry, { plugins: [] })).toBeNull()
     expect(communityMod(entry, 'junk')).toBeNull()
   })
@@ -143,5 +150,24 @@ describe('claudemod.com list', () => {
     await expect(down.read()).rejects.toThrow('Could not reach claudemod.com')
     const empty = new CommunityCatalog(() => Promise.resolve(new Response('<html></html>')))
     await expect(empty.read()).rejects.toThrow('listed no mods')
+  })
+  it('lists a repository two site entries share once', async () => {
+    const shared = `<html><script>self.__next_f.push([1,"${[
+      card('burn-meter', 'https://github.com/OneWave-AI/claude-code-mods'),
+      card('code-pet', 'https://github.com/OneWave-AI/claude-code-mods')
+    ].join(',')}"])</script></html>`
+    const market = {
+      name: 'claude-code-mods',
+      plugins: [{ name: 'burn-meter' }, { name: 'code-pet' }]
+    }
+    const catalog = new CommunityCatalog((url) =>
+      Promise.resolve(new Response(url === COMMUNITY_URL ? shared : JSON.stringify(market)))
+    )
+    const got = await catalog.read()
+    expect(got.mods.map((m) => m.id)).toEqual([
+      'burn-meter@claude-code-mods',
+      'code-pet@claude-code-mods'
+    ])
+    expect(got.marketplaces.map((m) => m.name)).toEqual(['claude-code-mods'])
   })
 })

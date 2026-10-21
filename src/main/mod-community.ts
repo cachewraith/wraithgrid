@@ -16,6 +16,8 @@ const MAX_MANIFEST_BYTES = 500_000
 const MAX_REPOS = 60
 const PARALLEL = 6
 const DESCRIPTION_MAX = 400
+/** A repository's marketplace can list many mods; past this many it is a plugin store. */
+const MODS_PER_REPO = 20
 /** Opening the list twice in a row reuses the answer. */
 const KEEP_MS = 5 * 60_000
 
@@ -74,26 +76,25 @@ const manifest = z.object({
 })
 
 /**
- * The catalog row for a site entry, from its repository's `.claude-plugin/marketplace.json`:
- * the mod of that marketplace named like the entry, or its only one. Null when the
+ * The catalog rows for a site entry, from its repository's `.claude-plugin/marketplace.json`:
+ * every mod of that marketplace, the one named like the entry first. Null when the
  * repository offers nothing `claude plugin install` could take.
  */
 export function communityMod(
   entry: CommunityEntry,
   manifestJson: unknown
-): { mod: CatalogMod; marketplace: Marketplace } | null {
+): { mods: CatalogMod[]; marketplace: Marketplace } | null {
   const parsed = manifest.safeParse(manifestJson)
   if (!parsed.success) return null
   const { name: market, plugins } = parsed.data
-  const plugin =
-    plugins.find((p) => p.name === entry.slug) ?? (plugins.length === 1 ? plugins[0] : undefined)
-  if (!plugin) return null
-  const id = `${plugin.name}@${market}`
-  if (!MOD_ID.test(id) || !NAME.test(market) || !NAME.test(plugin.name)) return null
+  if (!NAME.test(market)) return null
   const url = `https://github.com/${entry.repo}`
-  return {
-    mod: {
-      id,
+  const mods = [...plugins]
+    .sort((a, b) => Number(b.name === entry.slug) - Number(a.name === entry.slug))
+    .filter((p) => NAME.test(p.name) && MOD_ID.test(`${p.name}@${market}`))
+    .slice(0, MODS_PER_REPO)
+    .map((plugin): CatalogMod => ({
+      id: `${plugin.name}@${market}`,
       name: plugin.name,
       description: (plugin.description ?? '').replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_MAX),
       marketplace: market,
@@ -102,9 +103,9 @@ export function communityMod(
       stars: entry.stars,
       clone: null,
       url
-    },
-    marketplace: { name: market, url, add: entry.repo }
-  }
+    }))
+  if (mods.length === 0) return null
+  return { mods, marketplace: { name: market, url, add: entry.repo } }
 }
 
 const pluginManifest = z.object({
@@ -171,7 +172,7 @@ export class CommunityCatalog {
     if (page === null) throw new Error('Could not reach claudemod.com. Check your connection.')
     const entries = parseCommunityPage(page)
     if (entries.length === 0) throw new Error('claudemod.com listed no mods Wraithgrid can read.')
-    const found: ({ mod: CatalogMod; marketplace: Marketplace | null } | null)[] = []
+    const found: ({ mods: CatalogMod[]; marketplace: Marketplace | null } | null)[] = []
     for (let i = 0; i < entries.length; i += PARALLEL) {
       const batch = entries.slice(i, i + PARALLEL).map(async (entry) => {
         const raw = (file: string): Promise<string | null> =>
@@ -185,18 +186,23 @@ export class CommunityCatalog {
           if (text !== null) return communityMod(entry, JSON.parse(text))
           const plugin = await raw('plugin.json')
           const mod = plugin === null ? null : communityPlugin(entry, JSON.parse(plugin))
-          return mod ? { mod, marketplace: null } : null
+          return mod ? { mods: [mod], marketplace: null } : null
         } catch {
           return null
         }
       })
       found.push(...(await Promise.all(batch)))
     }
-    const ok = found.flatMap((f) => (f ? [f] : []))
-    const value = {
-      mods: ok.map((f) => f.mod),
-      marketplaces: ok.flatMap((f) => (f.marketplace ? [f.marketplace] : []))
+    // Several site entries can share one repository: list its mods and marketplace once.
+    const mods = new Map<string, CatalogMod>()
+    const marketplaces = new Map<string, Marketplace>()
+    for (const f of found) {
+      if (!f) continue
+      for (const m of f.mods) if (!mods.has(m.id)) mods.set(m.id, m)
+      if (f.marketplace && !marketplaces.has(f.marketplace.name))
+        marketplaces.set(f.marketplace.name, f.marketplace)
     }
+    const value = { mods: [...mods.values()], marketplaces: [...marketplaces.values()] }
     this.last = { at: this.now(), value }
     return value
   }

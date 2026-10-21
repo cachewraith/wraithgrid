@@ -3,6 +3,8 @@
 ## 2026-10-21
 
 - [test] account-folders e2e flake (~1 in 24 with parallel workers): release the drag only once the folder shows `over` (dnd-kit lagged the pointer); 160/160 runs pass (files: tests/e2e/account-folders.spec.ts)
+- [mods] claudemod.com: a repository's marketplace lists all its mods (the site entry's first, up to 20), shared repos listed once (files: src/main/mod-community.ts, tests/unit/mod-community.test.ts)
+- [mods] **Update** on downloaded mod folders (`~/.wraithgrid/mods/<name>`): `mods:pull` runs `git pull --ff-only`, says Updated / Up to date (files: src/shared/{ipc-channels,ipc-contract,mods}.ts, src/preload/index.ts, src/main/ipc.ts, src/renderer/components/ModsView.tsx, tests/unit/mods.test.ts, tests/e2e/mods.spec.ts)
 
 ## 2026-10-20
 

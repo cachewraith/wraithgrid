@@ -341,9 +341,9 @@ bar, or the command palette) covers the rest:
   install one with a click, for every claude account at once. An account that lacks the mod's
   marketplace gets it added first. A mod runs as you: install the ones you trust.
   Pick **claudemod.com** to see the mods that community list offers instead; installing one
-  adds its GitHub repository as a marketplace. A mod there that is a bare plugin (no
+  adds its GitHub repository as a marketplace, and every mod of that repository is listed. A mod there that is a bare plugin (no
   marketplace file) has **Download** instead: it is cloned into `~/.wraithgrid/mods/<name>` and
-  added to your mod folders. The catalog merges the marketplaces of all your claude accounts.
+  added to your mod folders, where **Update** pulls its newest version. The catalog merges the marketplaces of all your claude accounts.
 - **Marketplaces**: see where Browse finds mods, add one (`owner/repo` or an https address) to
   every account, or remove one from all of them.
 - **Mod folders**: add the folder of a mod you are building; every claude pane in every

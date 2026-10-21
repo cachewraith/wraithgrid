@@ -49,6 +49,7 @@ export const IPC = {
   modsInstall: 'mods:install',
   modsChange: 'mods:change',
   modsClone: 'mods:clone',
+  modsPull: 'mods:pull',
   modsMarketplaces: 'mods:marketplaces',
   modsMarketplaceAdd: 'mods:marketplaceAdd',
   modsMarketplaceRemove: 'mods:marketplaceRemove'

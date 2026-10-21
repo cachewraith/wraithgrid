@@ -94,6 +94,7 @@ const api: WraithApi = {
     install: (id) => ipcRenderer.invoke(IPC.modsInstall, { id }),
     change: (id, change) => ipcRenderer.invoke(IPC.modsChange, { id, change }),
     clone: (id) => ipcRenderer.invoke(IPC.modsClone, { id }),
+    pull: (name) => ipcRenderer.invoke(IPC.modsPull, { name }),
     marketplaces: () => ipcRenderer.invoke(IPC.modsMarketplaces, {}),
     addMarketplace: (source) => ipcRenderer.invoke(IPC.modsMarketplaceAdd, { source }),
     removeMarketplace: (name) => ipcRenderer.invoke(IPC.modsMarketplaceRemove, { name })
