@@ -1,4 +1,6 @@
-# What's new (unreleased): chat panes
+# What's new in 1.11: chat, themes and usage
+
+*v1.11.0 · 2026-10-21*
 
 Agent panes can now be a chat, like ChatGPT, Claude Desktop or T3 Code, with the official CLI
 still doing the work in the background: same account, same folder, same CLAUDE.md, skills and
