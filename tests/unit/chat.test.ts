@@ -149,9 +149,9 @@ describe('claude chat adapter', () => {
     ).toEqual([])
   })
 
-  it('only claude has a chat adapter for now', () => {
+  it('a CLI without an adapter has no chat view', () => {
     expect(chatAdapterFor('claude')).not.toBeNull()
-    expect(chatAdapterFor('codex')).toBeNull()
+    expect(chatAdapterFor('gemini')).toBeNull()
   })
 
   it('decodes a real session: session id, tool, approval, result, streamed text', () => {

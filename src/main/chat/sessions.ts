@@ -151,6 +151,7 @@ export class ChatSessions {
   }
 
   private write(s: Session, msg: unknown): void {
+    if (msg === null || msg === undefined) return
     if (s.child.stdin.writable) s.child.stdin.write(`${JSON.stringify(msg)}\n`)
   }
 
@@ -201,7 +202,6 @@ export class ChatSessions {
     s.interrupted = true
     const line = s.adapter.interrupt()
     if (line) this.write(s, line)
-    else s.child.kill('SIGINT')
   }
 
   /** Stops the process: closes stdin, then a signal, then a forced kill after the grace time. */

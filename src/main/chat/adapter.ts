@@ -5,6 +5,7 @@ import type { AgentCli } from '@shared/agent-clis'
 import type { ApprovalDecision, ChatEvent, ChatImage, ChatModel } from '@shared/chat'
 import { createAgyAdapter } from './agy'
 import { createClaudeAdapter } from './claude'
+import { createCodexAdapter } from './codex'
 import type { ChatMode } from '@shared/chat'
 
 export interface Decoded {
@@ -27,8 +28,9 @@ export interface ChatAdapter {
   }): string[]
   /** Lines written right after the process starts. */
   hello(): unknown[]
-  user(text: string, images: ChatImage[]): unknown
-  /** The line that stops the running turn, or null when the process must be signalled. */
+  /** The line that sends a message, or null when the adapter holds it until it is ready. */
+  user(text: string, images: ChatImage[]): unknown | null
+  /** The line that stops the running turn, or null when there is nothing to send now. */
   interrupt(): unknown | null
   /** The line that switches the model of the running session, or null when it can't. */
   setModel(model: string): unknown | null
@@ -47,7 +49,8 @@ export interface ChatAdapter {
 
 const ADAPTERS: Partial<Record<AgentCli, () => ChatAdapter>> = {
   claude: createClaudeAdapter,
-  agy: createAgyAdapter
+  agy: createAgyAdapter,
+  codex: createCodexAdapter
 }
 
 /** A fresh adapter (they keep per-process state), or null when the CLI has no chat view. */

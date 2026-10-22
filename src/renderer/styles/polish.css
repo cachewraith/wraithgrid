@@ -688,6 +688,22 @@
   flex-direction: column;
   gap: 6px;
 }
+/* codex's one-time code: large, spaced, easy to read off and type in. */
+.login-device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.login-device .mono {
+  padding: 8px 12px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--tx);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  user-select: all;
+}
 .pj-empty {
   padding: 48px 0;
   text-align: center;

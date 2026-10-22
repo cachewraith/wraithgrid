@@ -5,20 +5,16 @@
 // `result`. Over the pipe agy can't ask before a tool (it refuses it and lists it in
 // `denied_actions`), can't stop a turn (no event for it, SIGINT is ignored) and can't switch
 // model or mode: the view restarts it for those, resuming by `--conversation <id>`.
-import { mkdirSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import {
   CHAT_EFFORTS,
-  CHAT_IMAGE_EXT,
   clip,
-  type ChatImage,
   type ChatMode,
   type ChatModel,
   type ToolKind,
   type ToolPreview
 } from '@shared/chat'
 import type { ChatAdapter, Decoded } from './adapter'
+import { saveChatImages } from './images'
 
 type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -116,22 +112,6 @@ export function describeAgyTool(
     default:
       return { kind: 'other', subtitle: file, preview: null }
   }
-}
-
-/** Pasted images go to temp files that agy reads as `@path` (it takes only text). */
-function saveImages(images: ChatImage[]): string[] {
-  if (!images.length) return []
-  const dir = path.join(os.tmpdir(), 'wraithgrid-chat-images')
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  return images.map((img, i) => {
-    const ext = Object.entries(CHAT_IMAGE_EXT).find(([, t]) => t === img.mediaType)?.[0] ?? '.png'
-    const file = path.join(
-      dir,
-      `img-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}${ext}`
-    )
-    writeFileSync(file, Buffer.from(img.data, 'base64'), { mode: 0o600 })
-    return /\s/.test(file) ? `@"${file}"` : `@${file}`
-  })
 }
 
 const SIGN_IN = /not authenticated|sign[ -]?in|log ?in|unauthenticated|credentials/i
@@ -261,7 +241,8 @@ export function createAgyAdapter(): ChatAdapter {
     },
     hello: () => [],
     user: (text, images) => {
-      const refs = saveImages(images)
+      // It reads only text: images go as `@path` file references.
+      const refs = saveChatImages(images).map((f) => (/\s/.test(f) ? `@"${f}"` : `@${f}`))
       const content = [text, refs.join(' ')].filter(Boolean).join('\n\n')
       return { event: 'user', message: { role: 'user', content } }
     },

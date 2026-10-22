@@ -113,7 +113,8 @@ export const loginCodeArgs = z.object({
 })
 /** `claude auth login` in a dialog: the sign-in link, then how it ended. */
 export type LoginEvent =
-  | { accountId: string; state: 'url'; url: string }
+  /** `deviceCode`: the one-time code to type on the page (codex device sign-in). */
+  | { accountId: string; state: 'url'; url: string; deviceCode?: string }
   | {
       accountId: string
       state: 'done'

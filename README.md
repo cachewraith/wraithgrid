@@ -190,8 +190,9 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
      Nothing is copied.
 2. **Sign in.** Press **Login** on a claude account: a dialog runs claude's own sign-in in
    that account's folder. Open the sign-in page, paste the code if it shows one, and it says
-   who you are signed in as. **Use a terminal instead** is still there. Other CLIs ask you to
-   sign in the first time a pane starts.
+   who you are signed in as. A codex account works the same way with ChatGPT's device sign-in:
+   the dialog shows a one-time code to enter on the page. **Use a terminal instead** is still
+   there. Other CLIs ask you to sign in the first time a pane starts.
 3. **Create a project.** The **+** next to Projects in the sidebar (or **New project…** in
    `Ctrl+Shift+P`): pick the folder in Wraithgrid's own folder picker (it fills in the name),
    the account its chats use, the machine it runs on, and whether the first chat opens right
@@ -267,7 +268,9 @@ A chat pane runs the same `claude` without its terminal screen:
   another claude account and carries on there; the original stays.
 - **Usage** in the sidebar (or `/usage`) shows each account's limits and spend; the top-bar
   pill follows the focused pane's account.
-- Chat works with Claude Code and Antigravity (`agy`); other CLIs open as terminals. agy
+- Chat works with Claude Code, Codex CLI and Antigravity (`agy`); other CLIs open as
+  terminals. codex chats run `codex app-server` (approvals, Stop, model, effort and mode all
+  live). agy
   can't ask for approval in a chat: a tool that needs one is skipped and the chat says so
   (pick Bypass permissions, or allow it in agy's settings), and Stop or a model/mode switch
   restarts agy on the same conversation. Chat agents stop when
