@@ -181,6 +181,12 @@
 .ws-row .pn-spin {
   flex: none;
 }
+/* Background work (#39): the same mark, slower and quieter, so it reads "still going". */
+.pn-spin.bg {
+  border-color: color-mix(in srgb, var(--ok) 22%, transparent);
+  border-top-color: color-mix(in srgb, var(--ok) 70%, transparent);
+  animation-duration: 2.4s;
+}
 
 /* ---- Footer: account switcher -------------------------------------------------------- */
 

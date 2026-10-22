@@ -663,6 +663,49 @@ li.done > .md-box,
   font-size: 11.5px;
 }
 
+/* Background work still running after the turn (#39). */
+.chat-bg {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  animation: chat-fade 0.3s var(--ease-out);
+}
+.cb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx);
+}
+.cb-hint {
+  margin-left: auto;
+  color: var(--fa);
+  font-size: 11.5px;
+}
+.cb-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  min-width: 0;
+}
+.cb-kind {
+  width: 11px;
+  flex: none;
+  color: var(--fa);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+.cb-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mu);
+}
+
 .chat-jump {
   position: absolute;
   left: 50%;
@@ -1079,6 +1122,8 @@ li.done > .md-box,
   .chat-hello-mark,
   .chat-sug,
   .chat-working,
+  .chat-bg,
+  .chat-bg .pn-spin,
   .cw-dots i,
   .cw-label,
   .ct-waiting,

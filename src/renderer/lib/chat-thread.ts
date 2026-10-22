@@ -3,6 +3,7 @@
 import type {
   ApprovalDecision,
   ChatAccountInfo,
+  ChatBackgroundTask,
   ChatCommand,
   ChatEvent,
   ChatMode,
@@ -63,6 +64,8 @@ export interface ChatThread {
   terminalOnly: string[]
   /** The permission mode the CLI says is in force; null until it said. */
   mode: ChatMode | null
+  /** Background work still running after its turn (#39); never saved, it dies with the CLI. */
+  background: ChatBackgroundTask[]
 }
 
 export const EMPTY_THREAD: ChatThread = {
@@ -77,7 +80,8 @@ export const EMPTY_THREAD: ChatThread = {
   account: null,
   commands: [],
   terminalOnly: [],
-  mode: null
+  mode: null,
+  background: []
 }
 
 /** The saved view keeps this many items; older ones are dropped from the view only. */
@@ -226,12 +230,14 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
     }
     case 'limits':
       return t
+    case 'background':
+      return t.background.length || e.tasks.length ? { ...t, background: e.tasks } : t
     case 'mode':
       return t.mode === e.mode ? t : { ...t, mode: e.mode }
     case 'notice':
       return addNotice(t, e.level, e.text)
     case 'exit': {
-      const ended = { ...t, busy: false, turnStartedAt: null }
+      const ended = { ...t, busy: false, turnStartedAt: null, background: [] }
       return e.error ? addNotice(ended, 'error', e.error) : ended
     }
   }
@@ -247,9 +253,10 @@ export function pendingApproval(t: ChatThread): Extract<ChatItem, { kind: 'tool'
 }
 
 /** What the pane's status dot says about a chat. */
-export function chatStatus(t: ChatThread): 'running' | 'approval' | 'idle' {
+export function chatStatus(t: ChatThread): 'running' | 'approval' | 'background' | 'idle' {
   if (t.busy && pendingApproval(t)) return 'approval'
-  return t.busy ? 'running' : 'idle'
+  if (t.busy) return 'running'
+  return t.background.length ? 'background' : 'idle'
 }
 
 const SAVE_VERSION = 1

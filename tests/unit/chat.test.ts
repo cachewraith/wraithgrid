@@ -33,6 +33,16 @@ const decodeAll = (): ChatEvent[] => {
   return FIXTURE.flatMap((m) => a.decode(m).events)
 }
 
+// Real claude 2.1.306 output: a Bash call with run_in_background, the turn ends, the command
+// finishes, and claude reads its result in a turn of its own (#39).
+const BACKGROUND = readFileSync(
+  path.join(__dirname, '../fixtures/claude-background.ndjson'),
+  'utf8'
+)
+  .split('\n')
+  .filter(Boolean)
+  .map((l) => JSON.parse(l) as unknown)
+
 const fold = (events: ChatEvent[], from: ChatThread = EMPTY_THREAD): ChatThread =>
   events.reduce((t, e) => applyChatEvent(t, e, 1000), from)
 
@@ -266,6 +276,59 @@ describe('claude chat adapter', () => {
   })
 })
 
+describe('background work (#39)', () => {
+  it("lists the running task after the turn ends, then clears it and runs claude's own turn", () => {
+    const a = createClaudeAdapter()
+    const steps = BACKGROUND.map((m) => a.decode(m).events)
+    const all = steps.flat()
+    const bg = all.filter((e) => e.t === 'background') as Extract<ChatEvent, { t: 'background' }>[]
+    expect(bg).toHaveLength(2)
+    expect(bg[0]!.tasks).toEqual([
+      {
+        id: 'b8khg48uw',
+        kind: 'shell',
+        label: 'Sleep 15 seconds then echo done',
+        since: expect.any(Number)
+      }
+    ])
+    expect(bg[1]!.tasks).toEqual([])
+    // The ending is news, and claude's unasked follow-up turn marks the chat busy again.
+    const at = all.findIndex((e) => e.t === 'notice')
+    expect(all[at]).toEqual({
+      t: 'notice',
+      level: 'info',
+      text: 'Background command "Sleep 15 seconds then echo done" completed (exit code 0)'
+    })
+    expect(all.slice(at)).toContainEqual({ t: 'busy', busy: true })
+
+    // In the thread: idle but "background" between the two turns, idle at the end.
+    let t = addUserMessage(EMPTY_THREAD, 'run it', 0, 1000)
+    const firstEnd = all.findIndex((e) => e.t === 'turnEnd')
+    t = fold(all.slice(0, firstEnd + 2), t)
+    expect(t.busy).toBe(false)
+    expect(chatStatus(t)).toBe('background')
+    t = fold(all.slice(firstEnd + 2), t)
+    expect(t.background).toEqual([])
+    expect(chatStatus(t)).toBe('idle')
+  })
+
+  it("keeps a task's start time across list updates; the process ending clears the list", () => {
+    const a = createClaudeAdapter()
+    const list = (ids: string[]) =>
+      a.decode({
+        type: 'system',
+        subtype: 'background_tasks_changed',
+        tasks: ids.map((id) => ({ task_id: id, task_type: 'local_agent', description: id }))
+      }).events[0] as Extract<ChatEvent, { t: 'background' }>
+    const first = list(['x'])
+    const second = list(['x', 'y'])
+    expect(second.tasks[0]!.since).toBe(first.tasks[0]!.since)
+    expect(second.tasks[1]!.kind).toBe('agent')
+    const t = fold([second, { t: 'exit', code: 0, signal: null, error: null }])
+    expect(t.background).toEqual([])
+  })
+})
+
 describe('chat thread', () => {
   it('folds the real session into messages, a tool card and turn footers', () => {
     let t = addUserMessage(EMPTY_THREAD, 'make hello.txt', 0, 1000)
@@ -444,6 +507,25 @@ describe('chat sessions', () => {
     child.stdout.write(result)
     await tick()
     expect(busy().at(-1)).toBe(false)
+  })
+
+  it('a turn claude starts on its own marks the chat busy once, then idle (#39)', async () => {
+    const { child, events, sessions } = setup()
+    const busy = () =>
+      events.filter((e) => e.t === 'busy').map((e) => (e as { busy: boolean }).busy)
+    sessions.send('p1', 'run it in the background', [])
+    for (const m of BACKGROUND) child.stdout.write(`${JSON.stringify(m)}\n`)
+    await tick()
+    expect(busy()).toEqual([true, false, true, false])
+    // The process dying takes its background work with it.
+    sessions.send('p1', 'again', [])
+    child.stdout.write(`${JSON.stringify(BACKGROUND[3])}\n`)
+    await tick()
+    child.emit('exit', 0, null)
+    expect(events.filter((e) => e.t === 'background').at(-1)).toEqual({
+      t: 'background',
+      tasks: []
+    })
   })
 
   it('interrupt goes over the pipe, not a signal', async () => {

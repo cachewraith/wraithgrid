@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Stand-in for `claude -p --input-format stream-json --output-format stream-json …` in E2E
 # tests of the chat view: the protocol shapes of tests/fixtures/claude-chat.ndjson, scripted.
-# "run it" asks to run a Bash tool and waits for the approval; anything else is echoed back.
+# "run it" asks to run a Bash tool and waits for the approval; "in background" starts a Bash
+# job that outlives the turn and reports back 2s later (claude-background.ndjson's shapes);
+# anything else is echoed back.
 sid=fake-new
 model=default
 effort=auto
@@ -73,6 +75,17 @@ while IFS= read -r line; do
     *'"type":"user"'*'run it'*)
       say '{"type":"assistant","message":{"id":"mt","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"rm -rf build","description":"Remove build"}}]},"parent_tool_use_id":null}'
       say '{"type":"control_request","request_id":"req-1","request":{"subtype":"can_use_tool","tool_name":"Bash","display_name":"Bash","input":{"command":"rm -rf build","description":"Remove build"},"permission_suggestions":[],"tool_use_id":"toolu_1"}}' ;;
+    *'"type":"user"'*'in background'*)
+      say '{"type":"assistant","message":{"id":"mb","content":[{"type":"tool_use","id":"toolu_bg","name":"Bash","input":{"command":"sleep 2 && echo done","description":"Wait two seconds","run_in_background":true}}]},"parent_tool_use_id":null}'
+      say "{\"type\":\"system\",\"subtype\":\"background_tasks_changed\",\"tasks\":[{\"task_id\":\"bg1\",\"task_type\":\"local_bash\",\"description\":\"Wait two seconds\"}],\"session_id\":\"$sid\"}"
+      say '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_bg","content":"Command running in background with ID: bg1."}]},"parent_tool_use_id":null}'
+      text "Started it." && result
+      (
+        sleep 2
+        say "{\"type\":\"system\",\"subtype\":\"task_notification\",\"task_id\":\"bg1\",\"tool_use_id\":\"toolu_bg\",\"status\":\"completed\",\"summary\":\"Background command \\\"Wait two seconds\\\" completed (exit code 0)\",\"session_id\":\"$sid\"}"
+        say "{\"type\":\"system\",\"subtype\":\"background_tasks_changed\",\"tasks\":[],\"session_id\":\"$sid\"}"
+        text "It finished." && result
+      ) & ;;
     *'"type":"user"'*'slow'*)
       text "Working" "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." ;;
     *'"type":"user"'*)

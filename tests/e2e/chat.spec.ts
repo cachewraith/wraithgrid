@@ -123,6 +123,20 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('model sonnet, effort auto')
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
+
+    // ---- Background work (#39): the turn ends but the chat says it is still waiting.
+    await composer(win).fill('in background')
+    await composer(win).press('Enter')
+    const bg = pane(win).locator('.chat-bg')
+    await expect(bg).toContainText('Running in background')
+    await expect(bg).toContainText('Wait two seconds')
+    await expect(pane(win).locator('.st')).toHaveText(/in background/)
+    await expect(win.locator('.ws-sub').first()).toContainText('in background')
+    // claude reads the result in a turn of its own; then the chat is really idle.
+    await expect(pane(win).locator('.cmsg.agent').last()).toContainText('It finished.')
+    await expect(bg).toHaveCount(0)
+    await expect(pane(win).locator('.cnote').last()).toContainText('completed (exit code 0)')
+    await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
     await pane(win)
       .getByRole('button', { name: /^Effort:/ })
       .click()
@@ -180,7 +194,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(pane(win).locator('.st')).toHaveText('needs approval')
     await ask.getByRole('button', { name: 'Allow', exact: true }).click()
     await expect(ask).toBeHidden()
-    await expect(pane(win).locator('.ct.ct-done')).toContainText('Remove build')
+    await expect(pane(win).locator('.ct.ct-done').last()).toContainText('Remove build')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('Ran it.')
 
     // ---- Stop interrupts the turn without an error.

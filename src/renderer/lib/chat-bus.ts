@@ -64,7 +64,7 @@ export class ChatBus {
     return this.threads.get(paneId) ?? EMPTY_THREAD
   }
 
-  status(paneId: string): 'running' | 'approval' | 'idle' {
+  status(paneId: string): ReturnType<typeof chatStatus> {
     return chatStatus(this.thread(paneId))
   }
 

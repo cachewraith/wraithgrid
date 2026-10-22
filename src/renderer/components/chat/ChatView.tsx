@@ -16,7 +16,7 @@ import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
 import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
 import { IconArrowDown, IconRestart, IconTerminal } from '../icons'
 import { Composer } from './Composer'
-import { cycleModes } from '@shared/chat'
+import { cycleModes, type ChatBackgroundTask } from '@shared/chat'
 import {
   AccountPicker,
   EffortPicker,
@@ -58,6 +58,36 @@ function useElapsed(since: number | null): number {
     return () => clearInterval(t)
   }, [since])
   return since === null ? 0 : Math.max(0, now - since)
+}
+
+/**
+ * Work the agent left running after its turn (#39): says the chat is waiting on it, not
+ * stopped. claude reads each result in a turn of its own when it ends.
+ */
+function BackgroundTasks({ tasks }: { tasks: ChatBackgroundTask[] }) {
+  const now = useTicker(1000)
+  return (
+    <div className="chat-bg" role="status" aria-live="polite">
+      <div className="cb-head">
+        <span className="pn-spin bg" aria-hidden="true" />
+        <span>
+          {tasks.length === 1 ? 'Running in background' : `${tasks.length} running in background`}
+        </span>
+        <span className="cb-hint">it reports back when done</span>
+      </div>
+      {tasks.map((x) => (
+        <div key={x.id} className="cb-task">
+          <span className="cb-kind">
+            {x.kind === 'shell' ? '$' : x.kind === 'agent' ? '◇' : '•'}
+          </span>
+          <span className="cb-label" title={x.label}>
+            {x.label}
+          </span>
+          <span className="cw-time">{formatDuration(Math.max(0, now - x.since))}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const Item = memo(function Item({
@@ -301,6 +331,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
               {elapsed >= 2000 ? <span className="cw-time">{formatDuration(elapsed)}</span> : null}
             </div>
           ) : null}
+          {thread.background.length ? <BackgroundTasks tasks={thread.background} /> : null}
         </div>
       </div>
       {atBottom ? null : (
