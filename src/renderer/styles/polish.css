@@ -1207,6 +1207,14 @@
 .u-pill.sev-err {
   color: var(--sev);
 }
+/* Whose limit it is, when there is more than one claude account: "work · 42%". */
+.u-pill-who {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mu);
+}
 
 .u-page .page-in {
   max-width: 760px;
