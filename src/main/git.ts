@@ -1,13 +1,16 @@
 // Git facts for a pane's folder (branch, changed files, diff, branches) and the few writes the
-// user asks for: a worktree for a new pane (and removing it), switching branch, commit, push
-// and a pull-request link.
+// user asks for: a worktree for a new pane (and removing it), switching branch, commit, push,
+// pull and a pull-request link; and the commit history (a page at a time) with each commit's diff.
 // git runs through an injected runner (execFile, never a shell), so parsing and argument
 // building stay unit-testable.
 import path from 'node:path'
 import type {
   GitActionResult,
   GitBranches,
+  GitCommit,
   GitDiffResult,
+  GitLogResult,
+  GitShowResult,
   GitStatus,
   GitWorktreeCheck,
   GitWorktreeResult
@@ -247,6 +250,130 @@ export async function pushBranch(run: GitRunner, cwd: string): Promise<GitAction
     return { ok: true, detail: `Pushed ${branch} to ${remote}` }
   } catch (err) {
     return { ok: false, error: firstLine(err) }
+  }
+}
+
+/** `behind ahead` of HEAD against its upstream, after `git rev-list --left-right --count`. */
+async function aheadBehind(
+  run: GitRunner,
+  cwd: string
+): Promise<{ ahead: number; behind: number }> {
+  const [behind, ahead] = (await run(['rev-list', '--left-right', '--count', '@{u}...HEAD'], cwd))
+    .trim()
+    .split(/\s+/)
+    .map(Number)
+  return { ahead: ahead || 0, behind: behind || 0 }
+}
+
+const n = (k: number, one: string): string => `${k} ${one}${k === 1 ? '' : 's'}`
+
+/**
+ * Pulls the current branch from its upstream (git's own pull settings: merge or rebase),
+ * never forced. Says what happened: up to date, how many commits came in, or git's error
+ * (conflicts, local changes in the way, diverged branches).
+ */
+export async function pullBranch(run: GitRunner, cwd: string): Promise<GitActionResult> {
+  try {
+    const branch = await currentBranch(run, cwd)
+    if (!branch) return { ok: false, error: 'Not on a branch (detached HEAD).' }
+    try {
+      await run(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], cwd)
+    } catch {
+      return { ok: false, error: `${branch} has no upstream branch to pull from. Push it first.` }
+    }
+    await run(['fetch', '--quiet'], cwd, { slow: true })
+    const before = await aheadBehind(run, cwd)
+    if (before.behind === 0) {
+      return {
+        ok: true,
+        detail: before.ahead ? `Up to date · ${n(before.ahead, 'commit')} to push` : 'Up to date'
+      }
+    }
+    await run(['pull', '--no-edit'], cwd, { slow: true })
+    const after = await aheadBehind(run, cwd)
+    return {
+      ok: true,
+      detail: `Pulled ${n(before.behind, 'commit')}${after.ahead ? ` · ${n(after.ahead, 'commit')} to push` : ''}`
+    }
+  } catch (err) {
+    return { ok: false, error: firstLine(err) }
+  }
+}
+
+// ---- History ------------------------------------------------------------------------
+
+/** Commits per page of the history graph. */
+export const LOG_PAGE = 100
+const SHA = /^[0-9a-f]{7,40}$/
+const LOG_FORMAT = ['%H', '%P', '%an', '%ct', '%D', '%s'].join('%x1f') + '%x1e'
+
+/** Parses `git log --format=LOG_FORMAT` output. */
+export function parseLog(out: string): GitCommit[] {
+  return out
+    .split('\x1e')
+    .map((r) => r.replace(/^\n/, ''))
+    .filter(Boolean)
+    .flatMap((r): GitCommit[] => {
+      const [sha, parents, author, time, refs, subject] = r.split('\x1f')
+      if (!sha || !SHA.test(sha)) return []
+      return [
+        {
+          sha,
+          parents: (parents ?? '').split(' ').filter((p) => SHA.test(p)),
+          author: author ?? '',
+          time: Number(time) * 1000 || 0,
+          refs: (refs ?? '')
+            .split(', ')
+            .map((x) => x.trim())
+            .filter((x) => x && x !== 'HEAD'),
+          subject: (subject ?? '').slice(0, 300)
+        }
+      ]
+    })
+}
+
+/** A page of history for every branch and tag, newest first (topological within a date). */
+export async function gitLog(run: GitRunner, cwd: string, skip: number): Promise<GitLogResult> {
+  try {
+    const out = await run(
+      [
+        'log',
+        '--branches',
+        '--remotes',
+        '--tags',
+        'HEAD',
+        '--date-order',
+        `--max-count=${LOG_PAGE + 1}`,
+        `--skip=${skip}`,
+        `--format=${LOG_FORMAT}`,
+        '--no-color'
+      ],
+      cwd
+    )
+    const commits = parseLog(out)
+    return { ok: true, commits: commits.slice(0, LOG_PAGE), more: commits.length > LOG_PAGE }
+  } catch (err) {
+    const msg = firstLine(err)
+    // A repository with no commits has no history, which is not an error.
+    if (/does not have any commits|bad default revision|unknown revision/.test(msg))
+      return { ok: true, commits: [], more: false }
+    return { ok: false, error: msg }
+  }
+}
+
+/** One commit's changes as a patch (cut like the working-tree diff). */
+export async function gitShow(run: GitRunner, cwd: string, sha: string): Promise<GitShowResult> {
+  if (!SHA.test(sha)) return { ok: false, error: 'Not a commit id.' }
+  try {
+    const patch = await run(
+      ['show', '--format=', '--no-color', '--no-ext-diff', '--first-parent', '-m', sha, '--'],
+      cwd
+    )
+    const truncated = patch.length > DIFF_MAX_BYTES
+    return { ok: true, patch: truncated ? patch.slice(0, DIFF_MAX_BYTES) : patch, truncated }
+  } catch (err) {
+    const msg = firstLine(err)
+    return { ok: false, error: /maxBuffer/.test(msg) ? 'This commit is too large to show.' : msg }
   }
 }
 

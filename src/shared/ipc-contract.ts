@@ -131,6 +131,8 @@ export const updateNotesArgs = z.object({})
 export const shellListArgs = z.object({})
 export const clipboardImageArgs = z.object({ paneId: idSchema })
 export const gitPaneArgs = z.object({ paneId: idSchema })
+export const gitLogArgs = z.object({ paneId: idSchema, skip: z.number().int().min(0).max(100_000) })
+export const gitShowArgs = z.object({ paneId: idSchema, sha: z.string().regex(/^[0-9a-f]{7,40}$/) })
 export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
   branch: z.string().min(1).max(100)
@@ -354,6 +356,21 @@ export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: 
 /** A commit, push or worktree removal; `detail` is a short line for the user. */
 export type GitActionResult = { ok: true; detail: string } | { ok: false; error: string }
 
+/** One commit in the history graph; `refs` as git decorates it (`HEAD -> main`, `tag: v1`). */
+export interface GitCommit {
+  sha: string
+  parents: string[]
+  author: string
+  /** Committer time in ms. */
+  time: number
+  refs: string[]
+  subject: string
+}
+export type GitLogResult =
+  { ok: true; commits: GitCommit[]; more: boolean } | { ok: false; error: string }
+export type GitShowResult =
+  { ok: true; patch: string; truncated: boolean } | { ok: false; error: string }
+
 /** A folder's branches, newest commit first; `remote` lists only ones not checked out locally. */
 export interface GitBranches {
   current: string | null
@@ -556,6 +573,12 @@ export interface WraithApi {
     commit(paneId: string, message: string): Promise<GitActionResult>
     /** Pushes the pane's branch (sets the upstream on the first push). */
     push(paneId: string): Promise<GitActionResult>
+    /** Fetches and pulls the pane's branch from its upstream (git's own merge/rebase setting). */
+    pull(paneId: string): Promise<GitActionResult>
+    /** A page of the history (all branches and tags), newest first. */
+    log(paneId: string, skip: number): Promise<GitLogResult>
+    /** One commit's patch. */
+    show(paneId: string, sha: string): Promise<GitShowResult>
     /** Opens the pull-request page for the pane's branch in the browser. */
     openPullRequest(paneId: string): Promise<GitActionResult>
     /** Branch and uncommitted count of a Wraithgrid worktree, before removing it. */

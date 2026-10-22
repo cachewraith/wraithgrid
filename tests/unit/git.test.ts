@@ -11,10 +11,13 @@ import {
   checkWorktree,
   commitAll,
   gitDiff,
+  gitLog,
+  gitShow,
   gitStatus,
   listBranches,
   parseBranches,
   parseStatus,
+  pullBranch,
   pullRequestLink,
   pullRequestUrl,
   pushBranch,
@@ -355,5 +358,88 @@ describe('palette search', () => {
     expect(matches('WORK api', 'api-server work')).toBe(true)
     expect(matches('api infra', 'api-server work')).toBe(false)
     expect(matches('  ', 'anything')).toBe(true)
+  })
+})
+
+describe('pull and history (real git)', () => {
+  let root: string
+  const init = async (): Promise<{ dir: string; other: string }> => {
+    root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'wg-pull-')))
+    const bare = path.join(root, 'remote.git')
+    const dir = path.join(root, 'mine')
+    const other = path.join(root, 'theirs')
+    await realGit(['init', '-q', '--bare', '-b', 'main', bare], root)
+    await realGit(['clone', '-q', bare, dir], root)
+    await realGit(['checkout', '-q', '-b', 'main'], dir)
+    await writeFile(path.join(dir, 'a.txt'), 'one\n')
+    await commitAll(realGit, dir, 'first')
+    await realGit(['push', '-q', '-u', 'origin', 'main'], dir)
+    await realGit(['clone', '-q', bare, other], root)
+    return { dir, other }
+  }
+  afterEach(async () => {
+    if (root) await rm(root, { recursive: true, force: true })
+  })
+
+  it('says up to date, pulls new commits, and reports what git refuses', async () => {
+    const { dir, other } = await init()
+    expect(await pullBranch(realGit, dir)).toEqual({ ok: true, detail: 'Up to date' })
+
+    for (const n of ['2', '3']) {
+      await writeFile(path.join(other, 'a.txt'), `${n}\n`)
+      await commitAll(realGit, other, `theirs ${n}`)
+    }
+    await realGit(['push', '-q'], other)
+    expect(await pullBranch(realGit, dir)).toEqual({ ok: true, detail: 'Pulled 2 commits' })
+    expect((await realGit(['log', '-1', '--format=%s'], dir)).trim()).toBe('theirs 3')
+
+    // A local change in the way: git's own error, nothing pulled.
+    await writeFile(path.join(other, 'a.txt'), '4\n')
+    await commitAll(realGit, other, 'theirs 4')
+    await realGit(['push', '-q'], other)
+    await writeFile(path.join(dir, 'a.txt'), 'mine, not committed\n')
+    const r = await pullBranch(realGit, dir)
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.error).toMatch(/local changes|overwritten/)
+    expect((await realGit(['log', '-1', '--format=%s'], dir)).trim()).toBe('theirs 3')
+  })
+
+  it('refuses without an upstream or on a detached HEAD', async () => {
+    const { dir } = await init()
+    await realGit(['checkout', '-q', '-b', 'solo'], dir)
+    expect(await pullBranch(realGit, dir)).toEqual({
+      ok: false,
+      error: 'solo has no upstream branch to pull from. Push it first.'
+    })
+    await realGit(['checkout', '-q', '--detach'], dir)
+    expect(await pullBranch(realGit, dir)).toMatchObject({ ok: false, error: /detached/ })
+  })
+
+  it('lists history with merges and refs, a page at a time, and shows a commit', async () => {
+    const { dir } = await init()
+    await realGit(['checkout', '-q', '-b', 'feat'], dir)
+    await writeFile(path.join(dir, 'f.txt'), 'f\n')
+    await commitAll(realGit, dir, 'feature')
+    await realGit(['checkout', '-q', 'main'], dir)
+    await writeFile(path.join(dir, 'm.txt'), 'm\n')
+    await commitAll(realGit, dir, 'on main')
+    await realGit(['merge', '-q', '--no-ff', '-m', 'Merge feat', 'feat'], dir)
+    await realGit(['tag', 'v1'], dir)
+
+    const log = await gitLog(realGit, dir, 0)
+    expect(log.ok).toBe(true)
+    if (!log.ok) return
+    expect(log.more).toBe(false)
+    expect(log.commits.map((c) => c.subject)).toEqual(['Merge feat', 'on main', 'feature', 'first'])
+    expect(log.commits[0]!.parents).toHaveLength(2)
+    expect(log.commits[0]!.refs).toEqual(expect.arrayContaining(['HEAD -> main', 'tag: v1']))
+    expect((await gitLog(realGit, dir, 3)).ok && (await gitLog(realGit, dir, 3))).toMatchObject({
+      commits: [{ subject: 'first' }]
+    })
+
+    const feature = log.commits.find((c) => c.subject === 'feature')!
+    const shown = await gitShow(realGit, dir, feature.sha)
+    expect(shown.ok && parsePatch(shown.patch).map((f) => f.path)).toEqual(['f.txt'])
+    expect(await gitShow(realGit, dir, '--all')).toEqual({ ok: false, error: 'Not a commit id.' })
   })
 })
