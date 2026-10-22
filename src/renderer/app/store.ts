@@ -101,6 +101,7 @@ export type Modal =
   | { kind: 'removeAccount'; accountId: string }
   | { kind: 'palette' }
   | { kind: 'removeWorktree'; cwd: string; title: string }
+  | { kind: 'deleteChat'; wsId: string; paneId: string }
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
 
@@ -186,8 +187,8 @@ export interface AppState {
   openProject(wsId: string): void
   /** Reopens a closed chat from History; it carries on its conversation. */
   reopenChat(wsId: string, paneId: string): void
-  /** Deletes a History entry and its saved view. */
-  deleteHistory(wsId: string, paneId: string): void
+  /** Deletes a chat, open (stops it, not archived) or in History, with its saved view. */
+  deleteChat(wsId: string, paneId: string): void
   /** The pane's name in its header and the sidebar; empty goes back to the folder name. */
   renamePane(paneId: string, title: string): void
   focusPane(paneId: string | null): void
@@ -1053,7 +1054,8 @@ export function createAppStore({
         })
       },
 
-      deleteHistory(wsId, paneId) {
+      deleteChat(wsId, paneId) {
+        if (findPane(get().config, paneId)) return dropPane(paneId, false)
         get().updateConfig((c) =>
           withWorkspace(c, wsId, (w) => ({
             ...w,

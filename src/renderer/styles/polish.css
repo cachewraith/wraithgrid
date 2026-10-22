@@ -655,13 +655,14 @@
   border-radius: 7px;
   background: none;
   color: var(--fa);
-  opacity: 0;
+  opacity: 0.6;
   cursor: pointer;
   transition:
     opacity 0.15s,
     background 0.15s,
     color 0.15s;
 }
+/* Always there (quiet), so delete is findable without hovering. */
 .pj-hrow:hover .pj-del,
 .pj-del:focus-visible {
   opacity: 1;

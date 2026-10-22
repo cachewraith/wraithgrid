@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { contractHome, expandHome } from '@shared/paths'
 import { PANE_STATUS_LABEL, type Pane } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { accountById, activeWorkspace } from '../app/store'
 import { ago } from '../lib/time'
+import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { IconCompose, IconSearch, IconTrash } from './icons'
 
 /** Matches a chat by its title, account or folder; every word must appear. */
@@ -22,7 +23,30 @@ export function useNow(): number {
   return now
 }
 
-function OpenRow({ pane, now }: { pane: Pane; now: number }) {
+/** The trash button on a chat row: asks before anything is deleted. */
+function DeleteButton({ wsId, pane }: { wsId: string; pane: Pane }) {
+  const actions = useActions()
+  return (
+    <button
+      className="pj-del"
+      aria-label={`Delete ${pane.title}`}
+      title="Delete chat"
+      onClick={() => actions.openModal({ kind: 'deleteChat', wsId, paneId: pane.id })}
+    >
+      <IconTrash small />
+    </button>
+  )
+}
+
+function OpenRow({
+  pane,
+  now,
+  onMenu
+}: {
+  pane: Pane
+  now: number
+  onMenu: (e: MouseEvent<HTMLElement>) => void
+}) {
   const actions = useActions()
   const account = useApp((s) => accountById(s.config, pane.accountId))
   const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
@@ -30,7 +54,7 @@ function OpenRow({ pane, now }: { pane: Pane; now: number }) {
   const busy = status === 'running' || status === 'starting'
   const loud = status === 'approval' || status === 'login' || status === 'exited'
   return (
-    <button className="pj-row" onClick={() => actions.revealPane(pane.id)}>
+    <button className="pj-row" onClick={() => actions.revealPane(pane.id)} onContextMenu={onMenu}>
       <span className="pj-t">{pane.title}</span>
       <span className="pj-m">{account?.name ?? 'shell'}</span>
       <span className={`pj-st st-${status ?? 'idle'}`}>
@@ -53,7 +77,14 @@ export function ProjectView() {
   const accounts = useApp((s) => s.config.accounts)
   const home = useApp((s) => s.info.homeDir)
   const [query, setQuery] = useState('')
+  const [menu, setMenu] = useState<{ at: MenuPoint; pane: Pane; open: boolean } | null>(null)
   const now = useNow()
+  const menuFor =
+    (pane: Pane, open: boolean) =>
+    (e: MouseEvent<HTMLElement>): void => {
+      e.preventDefault()
+      setMenu({ at: menuPoint(e), pane, open })
+    }
 
   const nameOf = (id: string | null): string => accounts.find((a) => a.id === id)?.name ?? 'shell'
   const folders = [...new Set(ws.panes.concat(ws.history.map((h) => h.pane)).map((p) => p.cwd))]
@@ -116,7 +147,10 @@ export function ProjectView() {
             <h2 className="pj-h">Open</h2>
             <div className="pj-list">
               {open.map((p) => (
-                <OpenRow key={p.id} pane={p} now={now} />
+                <div key={p.id} className="pj-hrow">
+                  <OpenRow pane={p} now={now} onMenu={menuFor(p, true)} />
+                  <DeleteButton wsId={ws.id} pane={p} />
+                </div>
               ))}
             </div>
           </section>
@@ -132,19 +166,13 @@ export function ProjectView() {
                     className="pj-row"
                     title="Reopen and carry on this conversation"
                     onClick={() => actions.reopenChat(ws.id, h.pane.id)}
+                    onContextMenu={menuFor(h.pane, false)}
                   >
                     <span className="pj-t">{h.pane.title}</span>
                     <span className="pj-m">{nameOf(h.pane.accountId)}</span>
                     <span className="pj-st">{ago(h.closedAt, now)}</span>
                   </button>
-                  <button
-                    className="pj-del"
-                    aria-label={`Delete ${h.pane.title} from history`}
-                    title="Delete from history"
-                    onClick={() => actions.deleteHistory(ws.id, h.pane.id)}
-                  >
-                    <IconTrash small />
-                  </button>
+                  <DeleteButton wsId={ws.id} pane={h.pane} />
                 </div>
               ))}
             </div>
@@ -153,6 +181,31 @@ export function ProjectView() {
 
         {total > 0 && !open.length && !history.length ? (
           <p className="pj-none">No chats match “{query}”.</p>
+        ) : null}
+
+        {menu ? (
+          <ContextMenu
+            at={menu.at}
+            label={`Chat ${menu.pane.title}`}
+            onClose={() => setMenu(null)}
+            items={[
+              {
+                label: menu.open ? 'Open' : 'Reopen',
+                onSelect: () =>
+                  menu.open
+                    ? actions.revealPane(menu.pane.id)
+                    : actions.reopenChat(ws.id, menu.pane.id)
+              },
+              {
+                label: 'Delete chat…',
+                icon: <IconTrash small />,
+                danger: true,
+                divider: true,
+                onSelect: () =>
+                  actions.openModal({ kind: 'deleteChat', wsId: ws.id, paneId: menu.pane.id })
+              }
+            ]}
+          />
         ) : null}
       </div>
     </div>
