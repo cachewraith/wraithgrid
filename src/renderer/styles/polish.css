@@ -1518,8 +1518,9 @@
   border-radius: 8px;
 }
 
-/* History: the graph column, then the commit; an open commit lists its files. */
-.gh {
+/* History: the graph column, then the commit; an open commit lists its files.
+   Keep this scoped to the <ol>: bare `.gh` also matches ghost buttons (`.btn.gh`). */
+ol.gh {
   list-style: none;
   margin: -10px;
   padding: 4px 0 8px;
