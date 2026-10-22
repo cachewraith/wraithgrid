@@ -504,6 +504,17 @@ export function createAppStore({
       )
     }
 
+    /**
+     * Restarts a chat without a word in the view: its conversation resumes by id. For start-up
+     * flags (effort), and for a CLI that can't stop a turn or switch model/mode live (agy).
+     */
+    const restartChatQuietly = (paneId: string): void => {
+      if (!get().runtime[paneId]?.requested) return
+      api.chat.stop(paneId, false)
+      set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
+      startQueue.push(() => void spawn(paneId))
+    }
+
     const spawnChat = async (paneId: string, pane: Pane): Promise<void> => {
       switched.delete(paneId)
       await chat.load(paneId)
@@ -1060,12 +1071,14 @@ export function createAppStore({
 
       chatSetModel(paneId, model) {
         patchPane(paneId, { model })
+        if (chat.thread(paneId).controls?.live.model === false) return restartChatQuietly(paneId)
         // null (the default) needs the CLI's own default: claude names it `default`.
         if (get().runtime[paneId]?.started) api.chat.setModel(paneId, model ?? 'default')
       },
 
       chatSetMode(paneId, mode) {
         patchPane(paneId, { chatMode: mode === 'default' ? null : mode })
+        if (chat.thread(paneId).controls?.live.mode === false) return restartChatQuietly(paneId)
         if (get().runtime[paneId]?.started) api.chat.setMode(paneId, mode)
       },
 
@@ -1073,10 +1086,7 @@ export function createAppStore({
         if (findPane(get().config, paneId)?.pane.effort === effort) return
         patchPane(paneId, { effort })
         // Effort is a start-up flag: restart quietly; the conversation resumes by its id.
-        if (!get().runtime[paneId]?.requested) return
-        api.chat.stop(paneId, false)
-        set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
-        startQueue.push(() => void spawn(paneId))
+        restartChatQuietly(paneId)
       },
 
       async chatSwitchAccount(paneId, accountId) {
@@ -1166,6 +1176,11 @@ export function createAppStore({
       },
 
       chatInterrupt(paneId) {
+        // A CLI with no way to stop a turn (agy): end the process, carry on the conversation.
+        if (chat.thread(paneId).controls?.live.interrupt === false) {
+          chat.settle(paneId, 'Interrupted')
+          return restartChatQuietly(paneId)
+        }
         chat.interrupt(paneId)
       },
 

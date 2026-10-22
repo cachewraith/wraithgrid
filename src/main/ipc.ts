@@ -432,6 +432,13 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       if (!resolved.ok) return fail(resolved.error)
       const { file, args, cwd, env } = resolved.req
       const { pid } = chats.start(a.paneId, { file, args, cwd, env }, adapter)
+      const list = adapter.listModels
+      if (list)
+        execFile(file, list.args, { cwd, env, timeout: 30_000, maxBuffer: 1 << 20 }, (err, out) => {
+          const models = err ? [] : list.parse(String(out))
+          if (models.length)
+            chats.announce(a.paneId, { t: 'capabilities', models, account: null, commands: [] })
+        })
       return { ok: true, pid, attached: false }
     },
     fail('Invalid request')

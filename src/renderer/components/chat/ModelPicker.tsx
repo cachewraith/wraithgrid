@@ -256,12 +256,18 @@ export function EffortPicker({
 export function ModePicker({
   mode,
   autoMode,
+  modes,
+  asks = true,
   openSignal,
   onMode
 }: {
   mode: ChatMode
   /** The model can run in auto mode. */
   autoMode: boolean
+  /** The modes the CLI has, when not all of them (agy). */
+  modes?: ChatMode[]
+  /** It asks before a tool; else "ask" modes refuse instead. */
+  asks?: boolean
   openSignal?: number
   onMode: (mode: ChatMode) => void
 }) {
@@ -278,25 +284,47 @@ export function ModePicker({
       className={`mode-chip mode-${mode}`}
       openSignal={openSignal}
     >
-      {(close) => <ModeList mode={mode} autoMode={autoMode} onMode={onMode} close={close} />}
+      {(close) => (
+        <ModeList
+          mode={mode}
+          autoMode={autoMode}
+          modes={modes}
+          asks={asks}
+          onMode={onMode}
+          close={close}
+        />
+      )}
     </ChipMenu>
   )
 }
 
 /** Mounted only while the menu is open, so the bypass confirm never outlives it. */
+/** Hints for a CLI that can't ask in a chat: what would ask is refused instead. */
+const NO_ASK_HINT: Partial<Record<ChatMode, string>> = {
+  default: "Refuses edits and commands that need approval (it can't ask here)",
+  acceptEdits: 'Edits files on its own; refuses commands that need approval'
+}
+
 function ModeList({
   mode,
   autoMode,
+  modes: only,
+  asks,
   onMode,
   close
 }: {
   mode: ChatMode
   autoMode: boolean
+  modes?: ChatMode[]
+  asks: boolean
   onMode: (mode: ChatMode) => void
   close: () => void
 }) {
   const [confirm, setConfirm] = useState(false)
-  const modes = CHAT_MODES.filter((m) => m !== 'auto' || autoMode || mode === 'auto')
+  const modes = CHAT_MODES.filter(
+    (m) => (!only || only.includes(m)) && (m !== 'auto' || autoMode || mode === 'auto')
+  )
+  const cycle = modes.filter((m) => m !== 'dontAsk' && m !== 'bypassPermissions').length
   return (
     <>
       <div className="mp-list" role="listbox" aria-label="Modes">
@@ -307,7 +335,7 @@ function ModeList({
               key={m}
               on={mode === m}
               name={asking ? 'Click again to bypass permissions' : CHAT_MODE_LABEL[m]}
-              hint={CHAT_MODE_HINT[m]}
+              hint={(!asks && NO_ASK_HINT[m]) || CHAT_MODE_HINT[m]}
               tone={m === 'bypassPermissions' ? 'danger' : undefined}
               onPick={() => {
                 // Running everything unasked takes a second click.
@@ -322,7 +350,9 @@ function ModeList({
           )
         })}
       </div>
-      <p className="mp-foot">Shift+Tab switches between the first {autoMode ? 'four' : 'three'}.</p>
+      <p className="mp-foot">
+        Shift+Tab switches between the first {['', 'one', 'two', 'three', 'four'][cycle] ?? cycle}.
+      </p>
     </>
   )
 }

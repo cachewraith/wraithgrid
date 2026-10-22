@@ -141,6 +141,13 @@ export class ChatBus {
     this.api.interrupt(paneId)
   }
 
+  /** Ends the running turn here (its process was stopped), with a note why. */
+  settle(paneId: string, text: string): void {
+    const t = applyChatEvent(this.thread(paneId), { t: 'busy', busy: false }, this.now())
+    this.set(paneId, addNotice({ ...t, background: [] }, 'info', text))
+    this.scheduleSave(paneId)
+  }
+
   notice(paneId: string, level: 'info' | 'error' | 'divider', text: string): void {
     this.set(paneId, addNotice(this.thread(paneId), level, text))
     this.scheduleSave(paneId)

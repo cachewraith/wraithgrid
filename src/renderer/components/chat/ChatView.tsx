@@ -412,6 +412,8 @@ export function ChatView({ paneId, visible, focused }: Props) {
                 <ModePicker
                   mode={mode}
                   autoMode={autoMode}
+                  modes={thread.controls?.modes}
+                  asks={thread.controls?.approvals ?? true}
                   openSignal={modeSignal}
                   onMode={(m) => actions.chatSetMode(paneId, m)}
                 />
@@ -419,7 +421,9 @@ export function ChatView({ paneId, visible, focused }: Props) {
             ) : null
           }
           onCycleMode={() => {
-            const list = cycleModes(autoMode)
+            const list = cycleModes(autoMode).filter(
+              (m) => !thread.controls || thread.controls.modes.includes(m)
+            )
             actions.chatSetMode(paneId, list[(list.indexOf(mode) + 1) % list.length]!)
           }}
           commands={slashItems}
