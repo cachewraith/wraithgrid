@@ -196,9 +196,9 @@ export function App() {
               {view === 'usage' ? <UsageView /> : null}
               {view === 'settings' ? <SettingsView /> : null}
             </div>
-            {diffOpen ? <DiffPanel /> : null}
           </div>
         </main>
+        {diffOpen ? <DiffPanel /> : null}
       </div>
       <StatusBar />
       <ZoomBadge />

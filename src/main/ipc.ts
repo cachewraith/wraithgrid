@@ -39,6 +39,8 @@ import {
   gitWorktreeArgs,
   gitWorktreeRemoveArgs,
   gitCommitArgs,
+  gitLogArgs,
+  gitShowArgs,
   gitSwitchArgs,
   type GitBranchesResult,
   modsCatalogArgs,
@@ -88,6 +90,8 @@ import {
   type SharedReportEntry,
   type ShellOption,
   type SimpleResult,
+  type GitLogResult,
+  type GitShowResult,
   type UpdateCheckResult,
   type UpdateInstallResult
 } from '@shared/ipc-contract'
@@ -131,7 +135,10 @@ import {
   gitStatus,
   listBranches,
   pullRequestLink,
+  pullBranch,
   pushBranch,
+  gitLog,
+  gitShow,
   removeWorktree,
   switchBranch,
   type GitRunner
@@ -883,6 +890,42 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return pushBranch(deps.git, cwd)
     },
     fail('Could not push')
+  )
+
+  handle(
+    IPC.gitPull,
+    gitPaneArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return pullBranch(deps.git, cwd)
+    },
+    fail('Could not pull')
+  )
+
+  handle(
+    IPC.gitLog,
+    gitLogArgs,
+    async (a): Promise<GitLogResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return { ok: false, error: 'That pane is gone.' }
+      await deps.envReady
+      return gitLog(deps.git, cwd, a.skip)
+    },
+    { ok: false, error: 'Could not read the history' }
+  )
+
+  handle(
+    IPC.gitShow,
+    gitShowArgs,
+    async (a): Promise<GitShowResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return { ok: false, error: 'That pane is gone.' }
+      await deps.envReady
+      return gitShow(deps.git, cwd, a.sha)
+    },
+    { ok: false, error: 'Could not read the commit' }
   )
 
   handle(
