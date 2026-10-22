@@ -23,6 +23,7 @@ import {
   chatSetModelArgs,
   chatSetModeArgs,
   chatStartArgs,
+  chatMoveAccountArgs,
   chatStopArgs,
   type ChatStartResult,
   accountCreateDirArgs,
@@ -34,11 +35,14 @@ import {
   sharedApplyArgs,
   updateCheckArgs,
   updateInstallArgs,
+  updateNotesArgs,
   gitPaneArgs,
   gitWorktreeAddArgs,
   gitWorktreeArgs,
   gitWorktreeRemoveArgs,
   gitCommitArgs,
+  gitLogArgs,
+  gitShowArgs,
   gitSwitchArgs,
   type GitBranchesResult,
   modsCatalogArgs,
@@ -90,6 +94,9 @@ import {
   type ShellOption,
   type FolderListResult,
   type SimpleResult,
+  type GitLogResult,
+  type GitShowResult,
+  type ReleaseNotesView,
   type UpdateCheckResult,
   type UpdateInstallResult
 } from '@shared/ipc-contract'
@@ -133,7 +140,10 @@ import {
   gitStatus,
   listBranches,
   pullRequestLink,
+  pullBranch,
   pushBranch,
+  gitLog,
+  gitShow,
   removeWorktree,
   switchBranch,
   type GitRunner
@@ -158,6 +168,7 @@ import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
 import { listFolder } from './folders'
+import { copyTranscript } from './chat/transcript'
 import type { Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
@@ -176,6 +187,10 @@ export interface IpcDeps {
   /** The claudemod.com mod list; read only when the user opens it. */
   community: CommunityCatalog
   installer: UpdateInstaller
+  /** Keeps the found release's notes (every check that reached GitHub). */
+  onUpdateCheck?: (r: UpdateCheckResult) => void
+  /** About's release notes, kept across updates. */
+  releaseNotes: () => Promise<ReleaseNotesView>
   /** Launch-time update checks only run in packaged builds. */
   isPackaged: boolean
   /** Sees every launch-time check result (e.g. to raise an OS notification). */
@@ -339,6 +354,33 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   // ---- Chat panes (ADR 0002) -------------------------------------------------------
 
   const { chats } = deps
+  // Switching a chat's account (#29): the conversation file is copied into the other
+  // account's dir; both accounts come from main's own config and must be claude accounts in
+  // Wraithgrid's own folder.
+  handle(
+    IPC.chatMoveAccount,
+    chatMoveAccountArgs,
+    async (a): Promise<SimpleResult> => {
+      const cfg = store.get()
+      const pane = cfg.workspaces.flatMap((w) => w.panes).find((p) => p.id === a.paneId)
+      if (!pane) return fail('That pane is gone.')
+      // The renderer stopped it already; make sure the process is gone before copying.
+      await chats.stop(a.paneId)
+      const from = cfg.accounts.find((x) => x.id === pane.accountId)
+      const to = cfg.accounts.find((x) => x.id === a.toAccountId)
+      if (!from || !to) return fail('That account is gone.')
+      if (from.cli !== 'claude' || to.cli !== 'claude')
+        return fail('Only claude chats can switch accounts for now.')
+      return copyTranscript(
+        resolveUserPath(from.configDir, homeDir),
+        resolveUserPath(to.configDir, homeDir),
+        a.sessionId,
+        accountsRoot(homeDir)
+      )
+    },
+    fail('Could not switch the account')
+  )
+
   handle(
     IPC.chatStart,
     chatStartArgs,
@@ -724,6 +766,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       }
       const r = await deps.updates.check()
       if (r.status === 'error') log(`update check failed: ${r.error}`)
+      deps.onUpdateCheck?.(r)
       if (a.reason === 'launch') deps.onLaunchUpdateCheck?.(r)
       return r
     },
@@ -736,11 +779,24 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   )
 
   handle(
-    IPC.updateInstall,
+    IPC.updateDownload,
     updateInstallArgs,
-    (): Promise<UpdateInstallResult> => deps.installer.install(),
+    (): Promise<UpdateInstallResult> => deps.installer.download(),
+    { ok: false, error: 'The update could not be downloaded.', manual: false }
+  )
+  handle(
+    IPC.updateRestart,
+    updateInstallArgs,
+    (): Promise<UpdateInstallResult> => deps.installer.restart(),
     { ok: false, error: 'The update could not be installed.', manual: false }
   )
+  handle(IPC.updateCancel, updateInstallArgs, (): void => deps.installer.cancel(), undefined)
+  handle(IPC.updateNotes, updateNotesArgs, (): Promise<ReleaseNotesView> => deps.releaseNotes(), {
+    current: app.getVersion(),
+    updatedFrom: null,
+    installed: null,
+    earlier: []
+  })
 
   // ---- Git -------------------------------------------------------------------------
 
@@ -908,6 +964,42 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return pushBranch(deps.git, cwd)
     },
     fail('Could not push')
+  )
+
+  handle(
+    IPC.gitPull,
+    gitPaneArgs,
+    async (a): Promise<GitActionResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return fail('That pane is gone.')
+      await deps.envReady
+      return pullBranch(deps.git, cwd)
+    },
+    fail('Could not pull')
+  )
+
+  handle(
+    IPC.gitLog,
+    gitLogArgs,
+    async (a): Promise<GitLogResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return { ok: false, error: 'That pane is gone.' }
+      await deps.envReady
+      return gitLog(deps.git, cwd, a.skip)
+    },
+    { ok: false, error: 'Could not read the history' }
+  )
+
+  handle(
+    IPC.gitShow,
+    gitShowArgs,
+    async (a): Promise<GitShowResult> => {
+      const cwd = paneCwd(a.paneId)
+      if (!cwd) return { ok: false, error: 'That pane is gone.' }
+      await deps.envReady
+      return gitShow(deps.git, cwd, a.sha)
+    },
+    { ok: false, error: 'Could not read the commit' }
   )
 
   handle(

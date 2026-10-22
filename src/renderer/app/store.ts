@@ -8,6 +8,7 @@ import type {
   GitStatus,
   ModInfo,
   PtyExitEvent,
+  ReleaseNotesView,
   SharedReportEntry,
   UpdateCheckResult,
   UpdateProgress,
@@ -102,6 +103,7 @@ export type Modal =
   | { kind: 'palette' }
   | { kind: 'removeWorktree'; cwd: string; title: string }
   | { kind: 'deleteChat'; wsId: string; paneId: string }
+  | { kind: 'switchChatAccount'; paneId: string; accountId: string }
   | { kind: 'login'; accountId: string }
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
@@ -140,6 +142,10 @@ export interface AppState {
     /** An in-app install in progress, and the last one's error. */
     install: UpdateProgress
     installError: { error: string; manual: boolean } | null
+    /** Release notes for About (installed + earlier versions), kept across updates. */
+    notes: ReleaseNotesView | null
+    /** "Updated to …" shown once after an update; null once seen or dismissed. */
+    updatedTo: string | null
   }
   /** A Settings section to scroll to once, then cleared. */
   settingsAnchor: 'updates' | null
@@ -184,6 +190,11 @@ export interface AppState {
   chatSetMode(paneId: string, mode: ChatMode): void
   /** Sets a chat's effort; the chat restarts and carries on the conversation. */
   chatSetEffort(paneId: string, effort: ChatEffort | null): void
+  /**
+   * Carries the chat on as another claude account: its conversation is copied there, then the
+   * chat restarts as that account and resumes. Returns why it could not, or null.
+   */
+  chatSwitchAccount(paneId: string, accountId: string): Promise<string | null>
   /** Opens a project's screen: its open chats and history. */
   openProject(wsId: string): void
   /** Reopens a closed chat from History; it carries on its conversation. */
@@ -273,8 +284,13 @@ export interface AppState {
   detectClaude(): Promise<void>
   setSystemTheme(theme: ThemeName): void
   checkForUpdates(reason: 'launch' | 'manual'): Promise<void>
-  /** Downloads and installs the newest release, then the app restarts. */
+  /** Downloads the newest release; it then waits (`ready`) for restartToUpdate. */
   installUpdate(): Promise<void>
+  /** Installs the downloaded release; the app restarts. */
+  restartToUpdate(): Promise<void>
+  cancelUpdate(): void
+  /** Hides the one-time "Updated to …" notice. */
+  dismissUpdated(): void
 
   // ui
   setView(view: View): void
@@ -820,7 +836,14 @@ export function createAppStore({
       closingPaneId: null,
       activated: {},
       systemTheme: 'dark',
-      update: { checking: false, result: null, install: { phase: 'idle' }, installError: null },
+      update: {
+        checking: false,
+        result: null,
+        install: { phase: 'idle' },
+        installError: null,
+        notes: null,
+        updatedTo: null
+      },
       settingsAnchor: null,
       git: {},
       diffOpen: false,
@@ -909,6 +932,11 @@ export function createAppStore({
         void get().loadUsage()
         void get().refreshGit()
         if (config.settings.checkUpdatesOnLaunch) void get().checkForUpdates('launch')
+        void api.update.notes().then((notes) =>
+          set({
+            update: { ...get().update, notes, updatedTo: notes.updatedFrom ? notes.current : null }
+          })
+        )
       },
 
       updateConfig(fn) {
@@ -1026,6 +1054,41 @@ export function createAppStore({
         api.chat.stop(paneId, false)
         set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
         startQueue.push(() => void spawn(paneId))
+      },
+
+      async chatSwitchAccount(paneId, accountId) {
+        const pane = findPane(get().config, paneId)?.pane
+        if (!pane) return 'That chat is gone.'
+        if (pane.accountId === accountId) return null
+        const from = accountById(get().config, pane.accountId)
+        const to = accountById(get().config, accountId)
+        if (!to || to.cli !== 'claude' || from?.cli !== 'claude')
+          return 'Only claude chats can switch to another claude account.'
+        if (!to.signedIn) return `${to.name} is not signed in yet.`
+        if (chat.thread(paneId).busy) return 'Wait for the answer to finish, or stop it first.'
+        const running = !!get().runtime[paneId]?.requested
+        if (running) api.chat.stop(paneId, false)
+        if (pane.chatSessionId) {
+          const r = await api.chat.moveAccount(paneId, accountId, pane.chatSessionId)
+          if (!r.ok) {
+            // Nothing changed: carry on as before.
+            if (running) {
+              set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
+              startQueue.push(() => void spawn(paneId))
+            }
+            return r.error
+          }
+        }
+        patchPane(paneId, { accountId })
+        const at = new Date(now()).toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        chat.notice(paneId, 'divider', `Continued as ${to.name} · ${at}`)
+        // Restart as the new account; the conversation resumes by its id.
+        set({ runtime: { ...get().runtime, [paneId]: freshRuntime({ requested: true }) } })
+        startQueue.push(() => void spawn(paneId))
+        return null
       },
 
       openProject(wsId) {
@@ -1602,9 +1665,9 @@ export function createAppStore({
       async installUpdate() {
         if (get().update.install.phase !== 'idle') return
         set({ update: { ...get().update, installError: null } })
-        const r = await api.update.install()
-        // On success the app is quitting; there is nothing left to show.
-        if (!r.ok) {
+        const r = await api.update.download()
+        // On success main reports `ready`; a cancelled download is not an error.
+        if (!r.ok && !('cancelled' in r)) {
           set({
             update: {
               ...get().update,
@@ -1613,6 +1676,24 @@ export function createAppStore({
             }
           })
         }
+      },
+
+      async restartToUpdate() {
+        if (get().update.install.phase !== 'ready') return
+        set({ update: { ...get().update, installError: null } })
+        const r = await api.update.restart()
+        // On success the app is quitting; there is nothing left to show.
+        if (!r.ok && !('cancelled' in r)) {
+          set({ update: { ...get().update, installError: { error: r.error, manual: r.manual } } })
+        }
+      },
+
+      cancelUpdate() {
+        void api.update.cancel()
+      },
+
+      dismissUpdated() {
+        if (get().update.updatedTo) set({ update: { ...get().update, updatedTo: null } })
       },
 
       // ---- ui ------------------------------------------------------------------

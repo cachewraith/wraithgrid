@@ -295,3 +295,95 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })
+
+test('a chat continues as another claude account: conversation copied, same pane', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-chat-switch-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  const proj = path.join(home, 'proj')
+  fs.mkdirSync(proj, { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  const account = (id: string, name: string, signedIn = true) => ({
+    id,
+    name,
+    configDir: `~/.wraithgrid/accounts/${name}`,
+    color: '#7c5cff',
+    signedIn,
+    imported: false
+  })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: FAKE_CLAUDE,
+      accounts: [
+        account('a-work', 'work'),
+        account('a-home', 'home'),
+        account('a-new', 'fresh', false)
+      ],
+      workspaces: [
+        {
+          id: 'ws-main',
+          name: 'main',
+          panes: [
+            { id: 'p-chat', accountId: 'a-work', cwd: '~/proj', title: 'proj', view: 'chat' }
+          ],
+          layout: null
+        }
+      ],
+      activeWorkspace: 'ws-main',
+      recentFolders: [],
+      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false }
+    })
+  )
+  const { app, win } = await launch(home, userData)
+  try {
+    const box = win.getByLabel('Message', { exact: true })
+    await box.fill('remember PLUM')
+    await box.press('Enter')
+    const agent = win.locator('.cmsg.agent')
+    await expect(agent.first()).toContainText('accounts/work, session fake-new')
+    const enc = proj.replace(/[^A-Za-z0-9]/g, '-')
+    const inWork = path.join(home, '.wraithgrid/accounts/work/projects', enc, 'fake-new.jsonl')
+    await expect.poll(() => fs.existsSync(inWork)).toBe(true)
+
+    // The account chip lists the claude accounts; one not signed in asks to sign in instead.
+    await win.getByRole('button', { name: 'Account: work. Continue as another account' }).click()
+    const list = win.getByRole('listbox', { name: 'Accounts' })
+    await expect(list.getByRole('option', { name: /fresh/ })).toContainText('Not signed in')
+    await list.getByRole('option', { name: /^home/ }).click()
+
+    const dlg = win.getByRole('dialog', { name: 'Continue this conversation as home?' })
+    await expect(dlg).toContainText('copied into home’s folder')
+    await dlg.getByRole('button', { name: 'Continue as home' }).click()
+    await expect(dlg).toHaveCount(0)
+
+    // Same pane, same conversation: copied into home's dir and resumed there.
+    const inHome = path.join(home, '.wraithgrid/accounts/home/projects', enc, 'fake-new.jsonl')
+    expect(fs.readFileSync(inHome, 'utf8')).toContain('remember PLUM')
+    expect(fs.existsSync(inWork)).toBe(true)
+    await expect(win.getByRole('separator', { name: /^Continued as home · / })).toBeVisible()
+    await expect(
+      win.getByRole('button', { name: 'Account: home. Continue as another account' })
+    ).toBeVisible()
+    await expect(agent).toHaveCount(1)
+    await box.fill('what was it?')
+    await box.press('Enter')
+    await expect(agent.nth(1)).toContainText('accounts/home, session resumed-fake-new')
+
+    // Saved: the pane now belongs to home.
+    await expect
+      .poll(() => {
+        try {
+          const c = JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8'))
+          return c.workspaces[0].panes[0].accountId
+        } catch {
+          return null
+        }
+      })
+      .toBe('a-home')
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})

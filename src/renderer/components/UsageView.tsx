@@ -10,10 +10,11 @@ import {
   type UsageWindow
 } from '@shared/usage'
 import { useActions, useApp } from '../app/services'
-import { fmtCost, fmtTokens, fmtUntil, severity } from '../lib/usage-format'
+import { fmtCost, fmtTokens, fmtUntil, limitAccountId, severity } from '../lib/usage-format'
 import { IconGauge } from './icons'
 
-function useTicker(ms: number): number {
+/** The time now, updated every `ms`. */
+export function useTicker(ms: number): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), ms)
@@ -273,33 +274,66 @@ export function UsageView() {
   )
 }
 
-/** The default account's current-session limit, when claude has reported one. */
-export function useSessionLimit(): { pct: number; sev: ReturnType<typeof severity> } | null {
-  const defaultId = useApp(
-    (s) => s.config.settings.defaultAccountId ?? s.config.accounts[0]?.id ?? null
-  )
-  const lim = useApp((s) => (defaultId ? s.usage.limits[defaultId] : undefined))
-  const now = useTicker(60_000)
-  const five = liveWindow(lim?.fiveHour ?? null, now)
-  return five ? { pct: Math.round(five.utilization * 100), sev: severity(five.utilization) } : null
+export interface SessionLimit {
+  /** The account the limit belongs to; named when there is more than one claude account. */
+  account: { id: string; name: string } | null
+  named: boolean
+  pct: number | null
+  sev: ReturnType<typeof severity>
 }
 
-/** The top-bar button: a gauge and the session limit ("42%"), or "Usage". */
+/** The session limit of the focused chat's account (else the default one), when known. */
+export function useSessionLimit(): SessionLimit {
+  const id = useApp((s) => limitAccountId(s.config, s.focusedPaneId))
+  const name = useApp((s) => s.config.accounts.find((a) => a.id === id)?.name ?? null)
+  const named = useApp((s) => s.config.accounts.filter((a) => a.cli === 'claude').length > 1)
+  const lim = useApp((s) => (id ? s.usage.limits[id] : undefined))
+  const now = useTicker(60_000)
+  const five = liveWindow(lim?.fiveHour ?? null, now)
+  return {
+    account: id && name ? { id, name } : null,
+    named,
+    pct: five ? Math.round(five.utilization * 100) : null,
+    sev: five ? severity(five.utilization) : 'ok'
+  }
+}
+
+/** "work: 42% of the current session limit", or why there is no number. */
+export function sessionLimitLabel(l: SessionLimit): string {
+  const who = l.named && l.account ? `${l.account.name}: ` : ''
+  if (l.pct !== null) return `Usage: ${who}${l.pct}% of the current session limit`
+  return l.named && l.account
+    ? `Usage: no limits from ${l.account.name} yet (they show after its first chat turn)`
+    : 'Usage'
+}
+
+/** The top-bar button: a gauge and the session limit ("42%", "work · 42%"), or "Usage". */
 export function UsageButton() {
   const actions = useActions()
   const on = useApp((s) => s.view === 'usage')
   const limit = useSessionLimit()
-  const label = limit ? `Usage: ${limit.pct}% of the current session limit` : 'Usage'
+  const label = sessionLimitLabel(limit)
+  const pct = limit.pct !== null ? `${limit.pct}%` : null
+  const text =
+    limit.named && limit.account ? (
+      <>
+        <span className="u-pill-who">{limit.account.name}</span>
+        <span aria-hidden="true">·</span>
+        {pct ?? '–'}
+      </>
+    ) : (
+      (pct ?? 'Usage')
+    )
   return (
     <button
-      className={`u-pill sev-${limit?.sev ?? 'ok'}${on ? ' on' : ''}`}
+      className={`u-pill sev-${limit.sev}${on ? ' on' : ''}`}
       aria-label={label}
       title={label}
       aria-current={on ? 'page' : undefined}
       onClick={() => actions.setView(on ? 'grid' : 'usage')}
     >
       <IconGauge small />
-      {limit ? `${limit.pct}%` : 'Usage'}
+      {text}
     </button>
   )
 }

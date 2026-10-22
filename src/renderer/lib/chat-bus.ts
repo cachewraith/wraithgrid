@@ -141,7 +141,7 @@ export class ChatBus {
     this.api.interrupt(paneId)
   }
 
-  notice(paneId: string, level: 'info' | 'error', text: string): void {
+  notice(paneId: string, level: 'info' | 'error' | 'divider', text: string): void {
     this.set(paneId, addNotice(this.thread(paneId), level, text))
     this.scheduleSave(paneId)
   }

@@ -9,6 +9,8 @@ export function StatusBar() {
   const update = useApp((s) =>
     s.update.result?.status === 'available' ? s.update.result.latest.version : null
   )
+  // Once, after an update restarted the app.
+  const updatedTo = useApp((s) => s.update.updatedTo)
 
   return (
     <footer className="sbar">
@@ -22,6 +24,27 @@ export function StatusBar() {
         ) : null}
       </span>
       <span className="sp" />
+      {updatedTo ? (
+        <span className="upd-done">
+          <button
+            className="upd"
+            onClick={() => {
+              actions.showUpdates()
+              actions.dismissUpdated()
+            }}
+          >
+            Updated to {updatedTo} · See what’s new
+          </button>
+          <button
+            className="upd-x"
+            aria-label="Dismiss"
+            title="Dismiss"
+            onClick={actions.dismissUpdated}
+          >
+            ×
+          </button>
+        </span>
+      ) : null}
       {update ? (
         <button className="upd" onClick={actions.showUpdates}>
           Update available: {update}

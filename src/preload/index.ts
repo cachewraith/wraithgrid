@@ -29,6 +29,8 @@ const api: WraithApi = {
   },
   chat: {
     start: (args) => ipcRenderer.invoke(IPC.chatStart, args),
+    moveAccount: (paneId, toAccountId, sessionId) =>
+      ipcRenderer.invoke(IPC.chatMoveAccount, { paneId, toAccountId, sessionId }),
     send: (paneId, text, images) => ipcRenderer.send(IPC.chatSend, { paneId, text, images }),
     approve: (paneId, reqId, decision) =>
       ipcRenderer.send(IPC.chatApprove, { paneId, reqId, decision }),
@@ -87,7 +89,10 @@ const api: WraithApi = {
   },
   update: {
     check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason }),
-    install: () => ipcRenderer.invoke(IPC.updateInstall, {}),
+    download: () => ipcRenderer.invoke(IPC.updateDownload, {}),
+    restart: () => ipcRenderer.invoke(IPC.updateRestart, {}),
+    cancel: () => ipcRenderer.invoke(IPC.updateCancel, {}),
+    notes: () => ipcRenderer.invoke(IPC.updateNotes, {}),
     onProgress: (cb) => subscribe<UpdateProgress>(IPC.updateProgress, cb),
     onShow: (cb) => subscribe<void>(IPC.updateShow, () => cb())
   },
@@ -99,6 +104,9 @@ const api: WraithApi = {
     switchBranch: (paneId, kind, name) => ipcRenderer.invoke(IPC.gitSwitch, { paneId, kind, name }),
     commit: (paneId, message) => ipcRenderer.invoke(IPC.gitCommit, { paneId, message }),
     push: (paneId) => ipcRenderer.invoke(IPC.gitPush, { paneId }),
+    pull: (paneId) => ipcRenderer.invoke(IPC.gitPull, { paneId }),
+    log: (paneId, skip) => ipcRenderer.invoke(IPC.gitLog, { paneId, skip }),
+    show: (paneId, sha) => ipcRenderer.invoke(IPC.gitShow, { paneId, sha }),
     openPullRequest: (paneId) => ipcRenderer.invoke(IPC.gitOpenPr, { paneId }),
     checkWorktree: (cwd) => ipcRenderer.invoke(IPC.gitWorktreeCheck, { cwd }),
     removeWorktree: (cwd, force) => ipcRenderer.invoke(IPC.gitWorktreeRemove, { cwd, force })

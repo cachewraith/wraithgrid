@@ -76,6 +76,11 @@ while IFS= read -r line; do
     *'"type":"user"'*'slow'*)
       text "Working" "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." ;;
     *'"type":"user"'*)
+      # Like real claude: the conversation is kept in the account's dir, per folder.
+      if [ -n "$CLAUDE_CONFIG_DIR" ]; then
+        tdir="$CLAUDE_CONFIG_DIR/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
+        mkdir -p "$tdir" && printf '%s\n' "$line" >> "$tdir/$sid.jsonl"
+      fi
       text "Hello from **fake** claude: " "$(field content "$line")" " (config ${CLAUDE_CONFIG_DIR}, session ${sid}, model ${model}, effort ${effort}, mode ${mode})" && result ;;
   esac
 done

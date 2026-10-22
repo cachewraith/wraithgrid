@@ -3,6 +3,7 @@ import { AccountsView, RemoveAccountDialog } from '../components/AccountsView'
 import { CommandPalette } from '../components/CommandPalette'
 import { RemoveWorktreeDialog } from '../components/RemoveWorktreeDialog'
 import { DeleteChatDialog } from '../components/DeleteChatDialog'
+import { SwitchAccountDialog } from '../components/SwitchAccountDialog'
 import { LoginDialog } from '../components/LoginDialog'
 import { BranchPicker } from '../components/BranchPicker'
 import { DiffPanel } from '../components/DiffPanel'
@@ -166,6 +167,8 @@ function Modals() {
       return <LoginDialog accountId={modal.accountId} />
     case 'deleteChat':
       return <DeleteChatDialog wsId={modal.wsId} paneId={modal.paneId} />
+    case 'switchChatAccount':
+      return <SwitchAccountDialog paneId={modal.paneId} accountId={modal.accountId} />
     case 'branches':
       return <BranchPicker paneId={modal.paneId} at={modal.at} />
   }
@@ -196,9 +199,9 @@ export function App() {
               {view === 'usage' ? <UsageView /> : null}
               {view === 'settings' ? <SettingsView /> : null}
             </div>
-            {diffOpen ? <DiffPanel /> : null}
           </div>
         </main>
+        {diffOpen ? <DiffPanel /> : null}
       </div>
       <StatusBar />
       <ZoomBadge />

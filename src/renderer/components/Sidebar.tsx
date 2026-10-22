@@ -35,7 +35,7 @@ import {
 } from './icons'
 import { ago } from '../lib/time'
 import { useNow } from './ProjectView'
-import { useSessionLimit } from './UsageView'
+import { sessionLimitLabel, useSessionLimit } from './UsageView'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
   const ws = config.workspaces.find((w) => w.id === wsId)
@@ -232,11 +232,12 @@ function UsageNavRow() {
     <button
       className={`nav-row${on ? ' on' : ''}`}
       aria-current={on ? 'page' : undefined}
+      title={sessionLimitLabel(limit)}
       onClick={() => actions.setView('usage')}
     >
       <IconGauge />
       <span>Usage</span>
-      {limit ? <span className={`nav-pct sev-${limit.sev}`}>{limit.pct}%</span> : null}
+      {limit.pct !== null ? <span className={`nav-pct sev-${limit.sev}`}>{limit.pct}%</span> : null}
     </button>
   )
 }
