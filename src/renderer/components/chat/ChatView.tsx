@@ -37,11 +37,15 @@ interface Props {
 
 const STICK_PX = 48
 
-const SUGGESTIONS = [
-  'Explain how this project is put together',
-  'Review my uncommitted changes',
-  'Find and fix a bug',
-  'Write tests for the latest change'
+/** Starters on a new chat's first screen: what is sent, and a line on what it does. */
+const SUGGESTIONS: { text: string; hint: string }[] = [
+  {
+    text: 'Explain how this project is put together',
+    hint: 'A map of its folders and how they fit'
+  },
+  { text: 'Review my uncommitted changes', hint: 'Before you commit them' },
+  { text: 'Find and fix a bug', hint: 'Say what goes wrong; it reproduces it first' },
+  { text: 'Write tests for the latest change', hint: 'Reads the last commit and covers it' }
 ]
 
 function formatDuration(ms: number): string {
@@ -287,7 +291,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
           {thread.items.length === 0 ? (
             <div className="chat-hello">
               <div className="chat-hello-mark" aria-hidden="true" />
-              <h2>What should we build?</h2>
+              <h2>What should we build in {baseName(cwdLabel) || 'this folder'}?</h2>
               <p>
                 {cliLabel}
                 {account ? ` · ${account.name}` : ''} · <span className="mono">{cwdLabel}</span>
@@ -295,13 +299,14 @@ export function ChatView({ paneId, visible, focused }: Props) {
               <div className="chat-sugs">
                 {SUGGESTIONS.map((s, i) => (
                   <button
-                    key={s}
+                    key={s.text}
                     className="chat-sug"
                     style={{ animationDelay: `${80 + i * 50}ms` }}
                     disabled={!ready}
-                    onClick={() => send(s, [])}
+                    onClick={() => send(s.text, [])}
                   >
-                    {s}
+                    {s.text}
+                    <span>{s.hint}</span>
                   </button>
                 ))}
               </div>
@@ -309,7 +314,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
           ) : (
             thread.items.map((it, i) => {
               return (
-                <div key={it.id} className={`chat-it${i >= still ? ' enter' : ''}`}>
+                <div key={it.id} className={`chat-it ${it.kind}${i >= still ? ' enter' : ''}`}>
                   <Item
                     item={it}
                     live={thread.busy}

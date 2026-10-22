@@ -85,7 +85,17 @@
   padding-top: 32px;
 }
 .chat-it.enter {
-  animation: chat-rise 0.32s var(--ease-out) both;
+  animation: chat-rise 0.22s var(--ease-out) both;
+}
+/* Tool calls read as one quiet timeline (#21): a rail on the left joins a run of them. */
+.chat-it.tool {
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1.5px solid var(--line);
+}
+.chat-it.tool + .chat-it.tool {
+  margin-top: -6px;
+  padding-top: 6px;
 }
 
 /* ---- Empty state --------------------------------------------------------------------- */
@@ -102,8 +112,8 @@
   animation: chat-rise 0.45s var(--ease-out) both;
 }
 .chat-hello h2 {
-  margin: 10px 0 0;
-  font-size: 22px;
+  margin: 12px 0 0;
+  font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tx);
@@ -114,29 +124,39 @@
   font-size: 12.5px;
 }
 .chat-hello-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: conic-gradient(from 210deg, var(--acc), var(--acct), var(--acc));
-  opacity: 0.9;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: conic-gradient(
+    from 200deg,
+    var(--acc),
+    color-mix(in srgb, var(--acc) 45%, var(--bg)),
+    var(--acc)
+  );
+  box-shadow: 0 10px 30px -12px var(--acc);
   animation: chat-breathe 4s ease-in-out infinite;
 }
 .chat-sugs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 18px;
-  max-width: 520px;
+  width: min(520px, 100%);
+}
+@container pane (max-width: 440px) {
+  .chat-sugs {
+    grid-template-columns: 1fr;
+  }
 }
 .chat-sug {
-  border: 1px solid var(--line2);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--mu);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 70%, var(--bg));
+  color: var(--tx);
   font: inherit;
-  font-size: 12.5px;
-  padding: 6px 12px;
+  font-size: 13px;
+  text-align: left;
+  padding: 10px 12px;
   cursor: pointer;
   animation: chat-rise 0.4s var(--ease-out) both;
   transition:
@@ -148,6 +168,12 @@
   color: var(--tx);
   border-color: var(--hover-line);
   transform: translateY(-1px);
+}
+.chat-sug span {
+  display: block;
+  margin-top: 2px;
+  color: var(--fa);
+  font-size: 12px;
 }
 .chat-sug:disabled {
   opacity: 0.5;
@@ -169,8 +195,10 @@
 .cmsg-bubble {
   max-width: min(85%, 600px);
   padding: 9px 14px;
-  border-radius: 18px 18px 4px 18px;
-  background: var(--raise);
+  border-radius: 16px 16px 4px 16px;
+  /* Your words: the theme's accent mixed into "raised", so every theme tints its own. */
+  background: color-mix(in srgb, var(--acc) 12%, var(--raise));
+  border: 1px solid color-mix(in srgb, var(--acc) 22%, var(--line));
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -183,6 +211,7 @@
 .cmsg.agent {
   position: relative;
   padding: 2px 0;
+  font-size: 14.5px;
 }
 .cmsg-tools {
   display: flex;
@@ -306,7 +335,7 @@ li.done > .md-box,
   margin: 4px 0 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg2);
+  background: color-mix(in srgb, var(--bg2) 75%, var(--bg));
   overflow: hidden;
 }
 .md-code-h {
@@ -445,16 +474,21 @@ li.done > .md-box,
 /* ---- Tool calls ---------------------------------------------------------------------- */
 
 .ct {
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--panel);
+  background: none;
   overflow: hidden;
   transition:
     border-color 0.2s,
     background 0.2s;
 }
+/* One line until opened; a card only when it has something to show. */
 .ct:hover {
-  border-color: var(--line2);
+  background: var(--hover);
+}
+.ct.open {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--panel) 70%, var(--bg));
 }
 .ct-h {
   display: flex;
@@ -477,19 +511,23 @@ li.done > .md-box,
 .ct-ic {
   display: grid;
   place-items: center;
-  color: var(--fa);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--raise);
+  color: var(--mu);
+  flex: none;
 }
 .ct-name {
   flex: none;
-  font-weight: 500;
-  color: var(--tx);
+  color: var(--mu);
 }
 .ct-sub {
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--fa);
+  font-size: 12px;
+  color: var(--tx);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -667,7 +705,8 @@ li.done > .md-box,
 .chat-bg {
   margin: 6px 0;
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px dashed color-mix(in srgb, var(--ok) 45%, var(--line));
+  background: color-mix(in srgb, var(--ok) 5%, transparent);
   border-radius: 8px;
   font-size: 12.5px;
   animation: chat-fade 0.3s var(--ease-out);
@@ -744,9 +783,9 @@ li.done > .md-box,
   padding: 4px 10px 10px;
 }
 .ca {
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line2));
-  border-radius: 14px;
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line2));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warn) 6%, var(--panel));
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
   overflow: hidden;
   animation: chat-rise 0.3s var(--ease-spring) both;
@@ -791,10 +830,15 @@ li.done > .md-box,
 }
 .ca-btns {
   display: flex;
-  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
   padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+}
+/* The safe answer first; Deny apart on the right, quiet. */
+.ca-deny {
+  margin-left: auto;
 }
 .chat-bar {
   display: flex;
@@ -827,15 +871,17 @@ li.done > .md-box,
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line2);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--panel);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 6px 24px -8px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.12);
   transition:
     border-color 0.2s,
     box-shadow 0.25s;
 }
 .cc-box:focus-within {
-  border-color: var(--hover-line);
+  border-color: color-mix(in srgb, var(--acc) 55%, var(--line2));
   box-shadow:
     0 2px 18px rgba(0, 0, 0, 0.18),
     0 0 0 3px color-mix(in srgb, var(--acc) 14%, transparent);
@@ -928,11 +974,11 @@ li.done > .md-box,
   stroke-width: 2;
 }
 .cc-btn.send {
-  background: var(--solid);
-  color: var(--on-solid);
+  background: var(--accf);
+  color: var(--on-acc);
 }
 .cc-btn.send:hover:not(:disabled) {
-  background: var(--solid-h);
+  background: var(--accf-h);
   transform: scale(1.06);
 }
 .cc-btn.send:active:not(:disabled) {
@@ -1050,7 +1096,7 @@ li.done > .md-box,
 @keyframes chat-rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;

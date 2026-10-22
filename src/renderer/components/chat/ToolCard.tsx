@@ -174,8 +174,8 @@ export function ApprovalBar({
         </div>
       ) : null}
       <div className="ca-btns">
-        <button className="btn gh" onClick={() => onDecide('deny')}>
-          Deny
+        <button className="btn pri" onClick={() => onDecide('allow')}>
+          Allow
         </button>
         {item.approval?.canAlways ? (
           <button
@@ -186,8 +186,8 @@ export function ApprovalBar({
             Always allow
           </button>
         ) : null}
-        <button className="btn pri" onClick={() => onDecide('allow')}>
-          Allow
+        <button className="btn gh ca-deny" onClick={() => onDecide('deny')}>
+          Deny
         </button>
       </div>
     </div>
