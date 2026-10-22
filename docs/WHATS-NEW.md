@@ -1,4 +1,26 @@
-# What's new in 1.14: a real New project screen and a sharper Usage screen
+# What's new in 1.15: Codex and Antigravity chats, a new chat look, and full theming
+
+*v1.15.0 · 2026-10-22*
+
+| Feature | How to use it |
+|---|---|
+| Codex chats | A codex account's panes open as chats: streamed answers, tool cards, Allow / Always / Deny, Stop, and model, effort and mode that switch on the next message |
+| Codex sign-in | **Login** on a codex account opens a dialog with ChatGPT's one-time code; enter it on the page and the dialog says when you're signed in |
+| Antigravity chats | `agy` accounts open as chats too, with models, effort, modes and resume. agy can't ask before a tool in a chat, so it says what it skipped and how to allow it |
+| Background work | When the agent leaves a command or agent running after its turn, the chat shows **Running in background** with how long, and the pane and sidebar say "in background" until it ends |
+| New chat look | Your messages in an accent-tinted bubble, tool calls as a quiet timeline you can open, a clearer approval bar, a firmer message box and a welcome screen with starters |
+| Theme editor | **Settings → Appearance → Customize…**: change colors, fonts, corners, depth, density and motion with the whole app as the live preview; hard-to-read text is flagged with a one-click fix; **Save as new theme** |
+| Community themes | **Browse community…** in Appearance: install, update and remove themes others share on GitHub, or **Install from GitHub** by address. Make your own from the [theme template](https://github.com/cachewraith/wraithgrid-theme-template) |
+
+- The five built-in themes now differ in shape too: Midnight is compact and flat, Clay round
+  and deep with a soft glow on the frame, Paper flat with firmer borders.
+- Theme files can set fonts, corner radius, borders, depth, density, motion and chat text size
+  (all optional; old files look as before). See docs/THEMES.md.
+- Your system's reduce-motion setting still wins over a theme's motion.
+
+---
+
+## Previously, in 1.14: a real New project screen and a sharper Usage screen
 
 *v1.14.0 · 2026-10-22*
 
