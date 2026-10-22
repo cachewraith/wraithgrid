@@ -125,6 +125,7 @@ const api: WraithApi = {
     import: () => ipcRenderer.invoke(IPC.themesImport, {}),
     delete: (id) => ipcRenderer.invoke(IPC.themesDelete, { id }),
     export: (theme) => ipcRenderer.invoke(IPC.themesExport, { theme }),
+    save: (theme) => ipcRenderer.invoke(IPC.themesSave, { theme }),
     openFolder: () => ipcRenderer.invoke(IPC.themesOpenFolder, {})
   },
   mods: {

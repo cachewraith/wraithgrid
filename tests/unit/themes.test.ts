@@ -14,7 +14,7 @@ import {
 } from '@shared/themes'
 import { parseConfig } from '@shared/schema'
 import { defaultConfig } from '@shared/schema'
-import { deleteTheme, importTheme, listThemes } from '../../src/main/themes'
+import { deleteTheme, importTheme, listThemes, saveTheme } from '../../src/main/themes'
 
 const minimal = {
   name: 'Ocean',
@@ -186,6 +186,17 @@ describe('themes folder', () => {
     expect(await deleteTheme('../x', dir)).toBe(false)
     expect(await deleteTheme('ocean', dir)).toBe(true)
     expect(fs.existsSync(path.join(dir, 'ocean.json'))).toBe(false)
+  })
+
+  it('saves the editor theme after checking it, under a free id', async () => {
+    const theme = { ...minimal, style: { radius: 'large' } }
+    expect(await saveTheme(theme, dir)).toEqual({ ok: true, id: 'ocean' })
+    expect(await saveTheme(theme, dir)).toEqual({ ok: true, id: 'ocean-2' })
+    const r = await listThemes(dir)
+    expect(r.themes.map((t) => t.style?.radius)).toEqual(['large', 'large'])
+    const bad = await saveTheme({ ...minimal, style: { radius: 'huge' } }, dir)
+    expect(bad.ok).toBe(false)
+    expect((await listThemes(dir)).themes).toHaveLength(2)
   })
 })
 

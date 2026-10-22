@@ -57,6 +57,7 @@ import {
   modsSetEnabledArgs,
   themesDeleteArgs,
   themesExportArgs,
+  themesSaveArgs,
   themesNoArgs,
   type ThemeImportResult,
   type ThemeListResult,
@@ -149,7 +150,7 @@ import {
   type GitRunner
 } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, themesRoot, worktreesRoot } from './paths'
-import { deleteTheme, importTheme, listThemes } from './themes'
+import { deleteTheme, importTheme, listThemes, saveTheme } from './themes'
 import type { UsageStore } from './usage-store'
 import { EMPTY_USAGE, type UsageData } from '@shared/usage'
 import { THEMES_FILE_MAX, themeSlug } from '@shared/themes'
@@ -576,6 +577,16 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return { ok: true }
     },
     fail('Could not export the theme')
+  )
+  handle(
+    IPC.themesSave,
+    themesSaveArgs,
+    async (a): Promise<ThemeImportResult> => {
+      const r = await saveTheme(a.theme, themesDir)
+      if (r.ok) log(`saved theme ${r.id}`)
+      return r
+    },
+    fail('Could not save the theme')
   )
   handle(
     IPC.themesOpenFolder,

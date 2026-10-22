@@ -172,6 +172,8 @@ export interface AppState {
   mods: { loading: boolean; accounts: AccountMods[] | null }
   /** Built-in themes, then the user's from ~/.wraithgrid/themes. */
   themes: AppTheme[]
+  /** The theme editor's draft (#24): drawn over the whole app while it is open. */
+  themeDraft: ThemeFile | null
   /** Theme files that could not be loaded, and why. */
   themeProblems: { file: string; error: string }[]
   /** Chat usage and plan limits from main; limits also update live from chat events. */
@@ -290,6 +292,10 @@ export interface AppState {
   chooseTheme(id: string): void
   /** Asks for a theme file and adds it; resolves an error message, or null. */
   importTheme(): Promise<string | null>
+  /** Shows a draft theme live (null: back to the chosen one). */
+  setThemeDraft(t: ThemeFile | null): void
+  /** Saves the draft as a new theme and switches to it; returns why it could not, or null. */
+  saveThemeDraft(): Promise<string | null>
   deleteTheme(id: string): Promise<string | null>
 
   // settings
@@ -355,7 +361,10 @@ export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): Theme
 const drawnCache = new WeakMap<AppTheme, Map<string, ThemeFile>>()
 
 /** The theme being drawn, with the accent laid over it. Same inputs, same object. */
-export function drawnTheme(s: Pick<AppState, 'config' | 'systemTheme' | 'themes'>): ThemeFile {
+export function drawnTheme(
+  s: Pick<AppState, 'config' | 'systemTheme' | 'themes'> & { themeDraft?: ThemeFile | null }
+): ThemeFile {
+  if (s.themeDraft) return s.themeDraft
   const mode = currentTheme(s)
   const { themeDark, themeLight, accent } = s.config.settings
   const t = pickTheme(s.themes, mode === 'dark' ? themeDark : themeLight, mode)
@@ -879,6 +888,7 @@ export function createAppStore({
       diffOpen: false,
       mods: { loading: false, accounts: null },
       themes: BUILT_IN_THEMES,
+      themeDraft: null,
       themeProblems: [],
       usage: EMPTY_USAGE,
       accountInfo: {},
@@ -1674,6 +1684,21 @@ export function createAppStore({
         if (!r) return null
         if (!r.ok) return r.error
         await get().loadThemes()
+        get().chooseTheme(r.id)
+        return null
+      },
+
+      setThemeDraft(t) {
+        set({ themeDraft: t })
+      },
+
+      async saveThemeDraft() {
+        const draft = get().themeDraft
+        if (!draft) return null
+        const r = await api.themes.save(draft)
+        if (!r.ok) return r.error
+        await get().loadThemes()
+        set({ themeDraft: null })
         get().chooseTheme(r.id)
         return null
       },

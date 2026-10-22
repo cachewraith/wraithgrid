@@ -9,6 +9,7 @@ import {
   parseThemeFile,
   themeSlug,
   type AppTheme,
+  type ThemeFile,
   type ThemeParse
 } from '@shared/themes'
 import { isStrictlyInside } from './paths'
@@ -86,15 +87,28 @@ export async function importTheme(src: string, dir: string): Promise<ThemeImport
     return { ok: false, error: (err as Error).message }
   }
   if (!r.ok) return { ok: false, error: `${path.basename(src)}: ${r.error}` }
+  return writeNewTheme(r.theme, dir)
+}
+
+/** Saves a theme made in the editor: checked like a file, then written under a free id. */
+export async function saveTheme(raw: unknown, dir: string): Promise<ThemeImportResult> {
+  const r = parseThemeFile(raw)
+  if (!r.ok) return { ok: false, error: r.error }
+  const text = JSON.stringify(r.theme)
+  if (text.length > THEMES_FILE_MAX) return { ok: false, error: 'larger than 64 KB' }
+  return writeNewTheme(r.theme, dir)
+}
+
+async function writeNewTheme(theme: ThemeFile, dir: string): Promise<ThemeImportResult> {
   await mkdir(dir, { recursive: true })
   const taken = new Set([
     ...BUILT_IN_IDS,
     ...(await readdir(dir)).map((n) => n.replace(/\.json$/, ''))
   ])
-  const slug = themeSlug(r.theme.name).slice(0, 36)
+  const slug = themeSlug(theme.name).slice(0, 36)
   let id = slug
   for (let i = 2; taken.has(id); i++) id = `${slug}-${i}`
-  await writeFile(path.join(dir, `${id}.json`), `${JSON.stringify(r.theme, null, 2)}\n`)
+  await writeFile(path.join(dir, `${id}.json`), `${JSON.stringify(theme, null, 2)}\n`)
   return { ok: true, id }
 }
 
