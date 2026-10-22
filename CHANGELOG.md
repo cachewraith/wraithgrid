@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [docs] Logged a bug: chat diagrams show as broken or raw code blocks; planned attaching local files in chat; logged a performance issue and a missing delete-chat button + confirm, Mode can't change mid-chat, sign in from a UI dialog (files: docs/TODO.md)
 - [release] v1.11.1: the 1.11 features (v1.11.0 was tagged but its Linux build failed, so it has no release), plus a chat no longer shows as idle while a queued message runs (files: package.json, CHANGELOG.md, docs/CONTEXT.md, docs/WHATS-NEW.md)
 
 ## 2026-10-21
