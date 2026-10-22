@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [release] v1.12.0: attach files in chat, delete chats with a confirm, claude sign-in dialog, Bypass permissions mid-chat, diagram and Mode picker fixes (files: package.json, CHANGELOG.md, docs/CONTEXT.md, docs/WHATS-NEW.md)
 - [chat] Mode picker shows your pick at once (from the pane, which follows claude's reports) instead of waiting for claude to confirm; picking a mode while the chat's process was not running showed nothing before (files: src/renderer/components/chat/ChatView.tsx)
 - [chat] Delete a chat from its project: a trash button on every Open and History row (always shown) and a right-click menu, both asking first; deleting an open chat stops it and does not archive it (files: src/renderer/components/{ProjectView,DeleteChatDialog}.tsx, src/renderer/app/{store.ts,App.tsx}, src/renderer/styles/polish.css, tests/e2e/chat.spec.ts)
 - [chat] Attach files: paperclip button (main's native picker in the pane's folder) and drag and drop; images go as images, other files (and too-big images) as an "Attached files:" path list claude reads itself; max 20 files (files: src/main/chat/attach.ts, src/main/ipc.ts, src/preload/index.ts, src/shared/{chat,ipc-channels,ipc-contract}.ts, src/renderer/components/chat/{Composer,ChatView}.tsx, src/renderer/components/icons.tsx, src/renderer/styles/chat.css, tests/unit/chat.test.ts, tests/e2e/chat.spec.ts)

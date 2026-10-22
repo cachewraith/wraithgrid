@@ -1,4 +1,23 @@
-# What's new in 1.11: chat, themes and usage
+# What's new in 1.12: attach files, delete chats, sign in without a terminal
+
+*v1.12.0 · 2026-10-22*
+
+| Feature | How to use it |
+|---|---|
+| Attach files to a message | The paperclip under the message box, or drop files on it. Images go as images; other files are listed as paths and claude reads them itself (up to 20) |
+| Delete a chat | The trash button on any chat in a project's Open or History list, or right-click it → **Delete chat…**. It always asks first |
+| Sign in to Claude | **Login** on an account opens a dialog: open the sign-in page, paste the code if it shows one, done. **Use a terminal instead** is still there |
+| Bypass permissions mid-chat | Mode button → **Bypass permissions**, click again to confirm. It now works in a chat that already started |
+
+- Diagrams drawn with box characters in code blocks no longer break into stripes. Mermaid
+  diagrams still show as code.
+- The Mode button shows your pick straight away; if claude refuses a mode, the chat says why
+  and the button goes back to the mode in force.
+- Other CLIs (codex, gemini, cursor, copilot…) still sign in from a terminal.
+
+---
+
+## Previously, in 1.11: chat, themes and usage
 
 *v1.11.1 · 2026-10-22*
 

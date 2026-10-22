@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.11.1.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.12.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -151,4 +151,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
 
 ## Current focus
-v1.11.1 released. Unreleased (2026-10-22): chat diagram fix, Bypass mid-chat, delete chat with confirm, attach files, claude sign-in dialog. Waiting on the user for the performance issue (what is slow, which OS). To verify by hand: drag-and-drop attach and the sign-in dialog with a real claude account. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, other chat adapters (need real-output fixtures), codex/cursor/copilot/opencode and mods with real accounts.
+v1.12.0 released (2026-10-22): chat diagram fix, Bypass mid-chat, delete chat with confirm, attach files, claude sign-in dialog. Waiting on the user for the performance issue (what is slow, which OS). To verify by hand: drag-and-drop attach and the sign-in dialog with a real claude account. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, other chat adapters (need real-output fixtures), codex/cursor/copilot/opencode and mods with real accounts.
