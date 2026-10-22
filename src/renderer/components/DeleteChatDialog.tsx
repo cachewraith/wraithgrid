@@ -14,7 +14,7 @@ export function DeleteChatDialog({ wsId, paneId }: { wsId: string; paneId: strin
   )
   const busy = useApp((s) => {
     const st = s.runtime[paneId]?.status
-    return st === 'running' || st === 'starting' || st === 'approval'
+    return st === 'running' || st === 'starting' || st === 'approval' || st === 'background'
   })
   const title = (open ?? closed)?.title ?? 'this chat'
 

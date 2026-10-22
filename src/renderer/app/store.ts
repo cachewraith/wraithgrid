@@ -768,8 +768,9 @@ export function createAppStore({
      * looked or typed since. Looking at the pane turns it back into "idle".
      */
     const withDone = (paneId: string, from: PaneStatus, to: PaneStatus, t: number): PaneStatus => {
-      if (to === 'running') {
-        if (from !== 'running') runningSince.set(paneId, t)
+      // Background work (#39) is part of the run: "done" comes when it ends too.
+      if (to === 'running' || to === 'background') {
+        if (from !== 'running' && from !== 'background') runningSince.set(paneId, t)
         doneAt.delete(paneId)
         return to
       }
@@ -779,7 +780,11 @@ export function createAppStore({
         doneAt.delete(paneId)
         return to
       }
-      if (from === 'running' && since !== undefined && t - since >= NOTIFY_MIN_RUN_MS)
+      if (
+        (from === 'running' || from === 'background') &&
+        since !== undefined &&
+        t - since >= NOTIFY_MIN_RUN_MS
+      )
         doneAt.set(paneId, t)
       const at = doneAt.get(paneId)
       if (at === undefined) return to
@@ -974,7 +979,11 @@ export function createAppStore({
 
       closePane(paneId, force = false) {
         const rt = get().runtime[paneId]
-        if (!force && rt && (rt.status === 'running' || rt.status === 'approval')) {
+        if (
+          !force &&
+          rt &&
+          (rt.status === 'running' || rt.status === 'approval' || rt.status === 'background')
+        ) {
           set({ closingPaneId: paneId, focusedPaneId: paneId })
           return
         }

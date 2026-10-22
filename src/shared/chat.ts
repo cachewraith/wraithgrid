@@ -103,6 +103,16 @@ export const EFFORT_LABEL: Record<ChatEffort, string> = {
 /** A model alias passed as an argument: a plain token. */
 export const CHAT_MODEL_PATTERN = /^[A-Za-z0-9._[\]-]{1,100}$/
 
+/** Work the agent started in the background that outlives its turn (a command, an agent). */
+export interface ChatBackgroundTask {
+  id: string
+  kind: 'shell' | 'agent' | 'other'
+  /** What it is doing, as the CLI describes it (or the command). */
+  label: string
+  /** When it was first seen running (ms). */
+  since: number
+}
+
 /** One thing the agent did, as main tells the renderer about it. */
 export type ChatEvent =
   /** The CLI's conversation id, used to resume it later; `model` when it says. */
@@ -124,6 +134,11 @@ export type ChatEvent =
   | { t: 'mode'; mode: ChatMode }
   /** A turn started or ended. */
   | { t: 'busy'; busy: boolean }
+  /**
+   * The background work still running, as a whole list (empty when all of it ended). A turn
+   * can end while this is not empty: the chat is then waiting on it, not stopped (#39).
+   */
+  | { t: 'background'; tasks: ChatBackgroundTask[] }
   /** Streamed answer text for the text block `id`. */
   | { t: 'text'; id: string; delta: string }
   /** Streamed reasoning for block `id`; the delta may be empty (hidden reasoning). */

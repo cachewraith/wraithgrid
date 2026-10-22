@@ -51,14 +51,17 @@ function OpenRow({
   const account = useApp((s) => accountById(s.config, pane.accountId))
   const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
   const activeAt = useApp((s) => s.runtime[pane.id]?.activeAt ?? null)
-  const busy = status === 'running' || status === 'starting'
+  const busy = status === 'running' || status === 'starting' || status === 'background'
   const loud = status === 'approval' || status === 'login' || status === 'exited'
   return (
     <button className="pj-row" onClick={() => actions.revealPane(pane.id)} onContextMenu={onMenu}>
       <span className="pj-t">{pane.title}</span>
       <span className="pj-m">{account?.name ?? 'shell'}</span>
       <span className={`pj-st st-${status ?? 'idle'}`}>
-        {busy ? <span className="pn-spin" aria-hidden="true" /> : null}
+        {busy ? (
+          <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
+        ) : null}
+        {status === 'background' ? PANE_STATUS_LABEL.background : null}
         {loud && status ? PANE_STATUS_LABEL[status] : null}
         {!busy && !loud && activeAt ? ago(activeAt, now) : null}
         {!busy && !loud && !activeAt ? 'open' : null}

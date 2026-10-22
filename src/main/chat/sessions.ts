@@ -42,6 +42,8 @@ interface Session {
   turns: number
   /** Stop was asked: the next turn end clears the queue too. */
   interrupted: boolean
+  /** Background work was running when last heard of: it dies with the process. */
+  background: boolean
 }
 
 const LINE_MAX = 16_000_000
@@ -69,7 +71,8 @@ export class ChatSessions {
       stopping: false,
       stderr: '',
       turns: 0,
-      interrupted: false
+      interrupted: false,
+      background: false
     }
     this.sessions.set(paneId, s)
     const emit = (e: ChatEvent): void => this.deps.emit(paneId, e)
@@ -99,6 +102,7 @@ export class ChatSessions {
       if (ended) return
       ended = true
       if (this.sessions.get(paneId) === s) this.sessions.delete(paneId)
+      if (s.background) emit({ t: 'background', tasks: [] })
       // A stop the window asked for (restart, view switch, close): a new process may
       // already run for the pane, so this one's exit is not news.
       if (s.stopping) return
@@ -129,6 +133,13 @@ export class ChatSessions {
     const { events, replies } = s.adapter.decode(msg)
     for (const r of replies) this.write(s, r)
     for (const e of events) {
+      if (e.t === 'background') s.background = e.tasks.length > 0
+      if (e.t === 'busy' && e.busy) {
+        // A turn the CLI started on its own (background work ended, #39); one already
+        // running covers it.
+        if (s.turns > 0) continue
+        s.turns = 1
+      }
       if (e.t === 'busy' && !e.busy) {
         // An earlier turn ending must not mark the chat idle while a queued one runs.
         s.turns = s.interrupted ? 0 : Math.max(0, s.turns - 1)

@@ -296,12 +296,17 @@ export interface Config {
   settings: Settings
 }
 
-/** `done`: a run finished while the user looked elsewhere; it turns `idle` once seen. */
-export type PaneStatus = 'starting' | 'running' | 'idle' | 'done' | 'approval' | 'exited' | 'login'
+/**
+ * `done`: a run finished while the user looked elsewhere; it turns `idle` once seen.
+ * `background`: a chat's turn ended but work it started still runs (#39).
+ */
+export type PaneStatus =
+  'starting' | 'running' | 'background' | 'idle' | 'done' | 'approval' | 'exited' | 'login'
 
 export const PANE_STATUS_LABEL: Record<PaneStatus, string> = {
   starting: 'starting',
   running: 'running',
+  background: 'in background',
   idle: 'idle',
   done: 'done',
   approval: 'needs approval',

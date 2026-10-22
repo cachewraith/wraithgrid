@@ -68,6 +68,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
     (s) => s.config.activeWorkspace === w.id && (s.view === 'grid' || s.view === 'project')
   )
   const running = useApp((s) => w.panes.some((p) => s.runtime[p.id]?.status === 'running'))
+  const background = useApp((s) => w.panes.some((p) => s.runtime[p.id]?.status === 'background'))
   const waiting = useApp((s) =>
     w.panes.some((p) => {
       const st = s.runtime[p.id]?.status
@@ -97,9 +98,11 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
     ? 'needs you'
     : running
       ? 'working'
-      : lastAt !== null
-        ? ago(lastAt, now)
-        : null
+      : background
+        ? 'in background'
+        : lastAt !== null
+          ? ago(lastAt, now)
+          : null
   const machine = config.machines.find((m) => m.id === w.machineId)
   // Where the panes run can change only while there are none: running ones stay where they are.
   const runOn = [
@@ -163,7 +166,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
         >
           <span className="ws-txt">
             <span className="ws-name">{w.name}</span>
-            <span className={`ws-sub${waiting ? ' warn' : running ? ' busy' : ''}`}>
+            <span className={`ws-sub${waiting ? ' warn' : running || background ? ' busy' : ''}`}>
               {count}
               {state ? ` · ${state}` : null}
             </span>
@@ -177,6 +180,8 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             <span className="ws-wait" title="A chat needs you" />
           ) : running ? (
             <span className="pn-spin" title="A chat is working" />
+          ) : background ? (
+            <span className="pn-spin bg" title="A chat has work running in the background" />
           ) : null}
         </button>
         <button

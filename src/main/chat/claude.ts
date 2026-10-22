@@ -5,6 +5,7 @@ import {
   clip,
   type ApprovalDecision,
   CHAT_MODES,
+  type ChatBackgroundTask,
   type ChatCommand,
   type ChatMode,
   type ChatModel,
@@ -140,6 +141,8 @@ export function createClaudeAdapter(): ChatAdapter {
   /** The mode claude last said is in force, and our switch requests it hasn't answered yet. */
   let mode: ChatMode | null = null
   const modeReqs = new Set<string>()
+  /** When each background task was first seen, so its age survives list updates. */
+  const taskSince = new Map<string, number>()
 
   const decode = (msg: unknown): Decoded => {
     const out: Decoded = { events: [], replies: [] }
@@ -165,6 +168,34 @@ export function createClaudeAdapter(): ChatAdapter {
               ? msg.terminal_slash_commands.map(str).filter(Boolean).slice(0, 200)
               : []
           })
+        // Background work (#39): claude 2.1.306 sends the whole list whenever it changes.
+        if (msg.subtype === 'background_tasks_changed' && Array.isArray(msg.tasks)) {
+          const now = Date.now()
+          const tasks: ChatBackgroundTask[] = msg.tasks
+            .filter(isObj)
+            .filter((x) => str(x.task_id))
+            .slice(0, 50)
+            .map((x) => {
+              const id = str(x.task_id)
+              const type = str(x.task_type)
+              return {
+                id,
+                kind: type === 'local_bash' ? 'shell' : type.includes('agent') ? 'agent' : 'other',
+                label: str(x.description).slice(0, 200) || 'Background task',
+                since: taskSince.get(id) ?? now
+              }
+            })
+          taskSince.clear()
+          for (const x of tasks) taskSince.set(x.id, x.since)
+          push({ t: 'background', tasks })
+        }
+        // A background task ended: claude reads its result in a turn of its own, unasked.
+        if (msg.subtype === 'task_notification') {
+          const status = str(msg.status)
+          const text = str(msg.summary).slice(0, 300)
+          if (text) push({ t: 'notice', level: status === 'completed' ? 'info' : 'error', text })
+          push({ t: 'busy', busy: true })
+        }
         break
       }
 
