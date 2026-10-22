@@ -1,4 +1,23 @@
-# What's new in 1.13: git history, a better New chat, and switching accounts mid-chat
+# What's new in 1.14: a real New project screen and a sharper Usage screen
+
+*v1.14.0 · 2026-10-22*
+
+| Feature | How to use it |
+|---|---|
+| New project | The **+** next to Projects (or **New project…** in the palette): pick the folder (it fills in the name), the account its chats use, where it runs, and whether the first chat opens right away |
+| Project defaults | New chats in a project start in its folder with its account, so Ctrl+Shift+N is usually just Enter |
+| Limits at a glance | Usage now leads with each account's **Current session** and **Weekly** limits as big clear numbers with the reset time; color only appears as you near a limit |
+| Sortable spend tables | Click any column header in the Project and Chat tables to sort, click again to flip |
+
+- The daily cost chart gained a quiet grid, a "top" scale note and a precise hover readout.
+- The project switcher (palette → **Switch project…**) only switches now; creating lives in
+  the New project screen, and everything says "project" instead of "workspace".
+- Cancel buttons across the app no longer lose their padding and overlap their neighbour
+  (a History-graph style had leaked into them).
+
+---
+
+## Previously, in 1.13: git history, a better New chat, and switching accounts mid-chat
 
 *v1.13.1 · 2026-10-22*
 

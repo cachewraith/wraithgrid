@@ -2,6 +2,8 @@
 
 ## 2026-10-22
 
+- [release] v1.14.0: the New project screen (folder, account, machine, first chat in one step; "project" wording everywhere), the Usage screen redesign (limits leading, sortable tables, sharper chart), and the ghost-button style fix (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
+
 - [ui] Usage screen redesigned (#22): limits lead as per-window cells (large tabular %, thin bar, reset line; account header with initial and plan chip), sharper spend line, chart with hairline grid, "top" scale note and a precise hover caption, Project/Chat tables sortable by any column; same quiet greys, color only near a limit (files: src/renderer/components/UsageView.tsx, src/renderer/styles/polish.css, docs/DECISIONS.md)
 
 - [ui] New project screen (#26): sidebar + and the palette open a dialog with Folder (in-app picker; suggests the name), Name, Account, Runs on, Start with (first chat open / empty); creation left the switcher, which now says "project" everywhere; New chat prefers the project's folder/account; workspaces keep `folder`/`accountId` (old configs default them) (files: src/renderer/components/{NewProjectDialog,WorkspaceSwitcher,Sidebar,CommandPalette,NewPaneDialog,ShortcutsSheet}.tsx, src/renderer/app/{store,App,shortcuts}.ts(x), src/shared/{types,schema}.ts, tests/unit/{config,shortcuts}.test.ts, tests/e2e/{new-project,sidebar-menus}.spec.ts)
