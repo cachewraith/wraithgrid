@@ -27,6 +27,8 @@ import {
   type ChatStartResult,
   accountCreateDirArgs,
   accountDeleteDirArgs,
+  loginAccountArgs,
+  loginCodeArgs,
   claudeDetectArgs,
   openExternalArgs,
   sharedApplyArgs,
@@ -99,7 +101,7 @@ import {
 } from './clipboard-image'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
 import type { AgentCli } from '@shared/agent-clis'
-import type { Config } from '@shared/types'
+import type { Account, Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import {
   GITHUB_REPO,
@@ -152,9 +154,10 @@ import { sshConfigHosts } from './ssh'
 import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
-import type { ChatSessions } from './chat/sessions'
 import { readPicked } from './chat/attach'
+import type { Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
+import type { ChatLaunch, ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
 
@@ -185,6 +188,8 @@ export interface IpcDeps {
   chatDir: string
   /** Chat-turn usage and plan limits (userData/usage.json). */
   usage?: Pick<UsageStore, 'get'>
+  /** Sign-in dialogs' `claude auth login` runs. */
+  logins?: Logins
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -548,6 +553,62 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     },
     fail('Could not create the config dir')
   )
+
+  // ---- Sign-in dialog: claude's own `auth login`, in the account's config dir -------
+
+  const authLaunch = async (
+    account: Account,
+    args: string[]
+  ): Promise<{ ok: true; launch: ChatLaunch } | { ok: false; error: string }> => {
+    const cfg = store.get()
+    const r = await resolveSpawn(
+      {
+        paneId: `login-${account.id}`,
+        cli: account.cli,
+        shell: false,
+        configDir: account.configDir,
+        cwd: '~',
+        args,
+        resume: false,
+        cols: 80,
+        rows: 24
+      },
+      {
+        platform: process.platform,
+        env: process.env,
+        homeDir,
+        claudePath: cfg.claudePath,
+        cliPaths: cfg.settings.cliPaths,
+        shellPath: cfg.settings.shellPath,
+        shellArgs: cfg.settings.shellArgs,
+        modDirs: cfg.settings.modDirs
+      }
+    )
+    if (!r.ok) return r
+    const { file, args: a, cwd, env } = r.req
+    return { ok: true, launch: { file, args: a, cwd, env } }
+  }
+  handle(
+    IPC.loginStart,
+    loginAccountArgs,
+    async (a): Promise<SimpleResult> => {
+      const account = store.get().accounts.find((x) => x.id === a.accountId)
+      if (!account) return fail('No such account.')
+      if (account.cli !== 'claude') return fail(`${account.cli} signs in from a terminal.`)
+      if (!deps.logins) return fail('Sign-in is not available.')
+      await deps.envReady
+      await syncShared(account.id)
+      const login = await authLaunch(account, ['auth', 'login'])
+      const status = await authLaunch(account, ['auth', 'status', '--json'])
+      if (!login.ok) return fail(login.error)
+      if (!status.ok) return fail(status.error)
+      deps.logins.start(account.id, login.launch, status.launch)
+      return { ok: true }
+    },
+    fail('Could not start the sign-in')
+  )
+  listen(IPC.loginCode, loginCodeArgs, (a) => deps.logins?.code(a.accountId, a.code))
+  listen(IPC.loginCancel, loginAccountArgs, (a) => deps.logins?.cancel(a.accountId))
 
   handle(
     IPC.accountDeleteDir,

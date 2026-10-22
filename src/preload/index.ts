@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent }
 import { IPC } from '@shared/ipc-channels'
 import type {
   CliAction,
+  LoginEvent,
   PtyDataEvent,
   PtyExitEvent,
   UpdateProgress,
@@ -64,6 +65,12 @@ const api: WraithApi = {
   },
   shell: {
     openExternal: (url) => ipcRenderer.invoke(IPC.shellOpenExternal, { url })
+  },
+  login: {
+    start: (accountId) => ipcRenderer.invoke(IPC.loginStart, { accountId }),
+    code: (accountId, code) => ipcRenderer.send(IPC.loginCode, { accountId, code }),
+    cancel: (accountId) => ipcRenderer.send(IPC.loginCancel, { accountId }),
+    onEvent: (cb) => subscribe<LoginEvent>(IPC.loginEvent, cb)
   },
   shared: {
     apply: (mode) => ipcRenderer.invoke(IPC.sharedApply, { mode })

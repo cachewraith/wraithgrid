@@ -18,10 +18,11 @@ import {
 import { autoUpdater, type ProgressInfo } from 'electron-updater'
 import trayIconPath from '../../build/icon.png?asset'
 import { IPC } from '@shared/ipc-channels'
-import type { PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
+import type { LoginEvent, PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
 import type { ChatEventMessage } from '@shared/chat'
 import { ChatSessions } from './chat/sessions'
 import { forceKillTree, spawnChatChild } from './chat/spawn'
+import { Logins } from './login'
 import type { GitRunner } from './git'
 import { resolveTheme, type CloseMode, type Machine, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
@@ -81,7 +82,7 @@ const envReady: Promise<void> = (async () => {
 
 function send(
   channel: string,
-  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | ChatEventMessage | string
+  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | ChatEventMessage | LoginEvent | string
 ): void {
   const wc = mainWindow?.webContents
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
@@ -108,6 +109,28 @@ const chats = new ChatSessions({
     send(IPC.chatEvent, { paneId, event })
   },
   forceKill: forceKillTree
+})
+
+// Sign-in dialogs: claude's own `auth login` over pipes; stopped on quit like chats.
+const logins = new Logins({
+  spawn: spawnChatChild,
+  run: (l) =>
+    new Promise((resolve) => {
+      const args = typeof l.args === 'string' ? [l.args] : l.args
+      execFile(
+        l.file,
+        args,
+        {
+          cwd: l.cwd,
+          env: l.env,
+          timeout: 15_000,
+          windowsHide: true,
+          windowsVerbatimArguments: typeof l.args === 'string'
+        },
+        (_err, stdout) => resolve(String(stdout))
+      )
+    }),
+  emit: (e) => send(IPC.loginEvent, e)
 })
 
 // ---- Background pty host (ADR 0001): panes live there, so they can outlive this process.
@@ -314,6 +337,7 @@ function cleanup(intent: QuitIntent): Promise<void> {
   cleaning ??= Promise.allSettled([
     intent === 'keep' ? ptys.detach() : ptys.stopAll(),
     chats.stopAll(),
+    logins.stopAll(),
     router.detachRemotes(),
     store.flush(),
     usage.flush()
@@ -637,6 +661,7 @@ void app.whenReady().then(() => {
     git: runGit,
     notifyPane: showPaneNotice,
     chats,
+    logins,
     chatDir: path.join(app.getPath('userData'), 'chats'),
     usage,
     onConfigChanged: (prev, next) => {

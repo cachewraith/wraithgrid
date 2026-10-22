@@ -102,6 +102,7 @@ export type Modal =
   | { kind: 'palette' }
   | { kind: 'removeWorktree'; cwd: string; title: string }
   | { kind: 'deleteChat'; wsId: string; paneId: string }
+  | { kind: 'login'; accountId: string }
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
 
@@ -246,7 +247,10 @@ export interface AppState {
   setSharedMode(mode: SharedMode): Promise<string | null>
   /** Restarts every started claude pane, e.g. so a new CLAUDE.md or skill is picked up. */
   restartClaudePanes(): number
+  /** Signs an account in: a dialog for claude, a pane running the CLI's own login otherwise. */
   loginAccount(id: string): void
+  /** Opens a pane running the CLI so it can sign in there. */
+  loginInTerminal(id: string): void
 
   // mods
   loadMods(): Promise<void>
@@ -1497,6 +1501,12 @@ export function createAppStore({
       },
 
       loginAccount(id) {
+        const account = accountById(get().config, id)
+        if (account?.cli === 'claude') set({ modal: { kind: 'login', accountId: id } })
+        else if (account) get().loginInTerminal(id)
+      },
+
+      loginInTerminal(id) {
         const s = get()
         if (!accountById(s.config, id)) return
         const paneId = addPaneToActive(

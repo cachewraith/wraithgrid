@@ -98,6 +98,24 @@ export const claudeDetectArgs = z.object({ override: z.string().max(4096).option
 export const accountCreateDirArgs = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,47}$/)
 })
+export const loginAccountArgs = z.object({ accountId: idSchema })
+/** The code a sign-in page shows: printable, no spaces or line breaks (it is typed into claude). */
+export const loginCodeArgs = z.object({
+  accountId: idSchema,
+  code: z.string().regex(/^[\x21-\x7e]{1,2048}$/)
+})
+/** `claude auth login` in a dialog: the sign-in link, then how it ended. */
+export type LoginEvent =
+  | { accountId: string; state: 'url'; url: string }
+  | {
+      accountId: string
+      state: 'done'
+      ok: boolean
+      email: string | null
+      plan: string | null
+      error: string | null
+    }
+
 export const accountDeleteDirArgs = z.object({
   dir: z.string().min(1).max(4096),
   confirm: z.literal(true)
@@ -464,6 +482,13 @@ export interface WraithApi {
   account: {
     createDir(slug: string): Promise<CreateDirResult>
     deleteDir(dir: string): Promise<SimpleResult>
+  }
+  /** Signs a claude account in from a dialog (`claude auth login` over pipes in main). */
+  login: {
+    start(accountId: string): Promise<SimpleResult>
+    code(accountId: string, code: string): void
+    cancel(accountId: string): void
+    onEvent(cb: (e: LoginEvent) => void): () => void
   }
   shell: {
     openExternal(url: string): Promise<SimpleResult>

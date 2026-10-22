@@ -68,7 +68,7 @@ test('overall mode links every account to ~/.claude', async () => {
       '# work only\n'
     )
 
-    // An account added later is linked as soon as a pane starts for it.
+    // An account added later is linked as soon as it signs in (the dialog runs `claude auth login`).
     await win.locator('.top .btn.gh').click()
     await win.getByRole('button', { name: /Switch account/ }).click()
     await win.getByRole('menuitem', { name: 'New account' }).click()
@@ -82,6 +82,20 @@ test('overall mode links every account to ~/.claude', async () => {
           fs.readlinkSync(path.join(late, 'CLAUDE.md'))
       )
       .toBe(path.join(personal, 'CLAUDE.md'))
+    const login = win.getByRole('dialog', { name: 'Sign in to Claude as late' })
+    await expect(login.getByRole('button', { name: 'Open sign-in page' })).toBeVisible()
+    await login.getByLabel('Sign-in code').fill('wrong')
+    await login.getByRole('button', { name: 'Continue' }).click()
+    await expect(login.locator('.err')).toHaveText('Invalid code')
+    await login.getByRole('button', { name: 'Try again' }).click()
+    await login.getByLabel('Sign-in code').fill('good-code')
+    await login.getByLabel('Sign-in code').press('Enter')
+    const done = win.getByRole('dialog', { name: 'late is signed in' })
+    await expect(done).toContainText('Signed in as late@example.com · max')
+    await done.getByRole('button', { name: 'Done' }).click()
+    await expect(
+      win.locator('.tr', { hasText: 'late' }).getByRole('button', { name: 'Login' })
+    ).toHaveCount(0)
 
     // Each account its own: links go, and work gets its own CLAUDE.md back.
     await win.getByRole('button', { name: 'More' }).click()

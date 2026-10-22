@@ -671,6 +671,22 @@
   background: var(--raise);
   color: var(--err);
 }
+.login-bd {
+  gap: 12px;
+}
+.login-bd .hint {
+  margin: 0;
+}
+.login-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.login-code {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .pj-empty {
   padding: 48px 0;
   text-align: center;

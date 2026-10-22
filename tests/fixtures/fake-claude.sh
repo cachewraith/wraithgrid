@@ -8,6 +8,27 @@ fi
 case " $* " in
   *" --input-format stream-json "*) exec "$(dirname "$0")/fake-claude-chat.sh" "$@" ;;
 esac
+# `claude auth …` as 2.1.306 prints it over pipes; the code `good-code` signs in.
+if [ "$1" = "auth" ]; then
+  mkdir -p "${CLAUDE_CONFIG_DIR}"
+  case "$2" in
+    login)
+      echo "Opening browser to sign in…"
+      echo "If the browser didn't open, visit: https://claude.com/cai/oauth/authorize?code=true&fake=1"
+      printf 'Paste code here if prompted > '
+      read -r code
+      [ "$code" = "good-code" ] || { echo "Invalid code"; exit 1; }
+      touch "${CLAUDE_CONFIG_DIR}/.signed-in"
+      echo "Login successful." ;;
+    status)
+      if [ -e "${CLAUDE_CONFIG_DIR}/.signed-in" ]; then
+        echo '{"loggedIn":true,"authMethod":"claude.ai","email":"late@example.com","subscriptionType":"max"}'
+      else
+        echo '{"loggedIn":false,"authMethod":"none"}'
+      fi ;;
+  esac
+  exit 0
+fi
 # `claude plugin …`: one mod that toggles (state kept in the config dir) and one that fails.
 if [ "$1" = "plugin" ]; then
   mkdir -p "${CLAUDE_CONFIG_DIR}"
