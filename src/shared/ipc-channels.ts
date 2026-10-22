@@ -22,6 +22,8 @@ export const IPC = {
   configSet: 'config:set',
   dialogPickFolder: 'dialog:pickFolder',
   dialogPickFile: 'dialog:pickFile',
+  fsListFolder: 'fs:listFolder',
+  fsReveal: 'fs:reveal',
   windowMinimize: 'window:minimize',
   windowMaximize: 'window:maximize',
   windowClose: 'window:close',

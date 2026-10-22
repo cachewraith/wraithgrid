@@ -1730,3 +1730,391 @@
     transition: none;
   }
 }
+
+/* ---- New chat dialog and its folder picker (#27) ---------------------------------------- */
+
+.dlg.np {
+  width: min(560px, calc(100vw - 32px));
+}
+.dlg.np .dlg-bd {
+  gap: 16px;
+}
+.np-accts {
+  display: grid;
+  gap: 2px;
+  max-height: 168px;
+  overflow: auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.np-acct {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+.np-acct:hover:not(:disabled) {
+  background: var(--hover);
+}
+.np-acct.on {
+  background: var(--sel);
+}
+.np-acct:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.np-acct .nm {
+  font-size: 13px;
+  font-weight: 500;
+}
+.np-acct .sb {
+  font-size: 11.5px;
+  color: var(--fa);
+  white-space: nowrap;
+}
+.np-acct .sb.warn {
+  color: var(--warn);
+}
+.np-acct .ck {
+  margin-left: auto;
+  color: var(--acct);
+}
+.np-folder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  background: var(--bg2);
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s,
+    background 0.14s;
+}
+.np-folder:hover {
+  border-color: var(--fa);
+}
+.np-folder.bad {
+  border-color: color-mix(in srgb, var(--err) 55%, transparent);
+}
+.np-fv {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.np-fn {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.np-fp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fa);
+}
+.np-br,
+.fp-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--raise);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--mu);
+}
+.np-change {
+  flex: none;
+  font-size: 12px;
+  color: var(--fa);
+}
+.np-recent {
+  display: grid;
+  gap: 1px;
+}
+.np-r {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.np-r:hover {
+  background: var(--hover);
+}
+.np-rn {
+  flex: none;
+  font-size: 12.5px;
+}
+.np-rp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.np-more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 6px 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.np-more:hover {
+  color: var(--tx);
+}
+.np-more-i {
+  transform: rotate(-90deg);
+  transition: transform 0.14s;
+}
+.np-more-i.open {
+  transform: none;
+}
+.np-more-on {
+  color: var(--acct);
+}
+.np-more-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: -6px;
+  animation: np-in 0.14s var(--ease-out);
+}
+@keyframes np-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.fp {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: min(520px, calc(100vh - 140px));
+}
+.fp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 20px 10px;
+  font-size: 12.5px;
+}
+.fp-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.fp-crumb button {
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  cursor: pointer;
+}
+.fp-crumb button:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+.fp-crumb button[aria-current] {
+  color: var(--tx);
+  font-weight: 600;
+}
+.fp-sep {
+  color: var(--fa);
+}
+.fp-branch {
+  margin-left: 6px;
+}
+.fp-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px 10px;
+}
+.fp-bar .inpt {
+  flex: 1;
+  min-width: 0;
+}
+.fp-hid {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--mu);
+  white-space: nowrap;
+}
+.fp-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 14px 8px;
+  border-top: 1px solid var(--line);
+}
+.fp-quick {
+  display: grid;
+  gap: 1px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.fp-q {
+  display: grid;
+  grid-template-columns: 54px auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fp-q:hover {
+  background: var(--hover);
+}
+.fp-q-k {
+  font-size: 11px;
+  color: var(--fa);
+}
+.fp-q-n {
+  font-size: 12.5px;
+}
+.fp-q-p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.fp-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+.fp-it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--tx);
+  cursor: pointer;
+}
+.fp-it .i {
+  color: var(--fa);
+}
+.fp-it.on {
+  background: var(--sel);
+}
+.fp-it.hid .fp-nm {
+  color: var(--mu);
+}
+.fp-nm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-git {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line2);
+  font-size: 10.5px;
+  color: var(--mu);
+}
+.fp-note {
+  padding: 16px 8px;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.fp-note.err {
+  color: var(--err);
+}
+.fp-ft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px 12px 20px;
+  border-top: 1px solid var(--line);
+}
+.fp-ft .sp {
+  flex: 1;
+}
+.fp-keys {
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.fp-keys kbd {
+  margin: 0 2px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.fp-keys kbd:first-child {
+  margin-left: 0;
+}
+/* Dialogs portal outside .main, so this follows the window. */
+@media (max-width: 620px) {
+  .fp-keys {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .np-more-bd {
+    animation: none;
+  }
+  .np-acct,
+  .np-folder,
+  .np-more-i {
+    transition: none;
+  }
+}

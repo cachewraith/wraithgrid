@@ -62,6 +62,7 @@ import {
   type ThemeListResult,
   notifyPaneArgs,
   pickPathArgs,
+  folderPathArgs,
   shellListArgs,
   clipboardImageArgs,
   cliActionSchema,
@@ -91,6 +92,7 @@ import {
   type SharedApplyResult,
   type SharedReportEntry,
   type ShellOption,
+  type FolderListResult,
   type SimpleResult,
   type GitLogResult,
   type GitShowResult,
@@ -165,6 +167,7 @@ import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
+import { listFolder } from './folders'
 import { copyTranscript } from './chat/transcript'
 import type { Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
@@ -487,6 +490,28 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   }
   handle(IPC.dialogPickFolder, pickPathArgs, (a) => pick('openDirectory', a.defaultPath), null)
   handle(IPC.dialogPickFile, pickPathArgs, (a) => pick('openFile', a.defaultPath), null)
+
+  // The New chat folder picker: main resolves the path and lists folders only.
+  handle(
+    IPC.fsListFolder,
+    folderPathArgs,
+    (a): Promise<FolderListResult> => listFolder(a.path, homeDir),
+    { ok: false, path: '~', parent: null, error: 'This folder can’t be read.' }
+  )
+  handle(
+    IPC.fsReveal,
+    folderPathArgs,
+    async (a): Promise<SimpleResult> => {
+      const dir = resolveUserPath(a.path.trim() || '~', homeDir)
+      const isDir = await stat(dir)
+        .then((s) => s.isDirectory())
+        .catch(() => false)
+      if (!isDir) return fail('That folder does not exist.')
+      const err = await shell.openPath(dir)
+      return err ? fail(err) : { ok: true }
+    },
+    fail('Could not open the folder')
+  )
 
   // ---- Usage -------------------------------------------------------------------------
 

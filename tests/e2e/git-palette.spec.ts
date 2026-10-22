@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { _electron as electron, expect, test } from '@playwright/test'
+import { _electron as electron, expect, test, type Page } from '@playwright/test'
 
 const ROOT = path.resolve(__dirname, '../..')
 const MAIN = path.join(ROOT, 'out/main/index.js')
@@ -10,6 +10,15 @@ const FAKE_CLAUDE = path.join(ROOT, 'tests/fixtures/fake-claude.sh')
 const SHOTS = process.env.WRAITHGRID_E2E_SHOTS
 
 test.skip(process.platform === 'win32', 'POSIX-only fixture')
+
+/** New chat: opens the folder picker, types a path and picks it (Ctrl+Enter). */
+async function pickFolder(win: Page, folder: string): Promise<void> {
+  await win.getByRole('button', { name: /^Folder / }).click()
+  const picker = win.getByRole('group', { name: 'Choose a folder' })
+  await picker.getByLabel('Filter folders or type a path').fill(folder)
+  await picker.getByLabel('Filter folders or type a path').press('Control+Enter')
+  await expect(picker).toHaveCount(0)
+}
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, {
@@ -211,7 +220,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
 
     // New pane on a fresh worktree branch.
     await win.keyboard.press('Control+Shift+N')
-    await win.locator('#np-dir').fill('~/proj/api')
+    await pickFolder(win, '~/proj/api')
+    await win.getByRole('button', { name: 'More options' }).click()
     await win.getByRole('switch', { name: 'Work on a new branch (git worktree)' }).click()
     await win.locator('#np-branch').fill('feat/limit')
     if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'new-pane-light.png') })
@@ -225,7 +235,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
 
     // An existing branch is refused with git's message, and the dialog stays open.
     await win.keyboard.press('Control+Shift+N')
-    await win.locator('#np-dir').fill('~/proj/api')
+    await pickFolder(win, '~/proj/api')
+    await win.getByRole('button', { name: 'More options' }).click()
     await win.getByRole('switch', { name: 'Work on a new branch (git worktree)' }).click()
     await win.locator('#np-branch').fill('feat/limit')
     await win.getByRole('button', { name: /Create pane|Start chat/ }).click()
@@ -243,6 +254,99 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await expect(ask).toHaveCount(0)
     expect(fs.existsSync(wtDir)).toBe(false)
     expect(git(repo, 'branch', '--list', 'feat/limit').trim()).toBe('feat/limit')
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('New chat: the built-in folder picker browses, filters, jumps and picks by keyboard', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-picker-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  for (const d of ['code/api', 'code/web', 'code/.cache', 'notes'])
+    fs.mkdirSync(path.join(home, d), { recursive: true })
+  git(path.join(home, 'code/api'), 'init', '-q', '-b', 'trunk')
+  fs.mkdirSync(userData, { recursive: true })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: FAKE_CLAUDE,
+      accounts: [
+        {
+          id: 'a-work',
+          name: 'work',
+          configDir: '~/.wraithgrid/accounts/work',
+          color: '#7c5cff',
+          signedIn: true,
+          imported: false
+        }
+      ],
+      workspaces: [{ id: 'ws-main', name: 'main', panes: [], layout: null }],
+      activeWorkspace: 'ws-main',
+      recentFolders: ['~/notes'],
+      settings: { newPaneView: 'terminal', checkUpdatesOnLaunch: false }
+    })
+  )
+  const app = await electron.launch({
+    args: [MAIN],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: userData }
+  })
+  try {
+    const win = await app.firstWindow()
+    await win.waitForSelector('.app .tb')
+    await win.keyboard.press('Control+Shift+N')
+    const dlg = win.getByRole('dialog', { name: 'New pane' })
+    // The most recent folder is chosen; launch args and the rest wait under More options.
+    await expect(dlg.getByRole('button', { name: /^Folder notes/ })).toBeVisible()
+    await expect(dlg.locator('#np-args')).toHaveCount(0)
+
+    await dlg.getByRole('button', { name: /^Folder / }).click()
+    const picker = win.getByRole('group', { name: 'Choose a folder' })
+    const input = picker.getByLabel('Filter folders or type a path')
+    await expect(input).toBeFocused()
+    // Type a path to jump; Enter goes there.
+    await input.fill('~/code')
+    await input.press('Enter')
+    await expect(picker.getByRole('navigation', { name: 'Path' })).toContainText('~/code')
+    // Folders only, hidden ones off; git repos marked.
+    const list = picker.getByRole('listbox', { name: 'Folders' })
+    await expect(list.getByRole('option')).toHaveText(['apigit', 'web'])
+    await picker.getByLabel('Hidden').check()
+    await expect(list.getByRole('option')).toHaveCount(3)
+    // Filter, arrows, Enter opens; Backspace goes up.
+    await input.fill('we')
+    await expect(list.getByRole('option')).toHaveText(['web'])
+    await input.fill('')
+    // .cache, api, web: one down from the first is api.
+    await input.press('ArrowDown')
+    await expect(list.getByRole('option', { selected: true })).toContainText('api')
+    await input.press('Enter')
+    await expect(picker.getByRole('navigation', { name: 'Path' })).toContainText('api')
+    await expect(picker.locator('.fp-branch')).toHaveText('trunk')
+    await input.press('Backspace')
+    await expect(picker.getByRole('button', { name: 'code', exact: true })).toHaveAttribute(
+      'aria-current',
+      'location'
+    )
+    // A missing folder says so; Esc goes back to the dialog, not out of it.
+    await input.fill('~/nope')
+    await input.press('Control+Enter')
+    await expect(picker.getByRole('alert')).toContainText('does not exist')
+    await input.press('Escape')
+    await expect(picker).toHaveCount(0)
+    await expect(dlg).toBeVisible()
+
+    // Pick ~/code/api: the field shows the name first, the place muted, and the branch.
+    await dlg.getByRole('button', { name: /^Folder / }).click()
+    await input.fill('~/code/api')
+    await input.press('Control+Enter')
+    const field = dlg.getByRole('button', { name: /^Folder api/ })
+    await expect(field).toContainText('~/code')
+    await expect(field).toContainText('trunk')
+    await dlg.getByRole('button', { name: 'Create pane' }).click()
+    await expect(win.locator('section.pane .ph-title')).toHaveText('api')
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

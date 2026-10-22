@@ -122,7 +122,11 @@ test('README screenshots', async () => {
     await shot('grid-dark.png')
 
     await win.keyboard.press('Control+Shift+N')
-    await win.locator('#np-dir').fill('~/code/api-server')
+    await win.getByRole('button', { name: /^Folder / }).click()
+    const picker = win.getByRole('group', { name: 'Choose a folder' })
+    await picker.getByLabel('Filter folders or type a path').fill('~/code/api-server')
+    await picker.getByLabel('Filter folders or type a path').press('Control+Enter')
+    await expect(picker).toHaveCount(0)
     await win.waitForTimeout(300)
     await shot('new-pane.png')
     await win.keyboard.press('Escape')
