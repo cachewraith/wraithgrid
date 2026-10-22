@@ -18,6 +18,7 @@ import {
 import { idSchema, sshHostSchema } from './schema'
 import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
 import type { UsageData } from './usage'
+import type { ReleaseNote } from './whats-new'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
 
 export { IPC } from './ipc-channels'
@@ -125,6 +126,7 @@ export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 /** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
 export const updateInstallArgs = z.object({})
+export const updateNotesArgs = z.object({})
 /** git runs in the pane's folder as main has it in its own config, never a renderer path. */
 export const shellListArgs = z.object({})
 export const clipboardImageArgs = z.object({ paneId: idSchema })
@@ -304,13 +306,33 @@ export type UpdateCheckResult =
 export type UpdateProgress =
   | { phase: 'idle' }
   | { phase: 'checking' }
-  | { phase: 'downloading'; version: string; percent: number }
+  /** Bytes are null until the download reports them. */
+  | {
+      phase: 'downloading'
+      version: string
+      percent: number
+      transferred: number | null
+      total: number | null
+    }
+  /** Downloaded and checked; installs when the user picks Restart now. */
+  | { phase: 'ready'; version: string }
   | { phase: 'installing'; version: string }
 
 export type UpdateInstallResult =
   | { ok: true }
   /** `manual`: this build can't update itself (e.g. a tarball); offer the release page. */
   | { ok: false; error: string; manual: boolean }
+  /** The user cancelled the download: back to "available", nothing to report. */
+  | { ok: false; cancelled: true }
+
+/** About's notes: the installed version's (bundled or saved) and earlier ones, newest first. */
+export interface ReleaseNotesView {
+  current: string
+  /** The version that ran before an update, for one "Updated to …" notice; else null. */
+  updatedFrom: string | null
+  installed: ReleaseNote | null
+  earlier: ReleaseNote[]
+}
 
 export interface GitStatus {
   /** False when the folder is not inside a git work tree (or git is missing). */
@@ -505,8 +527,14 @@ export interface WraithApi {
   update: {
     /** Asks GitHub Releases whether a newer version than this one is published. */
     check(reason: 'launch' | 'manual'): Promise<UpdateCheckResult>
-    /** Downloads the newest release, installs it over this one and restarts the app. */
-    install(): Promise<UpdateInstallResult>
+    /** Downloads the newest release and checks it; then it waits for restart(). */
+    download(): Promise<UpdateInstallResult>
+    /** Installs the downloaded release over this one and restarts the app. */
+    restart(): Promise<UpdateInstallResult>
+    /** Stops a download in progress. */
+    cancel(): Promise<void>
+    /** Release notes for About, kept across updates. */
+    notes(): Promise<ReleaseNotesView>
     onProgress(cb: (p: UpdateProgress) => void): () => void
     /** The user clicked the new-release notification: show the updates section. */
     onShow(cb: () => void): () => void

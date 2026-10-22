@@ -43,7 +43,9 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/mods.ts`: mods (claude plugins) through each account's own `claude plugin` CLI: `list --json`, `enable`/`disable`, the catalog, `install`, `marketplace list`/`add`; repo links for mods
 - `src/main/mod-community.ts`: the claudemod.com mod list (fixed URL, page scrape + each repo's marketplace.json from raw.githubusercontent.com), validated into catalog rows
 - `src/main/update-check.ts`: GitHub Releases check (fixed URL) for the Settings/status-bar notice
-- `src/main/update-install.ts`: in-app update facade over electron-updater (check → download → install + relaunch)
+- `src/main/update-install.ts`: in-app update facade over electron-updater (check → download (cancellable) → `ready` → Restart now installs + relaunches)
+- `src/main/release-notes.ts`: release notes kept in userData/release-notes.json (capped) + the bundled WHATS-NEW.md, and "updated from" (last run version) for About
+- `src/shared/whats-new.ts`: WHATS-NEW.md → per-version notes (app bundle via `?raw`, and `scripts/release-notes.ts` for the release body)
 - `src/main/update-notify.ts`: OS notification for a new release, once per version (`update-notified.json` in userData)
 - `src/main/paths.ts`: config/account/worktree paths, `isStrictlyInside` guard
 - `src/main/git.ts`: git status/diff for a pane's folder and worktree creation (execFile via injected runner)
@@ -118,6 +120,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - In-app update needs `latest*.yml` in the release (CI uploads them from v1.3.0); 1.2.0 and older must be updated by hand once. Local `dist` scripts pass `--publish never`.
 - Popovers/menus must portal to <body>: sidebar sections animate opacity (own stacking context) and the sidebar clips.
 - e2e/manual tests: `pgrep -f 'out/main/index.js'` also matches your own shell command; match the electron binary path instead.
+- Unpackaged (dev, e2e) `app.getVersion()` is Electron's version (44.x), not package.json's: e2e must read it via `app.evaluate`. WHATS-NEW.md section headings need a `*vX.Y.Z · YYYY-MM-DD*` line under them to count as a version.
 - e2e without a window on the desktop (no Xvfb here): a dir with an `electron` script that runs `node_modules/electron/dist/electron`, adding `--ozone-platform=headless --ozone-override-screen-size=1920,1080` only when the args include `--remote-debugging-port=0` (Playwright's launch; it strips argv up to there; the CLI spec's own runs must pass through), then `env -u DISPLAY -u WAYLAND_DISPLAY ELECTRON_OVERRIDE_DIST_PATH=<dir> ./node_modules/.bin/playwright test` after `bun run build`. Without the screen size the window is <900px (sidebar = rail).
 - Use `bun run <script>`, never bare `bun test` (Bun's runner, not Vitest); one-off tools: `./node_modules/.bin/<tool>`.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.

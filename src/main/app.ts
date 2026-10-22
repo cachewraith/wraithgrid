@@ -16,6 +16,8 @@ import {
   Tray
 } from 'electron'
 import { autoUpdater, type ProgressInfo } from 'electron-updater'
+import whatsNewMd from '../../docs/WHATS-NEW.md?raw'
+import { parseWhatsNew } from '@shared/whats-new'
 import trayIconPath from '../../build/icon.png?asset'
 import { IPC } from '@shared/ipc-channels'
 import type { LoginEvent, PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
@@ -47,6 +49,7 @@ import { CommunityCatalog } from './mod-community'
 import { UpdateChecker } from './update-check'
 import { UpdateInstaller } from './update-install'
 import { notifyIfNew, type UpdateNotice } from './update-notify'
+import { ReleaseNotesStore } from './release-notes'
 
 app.setPath('userData', userDataDir(app.getPath('appData'), process.env))
 
@@ -572,23 +575,31 @@ function createInstaller(): UpdateInstaller {
   autoUpdater.logger = null
   // An 'error' event with no listener throws; the promises below already carry each error.
   autoUpdater.on('error', () => {})
+  // Each check hands out a fresh token; cancel() stops the download it belongs to.
+  let token: NonNullable<
+    Awaited<ReturnType<typeof autoUpdater.checkForUpdates>>
+  >['cancellationToken']
   return new UpdateInstaller({
     currentVersion: app.getVersion(),
     // macOS builds are ad-hoc signed; Squirrel.Mac only installs updates signed by the same
     // Developer ID, so there the release page is offered instead (null = manual).
-    check: async () =>
-      process.platform === 'darwin'
-        ? null
-        : ((await autoUpdater.checkForUpdates())?.updateInfo.version ?? null),
-    download: async (onPercent) => {
-      const listener = (p: ProgressInfo): void => onPercent(p.percent)
+    check: async () => {
+      if (process.platform === 'darwin') return null
+      const r = await autoUpdater.checkForUpdates()
+      token = r?.cancellationToken
+      return r?.updateInfo.version ?? null
+    },
+    download: async (onProgress) => {
+      const listener = (p: ProgressInfo): void =>
+        onProgress({ percent: p.percent, transferred: p.transferred, total: p.total })
       autoUpdater.on('download-progress', listener)
       try {
-        await autoUpdater.downloadUpdate()
+        await autoUpdater.downloadUpdate(token)
       } finally {
         autoUpdater.off('download-progress', listener)
       }
     },
+    cancel: () => token?.cancel(),
     // Linux installs synchronously here (pkexec pacman/apt/dnf) and reports failure as an
     // 'error' event, e.g. a cancelled password prompt; on success the app quits and relaunches.
     install: async () => {
@@ -636,8 +647,20 @@ void app.whenReady().then(() => {
     stateFile: path.join(app.getPath('userData'), 'update-notified.json'),
     show: showUpdateNotice
   }
-  const notify = (r: Parameters<typeof notifyIfNew>[0]): void =>
+  const releaseNotes = new ReleaseNotesStore({
+    file: path.join(app.getPath('userData'), 'release-notes.json'),
+    currentVersion: app.getVersion(),
+    bundled: parseWhatsNew(whatsNewMd)
+  })
+  const releaseNotesReady = releaseNotes.start()
+  // Every check that reached GitHub keeps the latest release's notes for after the update.
+  const remember = (r: Parameters<typeof notifyIfNew>[0]): void => {
+    if (r.status === 'available' || r.status === 'current') void releaseNotes.remember(r.latest)
+  }
+  const notify = (r: Parameters<typeof notifyIfNew>[0]): void => {
+    remember(r)
     void notifyIfNew(r, notifyDeps).catch(() => {})
+  }
   if (app.isPackaged) {
     setInterval(() => {
       if (!store.get().settings.checkUpdatesOnLaunch) return
@@ -657,6 +680,8 @@ void app.whenReady().then(() => {
     community: new CommunityCatalog((url, init) => net.fetch(url, init)),
     installer: createInstaller(),
     onLaunchUpdateCheck: notify,
+    onUpdateCheck: remember,
+    releaseNotes: () => releaseNotesReady.then(() => releaseNotes.view()),
     isPackaged: app.isPackaged,
     git: runGit,
     notifyPane: showPaneNotice,
