@@ -71,7 +71,7 @@ describe('parseRelease', () => {
 
   it('caps long release notes', () => {
     const r = parseRelease({ tag_name: 'v2.0.0', body: 'x'.repeat(50_000) })
-    expect(r!.notes.length).toBe(4000)
+    expect(r!.notes.length).toBe(8000)
   })
 })
 

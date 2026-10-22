@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
 import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
@@ -41,6 +41,8 @@ import { Initial } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
 import { currentTheme, drawnTheme } from '../app/store'
 import { pickTheme, themeVars, type AppTheme, type ThemeFile } from '@shared/themes'
+import { releasePageUrl, type ReleaseNote } from '@shared/whats-new'
+import { Markdown } from './chat/Markdown'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { PALETTE_LABEL, terminalFontStack, terminalTheme } from '../lib/term-theme'
 import {
@@ -416,29 +418,31 @@ function formatDate(iso: string | null): string | null {
     : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-/**
- * Release notes are shown as text, never as HTML: headings and bullets get a light
- * touch, everything else stays as GitHub wrote it.
- */
-function ReleaseNotes({ notes }: { notes: string }) {
+/** "41.9 MB"; null when the size is not known yet. */
+function fmtMB(bytes: number | null): string | null {
+  if (bytes === null || !Number.isFinite(bytes) || bytes <= 0) return null
+  return `${(bytes / 1_000_000).toFixed(bytes < 10_000_000 ? 1 : 0)} MB`
+}
+
+/** Release notes as markdown → React elements (never HTML); links open in the browser. */
+function ReleaseNotes({ notes, label = 'Release notes' }: { notes: string; label?: string }) {
   return (
-    <div className="relnotes" aria-label="Release notes">
-      {notes.split('\n').map((line, i) => {
-        const h = /^#{1,6}\s+(.*)$/.exec(line)
-        if (h) return <b key={i}>{h[1]}</b>
-        const li = /^\s*[*-]\s+(.*)$/.exec(line)
-        if (li)
-          return (
-            <span key={i} className="li">
-              {li[1]}
-            </span>
-          )
-        return line.trim() ? <span key={i}>{line}</span> : null
-      })}
+    <div className="relnotes" aria-label={label}>
+      <Markdown text={notes} />
     </div>
   )
 }
 
+const Warn = () => (
+  <span style={{ color: 'var(--warn)', display: 'flex' }}>
+    <IconWarn small />
+  </span>
+)
+
+/**
+ * One clear state at a time: up to date · available (with notes) · downloading (bar, %,
+ * size, Cancel) · ready to restart (Restart now / Later) · failed (reason, Retry, the page).
+ */
 function UpdatesRow() {
   const { api } = useServices()
   const actions = useActions()
@@ -447,9 +451,9 @@ function UpdatesRow() {
   // macOS builds can't replace themselves (not Developer ID signed): straight to the page.
   const manualOnly = useApp((s) => s.info.platform === 'darwin')
   const { checking, result, install, installError } = useApp((s) => s.update)
-  const busy = install.phase !== 'idle'
   const anchor = useApp((s) => s.settingsAnchor)
   const ref = useRef<HTMLDivElement>(null)
+  const [later, setLater] = useState(false)
 
   useEffect(() => {
     if (anchor !== 'updates') return
@@ -457,56 +461,158 @@ function UpdatesRow() {
     actions.clearSettingsAnchor()
   }, [anchor, actions])
 
-  const status = busy ? (
-    <span>
-      {install.phase === 'checking'
-        ? 'Preparing the update…'
-        : install.phase === 'downloading'
-          ? `Downloading ${install.version}… ${install.percent}%`
-          : `Installing ${install.version}. Wraithgrid restarts when it is done.`}
-    </span>
-  ) : installError ? (
-    <>
-      <span style={{ color: 'var(--warn)', display: 'flex' }}>
-        <IconWarn small />
+  const latest = result?.status === 'available' ? result.latest : null
+  const target =
+    install.phase === 'downloading' || install.phase === 'ready' || install.phase === 'installing'
+      ? install.version
+      : (latest?.version ?? null)
+  const openPage = (): void =>
+    void api.shell.openExternal(latest?.url ?? releasePageUrl(target ?? version))
+
+  let state: string
+  let status: ReactNode
+  let buttons: ReactNode = null
+  if (install.phase === 'checking') {
+    state = 'preparing'
+    status = <span>Preparing the update…</span>
+  } else if (install.phase === 'downloading') {
+    state = 'downloading'
+    const size = fmtMB(install.total)
+    const done = fmtMB(install.transferred)
+    status = (
+      <span className="upd-dl">
+        <span>
+          Downloading {install.version}… <b className="num">{install.percent}%</b>
+          {size ? (
+            <span className="num">
+              {' '}
+              · {done ?? '0 MB'} of {size}
+            </span>
+          ) : null}
+        </span>
+        <span
+          className="upd-bar"
+          role="progressbar"
+          aria-label={`Downloading ${install.version}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={install.percent}
+        >
+          <span style={{ '--w': `${install.percent}%` } as CSSProperties} />
+        </span>
       </span>
-      <span>{installError.error}</span>
-    </>
-  ) : checking ? (
-    <span>Checking GitHub for a newer release…</span>
-  ) : !result || result.status === 'skipped' ? (
-    <span>Not checked yet.</span>
-  ) : result.status === 'error' ? (
-    <>
-      <span style={{ color: 'var(--warn)', display: 'flex' }}>
-        <IconWarn small />
+    )
+    buttons = (
+      <button className="btn" onClick={actions.cancelUpdate}>
+        Cancel
+      </button>
+    )
+  } else if (install.phase === 'ready') {
+    state = 'ready'
+    status = (
+      <>
+        <span style={{ color: 'var(--ok)', display: 'flex' }}>
+          <IconCheck small />
+        </span>
+        <span>
+          {later
+            ? `${install.version} is downloaded. Restart when you are ready.`
+            : `${install.version} is downloaded. Restart Wraithgrid to finish; running panes close.`}
+        </span>
+      </>
+    )
+    buttons = (
+      <>
+        <button className="btn pri" onClick={() => void actions.restartToUpdate()}>
+          <IconRestart />
+          Restart now
+        </button>
+        {later ? null : (
+          <button className="btn" onClick={() => setLater(true)}>
+            Later
+          </button>
+        )}
+      </>
+    )
+  } else if (install.phase === 'installing') {
+    state = 'installing'
+    status = <span>Installing {install.version}. Wraithgrid restarts when it is done.</span>
+  } else if (installError) {
+    state = 'failed'
+    status = (
+      <>
+        <Warn />
+        <span>{installError.error}</span>
+      </>
+    )
+    buttons = (
+      <>
+        {installError.manual ? null : (
+          <button className="btn" onClick={() => void actions.installUpdate()}>
+            <IconRestart />
+            Retry
+          </button>
+        )}
+        <button className="btn pri" onClick={openPage}>
+          <IconImport />
+          Open release page
+        </button>
+      </>
+    )
+  } else if (checking) {
+    state = 'checking'
+    status = <span>Checking GitHub for a newer release…</span>
+  } else if (!result || result.status === 'skipped') {
+    state = 'unchecked'
+    status = <span>Not checked yet.</span>
+  } else if (result.status === 'error') {
+    state = 'check-failed'
+    status = (
+      <>
+        <Warn />
+        <span>{result.error}</span>
+      </>
+    )
+  } else if (result.status === 'current') {
+    state = 'current'
+    status = (
+      <>
+        <span style={{ color: 'var(--ok)', display: 'flex' }}>
+          <IconCheck small />
+        </span>
+        <span>Up to date.</span>
+      </>
+    )
+  } else {
+    state = 'available'
+    const date = formatDate(result.latest.publishedAt)
+    status = (
+      <span>
+        <b style={{ color: 'var(--tx)' }}>Wraithgrid {result.latest.version}</b> is available
+        {date ? ` (released ${date})` : ''}.
       </span>
-      <span>{result.error}</span>
-    </>
-  ) : result.status === 'current' ? (
-    <>
-      <span style={{ color: 'var(--ok)', display: 'flex' }}>
-        <IconCheck small />
-      </span>
-      <span>You have the latest version.</span>
-    </>
-  ) : (
-    <span>
-      <b style={{ color: 'var(--tx)' }}>Wraithgrid {result.latest.version}</b> is available
-      {formatDate(result.latest.publishedAt)
-        ? ` (released ${formatDate(result.latest.publishedAt)})`
-        : ''}
-      .
-    </span>
-  )
+    )
+    buttons = manualOnly ? (
+      <button className="btn pri" onClick={openPage}>
+        <IconImport />
+        Open release page
+      </button>
+    ) : (
+      <button className="btn pri" onClick={() => void actions.installUpdate()}>
+        <IconImport />
+        Download {result.latest.version}
+      </button>
+    )
+  }
+  const busy = install.phase !== 'idle'
 
   return (
-    <div className="srow" id="updates" ref={ref}>
+    <div className="srow" id="updates" ref={ref} data-state={state}>
       <div>
         <h3>Updates</h3>
         <p className="ex">
-          Checks the releases on GitHub. Update &amp; restart downloads the new version, replaces
-          this one and reopens Wraithgrid; running panes close. On Linux your password is asked for.
+          Checks the releases on GitHub. Download fetches the new version and checks it; Restart now
+          replaces this one and reopens Wraithgrid. On Linux your password is asked for.
         </p>
       </div>
       <div className="ctl">
@@ -515,6 +621,7 @@ function UpdatesRow() {
             Version{' '}
             <span className="mono" style={{ color: 'var(--tx)' }}>
               {version}
+              {target && target !== version ? ` → ${target}` : ''}
             </span>
           </span>
         </div>
@@ -522,36 +629,20 @@ function UpdatesRow() {
           {status}
         </div>
         <div className="inrow">
-          <button
-            className="btn"
-            disabled={checking || busy}
-            onClick={() => void actions.checkForUpdates('manual')}
-          >
-            <IconRestart />
-            {checking ? 'Checking…' : 'Check for updates'}
-          </button>
-          {result?.status === 'available' && !installError?.manual && !manualOnly ? (
+          {buttons}
+          {busy || state === 'failed' ? null : (
             <button
-              className="btn pri"
-              disabled={busy}
-              onClick={() => void actions.installUpdate()}
+              className="btn"
+              disabled={checking}
+              onClick={() => void actions.checkForUpdates('manual')}
             >
-              <IconImport />
-              {busy ? 'Updating…' : `Update to ${result.latest.version} & restart`}
+              <IconRestart />
+              {checking ? 'Checking…' : 'Check for updates'}
             </button>
-          ) : null}
-          {result?.status === 'available' && (installError?.manual || manualOnly) ? (
-            <button
-              className="btn pri"
-              onClick={() => void api.shell.openExternal(result.latest.url)}
-            >
-              <IconImport />
-              Open release page
-            </button>
-          ) : null}
+          )}
         </div>
-        {result?.status === 'available' && result.latest.notes ? (
-          <ReleaseNotes notes={result.latest.notes} />
+        {latest?.notes && state === 'available' ? (
+          <ReleaseNotes notes={latest.notes} label={`Release notes for ${latest.version}`} />
         ) : null}
         <div className="swrow">
           <button
@@ -563,6 +654,50 @@ function UpdatesRow() {
           />
           <span id="upd-launch">Check when Wraithgrid starts</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** What's new in the installed version (bundled, so offline too), then earlier versions. */
+function WhatsNewRow() {
+  const { api } = useServices()
+  const notes = useApp((s) => s.update.notes)
+  const version = useApp((s) => s.info.version)
+  if (!notes) return null
+  const head = (n: ReleaseNote): string =>
+    [n.title, formatDate(n.date)].filter(Boolean).join(' · ') || 'Release notes'
+  return (
+    <div className="srow wn" id="whats-new">
+      <div>
+        <h3>What’s new in {version}</h3>
+        <p className="ex">
+          {notes.installed ? head(notes.installed) : 'No notes for this version.'}
+        </p>
+        <button
+          className="btn wn-link"
+          onClick={() => void api.shell.openExternal(releasePageUrl(version))}
+        >
+          Release notes on GitHub
+        </button>
+      </div>
+      <div className="ctl">
+        {notes.installed ? (
+          <ReleaseNotes notes={notes.installed.notes} label={`What’s new in ${version}`} />
+        ) : null}
+        {notes.earlier.length ? (
+          <div className="wn-earlier" aria-label="Earlier versions">
+            {notes.earlier.map((n) => (
+              <details key={n.version} className="wn-old">
+                <summary>
+                  <span className="mono">{n.version}</span>
+                  <span>{head(n)}</span>
+                </summary>
+                <ReleaseNotes notes={n.notes} label={`Release notes for ${n.version}`} />
+              </details>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -1629,7 +1764,12 @@ export function SettingsView() {
           </>
         ) : null}
         {tab === 'keyboard' ? <ShortcutsRow /> : null}
-        {tab === 'about' ? <UpdatesRow /> : null}
+        {tab === 'about' ? (
+          <>
+            <UpdatesRow />
+            <WhatsNewRow />
+          </>
+        ) : null}
       </div>
     </div>
   )

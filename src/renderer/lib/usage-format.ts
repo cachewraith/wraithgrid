@@ -1,5 +1,7 @@
 // How usage numbers read: compact, never more precise than useful.
 
+import type { Config } from '@shared/types'
+
 /** `$0.14`, `$12.40`, `$1.2K`; tiny amounts read `<$0.01`. */
 export function fmtCost(usd: number): string {
   if (usd <= 0) return '$0'
@@ -32,4 +34,22 @@ export type Severity = 'ok' | 'warn' | 'err'
 /** How full a limit is: under 70% fine, under 90% a warning, then serious. */
 export function severity(utilization: number): Severity {
   return utilization >= 0.9 ? 'err' : utilization >= 0.7 ? 'warn' : 'ok'
+}
+
+type LimitConfig = Pick<Config, 'accounts' | 'workspaces' | 'settings'>
+
+/**
+ * Whose limits the top-bar pill and the sidebar row show: the focused pane's claude account
+ * (limits are per account), else the default account, else the first claude account.
+ */
+export function limitAccountId(config: LimitConfig, focusedPaneId: string | null): string | null {
+  const claude = config.accounts.filter((a) => a.cli === 'claude')
+  const isClaude = (id: string | null | undefined): id is string =>
+    !!id && claude.some((a) => a.id === id)
+  const focused = focusedPaneId
+    ? config.workspaces.flatMap((w) => w.panes).find((p) => p.id === focusedPaneId)
+    : undefined
+  if (focused && !focused.shell && isClaude(focused.accountId)) return focused.accountId
+  const def = config.settings.defaultAccountId
+  return isClaude(def) ? def : (claude[0]?.id ?? null)
 }

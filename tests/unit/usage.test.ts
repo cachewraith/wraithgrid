@@ -14,7 +14,15 @@ import {
   usageDataSchema,
   type TurnUsage
 } from '@shared/usage'
-import { fmtCost, fmtTokens, fmtUntil, severity } from '../../src/renderer/lib/usage-format'
+import {
+  fmtCost,
+  fmtTokens,
+  fmtUntil,
+  limitAccountId,
+  severity
+} from '../../src/renderer/lib/usage-format'
+import { defaultConfig } from '../../src/shared/schema'
+import type { Account, Config, Pane } from '../../src/shared/types'
 
 // Real claude 2.1.306 output (cleaned): a rate_limit_event and the turn's result.
 const REAL = fs
@@ -197,5 +205,42 @@ describe('usage formatting', () => {
     expect(fmtUntil(NOW + (3 * 86400 + 4 * 3600) * 1000, NOW)).toBe('3d 4h')
     expect(fmtUntil(NOW - 5, NOW)).toBe('now')
     expect([0.3, 0.75, 0.95].map(severity)).toEqual(['ok', 'warn', 'err'])
+  })
+})
+
+describe('whose limits the pill shows', () => {
+  const acct = (id: string, cli: Account['cli'] = 'claude'): Account =>
+    ({ id, name: id, cli, configDir: `~/.wraithgrid/accounts/${id}` }) as Account
+  const pane = (id: string, accountId: string | null, shell = false): Pane =>
+    ({ id, accountId, shell }) as Pane
+  const config = (defaultAccountId: string | null): Config => {
+    const c = defaultConfig()
+    c.accounts = [acct('gem', 'gemini'), acct('work'), acct('home')]
+    c.workspaces[0]!.panes = [
+      pane('p-home', 'home'),
+      pane('p-gem', 'gem'),
+      pane('p-sh', null, true)
+    ]
+    c.settings = { ...c.settings, defaultAccountId }
+    return c
+  }
+
+  it("follows the focused pane's claude account", () => {
+    expect(limitAccountId(config('work'), 'p-home')).toBe('home')
+  })
+  it('falls back to the default account for other panes or no focus', () => {
+    expect(limitAccountId(config('work'), null)).toBe('work')
+    expect(limitAccountId(config('work'), 'p-gem')).toBe('work')
+    expect(limitAccountId(config('work'), 'p-sh')).toBe('work')
+    expect(limitAccountId(config('work'), 'gone')).toBe('work')
+  })
+  it('never picks a non-claude default; then the first claude account', () => {
+    expect(limitAccountId(config('gem'), null)).toBe('work')
+    expect(limitAccountId(config(null), null)).toBe('work')
+  })
+  it('is null without claude accounts', () => {
+    const c = config(null)
+    c.accounts = [acct('gem', 'gemini')]
+    expect(limitAccountId(c, 'p-gem')).toBeNull()
   })
 })

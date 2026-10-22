@@ -83,7 +83,10 @@ const api: WraithApi = {
   },
   update: {
     check: (reason) => ipcRenderer.invoke(IPC.updateCheck, { reason }),
-    install: () => ipcRenderer.invoke(IPC.updateInstall, {}),
+    download: () => ipcRenderer.invoke(IPC.updateDownload, {}),
+    restart: () => ipcRenderer.invoke(IPC.updateRestart, {}),
+    cancel: () => ipcRenderer.invoke(IPC.updateCancel, {}),
+    notes: () => ipcRenderer.invoke(IPC.updateNotes, {}),
     onProgress: (cb) => subscribe<UpdateProgress>(IPC.updateProgress, cb),
     onShow: (cb) => subscribe<void>(IPC.updateShow, () => cb())
   },

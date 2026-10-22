@@ -34,6 +34,7 @@ import {
   sharedApplyArgs,
   updateCheckArgs,
   updateInstallArgs,
+  updateNotesArgs,
   gitPaneArgs,
   gitWorktreeAddArgs,
   gitWorktreeArgs,
@@ -92,6 +93,7 @@ import {
   type SimpleResult,
   type GitLogResult,
   type GitShowResult,
+  type ReleaseNotesView,
   type UpdateCheckResult,
   type UpdateInstallResult
 } from '@shared/ipc-contract'
@@ -180,6 +182,10 @@ export interface IpcDeps {
   /** The claudemod.com mod list; read only when the user opens it. */
   community: CommunityCatalog
   installer: UpdateInstaller
+  /** Keeps the found release's notes (every check that reached GitHub). */
+  onUpdateCheck?: (r: UpdateCheckResult) => void
+  /** About's release notes, kept across updates. */
+  releaseNotes: () => Promise<ReleaseNotesView>
   /** Launch-time update checks only run in packaged builds. */
   isPackaged: boolean
   /** Sees every launch-time check result (e.g. to raise an OS notification). */
@@ -706,6 +712,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       }
       const r = await deps.updates.check()
       if (r.status === 'error') log(`update check failed: ${r.error}`)
+      deps.onUpdateCheck?.(r)
       if (a.reason === 'launch') deps.onLaunchUpdateCheck?.(r)
       return r
     },
@@ -718,11 +725,24 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   )
 
   handle(
-    IPC.updateInstall,
+    IPC.updateDownload,
     updateInstallArgs,
-    (): Promise<UpdateInstallResult> => deps.installer.install(),
+    (): Promise<UpdateInstallResult> => deps.installer.download(),
+    { ok: false, error: 'The update could not be downloaded.', manual: false }
+  )
+  handle(
+    IPC.updateRestart,
+    updateInstallArgs,
+    (): Promise<UpdateInstallResult> => deps.installer.restart(),
     { ok: false, error: 'The update could not be installed.', manual: false }
   )
+  handle(IPC.updateCancel, updateInstallArgs, (): void => deps.installer.cancel(), undefined)
+  handle(IPC.updateNotes, updateNotesArgs, (): Promise<ReleaseNotesView> => deps.releaseNotes(), {
+    current: app.getVersion(),
+    updatedFrom: null,
+    installed: null,
+    earlier: []
+  })
 
   // ---- Git -------------------------------------------------------------------------
 
