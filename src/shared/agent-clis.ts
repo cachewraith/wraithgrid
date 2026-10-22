@@ -102,7 +102,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     newLine: null,
     resumeArgs: ['resume', '--last'],
     approval: CODEX_APPROVAL,
-    chat: false,
+    chat: true,
     note: 'Panes run codex with CODEX_HOME set to this config dir. Its sign-in stays separate per account only while codex stores credentials in a file (cli_auth_credentials_store = "file"); with the keyring, accounts share one login.'
   },
   opencode: {
@@ -167,3 +167,6 @@ export function withResumeArgs(cli: AgentCli, args: string[]): string[] {
   if (args.some((a) => /^(?:-c|-r|--continue|--resume|resume)$/.test(a))) return args
   return [...resume, ...args]
 }
+
+/** CLIs whose Login opens the sign-in dialog (src/main/login.ts); the rest sign in in a terminal. */
+export const DIALOG_LOGIN_CLIS: readonly AgentCli[] = ['claude', 'codex']

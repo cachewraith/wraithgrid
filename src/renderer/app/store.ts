@@ -14,7 +14,7 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
-import { AGENT_CLI_SPECS } from '@shared/agent-clis'
+import { AGENT_CLI_SPECS, DIALOG_LOGIN_CLIS } from '@shared/agent-clis'
 import type {
   ApprovalDecision,
   ChatAccountInfo,
@@ -1620,7 +1620,8 @@ export function createAppStore({
 
       loginAccount(id) {
         const account = accountById(get().config, id)
-        if (account?.cli === 'claude') set({ modal: { kind: 'login', accountId: id } })
+        if (account && DIALOG_LOGIN_CLIS.includes(account.cli))
+          set({ modal: { kind: 'login', accountId: id } })
         else if (account) get().loginInTerminal(id)
       },
 

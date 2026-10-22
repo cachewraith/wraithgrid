@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest'
 import type { LoginEvent } from '@shared/ipc-contract'
 import { loginCodeArgs } from '@shared/ipc-contract'
 import type { ChatChild, ChatLaunch } from '../../src/main/chat/sessions'
-import { Logins, loginUrl, parseAuthStatus } from '../../src/main/login'
+import {
+  LOGIN_FLOWS,
+  Logins,
+  codexDeviceCode,
+  loginUrl,
+  parseAuthStatus,
+  parseCodexStatus
+} from '../../src/main/login'
 
 // What claude 2.1.306 prints for `claude auth login` over pipes (query cut).
 const OUTPUT =
@@ -119,5 +126,72 @@ describe('sign-in dialog (claude auth login)', () => {
     expect(child.killed).toBe(true)
     expect(events).toEqual([])
     expect(logins.code('a1', 'x')).toBe(false)
+  })
+})
+
+// What `codex login --device-auth` (0.163.0) prints over pipes, colours included.
+const CODEX_OUTPUT =
+  'Follow these steps to sign in with ChatGPT using device code authorization:\n\n' +
+  '1. Open this link in your browser and sign in to your account\n' +
+  '   \x1b[94mhttps://auth.openai.com/codex/device\x1b[0m\n\n' +
+  '2. Enter this one-time code \x1b[90m(expires in 15 minutes)\x1b[0m\n' +
+  '   \x1b[94mBD5T-VZSFO\x1b[0m\n'
+
+describe('sign-in dialog (codex login --device-auth, #40)', () => {
+  it('reads the link (OpenAI hosts only), the one-time code and the status', () => {
+    expect(loginUrl(CODEX_OUTPUT, LOGIN_FLOWS.codex!.hosts)).toBe(
+      'https://auth.openai.com/codex/device'
+    )
+    expect(loginUrl(CODEX_OUTPUT)).toBeNull()
+    expect(loginUrl('https://evil.example/openai.com', LOGIN_FLOWS.codex!.hosts)).toBeNull()
+    expect(codexDeviceCode(CODEX_OUTPUT)).toBe('BD5T-VZSFO')
+    expect(codexDeviceCode('Open this link')).toBeNull()
+    expect(parseCodexStatus('Logged in using ChatGPT\n')).toEqual({
+      loggedIn: true,
+      email: null,
+      plan: 'ChatGPT'
+    })
+    expect(parseCodexStatus('Not logged in\n').loggedIn).toBe(false)
+  })
+
+  it('shows the link with its code, then signed in once codex ends', async () => {
+    const events: LoginEvent[] = []
+    const child = fakeChild()
+    const runs: (boolean | undefined)[] = []
+    const logins = new Logins({
+      spawn: () => child,
+      run: async (_l, stderr) => {
+        runs.push(stderr)
+        return '\nLogged in using ChatGPT\n'
+      },
+      emit: (e) => events.push(e)
+    })
+    logins.start('a1', launch, launch, LOGIN_FLOWS.codex)
+    // The link comes before the code: nothing until both are there.
+    child.stdout.write(CODEX_OUTPUT.slice(0, 160))
+    await tick()
+    expect(events).toEqual([])
+    child.stdout.write(CODEX_OUTPUT.slice(160))
+    await tick()
+    expect(events).toEqual([
+      {
+        accountId: 'a1',
+        state: 'url',
+        url: 'https://auth.openai.com/codex/device',
+        deviceCode: 'BD5T-VZSFO'
+      }
+    ])
+    child.exit(0)
+    await tick()
+    await tick()
+    expect(runs).toEqual([true])
+    expect(events.at(-1)).toEqual({
+      accountId: 'a1',
+      state: 'done',
+      ok: true,
+      email: null,
+      plan: 'ChatGPT',
+      error: null
+    })
   })
 })

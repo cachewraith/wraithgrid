@@ -117,7 +117,7 @@ const chats = new ChatSessions({
 // Sign-in dialogs: claude's own `auth login` over pipes; stopped on quit like chats.
 const logins = new Logins({
   spawn: spawnChatChild,
-  run: (l) =>
+  run: (l, stderr) =>
     new Promise((resolve) => {
       const args = typeof l.args === 'string' ? [l.args] : l.args
       execFile(
@@ -130,7 +130,8 @@ const logins = new Logins({
           windowsHide: true,
           windowsVerbatimArguments: typeof l.args === 'string'
         },
-        (_err, stdout) => resolve(String(stdout))
+        (_err, stdout, err) =>
+          resolve(stderr ? `${String(stdout)}\n${String(err)}` : String(stdout))
       )
     }),
   emit: (e) => send(IPC.loginEvent, e)

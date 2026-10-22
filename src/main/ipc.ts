@@ -169,7 +169,7 @@ import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
 import { listFolder } from './folders'
 import { copyTranscript } from './chat/transcript'
-import type { Logins } from './login'
+import { LOGIN_FLOWS, type Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
@@ -628,7 +628,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Could not create the config dir')
   )
 
-  // ---- Sign-in dialog: claude's own `auth login`, in the account's config dir -------
+  // ---- Sign-in dialog: the CLI's own login (LOGIN_FLOWS), in the account's config dir -
 
   const authLaunch = async (
     account: Account,
@@ -668,15 +668,16 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     async (a): Promise<SimpleResult> => {
       const account = store.get().accounts.find((x) => x.id === a.accountId)
       if (!account) return fail('No such account.')
-      if (account.cli !== 'claude') return fail(`${account.cli} signs in from a terminal.`)
+      const flow = LOGIN_FLOWS[account.cli]
+      if (!flow) return fail(`${account.cli} signs in from a terminal.`)
       if (!deps.logins) return fail('Sign-in is not available.')
       await deps.envReady
-      await syncShared(account.id)
-      const login = await authLaunch(account, ['auth', 'login'])
-      const status = await authLaunch(account, ['auth', 'status', '--json'])
+      if (account.cli === 'claude') await syncShared(account.id)
+      const login = await authLaunch(account, flow.login)
+      const status = await authLaunch(account, flow.status)
       if (!login.ok) return fail(login.error)
       if (!status.ok) return fail(status.error)
-      deps.logins.start(account.id, login.launch, status.launch)
+      deps.logins.start(account.id, login.launch, status.launch, flow)
       return { ok: true }
     },
     fail('Could not start the sign-in')
