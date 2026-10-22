@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [chat] Mode picker shows your pick at once (from the pane, which follows claude's reports) instead of waiting for claude to confirm; picking a mode while the chat's process was not running showed nothing before (files: src/renderer/components/chat/ChatView.tsx)
 - [chat] Diagrams in code blocks draw whole: no border on every line (base `code` rule leaked into blocks), box-drawing blocks get tight lines so `│` joins (files: src/renderer/styles/chat.css, src/renderer/lib/markdown.ts, src/renderer/components/chat/Markdown.tsx, tests/unit/chat.test.ts)
 - [chat] Bypass permissions can be picked mid-chat (chats start with `--allow-dangerously-skip-permissions`); a refused mode switch shows claude's reason and the picker returns to the mode in force; the bypass "click again" no longer survives closing the menu (files: src/main/chat/claude.ts, src/renderer/components/chat/ModelPicker.tsx, tests/fixtures/fake-claude-chat.sh, tests/unit/chat.test.ts, tests/e2e/chat.spec.ts, docs/DECISIONS.md, docs/CONTEXT.md)
 - [docs] Logged a bug: chat diagrams show as broken or raw code blocks; planned attaching local files in chat; logged a performance issue and a missing delete-chat button + confirm, Mode can't change mid-chat, sign in from a UI dialog (files: docs/TODO.md)
