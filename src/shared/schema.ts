@@ -98,6 +98,8 @@ export const workspaceSchema = z.object({
   panes: z.array(paneSchema).max(64),
   layout: layoutNodeSchema.nullable(),
   machineId: idSchema.nullable().default(null),
+  folder: z.string().max(4096).default(''),
+  accountId: idSchema.nullable().default(null),
   history: z
     .array(z.object({ pane: paneSchema, closedAt: z.number().int().nonnegative() }))
     .max(200)
@@ -221,6 +223,8 @@ export function defaultConfig(): Config {
         panes: [],
         layout: null,
         machineId: null,
+        folder: '',
+        accountId: null,
         history: []
       }
     ],
@@ -298,6 +302,7 @@ export function sanitizeConfig(cfg: Config): Config {
   const workspaces = cfg.workspaces.map((w) => ({
     ...w,
     machineId: w.machineId && machineIds.has(w.machineId) ? w.machineId : null,
+    accountId: w.accountId && accountIds.has(w.accountId) ? w.accountId : null,
     panes: w.panes.map((p) =>
       p.accountId && !accountIds.has(p.accountId) ? { ...p, accountId: null } : p
     )

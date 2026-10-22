@@ -198,6 +198,10 @@ export interface Workspace {
   layout: LayoutNode | null
   /** The machine its panes run on (H5); null: this computer. */
   machineId: string | null
+  /** The project's folder: where its new chats start. '' = none picked. */
+  folder: string
+  /** Default account for its new chats; null: the app-wide default. */
+  accountId: string | null
   /** Chats closed here, newest first: the project screen's History, reopened from there. */
   history: ArchivedChat[]
 }

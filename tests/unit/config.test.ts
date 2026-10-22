@@ -49,6 +49,8 @@ const sample = (): Config => ({
       ],
       layout: { type: 'pane', paneId: 'p1' },
       machineId: null,
+      folder: '',
+      accountId: null,
       history: []
     }
   ],
@@ -158,12 +160,31 @@ describe('config schema', () => {
     cfg.activeWorkspace = 'gone'
     cfg.settings.defaultAccountId = 'gone'
     cfg.workspaces[0]!.panes[0]!.accountId = 'gone'
+    cfg.workspaces[0]!.accountId = 'gone'
     const r = parseConfig(cfg)
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.config.activeWorkspace).toBe('ws1')
     expect(r.config.settings.defaultAccountId).toBeNull()
     expect(r.config.workspaces[0]!.panes[0]!.accountId).toBeNull()
+    expect(r.config.workspaces[0]!.accountId).toBeNull()
+  })
+
+  it('defaults a project folder and account for configs from before #26', () => {
+    const raw = sample() as unknown as Record<string, unknown>
+    const ws = (raw.workspaces as Record<string, unknown>[])[0]!
+    delete ws.folder
+    delete ws.accountId
+    const r = parseConfig(raw)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.config.workspaces[0]).toMatchObject({ folder: '', accountId: null })
+    // A kept project default survives the round trip.
+    const cfg = sample()
+    cfg.workspaces[0]!.folder = '~/proj'
+    cfg.workspaces[0]!.accountId = 'a1'
+    const r2 = parseConfig(cfg)
+    expect(r2.ok && r2.config.workspaces[0]).toMatchObject({ folder: '~/proj', accountId: 'a1' })
   })
 
   it('migrates the unversioned requirements §9 shape', () => {

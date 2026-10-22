@@ -144,7 +144,7 @@ describe('rebound shortcuts', () => {
     expect(bindingFromEvent(key({ code: 'KeyK', shiftKey: true }), false)).toBeNull()
     const b = (raw: string) => parseBinding(raw)!
     expect(bindingProblem(b('mod+KeyK'), 'newPane')).toMatch(/Shift or Alt/)
-    expect(bindingProblem(b('mod+shift+Digit2'), 'newPane')).toMatch(/workspaces/)
+    expect(bindingProblem(b('mod+shift+Digit2'), 'newPane')).toMatch(/projects/)
     expect(bindingProblem(b('mod+shift+KeyC'), 'newPane')).toMatch(/copy/)
     expect(bindingProblem(b('mod+shift+KeyP'), 'newPane')).toMatch(/Search panes/)
     expect(bindingProblem(b('mod+shift+KeyK'), 'newPane')).toBeNull()

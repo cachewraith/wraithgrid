@@ -110,7 +110,7 @@ export function bindingProblem(
 ): string | null {
   if (!b.shift && !b.alt) return 'Add Shift or Alt: the plain chord belongs to the terminal.'
   if (b.alt && !b.shift && /^Arrow/.test(b.code)) return 'Reserved for moving focus.'
-  if (b.shift && !b.alt && /^Digit[1-9]$/.test(b.code)) return 'Reserved for switching workspaces.'
+  if (b.shift && !b.alt && /^Digit[1-9]$/.test(b.code)) return 'Reserved for switching projects.'
   if (b.shift && b.code === 'Minus') return "Reserved for claude's undo."
   if (b.shift && b.code === 'KeyC') return 'Reserved for copy.'
   if (b.shift && b.code === 'KeyV') return 'Reserved for paste.'

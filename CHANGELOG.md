@@ -2,6 +2,9 @@
 
 ## 2026-10-22
 
+- [ui] New project screen (#26): sidebar + and the palette open a dialog with Folder (in-app picker; suggests the name), Name, Account, Runs on, Start with (first chat open / empty); creation left the switcher, which now says "project" everywhere; New chat prefers the project's folder/account; workspaces keep `folder`/`accountId` (old configs default them) (files: src/renderer/components/{NewProjectDialog,WorkspaceSwitcher,Sidebar,CommandPalette,NewPaneDialog,ShortcutsSheet}.tsx, src/renderer/app/{store,App,shortcuts}.ts(x), src/shared/{types,schema}.ts, tests/unit/{config,shortcuts}.test.ts, tests/e2e/{new-project,sidebar-menus}.spec.ts)
+- [ui] Ghost buttons (Cancel etc.) no longer collapse and overlap their neighbour (#36): PR #23's commit-graph rule `.gh` also matched `.btn.gh`; scoped to `ol.gh` (files: src/renderer/styles/polish.css)
+- [docs] Filed issue #36: Add-account dialog buttons overlap, primary button unthemed (files: docs/TODO.md)
 - [release] v1.13.1 replaces v1.13.0: its Windows CI build failed (folders.test.ts expected `~/code`, Windows gives `~\code`), so the tag published nothing; the test now uses the OS separator (files: tests/unit/folders.test.ts, package.json, CHANGELOG.md)
 - [release] v1.13.0: Pull + commit-graph History in the Changes card, continue a chat as another account, New chat dialog with an in-app folder picker, release notes in About, usage pill per focused account, calmer sidebar (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
 - [git] PRs #30 #31 #32 #33 #34 #35 merged into main (main merged into each first; polish.css conflicts were adjacent additions kept whole — one merge left a block unclosed by a shared `}`, fixed) (files: src/renderer/styles/polish.css, docs/CONTEXT.md, src/main/ipc.ts)

@@ -12,7 +12,6 @@ export function WorkspaceSwitcher() {
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const [rowMode, setRowMode] = useState<RowMode>(null)
-  const [creating, setCreating] = useState<string | null>(null)
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -29,7 +28,7 @@ export function WorkspaceSwitcher() {
   }
 
   const onListKey = (e: React.KeyboardEvent): void => {
-    if (rowMode || creating !== null) return
+    if (rowMode) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setCursor((c) => Math.min(c + 1, items.length - 1))
@@ -57,10 +56,6 @@ export function WorkspaceSwitcher() {
     if (rowMode?.kind === 'rename') actions.renameWorkspace(rowMode.id, rowMode.name)
     setRowMode(null)
   }
-  const create = (): void => {
-    if (creating?.trim()) actions.createWorkspace(creating)
-    setCreating(null)
-  }
   const inlineKeys = (onEnter: () => void, onEsc: () => void) => (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -73,13 +68,13 @@ export function WorkspaceSwitcher() {
   }
 
   return (
-    <Dialog onClose={actions.closeModal} className="w6" label="Switch workspace">
+    <Dialog onClose={actions.closeModal} className="w6" label="Switch project">
       <div onKeyDown={onListKey}>
         <div className="srch">
           <IconSearch />
           <input
-            placeholder="Switch workspace…"
-            aria-label="Filter workspaces"
+            placeholder="Switch project…"
+            aria-label="Filter projects"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -89,9 +84,9 @@ export function WorkspaceSwitcher() {
           />
           <kbd>Esc</kbd>
         </div>
-        <div className="wsl" role="listbox" aria-label="Workspaces">
+        <div className="wsl" role="listbox" aria-label="Projects">
           {items.length === 0 ? (
-            <div className="wsl-empty">No workspace matches “{query}”.</div>
+            <div className="wsl-empty">No project matches “{query}”.</div>
           ) : null}
           {items.map(({ w, index }, i) => {
             if (rowMode?.kind === 'delete' && rowMode.id === w.id) {
@@ -126,7 +121,7 @@ export function WorkspaceSwitcher() {
                     value={rowMode.name}
                     onChange={(e) => setRowMode({ ...rowMode, name: e.target.value })}
                     onKeyDown={inlineKeys(saveRename, () => setRowMode(null))}
-                    aria-label="Workspace name"
+                    aria-label="Project name"
                     maxLength={64}
                     style={{ flex: 1, margin: 4 }}
                     autoFocus
@@ -191,7 +186,7 @@ export function WorkspaceSwitcher() {
                 <button
                   className="icon-btn"
                   aria-label={`Delete ${w.name}`}
-                  title={canDelete ? 'Delete (Del)' : 'The last workspace cannot be deleted'}
+                  title={canDelete ? 'Delete (Del)' : 'The last project cannot be deleted'}
                   disabled={!canDelete}
                   onClick={() => setRowMode({ kind: 'delete', id: w.id })}
                 >
@@ -200,33 +195,12 @@ export function WorkspaceSwitcher() {
               </div>
             )
           })}
-          {creating !== null ? (
-            <div className="wsr on">
-              <input
-                className="inpt sans"
-                value={creating}
-                onChange={(e) => setCreating(e.target.value)}
-                onKeyDown={inlineKeys(create, () => setCreating(null))}
-                aria-label="New workspace name"
-                placeholder="e.g. release-week"
-                maxLength={64}
-                style={{ flex: 1, margin: 4 }}
-                autoFocus
-              />
-              <button className="btn gh" onClick={() => setCreating(null)}>
-                Cancel
-              </button>
-              <button className="btn pri" onClick={create} disabled={!creating.trim()}>
-                Create
-              </button>
-            </div>
-          ) : null}
         </div>
         <div className="dlg-ft">
           <span className="hint">↑↓ move · Enter open · F2 rename · Del delete</span>
-          <button className="btn" onClick={() => setCreating('')}>
+          <button className="btn" onClick={() => actions.openModal({ kind: 'newProject' })}>
             <IconPlus />
-            New workspace
+            New project
           </button>
         </div>
       </div>

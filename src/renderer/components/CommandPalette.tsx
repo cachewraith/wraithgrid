@@ -25,7 +25,7 @@ import {
 
 interface Item {
   id: string
-  group: 'Panes' | 'Commands' | 'Workspaces' | 'Accounts'
+  group: 'Panes' | 'Commands' | 'Projects' | 'Accounts'
   label: string
   sub?: string
   icon: ReactNode
@@ -87,9 +87,16 @@ function buildItems(s: AppState): Item[] {
         ]
       : []),
     {
+      id: 'cmd:new-project',
+      group: 'Commands',
+      label: 'New project…',
+      icon: <IconFolder />,
+      run: () => s.openModal({ kind: 'newProject' })
+    },
+    {
       id: 'cmd:workspaces',
       group: 'Commands',
-      label: 'Manage workspaces…',
+      label: 'Switch project…',
       icon: <IconSidebar />,
       run: () => s.openModal({ kind: 'workspaces' })
     },
@@ -146,7 +153,7 @@ function buildItems(s: AppState): Item[] {
   config.workspaces.forEach((w, i) =>
     items.push({
       id: `ws:${w.id}`,
-      group: 'Workspaces',
+      group: 'Projects',
       label: w.name,
       sub: `${w.panes.length} ${w.panes.length === 1 ? 'pane' : 'panes'}`,
       icon: <IconFolder />,
@@ -211,7 +218,7 @@ export function CommandPalette() {
           <IconSearch />
           <input
             value={query}
-            placeholder="Search panes, workspaces, accounts and commands"
+            placeholder="Search panes, projects, accounts and commands"
             aria-label="Search"
             aria-controls="cp-list"
             aria-activedescendant={items[at] ? `cp-${at}` : undefined}

@@ -33,10 +33,15 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
       ? 'PowerShell'
       : '$SHELL'
 
+  // The active project's own defaults come first (set in New project), then the app-wide ones.
+  const project = useApp((s) => s.config.workspaces.find((w) => w.id === s.config.activeWorkspace))
   const initialAccount =
-    accounts.find((a) => a.id === settings.defaultAccountId)?.id ?? accounts[0]?.id ?? null
+    accounts.find((a) => a.id === project?.accountId)?.id ??
+    accounts.find((a) => a.id === settings.defaultAccountId)?.id ??
+    accounts[0]?.id ??
+    null
   const [accountId, setAccountId] = useState<string | null>(initialAccount)
-  const [folder, setFolder] = useState(recent[0] ?? settings.defaultCwd)
+  const [folder, setFolder] = useState(project?.folder || (recent[0] ?? settings.defaultCwd))
   const [argsText, setArgsText] = useState('')
   const [shell, setShell] = useState(accounts.length === 0)
   const [worktree, setWorktree] = useState(false)
