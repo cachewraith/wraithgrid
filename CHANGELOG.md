@@ -2,6 +2,8 @@
 
 ## 2026-10-22
 
+- [docs] CONTEXT: how to run e2e headless with no window on the desktop (Chromium's headless Ozone through `ELECTRON_OVERRIDE_DIST_PATH`); the pill's account rule (files: docs/CONTEXT.md)
+- [usage] Usage pill and sidebar row follow the focused pane's claude account (else the default, else the first claude account), not always the default; with 2+ claude accounts the pill names it ("work · 42%", "home · –" before its first turn) (#20) (files: src/renderer/lib/usage-format.ts, src/renderer/components/{UsageView,Sidebar}.tsx, src/renderer/styles/polish.css, tests/unit/usage.test.ts, tests/e2e/usage.spec.ts)
 - [release] v1.12.0: attach files in chat, delete chats with a confirm, claude sign-in dialog, Bypass permissions mid-chat, diagram and Mode picker fixes (files: package.json, CHANGELOG.md, docs/CONTEXT.md, docs/WHATS-NEW.md)
 - [chat] Mode picker shows your pick at once (from the pane, which follows claude's reports) instead of waiting for claude to confirm; picking a mode while the chat's process was not running showed nothing before (files: src/renderer/components/chat/ChatView.tsx)
 - [chat] Delete a chat from its project: a trash button on every Open and History row (always shown) and a right-click menu, both asking first; deleting an open chat stops it and does not archive it (files: src/renderer/components/{ProjectView,DeleteChatDialog}.tsx, src/renderer/app/{store.ts,App.tsx}, src/renderer/styles/polish.css, tests/e2e/chat.spec.ts)
