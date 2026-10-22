@@ -2,6 +2,9 @@
 
 ## 2026-10-22
 
+- [docs] Filed issue #41: chat UI for Antigravity CLI (agy) (files: docs/TODO.md)
+- [docs] Filed issue #40: chat UI and sign-in dialog for Codex CLI (claude only today) (files: docs/TODO.md)
+- [docs] Filed issue #39: chat shows no sign of background work (release/push) after the turn ends, so it looks stopped (files: docs/TODO.md)
 - [release] v1.14.0: the New project screen (folder, account, machine, first chat in one step; "project" wording everywhere), the Usage screen redesign (limits leading, sortable tables, sharper chart), and the ghost-button style fix (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
 
 - [ui] Usage screen redesigned (#22): limits lead as per-window cells (large tabular %, thin bar, reset line; account header with initial and plan chip), sharper spend line, chart with hairline grid, "top" scale note and a precise hover caption, Project/Chat tables sortable by any column; same quiet greys, color only near a limit (files: src/renderer/components/UsageView.tsx, src/renderer/styles/polish.css, docs/DECISIONS.md)
