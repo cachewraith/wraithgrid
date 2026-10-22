@@ -110,8 +110,11 @@ export function Composer({
     setText(next)
     setCaret(next.length)
     requestAnimationFrame(() => {
-      ref.current?.focus()
-      ref.current?.setSelectionRange(next.length, next.length)
+      const box = ref.current
+      if (!box) return
+      box.focus()
+      // Only if nothing was typed since: a fast typist's first letters must stay in order.
+      if (box.value === next) box.setSelectionRange(next.length, next.length)
     })
   }
 
