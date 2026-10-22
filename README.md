@@ -4,7 +4,7 @@
 
 # Wraithgrid
 
-**Run many agent CLI sessions (`claude`, `gemini`, `agy`, `codex`, `opencode`, `cursor-agent`, `copilot`) side by side, each with its own account and project folder.**
+**Run many agent CLI sessions (`claude`, `gemini`, `agy`, `codex`, `opencode`, `cursor-agent`, `copilot`) side by side, each with its own account and project folder, as a chat or a terminal.**
 
 [![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/cachewraith/wraithgrid/build.yml?branch=main&style=flat-square&label=build)](https://github.com/cachewraith/wraithgrid/actions/workflows/build.yml)
@@ -35,32 +35,40 @@ accounts each keep their own login, settings and history. Codex, Cursor and Copi
 settings and history per account, but may keep the sign-in in the system keyring, so their
 accounts can end up sharing one login. Antigravity (`agy`) and opencode have no per-account
 folder: all their accounts on a machine share one login.
-Wraithgrid never reads, copies or proxies anything inside those folders.
+Wraithgrid never reads, copies or proxies anything inside those folders, except when you
+move a chat to another account yourself (**Continue as…**), which copies that one
+conversation.
+
+A `claude` pane can be a **chat** (like Claude Desktop or T3 Code) or a **terminal**: in both,
+the official CLI does the work, with the same account, folder, CLAUDE.md, skills and mods.
 
 ## Features
 
-|                                |                                                                                                                                                                                                            |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Many accounts at once**      | Personal, work and client accounts run side by side, each with its own login, settings and history.                                                                                                        |
-| **Seven agent CLIs**           | Each account runs Claude Code, Gemini CLI, Antigravity CLI, Codex, opencode, Cursor Agent or Copilot CLI; mix them in one grid.                                                                            |
-| **Paste screenshots**          | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                                                   |
-| **Flexible layouts**           | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                                                         |
-| **Workspaces**                 | Keep separate sets of panes and switch between them with `Ctrl+Shift+1…9`.                                                                                                                                 |
-| **Account folders**            | Group accounts into folders by drag and drop on the Accounts page.                                                                                                                                         |
-| **Live pane status**           | Each pane shows whether its CLI is running (animated), waiting for your approval, done (finished while you looked elsewhere) or idle. Tuned for `claude`; other CLIs' prompts are matched from their docs. |
-| **Git changes & worktrees**    | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). A pane can also run on its own git worktree branch.                            |
-| **Pick up where you left off** | Panes you prompted continue their conversation when Wraithgrid restarts (`claude --continue`, `codex resume --last`…). Right-click a pane's header to turn it off.                                         |
-| **Search & notifications**     | `Ctrl+Shift+P` finds any pane, workspace or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                                                        |
-| **Shared CLAUDE.md & skills**  | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                                                        |
-| **Mods**                       | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                                                     |
-| **Update alerts**              | A desktop notification tells you once when a new version is released.                                                                                                                                      |
-| **Agents keep running**        | Close the window or quit and the agents carry on in a background process; the next launch shows them again, screen and all. Off until you choose it on first close.                                        |
-| **Command line**               | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                          |
-| **Other machines**             | A workspace can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                   |
-| **Survives restarts**          | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                    |
-| **Themes**                     | Five built-in themes (Wraith, Midnight, Clay, Daylight, Paper), your own theme files to import and share ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes.                 |
-| **Native everywhere**          | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                          |
-| **Private by design**          | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                       |
+|                                 |                                                                                                                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Many accounts at once**       | Personal, work and client accounts run side by side, each with its own login, settings and history.                                                                                                                                          |
+| **Chat or terminal**            | `claude` panes open as a chat: streamed answers, tool cards and diffs, Allow/Deny approvals, model, effort and mode pickers, `/` skills, attached files. Switch any pane to its terminal.                                                    |
+| **Seven agent CLIs**            | Each account runs Claude Code, Gemini CLI, Antigravity CLI, Codex, opencode, Cursor Agent or Copilot CLI; mix them in one grid.                                                                                                              |
+| **Paste screenshots**           | `Ctrl+V` in a pane pastes a clipboard image, even a Wayland screenshot: it is saved to a temp file and attached by path.                                                                                                                     |
+| **Flexible layouts**            | 1, 2 side by side, 2×2 or 3 columns. Drag dividers to resize, drag headers to swap, zoom any pane.                                                                                                                                           |
+| **Projects**                    | A project is a folder plus an account: its chats, their History (search, resume, delete) and its panes. Switch with `Ctrl+Shift+1…9`.                                                                                                        |
+| **Usage**                       | Each claude account's session and weekly limits with reset times, and spend per day, project and chat.                                                                                                                                       |
+| **Continue as another account** | Hit a limit? Carry a chat on under another claude account, in place.                                                                                                                                                                         |
+| **Account folders**             | Group accounts into folders by drag and drop on the Accounts page.                                                                                                                                                                           |
+| **Live pane status**            | Each pane shows whether its CLI is running (animated), waiting for your approval, done (finished while you looked elsewhere) or idle. Tuned for `claude`; other CLIs' prompts are matched from their docs.                                   |
+| **Git changes & worktrees**     | A pane's header shows its branch and change count; `Ctrl+Shift+D` opens the diff beside the grid (drag its edge to resize). Commit, Push, Pull, and a History tab with the commit graph. A pane can also run on its own git worktree branch. |
+| **Pick up where you left off**  | Panes you prompted continue their conversation when Wraithgrid restarts (`claude --continue`, `codex resume --last`…). Right-click a pane's header to turn it off.                                                                           |
+| **Search & notifications**      | `Ctrl+Shift+P` finds any pane, project or command. A desktop notification tells you when a pane you aren't looking at finishes or needs approval.                                                                                            |
+| **Shared CLAUDE.md & skills**   | Every account uses your `~/.claude` CLAUDE.md, settings, skills and plugins, or each keeps its own.                                                                                                                                          |
+| **Mods**                        | Draws what claude mods draw; the **Mods** screen lists your accounts' mods as one, turns them on or off, and loads your own mod folders in every pane.                                                                                       |
+| **In-app updates**              | A desktop notification tells you once when a new version is released; **Settings → About** downloads it, restarts into it and keeps each version's release notes.                                                                            |
+| **Agents keep running**         | Close the window or quit and the agents carry on in a background process; the next launch shows them again, screen and all. Off until you choose it on first close.                                                                          |
+| **Command line**                | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                                                            |
+| **Other machines**              | A project can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                                                       |
+| **Survives restarts**           | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                                                      |
+| **Themes**                      | Five built-in themes (Wraith, Midnight, Clay, Daylight, Paper), your own theme files to import and share ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes, interface size.                                   |
+| **Native everywhere**           | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                                                            |
+| **Private by design**           | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                                                         |
 
 ## Screenshots
 
@@ -170,15 +178,22 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
      **CLI**: Claude Code, Gemini CLI, Antigravity CLI, Codex, opencode, Cursor Agent or Copilot CLI.
    - **Import ~/.claude** points an account at an existing config dir so you keep that login.
      Nothing is copied.
-2. **Sign in.** Press **Login** on an account. A pane opens running `claude` under that
-   account. Press **Run /login** and finish in your browser. The account shows as signed in
-   once the pane prints a successful login, or when you press **Mark as signed in**.
-   Other CLIs ask you to sign in the first time a pane starts.
-3. **Open panes.** Press **New pane** (`Ctrl+Shift+N`) and pick an account, a folder and
-   optional launch args (`--resume`, `-c`). Turn on **Work on a new branch (git worktree)** to
-   give the pane its own checkout under `~/.wraithgrid/worktrees`, so panes in the same repo
-   don't edit each other's files. You can also open a plain shell in a folder.
-4. **Arrange them.**
+2. **Sign in.** Press **Login** on a claude account: a dialog runs claude's own sign-in in
+   that account's folder. Open the sign-in page, paste the code if it shows one, and it says
+   who you are signed in as. **Use a terminal instead** is still there. Other CLIs ask you to
+   sign in the first time a pane starts.
+3. **Create a project.** The **+** next to Projects in the sidebar (or **New project…** in
+   `Ctrl+Shift+P`): pick the folder in Wraithgrid's own folder picker (it fills in the name),
+   the account its chats use, the machine it runs on, and whether the first chat opens right
+   away.
+4. **Open chats and panes.** Press `Ctrl+Shift+N`: pick an account (plan and sign-in state
+   shown) and a folder; in a project both default to the project's, so it is usually just
+   Enter. **More options** has launch args (`--resume`, `-c`), a plain shell, and **Work on a
+   new branch (git worktree)**, which gives the pane its own checkout under
+   `~/.wraithgrid/worktrees` so panes in the same repo don't edit each other's files.
+   **Settings → Chat → New panes open as** picks chat or terminal; the Chat / Terminal switch
+   in a pane's header flips one pane.
+5. **Arrange them.**
    - Drag the dividers to resize.
    - Pick a preset: 1, 2 side by side, 2×2, or 3 columns.
    - Drag a pane by its header onto another pane to swap them.
@@ -186,9 +201,10 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    - Panes that don't fit a preset stay open but hidden. The **+N hidden** chip brings them
      back.
    - Drag the sidebar's right edge to make it wider or narrower; double-click it to reset.
-5. **Workspaces.** Keep separate sets of panes (the sidebar, or **Manage** to create, rename
-   and delete them) and switch with `Ctrl+Shift+1…9`.
-6. **One claude setup for every account.** By default (**Settings → Shared CLAUDE.md and
+6. **Projects.** Click a project in the sidebar to see its open chats and History (search,
+   click to carry on, trash to delete; it asks first). Switch with `Ctrl+Shift+1…9` or
+   **Switch project…** in the palette.
+7. **One claude setup for every account.** By default (**Settings → Shared CLAUDE.md and
    skills → Overall**) every account uses the `CLAUDE.md`, `settings.json`, `skills/`,
    `plugins/`, `agents/` and `commands/` of your normal `~/.claude`, so your instructions and
    installed plugins work in every account. Logins and history stay separate per account.
@@ -201,28 +217,52 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    - On Windows, folders are junctions. Files are symlinks with Developer Mode on, otherwise
      hard links. Editors that save by replacing the file break a hard link, so edit them in
      `~/.claude`.
-7. **Paste images.** Copy an image or take a screenshot, then press `Ctrl+V` (or
+8. **Paste images.** Copy an image or take a screenshot, then press `Ctrl+V` (or
    `Ctrl+Shift+V`) in a pane. Wraithgrid saves it under your temp folder (`wraithgrid-paste`,
    cleared after a day) and pastes its path: `claude` attaches it as an image, `codex` gets
    the plain path, and the other CLIs get an `@path` reference. With no image on the clipboard, `Ctrl+V` works as before.
    On macOS, `Ctrl+V` goes straight to the CLI, which reads the image itself.
-8. **Review changes.** Click the branch label in a pane's header, or press `Ctrl+Shift+D`, to
+9. **Review changes.** Click the branch label in a pane's header, or press `Ctrl+Shift+D`, to
    see what changed in that pane's folder since the last commit, file by file. Drag the
    panel's left edge to resize it (saved); double-click the edge to reset. Below the diff,
    write a message and press **Commit all** (`Ctrl+Enter`), then **Push** and **Pull
-   request** (opens the GitHub or GitLab page for the branch); both ask first. Closing the last
+   request** (opens the GitHub or GitLab page for the branch); both ask first. **Pull**
+   fetches and pulls with your git's own merge/rebase setting (it asks first over uncommitted
+   changes). The **History** tab shows every branch and tag as a commit graph; click a commit
+   for its files and diff. Closing the last
    pane on a worktree asks whether to remove its folder; the branch is kept.
    **Switch branch** by right-clicking the branch label (or clicking the branch in the Changes
    panel, or **Switch branch…** in the pane's menu or `Ctrl+Shift+P`): type to filter your
    branches, newest first, and remote ones you don't have yet, or type a new name to create it.
    Uncommitted changes come along; git refuses if they would be overwritten and says why.
    Every pane on that folder sees the new branch.
-9. **Account folders.** On the Accounts page (the account button at the bottom of the sidebar →
-   **Manage accounts**), **+** creates a folder (double-click to rename). Drag an account onto a
-   folder to move it in, or onto the list to take it out.
+10. **Account folders.** On the Accounts page (the account button at the bottom of the sidebar →
+    **Manage accounts**), **+** creates a folder (double-click to rename). Drag an account onto a
+    folder to move it in, or onto the list to take it out.
+
+### Chat
+
+A chat pane runs the same `claude` without its terminal screen:
+
+- Answers stream in as formatted text with copyable code blocks; commands, file edits (as a
+  diff), searches and task lists show as cards that open to show their output.
+- **Allow**, **Always allow** or **Deny** a tool above the message box. **Stop** or `Esc`
+  stops a turn.
+- Under the message box: the model (Opus, Sonnet, Haiku…), **Effort** (low to max) and
+  **Mode** (plan, accept edits, auto, bypass permissions; `Shift+Tab` cycles). Type `/` for
+  skills and commands.
+- Attach files with the paperclip or by dropping them (up to 20); images go as images, other
+  files as paths claude reads itself. `Ctrl+V` pastes a screenshot.
+- The account chip under the message box → **Continue as…** moves the conversation to
+  another claude account and carries on there; the original stays.
+- **Usage** in the sidebar (or `/usage`) shows each account's limits and spend; the top-bar
+  pill follows the focused pane's account.
+- Chat is for Claude Code for now; other CLIs open as terminals. Chat agents stop when
+  Wraithgrid quits (terminal panes can keep running), and the `wraithgrid` command sees
+  terminal panes only.
 
 When `claude` exits, the pane stays open with the exit code and last error line, and a
-**Restart** button. On the next launch your workspaces, layouts, accounts and folders come
+**Restart** button. On the next launch your projects, layouts, accounts and folders come
 back and each pane starts `claude` again, continuing its conversation if you had prompted it.
 
 **Agents that keep running.** Panes run in a small background process (`wraithgrid-host`), not
@@ -266,10 +306,10 @@ on macOS. On Windows the output does not appear in a console yet.
 
 ### Machines
 
-A workspace can run its panes on another computer: add it under **Settings → Machines** (an
-ssh host from `~/.ssh/config`, or `user@host`; **Test** checks it), then right-click an empty
-workspace → **Run on …**. Panes start there with that computer's `claude` (or other CLI),
-folders and account logins; the sidebar shows the machine's name next to the workspace.
+A project can run its panes on another computer: add it under **Settings → Machines** (an
+ssh host from `~/.ssh/config`, or `user@host`; **Test** checks it), then pick it under
+**Runs on** when you create the project, or right-click an empty project → **Run on …**. Panes start there with that computer's `claude` (or other CLI),
+folders and account logins; the sidebar shows the machine's name next to the project.
 
 - The other computer needs Wraithgrid installed with `wraithgrid` on PATH (the .deb, .rpm,
   pacman or AUR packages do this), and ssh that logs in without a password prompt (a key or an
@@ -284,11 +324,11 @@ folders and account logins; the sidebar shows the machine's name next to the wor
 | Action                              | Keys                 |
 | ----------------------------------- | -------------------- |
 | Search panes and commands           | `Ctrl+Shift+P`       |
-| New pane                            | `Ctrl+Shift+N`       |
+| New chat / pane                     | `Ctrl+Shift+N`       |
 | Close pane                          | `Ctrl+Shift+W`       |
 | Zoom pane / back to grid            | `Ctrl+Shift+Z`       |
 | Move focus left / up / right / down | `Ctrl+Alt+Arrow`     |
-| Switch workspace                    | `Ctrl+Shift+1` … `9` |
+| Switch project                      | `Ctrl+Shift+1` … `9` |
 | Show / hide the git changes         | `Ctrl+Shift+D`       |
 | New line in claude                  | `Shift+Enter`        |
 | Zoom the whole app in / out         | `Ctrl+=` / `Ctrl+-`  |
@@ -303,16 +343,17 @@ Every other key, including `Ctrl+C`, `Esc` and the arrow keys, goes to the termi
 **Settings → Keyboard shortcuts** rebinds search, new pane, close pane, zoom, git changes and
 the shortcuts sheet: press **Change**, then the new chord. It needs `Ctrl` (`⌘` on macOS) with
 Shift or Alt, so plain `Ctrl` chords stay with the terminal; chords already in use (focus
-arrows, workspace digits, copy/paste, claude's undo) are refused.
+arrows, project digits, copy/paste, claude's undo) are refused.
 
 ## Configuration
 
-Settings, accounts and workspaces live in `config.json` (see
+Settings, accounts and projects live in `config.json` (see
 [Platform notes](#install) for the path). Changes are saved automatically. If the file is ever
 unreadable, Wraithgrid moves it to `config.bad-<timestamp>.json` and starts fresh. Wraithgrid
 never saves terminal content.
 
-**Settings** covers:
+**Settings** (tabs: General, Chat, Appearance, Agents & CLIs, Advanced, Keyboard, About)
+covers:
 
 - the `claude` binary: auto-detected from `PATH`, with an optional override; the other CLIs
   are taken from `PATH` unless you set a path under **Other agent CLIs**
@@ -322,8 +363,11 @@ never saves terminal content.
 - desktop notifications for panes that finish or need approval
 - theme (five built in, or your own JSON theme files in `~/.wraithgrid/themes`, see [docs/THEMES.md](docs/THEMES.md)), following the OS light/dark setting, accent color and terminal color palette
 - the terminal font and size
-- update checks against GitHub releases, with a desktop notification once per new version
-  (nothing is downloaded or installed for you)
+- chat defaults: chat or terminal for new panes, model, effort, mode
+- the interface size
+- updates: a check against GitHub releases, a desktop notification once per new version, and
+  **Download** → **Restart now** to install it (macOS opens the release page instead); About
+  keeps the release notes of each version
 
 ### Mods
 

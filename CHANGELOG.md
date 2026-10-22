@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [docs] README caught up with v1.11–v1.14: chat panes (new Chat section), projects (New project, History), Usage, sign-in dialog, Continue as another account, Pull + History, in-app updates, Settings tabs; "workspace" → "project" (files: README.md)
 - [docs] Filed issue #41: chat UI for Antigravity CLI (agy) (files: docs/TODO.md)
 - [docs] Filed issue #40: chat UI and sign-in dialog for Codex CLI (claude only today) (files: docs/TODO.md)
 - [docs] Filed issue #39: chat shows no sign of background work (release/push) after the turn ends, so it looks stopped (files: docs/TODO.md)
