@@ -121,6 +121,8 @@ export const accountDeleteDirArgs = z.object({
   confirm: z.literal(true)
 })
 export const openExternalArgs = z.object({ url: z.string().max(8192) })
+/** A folder the picker browses or reveals: `~`, absolute, or relative to home; main resolves it. */
+export const folderPathArgs = z.object({ path: z.string().max(4096) })
 export const sharedApplyArgs = z.object({ mode: z.enum(SHARED_MODES) })
 /** `launch` checks are skipped in unpackaged (dev and test) builds; `manual` always runs. */
 export const updateCheckArgs = z.object({ reason: z.enum(['launch', 'manual']) })
@@ -330,6 +332,21 @@ export type GitDiffResult =
 export type GitWorktreeResult = { ok: true; dir: string } | { ok: false; error: string }
 
 /** A commit, push or worktree removal; `detail` is a short line for the user. */
+/** One folder's subfolders for the New chat picker; paths are shown with `~`. */
+export type FolderListResult =
+  | {
+      ok: true
+      path: string
+      /** null at the root. */
+      parent: string | null
+      entries: { name: string; hidden: boolean; git: boolean }[]
+      /** More folders than the cap: only the first ones are listed. */
+      truncated: boolean
+      /** The folder's own git branch, when it is a repository. */
+      branch: string | null
+    }
+  | { ok: false; path: string; parent: string | null; error: string }
+
 export type GitActionResult = { ok: true; detail: string } | { ok: false; error: string }
 
 /** A folder's branches, newest commit first; `remote` lists only ones not checked out locally. */
@@ -468,6 +485,12 @@ export interface WraithApi {
   dialog: {
     pickFolder(defaultPath?: string): Promise<string | null>
     pickFile(defaultPath?: string): Promise<string | null>
+  }
+  fs: {
+    /** A folder's subfolders (names and kind only), resolved and read in main. */
+    listFolder(path: string): Promise<FolderListResult>
+    /** Opens the folder in the system file manager. */
+    reveal(path: string): Promise<SimpleResult>
   }
   window: {
     minimize(): void

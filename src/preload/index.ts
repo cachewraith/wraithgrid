@@ -50,6 +50,10 @@ const api: WraithApi = {
     pickFolder: (defaultPath) => ipcRenderer.invoke(IPC.dialogPickFolder, { defaultPath }),
     pickFile: (defaultPath) => ipcRenderer.invoke(IPC.dialogPickFile, { defaultPath })
   },
+  fs: {
+    listFolder: (path) => ipcRenderer.invoke(IPC.fsListFolder, { path }),
+    reveal: (path) => ipcRenderer.invoke(IPC.fsReveal, { path })
+  },
   window: {
     minimize: () => ipcRenderer.send(IPC.windowMinimize),
     maximize: () => ipcRenderer.send(IPC.windowMaximize),

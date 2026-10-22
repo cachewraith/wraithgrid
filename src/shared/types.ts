@@ -233,6 +233,8 @@ export interface Settings {
   terminalPalette: TerminalPalette
   defaultAccountId: string | null
   defaultCwd: string
+  /** Folders pinned at the top of the New chat folder picker. */
+  pinnedFolders: string[]
   sidebarCollapsed: boolean
   /** Expanded sidebar width in px; dragged from its right edge. */
   sidebarWidth: number

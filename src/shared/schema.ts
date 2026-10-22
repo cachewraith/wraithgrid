@@ -129,6 +129,8 @@ export const settingsSchema = z.object({
   terminalPalette: z.enum(TERMINAL_PALETTES).default('match'),
   defaultAccountId: idSchema.nullable().default(null),
   defaultCwd: pathSchema.default('~'),
+  /** Folders pinned at the top of the New chat folder picker. */
+  pinnedFolders: z.array(pathSchema).max(20).default([]).catch([]),
   sidebarCollapsed: z.boolean().default(false),
   sidebarWidth: z
     .number()
