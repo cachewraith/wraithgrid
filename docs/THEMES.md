@@ -87,3 +87,16 @@ cyan). They apply when **Terminal colors** is **Match app**.
 
 The file's name in `~/.wraithgrid/themes/` is its id: lowercase letters, digits and `-`.
 Files can be at most 64 KB; up to 100 are loaded.
+
+## Sharing on the community gallery
+
+**Settings → Appearance → Browse community…** lists themes others published on GitHub. A
+community theme is a repository with `wraithgrid-theme.json`, `manifest.json` and
+`screenshot.png`: start from the
+[theme template](https://github.com/cachewraith/wraithgrid-theme-template), then open a pull
+request adding it to [wraithgrid-themes](https://github.com/cachewraith/wraithgrid-themes).
+Raising `version` in the manifest offers **Update** to people who installed it. **Install from
+GitHub** takes any such repository by its address. Wraithgrid fetches only from
+`raw.githubusercontent.com`, checks the manifest and the theme, and installs nothing it cannot
+read; what came from where is kept in `~/.wraithgrid/themes/community.lock`.
+

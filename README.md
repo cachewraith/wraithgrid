@@ -66,7 +66,7 @@ the official CLI does the work, with the same account, folder, CLAUDE.md, skills
 | **Command line**                | `wraithgrid` lists panes, types into them, waits for them, reads them, opens new ones and attaches a terminal, for scripts or for agents in other panes (opt-in).                                                                            |
 | **Other machines**              | A project can run its panes on another computer over ssh; they keep running there when you disconnect.                                                                                                                                       |
 | **Survives restarts**           | Workspaces, layouts, accounts and folders come back on the next launch.                                                                                                                                                                      |
-| **Themes**                      | Five built-in themes (Wraith, Midnight, Clay, Daylight, Paper), your own theme files to import and share ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes, interface size.                                   |
+| **Themes**                      | Five built-in themes that differ in type, shape and depth, an in-app editor with live preview and contrast checks, community themes from GitHub ([gallery list](https://github.com/cachewraith/wraithgrid-themes), [template](https://github.com/cachewraith/wraithgrid-theme-template)), your own theme files ([format](docs/THEMES.md)), follow the OS light/dark, accents, terminal palettes. |
 | **Native everywhere**           | macOS 12+ (Apple Silicon and Intel), Windows 10/11 and Linux (Ubuntu, Debian, Kali, Fedora, Arch) on X11 or Wayland, including Hyprland and sway.                                                                                            |
 | **Private by design**           | No telemetry. The renderer is sandboxed and reaches the system only through a validated IPC surface.                                                                                                                                         |
 
@@ -377,7 +377,7 @@ covers:
 - sharing `~/.claude` (CLAUDE.md, settings, skills, plugins) with every account, or not
 - the shell plain shell panes run (automatic, any detected shell, or a custom path)
 - desktop notifications for panes that finish or need approval
-- theme (five built in, or your own JSON theme files in `~/.wraithgrid/themes`, see [docs/THEMES.md](docs/THEMES.md)), following the OS light/dark setting, accent color and terminal color palette
+- theme (five built in, made in the editor (**Customize…**), installed from the community gallery (**Browse community…**), or your own JSON files in `~/.wraithgrid/themes`, see [docs/THEMES.md](docs/THEMES.md)), following the OS light/dark setting, accent color and terminal color palette
 - the terminal font and size
 - chat defaults: chat or terminal for new panes, model, effort, mode
 - the interface size

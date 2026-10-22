@@ -679,6 +679,8 @@ void app.whenReady().then(() => {
     envReady,
     updates,
     community: new CommunityCatalog((url, init) => net.fetch(url, init)),
+    themeFetch: (url, init) => net.fetch(url, init),
+    appVersion: app.getVersion(),
     installer: createInstaller(),
     onLaunchUpdateCheck: notify,
     onUpdateCheck: remember,
