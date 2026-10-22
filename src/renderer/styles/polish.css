@@ -1233,42 +1233,79 @@
 .u-sec {
   padding: 22px 0 6px;
   border-top: 1px solid var(--line);
-  margin-top: 18px;
+  margin-top: 20px;
 }
 .u-sec h2 {
-  margin: 0 0 14px;
-  font-size: 13px;
+  margin: 0 0 16px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fa);
 }
 .u-acct + .u-acct {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 .u-acct-hd {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 13.5px;
 }
+.u-acct-hd b {
+  font-weight: 600;
+}
 .u-acct-hd span {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--fa);
+  padding: 1px 8px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+}
+/* The limits are the headline: one quiet cell per window, the number first. */
+.u-lims {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 .ul-row {
   display: grid;
-  /* A fixed reset column, so every bar in the list is the same length. */
-  grid-template-columns: 120px minmax(80px, 1fr) 44px 220px;
-  align-items: center;
-  gap: 14px;
-  padding: 5px 0;
-  font-size: 13px;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  row-gap: 8px;
+  padding: 12px 14px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 .ul-lbl {
+  grid-column: 1 / -1;
+  font-size: 12px;
   color: var(--mu);
 }
+.ul-pct {
+  font-size: 27px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ul-pct em {
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--mu);
+  margin-left: 1px;
+}
+.ul-reset {
+  font-size: 12px;
+  color: var(--fa);
+  white-space: nowrap;
+}
 .ul-bar {
-  height: 4px;
-  border-radius: 2px;
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 3px;
   background: var(--line);
   overflow: hidden;
 }
@@ -1276,24 +1313,20 @@
   display: block;
   height: 100%;
   width: var(--w);
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--sev);
   animation: u-grow 0.25s var(--ease-out) both;
 }
-.ul-pct {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-}
 .sev-warn .ul-pct,
 .sev-err .ul-pct,
+.sev-warn .ul-pct em,
+.sev-err .ul-pct em,
 .ul-warn {
   color: var(--sev);
 }
-.ul-reset {
-  font-size: 12.5px;
-  color: var(--fa);
-  white-space: nowrap;
+.ul-row.sev-warn,
+.ul-row.sev-err {
+  border-color: color-mix(in srgb, var(--sev) 35%, var(--line));
 }
 .u-empty {
   margin: 0;
@@ -1301,35 +1334,63 @@
   color: var(--fa);
 }
 .u-sum {
-  margin: 0 0 14px;
-  font-size: 13.5px;
+  margin: 0 0 16px;
+  font-size: 13px;
   color: var(--mu);
 }
 .u-sum b {
+  display: inline-block;
+  margin-right: 2px;
   color: var(--tx);
-  font-weight: 600;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Daily cost columns */
+/* Daily cost columns on a hairline grid; the picked range darker, the rest context. */
 .uc {
   margin: 0 0 22px;
 }
 .uc-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   height: 18px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 12px;
   color: var(--fa);
 }
 .uc-cap b {
   color: var(--tx);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.uc-top {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.uc-plot {
+  position: relative;
+}
+/* Hairlines at the top of the scale and halfway; the baseline is the axis border. */
+.uc-plot::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 50%;
+  border-top: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--line);
+  pointer-events: none;
 }
 .uc-cols {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 88px;
-  border-bottom: 1px solid var(--line);
+  gap: 3px;
+  height: 92px;
+  border-bottom: 1px solid var(--line2);
 }
 .uc-col {
   flex: 1;
@@ -1337,18 +1398,23 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  border-radius: 4px 4px 0 0;
+  transition: background 0.12s;
+}
+.uc-col.on {
+  background: var(--hover);
 }
 .uc-bar {
-  width: min(100%, 24px);
+  width: min(100%, 22px);
   height: var(--h);
-  border-radius: 3px 3px 0 0;
+  border-radius: 2px 2px 0 0;
   background: var(--line2);
   transform-origin: bottom;
   animation: u-rise 0.25s var(--ease-out) both;
   transition: background 0.12s;
 }
 .uc-col.in .uc-bar {
-  background: var(--fa);
+  background: var(--mu);
 }
 .uc-col.on .uc-bar {
   background: var(--tx);
@@ -1356,9 +1422,9 @@
 .uc-axis {
   display: flex;
   justify-content: space-between;
-  gap: 2px;
+  gap: 3px;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--fa);
 }
 .uc-axis span {
@@ -1372,7 +1438,7 @@
   text-align: right;
 }
 
-/* Tables */
+/* Tables: click a header to sort, again to flip; numbers right-aligned and tabular. */
 .u-tbl {
   width: 100%;
   border-collapse: collapse;
@@ -1387,6 +1453,42 @@
   text-align: left;
   border-bottom: 1px solid var(--line);
 }
+.u-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.u-th:hover,
+.u-th.on {
+  color: var(--tx);
+}
+.u-th-i {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transform: rotate(90deg);
+  transition: transform 0.15s var(--ease-out);
+}
+.u-th:hover .u-th-i {
+  opacity: 0.5;
+}
+.u-th.on .u-th-i {
+  opacity: 1;
+}
+.u-th-i.up {
+  transform: rotate(-90deg);
+}
+.u-tbl th:not(:first-child) .u-th {
+  flex-direction: row-reverse;
+}
 .u-tbl td {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
@@ -1394,6 +1496,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.u-tbl tbody tr {
+  transition: background 0.12s;
+}
+.u-tbl tbody tr:hover {
+  background: var(--hover);
 }
 .u-tbl th:not(:first-child),
 .u-tbl td:not(:first-child) {
@@ -1412,19 +1520,15 @@
   color: var(--fa);
 }
 @container main (max-width: 560px) {
-  .ul-row {
-    grid-template-columns: minmax(0, 1fr) 44px;
-    gap: 4px 12px;
+  .u-lims {
+    grid-template-columns: 1fr;
   }
-  .ul-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .ul-pct {
+    font-size: 23px;
   }
-  .ul-reset {
-    grid-column: 1 / -1;
-  }
-  .u-tbl th:nth-child(3),
-  .u-tbl td:nth-child(3) {
+  /* Drop a middle column (Tokens), never a table's last one (the chats' Cost). */
+  .u-tbl th:nth-child(3):not(:last-child),
+  .u-tbl td:nth-child(3):not(:last-child) {
     display: none;
   }
 }
