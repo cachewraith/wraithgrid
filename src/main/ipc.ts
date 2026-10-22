@@ -58,6 +58,9 @@ import {
   themesDeleteArgs,
   themesExportArgs,
   themesSaveArgs,
+  communityRepoArgs,
+  communityIdArgs,
+  type CommunityThemesResult,
   themesNoArgs,
   type ThemeImportResult,
   type ThemeListResult,
@@ -151,6 +154,8 @@ import {
 } from './git'
 import { accountsRoot, isStrictlyInside, resolveUserPath, themesRoot, worktreesRoot } from './paths'
 import { deleteTheme, importTheme, listThemes, saveTheme } from './themes'
+import { CommunityThemes, repoFromUrl } from './community-themes'
+import type { Fetch } from './update-check'
 import type { UsageStore } from './usage-store'
 import { EMPTY_USAGE, type UsageData } from '@shared/usage'
 import { THEMES_FILE_MAX, themeSlug } from '@shared/themes'
@@ -187,6 +192,9 @@ export interface IpcDeps {
   updates: UpdateChecker
   /** The claudemod.com mod list; read only when the user opens it. */
   community: CommunityCatalog
+  /** The community theme gallery (#24); fetch injected. */
+  themeFetch?: Fetch
+  appVersion?: string
   installer: UpdateInstaller
   /** Keeps the found release's notes (every check that reached GitHub). */
   onUpdateCheck?: (r: UpdateCheckResult) => void
@@ -528,6 +536,11 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   // ---- Themes (~/.wraithgrid/themes) ------------------------------------------------
 
   const themesDir = themesRoot(homeDir)
+  const communityThemes = new CommunityThemes({
+    fetch: deps.themeFetch ?? (() => Promise.reject(new Error('offline'))),
+    dir: themesDir,
+    appVersion: deps.appVersion ?? '0.0.0'
+  })
   handle(IPC.themesList, themesNoArgs, (): Promise<ThemeListResult> => listThemes(themesDir), {
     themes: [],
     problems: []
@@ -577,6 +590,43 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return { ok: true }
     },
     fail('Could not export the theme')
+  )
+  handle(
+    IPC.themesCommunity,
+    themesNoArgs,
+    async (): Promise<CommunityThemesResult> => {
+      try {
+        return { ok: true, ...(await communityThemes.list()) }
+      } catch (err) {
+        return fail((err as Error).message)
+      }
+    },
+    fail('Could not read the community themes')
+  )
+  handle(
+    IPC.themesCommunityShot,
+    communityRepoArgs,
+    (a): Promise<string | null> => communityThemes.screenshot(a.repo),
+    null
+  )
+  handle(
+    IPC.themesCommunityInstall,
+    communityRepoArgs,
+    async (a): Promise<ThemeImportResult> => {
+      const repo = repoFromUrl(a.repo)
+      if (!repo) return fail('Give a GitHub repository: owner/repo or its github.com address.')
+      const r = await communityThemes.install(repo)
+      if (r.ok) log(`installed community theme ${r.id} from ${repo}`)
+      return r
+    },
+    fail('Could not install the theme')
+  )
+  handle(
+    IPC.themesCommunityRemove,
+    communityIdArgs,
+    async (a): Promise<SimpleResult> =>
+      (await communityThemes.uninstall(a.id)) ? { ok: true } : fail('Not a community theme.'),
+    fail('Could not remove the theme')
   )
   handle(
     IPC.themesSave,

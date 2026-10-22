@@ -82,6 +82,10 @@ export const IPC = {
   themesDelete: 'themes:delete',
   themesExport: 'themes:export',
   themesSave: 'themes:save',
+  themesCommunity: 'themes:community',
+  themesCommunityShot: 'themes:communityShot',
+  themesCommunityInstall: 'themes:communityInstall',
+  themesCommunityRemove: 'themes:communityRemove',
   themesOpenFolder: 'themes:openFolder',
   usageGet: 'usage:get'
 } as const

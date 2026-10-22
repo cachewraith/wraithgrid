@@ -1,3 +1,4 @@
+import { CommunityThemes } from './CommunityThemes'
 import { ThemeEditor } from './ThemeEditor'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
@@ -101,6 +102,7 @@ function ThemeRow() {
   const [cardMenu, setCardMenu] = useState<{ at: MenuPoint; t: AppTheme } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
   const follow = pref === 'system'
   const darkId = pickTheme(themes, themeDark, 'dark').id
   const lightId = pickTheme(themes, themeLight, 'light').id
@@ -124,6 +126,9 @@ function ThemeRow() {
           </p>
         </div>
         <div className="thm-acts">
+          <button className="btn" aria-expanded={browsing} onClick={() => setBrowsing(!browsing)}>
+            Browse community…
+          </button>
           <button className="btn" aria-expanded={editing} onClick={() => setEditing(!editing)}>
             Customize…
           </button>
@@ -144,6 +149,7 @@ function ThemeRow() {
           </button>
         </div>
       </div>
+      {browsing ? <CommunityThemes onClose={() => setBrowsing(false)} /> : null}
       {editing ? (
         <ThemeEditor
           start={themes.find((t) => t.id === drawnId) ?? themes[0]!}

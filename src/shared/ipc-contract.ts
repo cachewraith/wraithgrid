@@ -493,6 +493,31 @@ export interface ThemeListResult {
   problems: { file: string; error: string }[]
 }
 export type ThemeImportResult = { ok: true; id: string } | { ok: false; error: string }
+
+/** One theme in the community gallery (#24), from its repository's manifest. */
+export interface CommunityTheme {
+  /** `owner/repo` on GitHub. */
+  repo: string
+  name: string
+  author: string
+  version: string
+  minAppVersion: string | null
+  description: string
+  modes: ('dark' | 'light')[]
+  /** Installed as this theme id, at this version; null when not installed. */
+  installedId: string | null
+  installedVersion: string | null
+  update: boolean
+  /** Needs a newer Wraithgrid than this one. */
+  tooNew: boolean
+}
+export interface CommunityThemeList {
+  themes: CommunityTheme[]
+}
+export type CommunityThemesResult =
+  ({ ok: true } & CommunityThemeList) | { ok: false; error: string }
+export const communityRepoArgs = z.object({ repo: z.string().min(3).max(300) })
+export const communityIdArgs = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/) })
 export type CreateDirResult = { ok: true; dir: string } | { ok: false; error: string }
 
 /** Shape of `window.wraith`, exposed by the preload script. */
@@ -642,6 +667,12 @@ export interface WraithApi {
     import(): Promise<ThemeImportResult | null>
     delete(id: string): Promise<SimpleResult>
     export(theme: ThemeFile): Promise<SimpleResult | null>
+    /** The community gallery; its screenshots one at a time (data URLs). */
+    community(): Promise<CommunityThemesResult>
+    communityShot(repo: string): Promise<string | null>
+    /** Installs or updates a theme from `owner/repo` or a github.com URL. */
+    communityInstall(repo: string): Promise<ThemeImportResult>
+    communityRemove(id: string): Promise<SimpleResult>
     /** Saves the editor's theme as a new file in the themes folder. */
     save(theme: ThemeFile): Promise<ThemeImportResult>
     openFolder(): Promise<SimpleResult>

@@ -119,3 +119,12 @@ export async function deleteTheme(id: string, dir: string): Promise<boolean> {
   await unlink(file)
   return true
 }
+
+/** Writes a checked theme under a given id (a community theme's install or update). */
+export async function writeThemeAs(theme: ThemeFile, dir: string, id: string): Promise<void> {
+  if (!ID.test(id) || BUILT_IN_IDS.has(id)) throw new Error(`Not a theme id: ${id}`)
+  await mkdir(dir, { recursive: true })
+  const file = path.join(dir, `${id}.json`)
+  if (!isStrictlyInside(file, dir)) throw new Error(`Not a theme id: ${id}`)
+  await writeFile(file, `${JSON.stringify(theme, null, 2)}\n`)
+}
