@@ -89,6 +89,7 @@
 .sw::after {
   transition: transform 0.25s var(--ease-spring);
 }
+/* The one global focus ring (base.css had a second); the sidebar draws its own inset one. */
 :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent);
   outline-offset: 1px;
@@ -1205,6 +1206,14 @@
 .u-pill.sev-warn,
 .u-pill.sev-err {
   color: var(--sev);
+}
+/* Whose limit it is, when there is more than one claude account: "work · 42%". */
+.u-pill-who {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mu);
 }
 
 .u-page .page-in {

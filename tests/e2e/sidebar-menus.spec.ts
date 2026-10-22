@@ -91,3 +91,67 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
     await app.close()
   }
 })
+
+test('sidebar focus is an inset ring for keyboard only; no endless motion', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-focus-e2e-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(home, { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: '',
+      accounts: [],
+      workspaces: [
+        { id: 'ws-a', name: 'alpha', panes: [], layout: null },
+        { id: 'ws-b', name: 'beta', panes: [], layout: null }
+      ],
+      activeWorkspace: 'ws-a',
+      recentFolders: [],
+      settings: {}
+    })
+  )
+  const app = await electron.launch({
+    args: [MAIN],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: userData }
+  })
+  try {
+    const win = await app.firstWindow()
+    const side = win.getByRole('complementary', { name: 'Sidebar' })
+    const beta = side.locator('.ws-row', { hasText: 'beta' })
+    const ring = (el: Element) => {
+      const cs = getComputedStyle(el)
+      return { outline: cs.outlineStyle, shadow: cs.boxShadow }
+    }
+
+    // A click selects without a focus ring.
+    await beta.click()
+    expect(await beta.evaluate(ring)).toMatchObject({ outline: 'none', shadow: 'none' })
+
+    // Keyboard focus: an inset ring inside the row, no outline sticking out.
+    await beta.focus()
+    await win.keyboard.press('Shift+Tab')
+    await win.keyboard.press('Tab')
+    await expect(beta).toBeFocused()
+    const focused = await beta.evaluate(ring)
+    expect(focused.outline).toBe('none')
+    expect(focused.shadow).toContain('inset')
+
+    // Nothing in the sidebar animates forever, and nothing overshoots.
+    const endless = await side.evaluate(
+      (el) =>
+        [el, ...el.querySelectorAll('*')].filter((n) => {
+          const cs = getComputedStyle(n)
+          return cs.animationIterationCount === 'infinite' && cs.animationName !== 'none'
+        }).length
+    )
+    expect(endless).toBe(0)
+    const ind = await side.locator('.side-ind').evaluate((el) => getComputedStyle(el).transition)
+    expect(ind).not.toContain('1.4')
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
