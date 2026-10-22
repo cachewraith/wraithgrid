@@ -7,6 +7,7 @@ export const IPC = {
   ptyData: 'pty:data',
   ptyExit: 'pty:exit',
   chatStart: 'chat:start',
+  chatMoveAccount: 'chat:moveAccount',
   chatSend: 'chat:send',
   chatApprove: 'chat:approve',
   chatInterrupt: 'chat:interrupt',

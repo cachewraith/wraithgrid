@@ -1436,3 +1436,39 @@
     animation: none;
   }
 }
+
+/* ---- Chat: continue as another account (#29) ------------------------------------------ */
+
+/* "Continued as home · 14:32": a quiet line across the conversation. */
+.cdiv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.cdiv::before,
+.cdiv::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.mp-hd {
+  padding: 6px 10px 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fa);
+}
+.sw-notes {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mu);
+}
+.dlg-bd .hint.err {
+  margin: 12px 0 0;
+}

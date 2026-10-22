@@ -326,3 +326,66 @@ function ModeList({
     </>
   )
 }
+
+export interface AccountChoice {
+  id: string
+  name: string
+  plan: string | null
+  /** Current-session limit used, in %, when claude has reported one. */
+  sessionPct: number | null
+  signedIn: boolean
+}
+
+/** "Continue as…": carries the chat on as another claude account (#29). */
+export function AccountPicker({
+  current,
+  accounts,
+  busy,
+  onPick,
+  onSignIn
+}: {
+  current: AccountChoice
+  accounts: AccountChoice[]
+  busy: boolean
+  onPick: (id: string) => void
+  onSignIn: (id: string) => void
+}) {
+  const hint = (a: AccountChoice): string =>
+    a.signedIn
+      ? [a.plan, a.sessionPct !== null ? `${a.sessionPct}% of session used` : null]
+          .filter(Boolean)
+          .join(' · ') || 'Signed in'
+      : 'Not signed in · sign in first'
+  return (
+    <ChipMenu
+      label={<span>{current.name}</span>}
+      ariaLabel={`Account: ${current.name}. Continue as another account`}
+      popLabel="Continue as"
+      className="mp-acct"
+    >
+      {(close) => (
+        <div className="mp-list" role="listbox" aria-label="Accounts">
+          <div className="mp-hd">Continue as…</div>
+          {busy ? (
+            <div className="mp-empty">Wait for the answer to finish, or stop it first.</div>
+          ) : null}
+          {accounts.map((a) => (
+            <Option
+              key={a.id}
+              on={a.id === current.id}
+              name={a.name}
+              hint={hint(a)}
+              disabled={busy && a.id !== current.id}
+              onPick={() => {
+                close()
+                if (a.id === current.id) return
+                if (a.signedIn) onPick(a.id)
+                else onSignIn(a.id)
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </ChipMenu>
+  )
+}

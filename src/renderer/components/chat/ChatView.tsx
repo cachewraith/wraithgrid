@@ -17,7 +17,15 @@ import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash
 import { IconArrowDown, IconRestart, IconTerminal } from '../icons'
 import { Composer } from './Composer'
 import { cycleModes } from '@shared/chat'
-import { EffortPicker, ModePicker, ModelPicker } from './ModelPicker'
+import {
+  AccountPicker,
+  EffortPicker,
+  ModePicker,
+  ModelPicker,
+  type AccountChoice
+} from './ModelPicker'
+import { liveWindow } from '@shared/usage'
+import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
@@ -98,7 +106,13 @@ const Item = memo(function Item({
     case 'tool':
       return <ToolCard item={item} live={live} cwd={cwd} />
     case 'notice':
-      return <div className={`cnote ${item.level}`}>{item.text}</div>
+      return item.level === 'divider' ? (
+        <div className="cdiv" role="separator" aria-label={item.text}>
+          <span>{item.text}</span>
+        </div>
+      ) : (
+        <div className={`cnote ${item.level}`}>{item.text}</div>
+      )
     case 'turn':
       return item.error ? (
         <div className="cnote error">{item.error}</div>
@@ -176,6 +190,27 @@ export function ChatView({ paneId, visible, focused }: Props) {
     () => buildSlashItems(thread.commands, thread.terminalOnly),
     [thread.commands, thread.terminalOnly]
   )
+  // "Continue as…": the claude accounts this chat could carry on as (#29).
+  const accounts = useApp((s) => s.config.accounts)
+  const accountInfo = useApp((s) => s.accountInfo)
+  const limits = useApp((s) => s.usage.limits)
+  // A limit past its reset reads 0%.
+  const at = useTicker(60_000)
+  const choices = useMemo((): AccountChoice[] => {
+    return accounts
+      .filter((a) => a.cli === 'claude')
+      .map((a) => {
+        const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
+        return {
+          id: a.id,
+          name: a.name,
+          plan: accountInfo[a.id]?.info?.plan ?? null,
+          sessionPct: five ? Math.round(five.utilization * 100) : null,
+          signedIn: a.signedIn
+        }
+      })
+  }, [accounts, accountInfo, limits, at])
+  const currentChoice = choices.find((c) => c.id === account?.id)
   if (!pane) return null
 
   const cwdAbs = expandHome(pane.cwd, home)
@@ -318,6 +353,17 @@ export function ChatView({ paneId, visible, focused }: Props) {
             // Any CLI whose adapter reports models gets the controls.
             thread.models.length || pane.model ? (
               <>
+                {currentChoice && choices.length > 1 ? (
+                  <AccountPicker
+                    current={currentChoice}
+                    accounts={choices}
+                    busy={thread.busy}
+                    onPick={(id) =>
+                      actions.openModal({ kind: 'switchChatAccount', paneId, accountId: id })
+                    }
+                    onSignIn={(id) => actions.openModal({ kind: 'login', accountId: id })}
+                  />
+                ) : null}
                 <ModelPicker
                   models={thread.models}
                   model={pane.model}
