@@ -1,6 +1,6 @@
 # What's new in 1.13: git history, a better New chat, and switching accounts mid-chat
 
-*v1.13.0 · 2026-10-22*
+*v1.13.1 · 2026-10-22*
 
 | Feature | How to use it |
 |---|---|

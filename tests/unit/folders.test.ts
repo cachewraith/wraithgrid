@@ -4,6 +4,9 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FOLDER_ENTRIES_MAX, gitBranchOf, listFolder } from '../../src/main/folders'
 
+// Display paths keep the OS separator (contractHome), so expectations must too (Windows CI).
+const sep = (s: string): string => s.replaceAll('/', path.sep)
+
 function home(): string {
   const h = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'wg-folders-')))
   for (const d of ['code/api/.git/refs', 'code/web', 'code/.cache', 'Code2', 'docs'])
@@ -19,7 +22,7 @@ describe('folder picker listing', () => {
     const r = await listFolder('~/code', h)
     expect(r).toMatchObject({
       ok: true,
-      path: '~/code',
+      path: sep('~/code'),
       parent: '~',
       truncated: false,
       branch: null
@@ -32,7 +35,7 @@ describe('folder picker listing', () => {
     // Relative paths are from home; the folder's own branch comes from .git/HEAD.
     expect(await listFolder('code/api', h)).toMatchObject({
       ok: true,
-      path: '~/code/api',
+      path: sep('~/code/api'),
       branch: 'feat/x'
     })
     expect((await listFolder('', h)).path).toBe('~')
