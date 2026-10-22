@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { useServices } from '../../app/services'
-import { parseMarkdown, type Block, type Inline } from '../../lib/markdown'
+import { isDiagram, parseMarkdown, type Block, type Inline } from '../../lib/markdown'
 import { IconCheck, IconCopy } from '../icons'
 
 /** Copies `text`; the button shows a tick for a moment. */
@@ -73,7 +73,7 @@ function InlineView({ nodes }: { nodes: Inline[] }) {
 
 function CodeBlock({ lang, text, open }: { lang: string; text: string; open: boolean }) {
   return (
-    <div className="md-code">
+    <div className={`md-code${isDiagram(text) ? ' diagram' : ''}`}>
       <div className="md-code-h">
         <span>{lang || 'text'}</span>
         {open ? null : <CopyButton text={text} label="Copy code" />}

@@ -45,6 +45,9 @@ const splitRow = (line: string): string[] => {
   return s.split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, '|'))
 }
 
+/** A code block drawn with box-drawing/block characters: shown with tight lines so they join. */
+export const isDiagram = (text: string): boolean => /[─-▟]/.test(text)
+
 export function parseMarkdown(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, '\n').split('\n')
   const blocks: Block[] = []

@@ -17,7 +17,7 @@ import {
   serializeThread,
   type ChatThread
 } from '../../src/renderer/lib/chat-thread'
-import { parseInline, parseMarkdown } from '../../src/renderer/lib/markdown'
+import { isDiagram, parseInline, parseMarkdown } from '../../src/renderer/lib/markdown'
 
 // Real claude 2.1.306 output (paths and the plugin list taken out): a Write that asks for
 // approval, an interrupted turn, then a second turn in the same process.
@@ -469,6 +469,12 @@ describe('markdown', () => {
     expect(parseMarkdown('```py\nprint(1)')).toEqual([
       { type: 'code', lang: 'py', text: 'print(1)', open: true }
     ])
+  })
+
+  it('box-drawing code blocks are diagrams', () => {
+    expect(isDiagram('┌──┐\n│ a │\n└──┘')).toBe(true)
+    expect(isDiagram('██ 50%')).toBe(true)
+    expect(isDiagram('a -> b\n|  c  |')).toBe(false)
   })
 
   it('links only to http(s) and mailto', () => {

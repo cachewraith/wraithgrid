@@ -328,10 +328,16 @@ li.done > .md-box,
   line-height: 1.55;
   scrollbar-width: thin;
 }
+/* One block, not an inline box per line: base.css gives every `code` a border. */
 .md-code pre code {
+  display: block;
   padding: 0;
+  border: 0;
   background: none;
   font-size: inherit;
+}
+.md-code.diagram pre {
+  line-height: 1.2;
 }
 .md-table {
   margin: 4px 0 12px;

@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [chat] Diagrams in code blocks draw whole: no border on every line (base `code` rule leaked into blocks), box-drawing blocks get tight lines so `│` joins (files: src/renderer/styles/chat.css, src/renderer/lib/markdown.ts, src/renderer/components/chat/Markdown.tsx, tests/unit/chat.test.ts)
 - [docs] Logged a bug: chat diagrams show as broken or raw code blocks; planned attaching local files in chat; logged a performance issue and a missing delete-chat button + confirm, Mode can't change mid-chat, sign in from a UI dialog (files: docs/TODO.md)
 - [release] v1.11.1: the 1.11 features (v1.11.0 was tagged but its Linux build failed, so it has no release), plus a chat no longer shows as idle while a queued message runs (files: package.json, CHANGELOG.md, docs/CONTEXT.md, docs/WHATS-NEW.md)
 
