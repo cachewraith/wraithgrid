@@ -23,6 +23,7 @@ import {
   chatSetModelArgs,
   chatSetModeArgs,
   chatStartArgs,
+  chatMoveAccountArgs,
   chatStopArgs,
   type ChatStartResult,
   accountCreateDirArgs,
@@ -164,6 +165,7 @@ import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
+import { copyTranscript } from './chat/transcript'
 import type { Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
@@ -349,6 +351,33 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   // ---- Chat panes (ADR 0002) -------------------------------------------------------
 
   const { chats } = deps
+  // Switching a chat's account (#29): the conversation file is copied into the other
+  // account's dir; both accounts come from main's own config and must be claude accounts in
+  // Wraithgrid's own folder.
+  handle(
+    IPC.chatMoveAccount,
+    chatMoveAccountArgs,
+    async (a): Promise<SimpleResult> => {
+      const cfg = store.get()
+      const pane = cfg.workspaces.flatMap((w) => w.panes).find((p) => p.id === a.paneId)
+      if (!pane) return fail('That pane is gone.')
+      // The renderer stopped it already; make sure the process is gone before copying.
+      await chats.stop(a.paneId)
+      const from = cfg.accounts.find((x) => x.id === pane.accountId)
+      const to = cfg.accounts.find((x) => x.id === a.toAccountId)
+      if (!from || !to) return fail('That account is gone.')
+      if (from.cli !== 'claude' || to.cli !== 'claude')
+        return fail('Only claude chats can switch accounts for now.')
+      return copyTranscript(
+        resolveUserPath(from.configDir, homeDir),
+        resolveUserPath(to.configDir, homeDir),
+        a.sessionId,
+        accountsRoot(homeDir)
+      )
+    },
+    fail('Could not switch the account')
+  )
+
   handle(
     IPC.chatStart,
     chatStartArgs,

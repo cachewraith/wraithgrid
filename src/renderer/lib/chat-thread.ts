@@ -34,7 +34,8 @@ export type ChatItem =
       isError: boolean
       approval: ToolApproval | null
     }
-  | { kind: 'notice'; id: string; level: 'info' | 'error'; text: string }
+  /** `divider`: a line across the chat, e.g. "Continued as home · 14:32". */
+  | { kind: 'notice'; id: string; level: 'info' | 'error' | 'divider'; text: string }
   | {
       kind: 'turn'
       id: string
@@ -118,7 +119,11 @@ export function addUserMessage(
   }
 }
 
-export function addNotice(t: ChatThread, level: 'info' | 'error', text: string): ChatThread {
+export function addNotice(
+  t: ChatThread,
+  level: 'info' | 'error' | 'divider',
+  text: string
+): ChatThread {
   const [id, seq] = nextId(t, 'n')
   return { ...t, seq, items: [...t.items, { kind: 'notice', id, level, text }] }
 }

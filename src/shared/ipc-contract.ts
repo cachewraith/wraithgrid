@@ -62,6 +62,12 @@ export const chatStartArgs = z.object({
   mode: z.enum(CHAT_MODES).nullable().default(null)
 })
 export type ChatStartArgs = z.infer<typeof chatStartArgs>
+/** Copies a chat's conversation into another claude account's dir before it resumes there. */
+export const chatMoveAccountArgs = z.object({
+  paneId: idSchema,
+  toAccountId: idSchema,
+  sessionId: chatSessionIdSchema
+})
 export const chatSendArgs = z.object({
   paneId: idSchema,
   text: z.string().max(CHAT_TEXT_MAX),
@@ -482,6 +488,8 @@ export interface WraithApi {
   /** Chat panes (ADR 0002): the CLI runs headless and speaks ChatEvents. */
   chat: {
     start(args: ChatStartArgs): Promise<ChatStartResult>
+    /** Copies the conversation to another claude account's dir (the chat must be stopped). */
+    moveAccount(paneId: string, toAccountId: string, sessionId: string): Promise<SimpleResult>
     send(paneId: string, text: string, images: ChatImage[]): void
     approve(paneId: string, reqId: string, decision: ApprovalDecision): void
     interrupt(paneId: string): void

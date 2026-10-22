@@ -13,7 +13,8 @@ import { useActions, useApp } from '../app/services'
 import { fmtCost, fmtTokens, fmtUntil, limitAccountId, severity } from '../lib/usage-format'
 import { IconGauge } from './icons'
 
-function useTicker(ms: number): number {
+/** The time now, updated every `ms`. */
+export function useTicker(ms: number): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), ms)

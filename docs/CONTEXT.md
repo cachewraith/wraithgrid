@@ -32,7 +32,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/main/ipc.ts`: all IPC handlers; validates every payload with zod contracts
 - `src/main/pane-host.ts`: GUI side of the pty host: find/start it, hello + token, create/attach/write/kill, version mismatch
 - `src/host/`: background pty host (ADR 0001), built as `out/main/host.js`, never imports electron: `index.ts` entry (lock, token, socket), `server.ts` panes + clients, `protocol.ts` NDJSON frames (zod), `paths.ts` socket/token paths per user-data dir, `screen.ts` headless xterm + serialize, `fds.ts` inherited-fd masking, `pty-manager.ts` spawns/kills pane processes (per-OS KillPolicy)
-- `src/main/chat/`: chat panes (ADR 0002): `sessions.ts` runs one headless CLI per pane (pipes, JSON lines), `adapter.ts` registry, `claude.ts` stream-json ↔ ChatEvent (+ approvals), `spawn.ts` masked fds/process group, `attach.ts` files from the attach picker; add a CLI = one adapter + `chat: true` in agent-clis
+- `src/main/chat/`: chat panes (ADR 0002): `sessions.ts` runs one headless CLI per pane (pipes, JSON lines), `adapter.ts` registry, `claude.ts` stream-json ↔ ChatEvent (+ approvals), `spawn.ts` masked fds/process group, `attach.ts` files from the attach picker, `transcript.ts` copies a conversation to another account's dir (switch account, #29); add a CLI = one adapter + `chat: true` in agent-clis
 - `src/main/login.ts`: sign-in dialog backend: `claude auth login` over pipes per account, `auth status --json` at the end
 - `src/main/clipboard-image.ts`: clipboard image → temp file → text to paste (path, or `@path` for gemini/agy)
 - `src/main/pane-env.ts`: builds a pane's env (per-CLI config dir var for agent panes; mod folders as `CLAUDE_CODE_PLUGIN_DIRS` for claude; strips the launching terminal's vars; UTF-8 locale fallback)
@@ -152,6 +152,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Ctrl+=/-/0 zoom the whole app (`uiZoom`, `webFrame.setZoomFactor` in preload), not the terminal font.
 - Top bar has no Settings/Mods/Shortcuts buttons: e2e click `More` then the menuitem. Sidebar and `.main` are cards inside `.row` (8px padding, `--frame` behind).
 - Login button: claude accounts get LoginDialog (`login:*` IPC, fake claude handles `auth login`/`auth status`, code `good-code`); other CLIs and "Use a terminal instead" = `loginInTerminal` (the old pane). Chat attachments: picked/dropped non-images are sent as an "Attached files:" path list for claude's Read tool; drag-drop paths come from preload `webUtils.getPathForFile`.
+- Fake claude (`fake-claude-chat.sh`) appends each user turn to `$CLAUDE_CONFIG_DIR/projects/<cwd with non-alnum → ->/<sid>.jsonl`, like real claude; `--resume X` answers as session `resumed-X`.
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
 
 ## Current focus
