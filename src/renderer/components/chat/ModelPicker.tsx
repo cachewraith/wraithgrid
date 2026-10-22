@@ -265,8 +265,6 @@ export function ModePicker({
   openSignal?: number
   onMode: (mode: ChatMode) => void
 }) {
-  const [confirm, setConfirm] = useState(false)
-  const modes = CHAT_MODES.filter((m) => m !== 'auto' || autoMode || mode === 'auto')
   return (
     <ChipMenu
       label={
@@ -280,37 +278,51 @@ export function ModePicker({
       className={`mode-chip mode-${mode}`}
       openSignal={openSignal}
     >
-      {(close) => (
-        <>
-          <div className="mp-list" role="listbox" aria-label="Modes">
-            {modes.map((m) => {
-              const asking = m === 'bypassPermissions' && confirm && mode !== m
-              return (
-                <Option
-                  key={m}
-                  on={mode === m}
-                  name={asking ? 'Click again to bypass permissions' : CHAT_MODE_LABEL[m]}
-                  hint={CHAT_MODE_HINT[m]}
-                  tone={m === 'bypassPermissions' ? 'danger' : undefined}
-                  onPick={() => {
-                    // Running everything unasked takes a second click.
-                    if (m === 'bypassPermissions' && mode !== m && !confirm) {
-                      setConfirm(true)
-                      return
-                    }
-                    setConfirm(false)
-                    onMode(m)
-                    close()
-                  }}
-                />
-              )
-            })}
-          </div>
-          <p className="mp-foot">
-            Shift+Tab switches between the first {autoMode ? 'four' : 'three'}.
-          </p>
-        </>
-      )}
+      {(close) => <ModeList mode={mode} autoMode={autoMode} onMode={onMode} close={close} />}
     </ChipMenu>
+  )
+}
+
+/** Mounted only while the menu is open, so the bypass confirm never outlives it. */
+function ModeList({
+  mode,
+  autoMode,
+  onMode,
+  close
+}: {
+  mode: ChatMode
+  autoMode: boolean
+  onMode: (mode: ChatMode) => void
+  close: () => void
+}) {
+  const [confirm, setConfirm] = useState(false)
+  const modes = CHAT_MODES.filter((m) => m !== 'auto' || autoMode || mode === 'auto')
+  return (
+    <>
+      <div className="mp-list" role="listbox" aria-label="Modes">
+        {modes.map((m) => {
+          const asking = m === 'bypassPermissions' && confirm && mode !== m
+          return (
+            <Option
+              key={m}
+              on={mode === m}
+              name={asking ? 'Click again to bypass permissions' : CHAT_MODE_LABEL[m]}
+              hint={CHAT_MODE_HINT[m]}
+              tone={m === 'bypassPermissions' ? 'danger' : undefined}
+              onPick={() => {
+                // Running everything unasked takes a second click.
+                if (m === 'bypassPermissions' && mode !== m && !confirm) {
+                  setConfirm(true)
+                  return
+                }
+                onMode(m)
+                close()
+              }}
+            />
+          )
+        })}
+      </div>
+      <p className="mp-foot">Shift+Tab switches between the first {autoMode ? 'four' : 'three'}.</p>
+    </>
   )
 }

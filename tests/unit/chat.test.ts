@@ -109,6 +109,34 @@ describe('claude chat adapter', () => {
     ).toEqual(['--resume', 's', '--model', 'opus', '--effort', 'max'])
   })
 
+  it('allows bypass mid-chat, and a refused mode switch says why and keeps the mode in force', () => {
+    const a = createClaudeAdapter()
+    expect(a.args({ sessionId: null, continueLast: false, model: null, effort: null })).toContain(
+      '--allow-dangerously-skip-permissions'
+    )
+    a.decode({ type: 'system', subtype: 'status', permissionMode: 'acceptEdits' })
+    const req = a.setMode!('bypassPermissions') as { request_id: string }
+    // Real claude 2.1.306 answer for a session started without the allow flag.
+    const out = a.decode({
+      type: 'control_response',
+      response: {
+        subtype: 'error',
+        request_id: req.request_id,
+        error:
+          'Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions',
+        error_code: 'bypass_not_launched'
+      }
+    })
+    expect(out.events).toEqual([
+      expect.objectContaining({ t: 'notice', level: 'error' }),
+      { t: 'mode', mode: 'acceptEdits' }
+    ])
+    // Another request's error is not a mode change.
+    expect(
+      a.decode({ type: 'control_response', response: { subtype: 'error', request_id: 'x' } }).events
+    ).toEqual([])
+  })
+
   it('only claude has a chat adapter for now', () => {
     expect(chatAdapterFor('claude')).not.toBeNull()
     expect(chatAdapterFor('codex')).toBeNull()
