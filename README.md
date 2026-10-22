@@ -18,8 +18,8 @@
 <br />
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/grid-light.png" />
-  <img src="docs/screenshots/grid-dark.png" alt="Wraithgrid showing four claude sessions in a 2×2 grid, each under a different account and project folder, with accounts grouped in a sidebar folder" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/chat-light.png" />
+  <img src="docs/screenshots/chat-dark.png" alt="Wraithgrid with two claude chats side by side under different accounts: one fixed a slow endpoint with tool cards and a results table, the other waits for approval to push a branch" />
 </picture>
 
 ## Why Wraithgrid
@@ -75,22 +75,32 @@ the official CLI does the work, with the same account, folder, CLAUDE.md, skills
 <table>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/new-pane.png" alt="New pane dialog with account picker, working directory and launch args" />
-      <p align="center"><b>New pane</b>: pick an account, a folder and launch args</p>
+      <img src="docs/screenshots/project.png" alt="A project page: its open chats with their account and state, and History with search and delete" />
+      <p align="center"><b>Project</b>: open chats and History</p>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/accounts.png" alt="Accounts view listing four accounts with icons, their config dirs, shared ~/.claude and login state" />
-      <p align="center"><b>Accounts</b>: one <code>CLAUDE_CONFIG_DIR</code> per account, each with its own icon</p>
+      <img src="docs/screenshots/usage.png" alt="Usage: session and weekly limits per account with reset times, cost per day for 30 days, spend per project and chat" />
+      <p align="center"><b>Usage</b>: limits per account, spend per day, project and chat</p>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/settings.png" alt="Settings: theme, accent color, terminal colors and font" />
-      <p align="center"><b>Settings</b>: shared <code>~/.claude</code>, theme, accent, terminal colors and font</p>
+      <img src="docs/screenshots/grid-dark.png" alt="Four claude sessions as terminals in a 2×2 grid, each under a different account and folder: one running, one waiting for approval" />
+      <p align="center"><b>Terminal panes</b>: the full CLI, side by side</p>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/grid-light.png" alt="The pane grid in the light theme with a teal accent" />
-      <p align="center"><b>Light theme</b>, teal accent</p>
+      <img src="docs/screenshots/new-pane.png" alt="New chat dialog: account list with plan and sign-in state, folder, recent folders, More options" />
+      <p align="center"><b>New chat</b>: account, folder, Start</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/accounts.png" alt="Accounts page: accounts grouped in folders, config dirs, shared ~/.claude and sign-in state" />
+      <p align="center"><b>Accounts</b>: one config dir per account, grouped in folders</p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/settings.png" alt="Settings, Appearance tab: theme cards, interface size, accent color and terminal colors" />
+      <p align="center"><b>Settings</b>: themes, interface size, accent, terminal colors</p>
     </td>
   </tr>
 </table>

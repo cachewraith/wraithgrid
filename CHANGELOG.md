@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- [docs] README screenshots retaken for the chat UI: hero is two chats (tool cards, table, approval) in dark/light, plus Project, Usage (30 days seeded), terminal grid, New chat, Accounts, Settings; `grid-light.png` dropped. The spec stages chats via a new scripted `demo-claude-chat.sh` and a seeded usage.json; stale locators fixed (files: docs/screenshots/*.png, README.md, tests/e2e/readme-shots.spec.ts, tests/fixtures/{demo-claude,demo-claude-chat}.sh)
 - [docs] README caught up with v1.11–v1.14: chat panes (new Chat section), projects (New project, History), Usage, sign-in dialog, Continue as another account, Pull + History, in-app updates, Settings tabs; "workspace" → "project" (files: README.md)
 - [docs] Filed issue #41: chat UI for Antigravity CLI (agy) (files: docs/TODO.md)
 - [docs] Filed issue #40: chat UI and sign-in dialog for Codex CLI (claude only today) (files: docs/TODO.md)

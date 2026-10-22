@@ -130,7 +130,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - No icons or emoji for accounts/projects/folders (removed 2026-10-21): `icon`/`color` fields stay in the schema so old configs load, and are ignored; accounts show `<Initial>`.
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
-- Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots. README images: `bun run build`, then `WRAITHGRID_README_SHOTS=docs/screenshots ./node_modules/.bin/playwright test readme-shots` (skipped without the env).
+- Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots. README images: `bun run build`, then `WRAITHGRID_README_SHOTS=docs/screenshots ./node_modules/.bin/playwright test readme-shots` (skipped without the env); chat shots come from `tests/fixtures/demo-claude-chat.sh` (prompts with "orders"/"ship"), Usage from a seeded `usage.json`.
 - Electron 44's main `clipboard` is the async web-style API (no `readImage`). Image paste in agent panes: Wraithgrid intercepts Ctrl+V (not macOS) and pastes a saved file path (claude's own read misses some screenshots).
 - `agy` and opencode have no per-account dir (shared sign-in); codex/cursor/copilot may keep the sign-in in the keyring (`dir-unchecked`). Non-claude binaries: `settings.cliPaths`, else PATH.
 - Resume: only a pane's first start after launch, only with `hasConversation` (set on the first Enter); "continue latest" args pick the folder's newest conversation, so two panes on one folder + account resume the same one.

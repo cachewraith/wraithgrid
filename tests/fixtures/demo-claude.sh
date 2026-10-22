@@ -6,6 +6,14 @@ if [ "$1" = "--version" ]; then
   exit 0
 fi
 [ "$1" = "plugin" ] && { echo '[]'; exit 0; }
+[ "$1 $2" = "auth status" ] && {
+  echo "{\"loggedIn\":true,\"authMethod\":\"claude.ai\",\"email\":\"$(basename "$CLAUDE_CONFIG_DIR")@example.com\",\"subscriptionType\":\"max\"}"
+  exit 0
+}
+# Chat panes run claude headless (stream-json): scripted turns.
+case " $* " in
+  *" --input-format stream-json "*) exec "$(dirname "$0")/demo-claude-chat.sh" "$@" ;;
+esac
 
 g=$'\e[32m' y=$'\e[33m' r=$'\e[31m' c=$'\e[36m' o=$'\e[38;5;209m' d=$'\e[2m' b=$'\e[1m' z=$'\e[0m'
 ask() { printf '%s>%s %s\n\n' "$d" "$z" "$1"; }
