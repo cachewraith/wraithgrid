@@ -138,6 +138,31 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await expect(panel.getByRole('status')).toContainText('Pushed main to origin')
     expect(git(bare, 'log', '-1', '--format=%s', 'main').trim()).toBe('feat: b')
 
+    // Pull: a commit pushed from elsewhere comes in, and says how many.
+    const other = path.join(tmp, 'other')
+    git(tmp, 'clone', '-q', '-b', 'main', bare, other)
+    fs.writeFileSync(path.join(other, 'theirs.txt'), 'theirs\n')
+    git(other, 'add', '-A')
+    git(other, 'commit', '-q', '-m', 'feat: theirs')
+    git(other, 'push', '-q', 'origin', 'main')
+    await panel.getByRole('button', { name: /^Pull( \(\d+\))?$/ }).click()
+    await expect(panel.getByRole('status')).toHaveText('Pulled 1 commit')
+    expect(git(repo, 'log', '-1', '--format=%s').trim()).toBe('feat: theirs')
+    await panel.getByRole('button', { name: /^Pull( \(\d+\))?$/ }).click()
+    await expect(panel.getByRole('status')).toHaveText('Up to date')
+
+    // History: the commits as a graph with branch labels; a commit opens its files.
+    await panel.getByRole('tab', { name: 'History' }).click()
+    const history = panel.getByRole('list', { name: 'Commit history' })
+    const top = history.locator('.gh-row').first()
+    await expect(top).toContainText('feat: theirs')
+    await expect(top.locator('.gh-ref.head')).toHaveText('main')
+    await expect(top.locator('.gh-g circle')).toHaveCount(1)
+    await history.locator('.gh-row', { hasText: 'feat: b' }).locator('.gh-main').click()
+    await expect(history.locator('.gh-files .df-name')).toContainText('auth.ts')
+    if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'history-dark.png') })
+    await panel.getByRole('tab', { name: 'Changes' }).click()
+
     // Switch branch: right-click the chip, filter, Enter.
     git(repo, 'branch', 'older')
     git(repo, 'push', '-q', 'origin', 'main:refs/heads/theirs')

@@ -3,15 +3,16 @@
 // (AppImage, deb, rpm, pacman, the Windows installer).
 import { z } from 'zod'
 import type { ReleaseInfo, UpdateCheckResult } from '@shared/ipc-contract'
+import { RELEASES_REPO, cleanReleaseBody } from '@shared/whats-new'
 
-/** Fixed on purpose: the checker never fetches a URL that came from config or the renderer. */
-export const RELEASES_REPO = 'cachewraith/wraithgrid'
+// Fixed on purpose: the checker never fetches a URL that came from config or the renderer.
+export { RELEASES_REPO }
 const LATEST_URL = `https://api.github.com/repos/${RELEASES_REPO}/releases/latest`
 const TIMEOUT_MS = 10_000
 /** Unauthenticated GitHub API calls are limited to 60 an hour; repeated clicks reuse the answer. */
 const MIN_INTERVAL_MS = 30_000
 const MAX_BODY_BYTES = 1_000_000
-const MAX_NOTES = 4000
+const MAX_NOTES = 8000
 
 // ---- Versions ----------------------------------------------------------------------
 
@@ -72,7 +73,8 @@ export function parseRelease(raw: unknown): ReleaseInfo | null {
   return {
     version: tag.replace(/^v/, ''),
     url: `https://github.com/${RELEASES_REPO}/releases/tag/${encodeURIComponent(tag)}`,
-    notes: (r.data.body ?? '').replace(/\r\n/g, '\n').trim().slice(0, MAX_NOTES),
+    // Up to the workflow's footer marker: the PR list is for GitHub, not the app.
+    notes: cleanReleaseBody(r.data.body ?? '', MAX_NOTES),
     publishedAt: r.data.published_at ?? null
   }
 }

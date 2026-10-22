@@ -119,3 +119,97 @@ test('usage: limits from claude fill the button and panel; turns are recorded', 
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })
+
+test("usage: the pill follows the focused chat's account and names it", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-usage2-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  const account = (id: string, name: string) => ({
+    id,
+    name,
+    configDir: `~/.wraithgrid/accounts/${name}`,
+    color: '#7c5cff',
+    signedIn: true,
+    imported: false
+  })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: FAKE_CLAUDE,
+      accounts: [account('a-work', 'work'), account('a-home', 'home')],
+      workspaces: [
+        {
+          id: 'ws-main',
+          name: 'main',
+          panes: [
+            { id: 'p-work', accountId: 'a-work', cwd: '~/proj', title: 'w', view: 'chat' },
+            { id: 'p-home', accountId: 'a-home', cwd: '~/proj', title: 'h', view: 'chat' }
+          ],
+          layout: null
+        }
+      ],
+      activeWorkspace: 'ws-main',
+      recentFolders: [],
+      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false }
+    })
+  )
+  // The default account (work) already has a limit from earlier; home has none yet.
+  const later = Date.now() + 3 * 3_600_000
+  fs.writeFileSync(
+    path.join(userData, 'usage.json'),
+    JSON.stringify({
+      buckets: [],
+      limits: {
+        'a-work': {
+          fiveHour: { utilization: 0.13, resetsAt: later },
+          sevenDay: { utilization: 0.2, resetsAt: later },
+          at: Date.now()
+        }
+      }
+    })
+  )
+  const app = await electron.launch({
+    args: [MAIN],
+    cwd: tmp,
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: userData }
+  })
+  try {
+    const win = await app.firstWindow()
+    const pill = win.locator('.u-pill')
+    const homePane = win.getByRole('region', { name: /^h pane, account home/ })
+    const workPane = win.getByRole('region', { name: /^w pane, account work/ })
+
+    // Focusing home's chat: its own (unknown) limit, never work's.
+    await homePane.getByLabel('Message', { exact: true }).click()
+    await expect(pill).toHaveText('home·–')
+    await expect(pill).toHaveAttribute(
+      'aria-label',
+      'Usage: no limits from home yet (they show after its first chat turn)'
+    )
+
+    // A turn as home reports home's limit (the fake claude says 42%).
+    const composer = homePane.getByLabel('Message', { exact: true })
+    await composer.fill('hello')
+    // Two chats start at once: Enter only sends once this one is ready.
+    await expect(homePane.getByRole('button', { name: 'Send (Enter)' })).toBeEnabled()
+    await composer.press('Enter')
+    await expect(homePane.locator('.cmsg.agent').first()).toContainText('Hello from fake claude')
+    await expect(pill).toHaveText('home·42%')
+    await expect(pill).toHaveAttribute(
+      'aria-label',
+      'Usage: home: 42% of the current session limit'
+    )
+
+    // Focusing work's chat switches to work's limit; so does the sidebar row.
+    await workPane.getByLabel('Message', { exact: true }).click()
+    await expect(pill).toHaveText('work·13%')
+    const side = win.getByRole('complementary', { name: 'Sidebar' })
+    await expect(side.getByRole('button', { name: /^Usage/ })).toContainText('13%')
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})

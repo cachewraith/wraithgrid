@@ -89,6 +89,7 @@
 .sw::after {
   transition: transform 0.25s var(--ease-spring);
 }
+/* The one global focus ring (base.css had a second); the sidebar draws its own inset one. */
 :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent);
   outline-offset: 1px;
@@ -1206,6 +1207,14 @@
 .u-pill.sev-err {
   color: var(--sev);
 }
+/* Whose limit it is, when there is more than one claude account: "work · 42%". */
+.u-pill-who {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mu);
+}
 
 .u-page .page-in {
   max-width: 760px;
@@ -1471,4 +1480,253 @@
 }
 .dlg-bd .hint.err {
   margin: 12px 0 0;
+}
+
+/* ---- Changes panel: a rounded card on the frame, like the sidebar and main area (#23) --- */
+
+.row > .dp {
+  margin-left: var(--panel-gap);
+  border: 1px solid var(--line);
+  border-radius: var(--panel-r);
+  box-shadow: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
+  background: var(--bg);
+  overflow: hidden;
+}
+:root[data-theme='light'] .row > .dp {
+  box-shadow: 0 4px 18px -12px rgba(0, 0, 0, 0.25);
+}
+.dp-hd {
+  height: 44px;
+  padding: 0 8px 0 10px;
+}
+.dp-tabs .seg-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+.dp .df {
+  border-radius: 10px;
+}
+.dp-ft {
+  padding: 10px;
+}
+.dp-msg {
+  border-radius: 10px;
+}
+.dp-acts .btn.sm,
+.dp-ask .btn.sm {
+  border-radius: 8px;
+}
+
+/* History: the graph column, then the commit; an open commit lists its files. */
+.gh {
+  list-style: none;
+  margin: -10px;
+  padding: 4px 0 8px;
+}
+.gh-line {
+  display: flex;
+  align-items: stretch;
+  padding-left: 8px;
+}
+.gh-g,
+.gh-through {
+  flex: none;
+  overflow: visible;
+}
+.gh-g path,
+.gh-through path {
+  fill: none;
+  stroke-width: 2;
+}
+.gh-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 46px;
+  margin: 0 6px 0 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.gh-main:hover,
+.gh-row.on .gh-main {
+  background: var(--hover);
+}
+.gh-subj {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+.gh-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.gh-ref {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  font-size: 11px;
+  color: var(--mu);
+}
+.gh-ref.head {
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+  color: var(--acct);
+}
+.gh-ref.tag {
+  border-style: dashed;
+}
+.gh-open {
+  display: flex;
+  align-items: stretch;
+  padding-left: 8px;
+}
+.gh-files {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 8px 8px 4px;
+  animation: gh-open 0.16s var(--ease-out);
+}
+.gh-open > .dp-empty {
+  flex: 1;
+  padding: 12px 8px;
+}
+.gh-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+}
+@keyframes gh-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gh-main {
+    transition: none;
+  }
+  .gh-files {
+    animation: none;
+  }
+}
+
+/* ---- About: updates and release notes (#28) ----------------------------------------- */
+
+.relnotes {
+  display: block;
+  max-height: 320px;
+  font-size: 13px;
+  color: var(--tx);
+}
+.relnotes .md table {
+  font-size: 12.5px;
+}
+.upd-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.upd-dl .num,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.upd-bar {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.upd-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: inherit;
+  background: var(--acc);
+  transition: width 0.2s var(--ease-out);
+}
+.wn-link {
+  margin-top: 10px;
+}
+.wn-earlier {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.wn-old + .wn-old {
+  border-top: 1px solid var(--line);
+}
+.wn-old summary {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--mu);
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.15s;
+}
+.wn-old summary::-webkit-details-marker {
+  display: none;
+}
+.wn-old summary:hover {
+  background: var(--hover);
+}
+.wn-old summary .mono {
+  color: var(--tx);
+}
+.wn-old[open] summary {
+  color: var(--tx);
+}
+.wn-old .relnotes {
+  margin: 0 12px 12px;
+}
+.upd-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.sbar .upd-x {
+  padding: 0 4px;
+  color: var(--fa);
+}
+@media (prefers-reduced-motion: reduce) {
+  .upd-bar > span,
+  .wn-old summary {
+    transition: none;
+  }
 }

@@ -1,6 +1,17 @@
 /* Sidebar as a chat app's history (T3 Code, Codex, ChatGPT, Claude): projects with their
    chats under them, one highlight that slides to the selection, and the account switcher in
-   the footer. Loaded after base.css, whose older sidebar rules these refine. */
+   the footer. Loaded after base.css, whose older sidebar rules these refine.
+   Motion is calm (#25): one short timing and a non-overshooting ease for everything here,
+   no scaling, bouncing or endless pulses. */
+
+.side {
+  --side-t: 140ms;
+  --side-ease: cubic-bezier(0.2, 0, 0, 1);
+  transition: width var(--side-t) var(--side-ease);
+}
+.side > :not(.side-hd) {
+  animation-duration: var(--side-t);
+}
 
 .side-list {
   position: relative;
@@ -22,10 +33,10 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 0.32s var(--ease-spring),
-    height 0.2s var(--ease-out),
-    width 0.2s var(--ease-out),
-    opacity 0.2s;
+    transform var(--side-t) var(--side-ease),
+    height var(--side-t) var(--side-ease),
+    width var(--side-t) var(--side-ease),
+    opacity var(--side-t);
 }
 /* The highlight draws the selection; the rows keep only their text color. */
 .side-list .ws-row.on {
@@ -58,8 +69,8 @@
   font-weight: 400;
   color: var(--mu);
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--side-t),
+    color var(--side-t);
 }
 .ws-wrap .ws-row {
   padding-left: 14px;
@@ -77,8 +88,8 @@
   opacity: 0;
   transform: translateY(-50%);
   transition:
-    height 0.22s var(--ease-out),
-    opacity 0.15s;
+    height var(--side-t) var(--side-ease),
+    opacity var(--side-t);
 }
 .side-list .ws-row.on::before {
   height: 18px;
@@ -128,9 +139,9 @@
   opacity: 0;
   cursor: pointer;
   transition:
-    opacity 0.15s,
-    background 0.15s,
-    color 0.15s;
+    opacity var(--side-t),
+    background var(--side-t),
+    color var(--side-t);
 }
 .ws-wrap:hover .ws-add,
 .ws-add:focus-visible {
@@ -150,10 +161,11 @@
   border-radius: 50%;
   flex: none;
   background: var(--warn);
-  animation: side-pulse 1.6s ease-in-out infinite;
+  /* One gentle pulse when it appears, then a steady dot. */
+  animation: side-pulse 0.9s ease-out 1;
 }
 .chev-i {
-  transition: transform 0.22s var(--ease-out);
+  transition: transform var(--side-t) var(--side-ease);
 }
 
 /* ---- Status on a project row ------------------------------------------------------ */
@@ -200,7 +212,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--side-t);
 }
 .acct-sw:hover,
 .acct-sw.open {
@@ -237,7 +249,7 @@
   color: var(--fa);
   transform: rotate(-90deg);
   opacity: 0.7;
-  transition: transform 0.22s var(--ease-out);
+  transition: transform var(--side-t) var(--side-ease);
 }
 .acct-sw.open .acct-chev {
   transform: rotate(90deg);
@@ -281,13 +293,10 @@
   border-radius: 9px;
   background: none;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    transform 0.18s var(--ease-spring);
+  transition: background var(--side-t);
 }
 .rail-ws:hover {
   background: var(--hover);
-  transform: scale(1.06);
 }
 .rail-ws.on {
   background: var(--sel);
@@ -324,17 +333,37 @@
   }
 }
 
+/* ---- Keyboard focus ----------------------------------------------------------------- */
+
+/* Inside the row's own rounded shape, not an outline sticking out: an inset ring in the
+   accent's text color (readable on the frame in every theme), unlike hover and selected,
+   which only change the background. Keyboard only; a click never shows it. */
+.side :is(button, a, [role='button'], [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--acct);
+}
+/* The footer switcher's hover ring must not hide the focus ring. */
+.side:not(.col) .acct-sw:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--acct);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .side-ind,
-  .ws-row::before,
-  .acct-chev,
-  .rail-ws {
-    transition: none;
+  .side,
+  .side *,
+  .side *::before {
+    transition: none !important;
   }
-  .ws-wait,
-  .pn-spin {
-    animation: none;
+  .side *,
+  .side > * {
+    animation: none !important;
   }
+}
+
+.side .nav-row,
+.side .icon-btn {
+  transition:
+    background var(--side-t),
+    color var(--side-t);
 }
 
 /* Usage row: the session limit on the right, colored only near the limit. */
