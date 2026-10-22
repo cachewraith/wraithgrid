@@ -62,7 +62,8 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/lib/slash.ts` + `components/chat/SlashMenu.tsx`: the `/` menu (items from the CLI's commands, ranking, Wraithgrid's own commands)
 - `src/renderer/components/UsageView.tsx`: Usage screen (`view: 'usage'`) and the top-bar pill
 - `src/shared/usage.ts` + `src/main/usage-store.ts`: chat-turn usage buckets, plan limits, summaries; recorded in main from chat events into userData/usage.json
-- `src/main/themes.ts`: list/import/delete theme files in `~/.wraithgrid/themes`
+- `src/main/themes.ts`: list/import/save (editor)/delete theme files in `~/.wraithgrid/themes`
+- `src/renderer/components/ThemeEditor.tsx` + `src/shared/contrast.ts`: the theme editor (draft = `themeDraft` in the store, drawn by `drawnTheme` over the whole app) and WCAG contrast checks
 - `src/shared/chat.ts`: CLI-agnostic `ChatEvent` model, image/text limits, session id schema
 - `src/renderer/main.tsx`: composition root (builds Services)
 - `src/renderer/app/store.ts`: zustand store, all app actions (largest file)

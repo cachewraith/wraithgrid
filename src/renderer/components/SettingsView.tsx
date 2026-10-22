@@ -1,3 +1,4 @@
+import { ThemeEditor } from './ThemeEditor'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
@@ -99,6 +100,7 @@ function ThemeRow() {
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [cardMenu, setCardMenu] = useState<{ at: MenuPoint; t: AppTheme } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
   const follow = pref === 'system'
   const darkId = pickTheme(themes, themeDark, 'dark').id
   const lightId = pickTheme(themes, themeLight, 'light').id
@@ -106,8 +108,8 @@ function ThemeRow() {
 
   const run = async (p: Promise<string | null>): Promise<void> => setError(await p)
   const exportTheme = async (t: ThemeFile): Promise<void> => {
-    const { name, mode, author, colors, terminal } = t
-    const r = await api.themes.export({ name, mode, author, colors, terminal })
+    const { name, mode, author, colors, terminal, style } = t
+    const r = await api.themes.export({ name, mode, author, colors, terminal, style })
     setError(r && !r.ok ? r.error : null)
   }
 
@@ -122,6 +124,9 @@ function ThemeRow() {
           </p>
         </div>
         <div className="thm-acts">
+          <button className="btn" aria-expanded={editing} onClick={() => setEditing(!editing)}>
+            Customize…
+          </button>
           <button className="btn" onClick={() => void run(actions.importTheme())}>
             <IconImport small />
             Import theme…
@@ -139,6 +144,12 @@ function ThemeRow() {
           </button>
         </div>
       </div>
+      {editing ? (
+        <ThemeEditor
+          start={themes.find((t) => t.id === drawnId) ?? themes[0]!}
+          onClose={() => setEditing(false)}
+        />
+      ) : null}
       <div className="thm-grid" role="radiogroup" aria-labelledby="theme-h">
         {themes.map((t) => {
           const on = t.id === drawnId

@@ -179,6 +179,8 @@ export const themesNoArgs = z.object({})
 /** A theme file's id (its name in ~/.wraithgrid/themes); main builds the path. */
 export const themesDeleteArgs = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/) })
 export const themesExportArgs = z.object({ theme: themeFileSchema })
+/** The editor's theme; main checks it again with parseThemeFile before writing. */
+export const themesSaveArgs = z.object({ theme: z.unknown() })
 const cliArgs = z
   .array(
     z
@@ -640,6 +642,8 @@ export interface WraithApi {
     import(): Promise<ThemeImportResult | null>
     delete(id: string): Promise<SimpleResult>
     export(theme: ThemeFile): Promise<SimpleResult | null>
+    /** Saves the editor's theme as a new file in the themes folder. */
+    save(theme: ThemeFile): Promise<ThemeImportResult>
     openFolder(): Promise<SimpleResult>
   }
   mods: {

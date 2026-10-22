@@ -1,5 +1,9 @@
 # Making a Wraithgrid theme
 
+The easiest way: **Settings → Appearance → Customize…** edits a copy of any theme live over the
+whole app, warns when text gets hard to read, and saves it as a new theme (or exports the
+file). Everything below is what that file holds, for editing by hand.
+
 A theme is one JSON file: colors, plus an optional `style` for fonts, shape, depth, density
 and motion. Import it from **Settings → Appearance → Import theme…**;
 Wraithgrid checks it and saves a copy in `~/.wraithgrid/themes/`. To share a theme, send the
