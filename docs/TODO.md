@@ -36,6 +36,8 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 
 ## Done (2026-10-22)
+- #36: ghost buttons broken app-wide by the commit-graph's bare `.gh` CSS rule; scoped to `ol.gh`
+- #26: New project screen (folder → suggested name, account, machine, first chat); switcher no longer creates, says "project"
 - Chat diagrams draw whole (no per-line border, tight lines for box drawing); mermaid stays code (DECISIONS)
 - Mode switches mid-chat incl. Bypass (allow flag at start), refused switches show claude's reason, bypass confirm resets on close
 

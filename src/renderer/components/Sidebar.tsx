@@ -130,7 +130,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
           className="inpt sans ws-in"
           value={renaming}
           maxLength={64}
-          aria-label="Workspace name"
+          aria-label="Project name"
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => setRenaming(e.target.value)}
@@ -191,7 +191,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
       {menu ? (
         <ContextMenu
           at={menu}
-          label={`Workspace ${w.name}`}
+          label={`Project ${w.name}`}
           onClose={() => setMenu(null)}
           items={[
             { label: 'New chat', icon: <IconCompose small />, onSelect: newChat },
@@ -199,12 +199,12 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             ...(config.machines.length ? runOn : []),
             {
               label: !canDelete
-                ? 'Delete (last workspace)'
+                ? 'Delete (last project)'
                 : confirmDelete
                   ? panes
                     ? `Click again: closes ${panes} ${panes === 1 ? 'pane' : 'panes'}`
                     : 'Click again to delete'
-                  : 'Delete workspace',
+                  : 'Delete project',
               icon: <IconTrash small />,
               danger: true,
               disabled: !canDelete,
@@ -508,9 +508,9 @@ export function Sidebar() {
                   Projects <span className="sec-n">{workspaces.length}</span>
                 </span>
                 <button
-                  onClick={() => actions.openModal({ kind: 'workspaces' })}
-                  title="New or manage projects"
-                  aria-label="Manage projects"
+                  onClick={() => actions.openModal({ kind: 'newProject' })}
+                  title="New project"
+                  aria-label="New project"
                 >
                   <IconPlus small />
                 </button>

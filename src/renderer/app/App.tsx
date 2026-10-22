@@ -19,6 +19,7 @@ import { StatusBar } from '../components/StatusBar'
 import { TitleBar } from '../components/TitleBar'
 import { TopBar } from '../components/TopBar'
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher'
+import { NewProjectDialog } from '../components/NewProjectDialog'
 import { useApp, useServices } from './services'
 import { matchShortcut } from './shortcuts'
 import { paneIds } from '../layout/tree'
@@ -157,6 +158,8 @@ function Modals() {
       return <ShortcutsSheet />
     case 'workspaces':
       return <WorkspaceSwitcher />
+    case 'newProject':
+      return <NewProjectDialog />
     case 'removeAccount':
       return <RemoveAccountDialog accountId={modal.accountId} />
     case 'palette':

@@ -60,8 +60,8 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
     const beta = side.locator('.ws-row', { hasText: 'beta' })
     await beta.click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Rename' }).click()
-    await side.getByLabel('Workspace name').fill('review')
-    await side.getByLabel('Workspace name').press('Enter')
+    await side.getByLabel('Project name').fill('review')
+    await side.getByLabel('Project name').press('Enter')
     await expect.poll(() => saved().workspaces[1].name).toBe('review')
 
     const review = side.locator('.ws-row', { hasText: 'review' })
@@ -70,7 +70,7 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
     await win.keyboard.press('Escape')
 
     await review.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Delete workspace' }).click()
+    await win.getByRole('menuitem', { name: 'Delete project' }).click()
     // First click only arms it.
     expect(saved().workspaces).toHaveLength(2)
     await win.getByRole('menuitem', { name: 'Click again to delete' }).click()
@@ -78,7 +78,7 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
 
     // The last workspace can't be deleted.
     await side.locator('.ws-row', { hasText: 'alpha' }).click({ button: 'right' })
-    await expect(win.getByRole('menuitem', { name: 'Delete (last workspace)' })).toBeDisabled()
+    await expect(win.getByRole('menuitem', { name: 'Delete (last project)' })).toBeDisabled()
     await win.keyboard.press('Escape')
 
     // Collapse animates the width instead of jumping, then settles at the rail width.

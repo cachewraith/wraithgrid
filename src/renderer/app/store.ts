@@ -99,6 +99,7 @@ export type Modal =
   | { kind: 'newPane'; slotId: string | null }
   | { kind: 'shortcuts' }
   | { kind: 'workspaces' }
+  | { kind: 'newProject' }
   | { kind: 'removeAccount'; accountId: string }
   | { kind: 'palette' }
   | { kind: 'removeWorktree'; cwd: string; title: string }
@@ -107,6 +108,18 @@ export type Modal =
   | { kind: 'login'; accountId: string }
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
+
+export interface NewProjectInput {
+  name: string
+  /** The project's folder; '' = none picked. */
+  folder: string
+  /** Default account for its chats; null: the app-wide default. */
+  accountId: string | null
+  /** Where its panes run (H5); null: this computer. */
+  machineId: string | null
+  /** Open the first chat right away (needs a folder and an account). */
+  startChat: boolean
+}
 
 export interface NewPaneInput {
   accountId: string | null
@@ -231,7 +244,8 @@ export interface AppState {
   // workspaces
   switchWorkspace(id: string): void
   switchWorkspaceIndex(index: number): void
-  createWorkspace(name: string): void
+  /** Creates a project (workspace) from the New project dialog; returns an error to show, or null. */
+  createProject(input: NewProjectInput): string | null
   renameWorkspace(id: string, name: string): void
   /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
   setWorkspaceMachine(id: string, machineId: string | null): void
@@ -1299,22 +1313,38 @@ export function createAppStore({
         if (ws) get().switchWorkspace(ws.id)
       },
 
-      createWorkspace(name) {
-        const trimmed = name.trim().slice(0, 64)
-        if (!trimmed) return
+      createProject(input) {
+        const name = input.name.trim().slice(0, 64)
+        if (!name) return 'Give the project a name.'
+        const s = get()
+        if (s.config.workspaces.some((w) => w.name.toLowerCase() === name.toLowerCase()))
+          return `A project named ${name} exists.`
+        const accountId =
+          input.accountId && s.config.accounts.some((a) => a.id === input.accountId)
+            ? input.accountId
+            : null
+        const machineId =
+          input.machineId && s.config.machines.some((m) => m.id === input.machineId)
+            ? input.machineId
+            : null
+        const folder = input.folder.trim().slice(0, 4096)
         const ws: Workspace = {
           id: newId('ws'),
-          name: trimmed,
+          name,
           icon: '',
           color: '',
-          machineId: null,
+          machineId,
+          folder,
+          accountId,
           panes: [],
           layout: null,
           history: []
         }
-        const s = get()
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)
+        if (input.startChat && folder && accountId)
+          get().createPane({ accountId, cwd: folder, args: [], shell: false, slotId: null })
+        return null
       },
 
       renameWorkspace(id, name) {
@@ -1508,6 +1538,7 @@ export function createAppStore({
         get().updateConfig((c) => ({
           ...c,
           accounts: c.accounts.filter((a) => a.id !== id),
+          workspaces: c.workspaces.map((w) => (w.accountId === id ? { ...w, accountId: null } : w)),
           settings: {
             ...c.settings,
             defaultAccountId:
