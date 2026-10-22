@@ -188,3 +188,85 @@ describe('themes folder', () => {
     expect(fs.existsSync(path.join(dir, 'ocean.json'))).toBe(false)
   })
 })
+
+describe('theme style (#24)', () => {
+  const base = {
+    name: 'Mine',
+    mode: 'dark',
+    colors: { bg: '#101010', text: '#eeeeee', accent: '#ff8800' }
+  }
+
+  it('takes the style keys and the new chat colors', () => {
+    const r = parseThemeFile({
+      ...base,
+      colors: { ...base.colors, userBubble: '#223344', codeBlock: '#0a0a0a', diffAdd: '#00ff0022' },
+      style: {
+        font: 'Inter',
+        monoFont: 'Fira Code',
+        chatTextSize: 16,
+        radius: 'large',
+        border: 'thick',
+        depth: 'deep',
+        density: 'compact',
+        motion: 'reduced',
+        frameGradient: true
+      }
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const v = themeVars(r.theme)
+    expect(v['--font-ui']).toContain("'Inter'")
+    expect(v['--font-mono']).toContain("'Fira Code'")
+    expect(v['--chat-size']).toBe('16px')
+    expect(v['--rs']).toBe('1.4')
+    expect(v['--bw']).toBe('1.5px')
+    expect(v['--dens']).toBe('0.85')
+    expect(v['--frame-img']).toContain('radial-gradient')
+    expect(v['--user-bg']).toBe('#223344')
+    expect(v['--addbg']).toBe('#00ff0022')
+  })
+
+  it('refuses values outside the fixed options, and raw CSS', () => {
+    for (const style of [
+      { radius: 'huge' },
+      { font: 'Comic Sans MS' },
+      { chatTextSize: 30 },
+      { motion: 'wild' },
+      { css: 'body { display: none }' },
+      { font: "Geist'; } body { x: y" }
+    ]) {
+      const r = parseThemeFile({ ...base, style })
+      expect(r.ok, JSON.stringify(style)).toBe(false)
+    }
+    expect(parseThemeFile({ ...base, colors: { ...base.colors, userBubble: 'red' } }).ok).toBe(
+      false
+    )
+  })
+
+  it('an old file without a style keeps loading, with the default look', () => {
+    const r = parseThemeFile(base)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.theme.style).toBeUndefined()
+    const v = themeVars(r.theme)
+    expect(v['--rs']).toBe('1')
+    expect(v['--font-ui']).toContain("'Geist'")
+    expect(v['--frame-img']).toBe('none')
+    expect(v['--user-bg']).toContain('color-mix')
+  })
+
+  it('an accent override re-tints the user bubble', () => {
+    const t = withAccent(BUILT_IN_THEMES[0]!, 'blue')
+    expect(t.colors.userBubble).toBeUndefined()
+    expect(themeVars(t)['--user-bg']).toContain('var(--acc)')
+  })
+
+  it('the built-ins differ in style, not only color, and all validate', () => {
+    const looks = new Set(BUILT_IN_THEMES.map((t) => JSON.stringify(t.style)))
+    expect(looks.size).toBeGreaterThanOrEqual(4)
+    for (const t of BUILT_IN_THEMES) {
+      const { id: _id, builtIn: _b, ...file } = t
+      expect(parseThemeFile(file).ok, t.id).toBe(true)
+    }
+  })
+})

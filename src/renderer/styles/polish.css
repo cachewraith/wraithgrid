@@ -7,9 +7,11 @@
   --r: 10px;
   --r-lg: 14px;
   --shadow-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--line2);
+  --shadow-card: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
 }
 :root[data-theme='light'] {
   --shadow-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line2);
+  --shadow-card: 0 4px 18px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* ---- Initials (no icons or emoji) --------------------------------------------------- */
@@ -68,7 +70,7 @@
   width: fit-content;
 }
 .seg-btn {
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   transition:
     background 0.15s,
     color 0.15s,
@@ -139,7 +141,7 @@
   animation: chat-fade 0.18s ease-out;
 }
 .dlg {
-  border-radius: 18px;
+  border-radius: calc(18px * var(--rs, 1));
   border-color: var(--line2);
   box-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.5);
   animation: pol-pop 0.22s var(--ease-out);
@@ -156,14 +158,14 @@
 .cm {
   min-width: 210px;
   padding: 5px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
   box-shadow: var(--shadow-pop);
   border: 0;
 }
 .cm-it {
   min-height: 30px;
   padding: 5px 12px 5px 8px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   font-size: 13px;
   gap: 10px;
 }
@@ -268,7 +270,7 @@
   height: 34px;
   padding: 0 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: none;
   color: var(--mu);
   font: inherit;
@@ -381,7 +383,7 @@
   z-index: 50;
   width: 320px;
   padding: 6px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--rs, 1));
   background: var(--panel);
   box-shadow: var(--shadow-pop);
   animation: pol-up 0.2s var(--ease-out);
@@ -399,7 +401,7 @@
   width: 100%;
   padding: 8px 10px;
   border: 0;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
@@ -553,7 +555,7 @@
   height: 42px;
   padding: 0 14px;
   border: 1px solid var(--line2);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
   background: var(--panel);
   color: var(--fa);
   transition:
@@ -653,7 +655,7 @@
   height: 28px;
   margin-top: -14px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   color: var(--fa);
   opacity: 0.6;
@@ -697,7 +699,7 @@
 .login-device .mono {
   padding: 8px 12px;
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: var(--panel);
   color: var(--tx);
   font-size: 20px;
@@ -737,7 +739,7 @@
 
 :root {
   --frame: color-mix(in srgb, var(--bg2) 78%, #000);
-  --panel-r: 12px;
+  --panel-r: calc(12px * var(--rs, 1));
   --panel-gap: 8px;
 }
 :root[data-theme='light'] {
@@ -745,6 +747,8 @@
 }
 .app {
   background: var(--frame);
+  /* A theme's optional accent glow over the frame (#24). */
+  background-image: var(--frame-img, none);
 }
 .tb,
 .sbar {
@@ -757,9 +761,9 @@
 }
 .row > .side,
 .row > .main {
-  border: 1px solid var(--line);
+  border: var(--bw, 1px) solid var(--line);
   border-radius: var(--panel-r);
-  box-shadow: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 .row > .side {
@@ -779,10 +783,6 @@
 .row > .side-resize::after {
   inset: 18px calc(var(--panel-gap) / 2 - 1px);
   border-radius: 2px;
-}
-:root[data-theme='light'] .row > .side,
-:root[data-theme='light'] .row > .main {
-  box-shadow: 0 4px 18px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* ---- Top bar: project link + count, one control group, a More menu ------------------ */
@@ -811,13 +811,13 @@
   gap: 1px;
   background: var(--bg2);
   border-color: var(--line);
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
 }
 .top .seg-btn {
   height: 26px;
   min-width: 30px;
   padding: 0 7px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
 }
 .top .seg-btn:disabled {
   opacity: 0.4;
@@ -911,7 +911,7 @@
   display: flex;
   height: 78px;
   overflow: hidden;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   background: var(--frame);
   box-shadow: inset 0 0 0 1px var(--line);
   padding: 5px;
@@ -923,7 +923,7 @@
   flex-direction: column;
   gap: 5px;
   padding: 7px 5px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: var(--bg2);
 }
 .thm-main {
@@ -933,7 +933,7 @@
   flex-direction: column;
   gap: 5px;
   padding: 7px 7px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: var(--bg);
 }
 .thm-ln {
@@ -953,7 +953,7 @@
   align-self: flex-end;
   width: 45%;
   height: 10px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: var(--raise);
 }
 .thm-btn {
@@ -1292,7 +1292,7 @@
   row-gap: 8px;
   padding: 12px 14px 13px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
 }
 .ul-lbl {
   grid-column: 1 / -1;
@@ -1606,14 +1606,11 @@
 
 .row > .dp {
   margin-left: var(--panel-gap);
-  border: 1px solid var(--line);
+  border: var(--bw, 1px) solid var(--line);
   border-radius: var(--panel-r);
-  box-shadow: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-card);
   background: var(--bg);
   overflow: hidden;
-}
-:root[data-theme='light'] .row > .dp {
-  box-shadow: 0 4px 18px -12px rgba(0, 0, 0, 0.25);
 }
 .dp-hd {
   height: 44px;
@@ -1625,17 +1622,17 @@
   font-size: 12.5px;
 }
 .dp .df {
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
 }
 .dp-ft {
   padding: 10px;
 }
 .dp-msg {
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
 }
 .dp-acts .btn.sm,
 .dp-ask .btn.sm {
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
 }
 
 /* History: the graph column, then the commit; an open commit lists its files.
@@ -1671,7 +1668,7 @@ ol.gh {
   margin: 0 6px 0 4px;
   padding: 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
@@ -1709,7 +1706,7 @@ ol.gh {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   border: 1px solid var(--line2);
   font-size: 11px;
   color: var(--mu);
@@ -1804,7 +1801,7 @@ ol.gh {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   overflow: hidden;
 }
 .wn-old + .wn-old {
@@ -1867,7 +1864,7 @@ ol.gh {
   overflow: auto;
   padding: 3px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
 }
 .np-acct {
   display: flex;
@@ -1877,7 +1874,7 @@ ol.gh {
   height: 36px;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
@@ -1919,7 +1916,7 @@ ol.gh {
   height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line2);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: var(--bg2);
   color: var(--tx);
   font: inherit;
@@ -1965,7 +1962,7 @@ ol.gh {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: var(--raise);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1987,7 +1984,7 @@ ol.gh {
   min-width: 0;
   padding: 5px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
@@ -2070,7 +2067,7 @@ ol.gh {
 .fp-crumb button {
   padding: 2px 5px;
   border: 0;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: none;
   color: var(--mu);
   font: inherit;
@@ -2128,7 +2125,7 @@ ol.gh {
   gap: 8px;
   padding: 5px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
@@ -2163,7 +2160,7 @@ ol.gh {
   gap: 8px;
   height: 32px;
   padding: 0 8px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   font-size: 13px;
   color: var(--tx);
   cursor: pointer;
@@ -2187,7 +2184,7 @@ ol.gh {
 .fp-git {
   flex: none;
   padding: 0 6px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   border: 1px solid var(--line2);
   font-size: 10.5px;
   color: var(--mu);

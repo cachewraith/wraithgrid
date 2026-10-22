@@ -117,6 +117,7 @@ function useAppearance(): void {
     const root = document.documentElement
     root.dataset.theme = theme
     root.dataset.accent = accent
+    root.dataset.motion = drawn.style?.motion ?? 'on'
     // Theme colors are hex values checked by the theme schema, set as CSS variables.
     for (const [name, value] of Object.entries(themeVars(drawn)))
       root.style.setProperty(name, value)

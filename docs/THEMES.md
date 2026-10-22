@@ -1,6 +1,7 @@
 # Making a Wraithgrid theme
 
-A theme is one JSON file of colors. Import it from **Settings → Appearance → Import theme…**;
+A theme is one JSON file: colors, plus an optional `style` for fonts, shape, depth, density
+and motion. Import it from **Settings → Appearance → Import theme…**;
 Wraithgrid checks it and saves a copy in `~/.wraithgrid/themes/`. To share a theme, send the
 file. To start from a built-in one, right-click its card → **Export as a starting point…**.
 
@@ -16,6 +17,11 @@ file. To start from a built-in one, right-click its card → **Export as a start
   },
   "terminal": {
     "red": "#ff6b81"
+  },
+  "style": {
+    "radius": "large",
+    "depth": "deep",
+    "density": "spacious"
   }
 }
 ```
@@ -24,8 +30,8 @@ Only `name`, `mode` (`dark` or `light`), `colors.bg`, `colors.text` and `colors.
 required. Anything else you leave out is mixed from those three, so a three-color theme still
 looks finished.
 
-Every value must be a hex color: `#rgb`, `#rrggbb` or `#rrggbbaa`. Nothing else is accepted
-(no CSS, no `rgb()`), and a file with a mistake is listed in Appearance with the reason instead
+Every color must be a hex color: `#rgb`, `#rrggbb` or `#rrggbbaa`, and every `style` value
+one of the options below. Nothing else is accepted (no CSS, no `rgb()`, no font files), and a file with a mistake is listed in Appearance with the reason instead
 of being applied.
 
 ## `colors`
@@ -46,6 +52,27 @@ of being applied.
 | `ok`, `warn`, `err`, `info` | status colors (running, needs you, errors, info) |
 | `selection`, `hover` | selected and hovered rows |
 | `frame` | the window around the sidebar and main panels |
+| `userBubble` | your messages in a chat (default: the accent mixed into `raised`) |
+| `codeBlock` | code blocks in chat answers |
+| `diffAdd`, `diffDel` | added and removed lines in diffs (use an alpha, e.g. `#4ade801f`) |
+
+## `style` (optional)
+
+| Key | Options | Default |
+|---|---|---|
+| `font` | `Geist`, `System`, `Inter`, `IBM Plex Sans`, `Source Sans 3`, `Noto Sans` | `Geist` |
+| `monoFont` | `JetBrains Mono`, `System`, `IBM Plex Mono`, `Fira Code`, `Cascadia Code` | `JetBrains Mono` |
+| `chatTextSize` | whole number 13–17 (px) | 14.5 |
+| `radius` | `small`, `medium`, `large` (scales every rounded corner) | `medium` |
+| `border` | `thin` (1px), `thick` (1.5px) on the main cards | `thin` |
+| `depth` | `flat`, `soft`, `deep` shadows on cards, menus and dialogs | `soft` |
+| `density` | `compact`, `comfortable`, `spacious` | `comfortable` |
+| `motion` | `on`, `reduced` (no animations), `off` (no animations or transitions) | `on` |
+| `frameGradient` | `true` for a faint accent glow over the window frame | `false` |
+
+Geist and JetBrains Mono come with Wraithgrid; the other fonts are used when installed on the
+computer, else Geist / JetBrains Mono. The system's reduce-motion setting always wins over
+`motion`. Files without `style` look as they always did.
 
 ## `terminal` (optional)
 
