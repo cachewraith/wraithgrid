@@ -267,7 +267,10 @@ A chat pane runs the same `claude` without its terminal screen:
   another claude account and carries on there; the original stays.
 - **Usage** in the sidebar (or `/usage`) shows each account's limits and spend; the top-bar
   pill follows the focused pane's account.
-- Chat is for Claude Code for now; other CLIs open as terminals. Chat agents stop when
+- Chat works with Claude Code and Antigravity (`agy`); other CLIs open as terminals. agy
+  can't ask for approval in a chat: a tool that needs one is skipped and the chat says so
+  (pick Bypass permissions, or allow it in agy's settings), and Stop or a model/mode switch
+  restarts agy on the same conversation. Chat agents stop when
   Wraithgrid quits (terminal panes can keep running), and the `wraithgrid` command sees
   terminal panes only.
 

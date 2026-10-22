@@ -29,7 +29,7 @@ describe('agent CLI registry', () => {
     expect(withResumeArgs('gemini', [])).toEqual(['--resume', 'latest'])
     expect(withResumeArgs('claude', ['--resume', 'abc'])).toEqual(['--resume', 'abc'])
     expect(withResumeArgs('claude', ['-c'])).toEqual(['-c'])
-    expect(withResumeArgs('agy', ['x'])).toEqual(['x'])
+    expect(withResumeArgs('agy', ['x'])).toEqual(['--continue', 'x'])
   })
 
   it('pastes an image as a path or an @path reference', () => {

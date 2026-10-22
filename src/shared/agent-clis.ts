@@ -88,9 +88,9 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     signIn: 'shared',
     imagePaste: 'at-path',
     newLine: null,
-    resumeArgs: null,
+    resumeArgs: ['--continue'],
     approval: GEMINI_APPROVAL,
-    chat: false,
+    chat: true,
     note: 'Panes run agy. It keeps its sign-in in the system keyring, so every Antigravity account on this machine uses the same Google login; it asks on first launch.'
   },
   codex: {

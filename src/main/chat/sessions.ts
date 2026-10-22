@@ -190,6 +190,11 @@ export class ChatSessions {
     return true
   }
 
+  /** An event about a running chat from outside its pipe (its CLI's model list). */
+  announce(paneId: string, e: ChatEvent): void {
+    if (this.sessions.has(paneId)) this.deps.emit(paneId, e)
+  }
+
   interrupt(paneId: string): void {
     const s = this.sessions.get(paneId)
     if (!s) return

@@ -113,6 +113,15 @@ export interface ChatBackgroundTask {
   since: number
 }
 
+export interface ChatControls {
+  /** Can stop a turn / switch model / switch mode without a restart. */
+  live: { interrupt: boolean; model: boolean; mode: boolean }
+  /** The modes it has, in menu order. */
+  modes: ChatMode[]
+  /** Asks before running a tool (else a tool that needs approval is refused). */
+  approvals: boolean
+}
+
 /** One thing the agent did, as main tells the renderer about it. */
 export type ChatEvent =
   /** The CLI's conversation id, used to resume it later; `model` when it says. */
@@ -130,6 +139,12 @@ export type ChatEvent =
       account: ChatAccountInfo | null
       commands?: ChatCommand[]
     }
+  /**
+   * What the CLI can't do over the pipe (agy, #41): the view then restarts it to stop a turn
+   * or switch model/mode (resuming the conversation), offers only `modes`, and says it can't ask.
+   * Not sent: everything works live, all modes, approvals asked.
+   */
+  | { t: 'controls'; controls: ChatControls }
   /** The permission mode now in force (after a switch, or when the agent changed it). */
   | { t: 'mode'; mode: ChatMode }
   /** A turn started or ended. */

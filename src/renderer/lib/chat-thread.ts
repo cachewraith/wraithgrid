@@ -4,6 +4,7 @@ import type {
   ApprovalDecision,
   ChatAccountInfo,
   ChatBackgroundTask,
+  ChatControls,
   ChatCommand,
   ChatEvent,
   ChatMode,
@@ -66,6 +67,8 @@ export interface ChatThread {
   mode: ChatMode | null
   /** Background work still running after its turn (#39); never saved, it dies with the CLI. */
   background: ChatBackgroundTask[]
+  /** What the CLI can't do live (agy, #41); null = everything live, like claude. */
+  controls: ChatControls | null
 }
 
 export const EMPTY_THREAD: ChatThread = {
@@ -81,7 +84,8 @@ export const EMPTY_THREAD: ChatThread = {
   commands: [],
   terminalOnly: [],
   mode: null,
-  background: []
+  background: [],
+  controls: null
 }
 
 /** The saved view keeps this many items; older ones are dropped from the view only. */
@@ -230,6 +234,8 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
     }
     case 'limits':
       return t
+    case 'controls':
+      return { ...t, controls: e.controls }
     case 'background':
       return t.background.length || e.tasks.length ? { ...t, background: e.tasks } : t
     case 'mode':

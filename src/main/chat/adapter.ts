@@ -2,7 +2,8 @@
 // lines it is fed, and a decoder from its output to ChatEvents. One file per CLI next to
 // this one; the session runner (sessions.ts) and the UI never branch on the CLI.
 import type { AgentCli } from '@shared/agent-clis'
-import type { ApprovalDecision, ChatEvent, ChatImage } from '@shared/chat'
+import type { ApprovalDecision, ChatEvent, ChatImage, ChatModel } from '@shared/chat'
+import { createAgyAdapter } from './agy'
 import { createClaudeAdapter } from './claude'
 import type { ChatMode } from '@shared/chat'
 
@@ -37,10 +38,16 @@ export interface ChatAdapter {
   answer(reqId: string, decision: ApprovalDecision): unknown | null
   /** One output line, already parsed from JSON. */
   decode(msg: unknown): Decoded
+  /**
+   * A CLI that doesn't say its models over the pipe: the command (run with the same binary,
+   * env and folder) that lists them, and its parser. Sent as `capabilities` after the start.
+   */
+  listModels?: { args: string[]; parse(stdout: string): ChatModel[] }
 }
 
 const ADAPTERS: Partial<Record<AgentCli, () => ChatAdapter>> = {
-  claude: createClaudeAdapter
+  claude: createClaudeAdapter,
+  agy: createAgyAdapter
 }
 
 /** A fresh adapter (they keep per-process state), or null when the CLI has no chat view. */
