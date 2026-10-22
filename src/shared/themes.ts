@@ -27,7 +27,12 @@ export const THEME_COLOR_VARS = {
   info: '--cy',
   selection: '--sel',
   hover: '--hover',
-  frame: '--frame'
+  frame: '--frame',
+  // Chat and code (#24); left out, they are mixed from the colors above.
+  userBubble: '--user-bg',
+  codeBlock: '--code-bg',
+  diffAdd: '--addbg',
+  diffDel: '--delbg'
 } as const
 export type ThemeColorName = keyof typeof THEME_COLOR_VARS
 
@@ -46,6 +51,52 @@ export interface ThemeTerminalColors extends Partial<Record<AnsiName, string>> {
   selection?: string
 }
 
+// ---- Style: everything but colors (#24). Fixed options only, never raw CSS. ------------
+
+/** UI fonts a theme may name → the font stack used. Geist is bundled; others if installed. */
+export const UI_FONTS = {
+  Geist: "'Geist', ui-sans-serif, system-ui, sans-serif",
+  System: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+  Inter: "'Inter', 'Geist', ui-sans-serif, system-ui, sans-serif",
+  'IBM Plex Sans': "'IBM Plex Sans', 'Geist', ui-sans-serif, system-ui, sans-serif",
+  'Source Sans 3': "'Source Sans 3', 'Geist', ui-sans-serif, system-ui, sans-serif",
+  'Noto Sans': "'Noto Sans', 'Geist', ui-sans-serif, system-ui, sans-serif"
+} as const
+/** Mono fonts a theme may name. JetBrains Mono is bundled; others if installed. */
+export const MONO_FONTS = {
+  'JetBrains Mono': "'JetBrains Mono', ui-monospace, monospace",
+  System: "ui-monospace, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace",
+  'IBM Plex Mono': "'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace",
+  'Fira Code': "'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
+  'Cascadia Code': "'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace"
+} as const
+export type UiFont = keyof typeof UI_FONTS
+export type MonoFont = keyof typeof MONO_FONTS
+
+/** Corner radius: a scale on every rounded corner (`--rs`). */
+export const THEME_RADIUS = { small: 0.5, medium: 1, large: 1.4 } as const
+export const THEME_BORDER = { thin: '1px', thick: '1.5px' } as const
+export const THEME_DEPTH = ['flat', 'soft', 'deep'] as const
+export const THEME_DENSITY = { compact: 0.85, comfortable: 1, spacious: 1.15 } as const
+/** Animation: `prefers-reduced-motion` always wins over `on`. */
+export const THEME_MOTION = ['on', 'reduced', 'off'] as const
+export const CHAT_TEXT_MIN = 13
+export const CHAT_TEXT_MAX = 17
+
+export interface ThemeStyle {
+  font?: UiFont
+  monoFont?: MonoFont
+  /** Chat message text, px. */
+  chatTextSize?: number
+  radius?: keyof typeof THEME_RADIUS
+  border?: keyof typeof THEME_BORDER
+  depth?: (typeof THEME_DEPTH)[number]
+  density?: keyof typeof THEME_DENSITY
+  motion?: (typeof THEME_MOTION)[number]
+  /** A faint accent glow over the window frame. */
+  frameGradient?: boolean
+}
+
 /** A theme as a file holds it (and as the built-ins are written). */
 export interface ThemeFile {
   name: string
@@ -53,6 +104,7 @@ export interface ThemeFile {
   author?: string
   colors: Partial<Record<ThemeColorName, string>> & { bg: string; text: string; accent: string }
   terminal?: ThemeTerminalColors
+  style?: ThemeStyle
 }
 
 /** A theme the app can draw: built in, or loaded from the themes folder. */
@@ -112,6 +164,20 @@ export const themeFileSchema = z.object({
       >)
     })
     .strict()
+    .optional(),
+  style: z
+    .object({
+      font: z.enum(Object.keys(UI_FONTS) as [UiFont, ...UiFont[]]).optional(),
+      monoFont: z.enum(Object.keys(MONO_FONTS) as [MonoFont, ...MonoFont[]]).optional(),
+      chatTextSize: z.number().int().min(CHAT_TEXT_MIN).max(CHAT_TEXT_MAX).optional(),
+      radius: z.enum(['small', 'medium', 'large']).optional(),
+      border: z.enum(['thin', 'thick']).optional(),
+      depth: z.enum(THEME_DEPTH).optional(),
+      density: z.enum(['compact', 'comfortable', 'spacious']).optional(),
+      motion: z.enum(THEME_MOTION).optional(),
+      frameGradient: z.boolean().optional()
+    })
+    .strict()
     .optional()
 })
 
@@ -151,13 +217,15 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'wraith',
     builtIn: true,
     name: 'Wraith',
+    style: { radius: 'medium', depth: 'soft', density: 'comfortable' },
     mode: 'dark',
     colors: {
       bg: '#1c1c1c', sidebar: '#171717', panel: '#232323', raised: '#2a2a2a',
       line: '#2b2b2b', lineStrong: '#3a3a3a', text: '#ececec', muted: '#b4b4b4', faint: '#8f8f8f',
       accent: '#7c5cff', accentText: '#a996ff', accentFill: '#6a4cf0', accentFillHover: '#5a3de0',
       onAccent: '#ffffff', terminal: '#1c1c1c', ok: '#4ade80', warn: '#fbbf24', err: '#fb7185',
-      info: '#7dd3fc', selection: '#2a2a2a', hover: '#242424', frame: '#121212'
+      info: '#7dd3fc', selection: '#2a2a2a', hover: '#242424', frame: '#121212',
+      userBubble: '#343044', codeBlock: '#181818', diffAdd: '#4ade801f', diffDel: '#fb71851f'
     },
     terminal: {
       background: '#1c1c1c', foreground: '#ececec', cursor: '#a996ff', selection: '#7c5cff61',
@@ -171,13 +239,15 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'midnight',
     builtIn: true,
     name: 'Midnight',
+    style: { font: 'System', radius: 'small', depth: 'flat', density: 'compact', chatTextSize: 14 },
     mode: 'dark',
     colors: {
       bg: '#0f1420', sidebar: '#0b0f19', panel: '#151b29', raised: '#1b2333',
       line: '#1e2636', lineStrong: '#2b3548', text: '#e2e8f5', muted: '#a6b0c3', faint: '#7c879c',
       accent: '#22d3ee', accentText: '#67e8f9', accentFill: '#0891b2', accentFillHover: '#0e7490',
       onAccent: '#ffffff', terminal: '#0f1420', ok: '#4ade80', warn: '#fbbf24', err: '#fb7185',
-      info: '#7dd3fc', selection: '#1b2333', hover: '#141a27', frame: '#080b12'
+      info: '#7dd3fc', selection: '#1b2333', hover: '#141a27', frame: '#080b12',
+      userBubble: '#1c3849', codeBlock: '#0c101b', diffAdd: '#4ade801f', diffDel: '#fb71851f'
     },
     terminal: {
       background: '#0f1420', foreground: '#e2e8f5', cursor: '#67e8f9', selection: '#22d3ee4d',
@@ -191,13 +261,15 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'clay',
     builtIn: true,
     name: 'Clay',
+    style: { radius: 'large', depth: 'deep', density: 'spacious', chatTextSize: 15, frameGradient: true },
     mode: 'dark',
     colors: {
       bg: '#1f1b18', sidebar: '#191613', panel: '#26211d', raised: '#2e2823',
       line: '#2f2924', lineStrong: '#3f3730', text: '#f0e9e1', muted: '#c2b6a8', faint: '#968a7d',
       accent: '#d97757', accentText: '#eba184', accentFill: '#c8643f', accentFillHover: '#b05533',
       onAccent: '#ffffff', terminal: '#1f1b18', ok: '#8fcf7a', warn: '#f2b84b', err: '#f07a7a',
-      info: '#8ec5d6', selection: '#2e2823', hover: '#26211d', frame: '#12100e'
+      info: '#8ec5d6', selection: '#2e2823', hover: '#26211d', frame: '#12100e',
+      userBubble: '#433129', codeBlock: '#1a1714', diffAdd: '#8fcf7a1f', diffDel: '#f07a7a1f'
     },
     terminal: {
       background: '#1f1b18', foreground: '#f0e9e1', cursor: '#eba184', selection: '#d977574d',
@@ -211,13 +283,15 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'daylight',
     builtIn: true,
     name: 'Daylight',
+    style: { radius: 'medium', depth: 'soft', density: 'comfortable' },
     mode: 'light',
     colors: {
       bg: '#ffffff', sidebar: '#f9f9f8', panel: '#ffffff', raised: '#efefed',
       line: '#e7e7e4', lineStrong: '#d4d4d0', text: '#1f1f1f', muted: '#4a4a4a', faint: '#6b6b6b',
       accent: '#7c5cff', accentText: '#5a3de0', accentFill: '#6a4cf0', accentFillHover: '#5a3de0',
       onAccent: '#ffffff', terminal: '#ffffff', ok: '#15803d', warn: '#a16207', err: '#be123c',
-      info: '#0369a1', selection: '#ececea', hover: '#f2f2f0', frame: '#e8e8e7'
+      info: '#0369a1', selection: '#ececea', hover: '#f2f2f0', frame: '#e8e8e7',
+      userBubble: '#e4e0ef', codeBlock: '#fafafa', diffAdd: '#15803d1a', diffDel: '#be123c1a'
     },
     terminal: {
       background: '#ffffff', foreground: '#1f1f1f', cursor: '#5a3de0', selection: '#5a3de038',
@@ -231,13 +305,15 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'paper',
     builtIn: true,
     name: 'Paper',
+    style: { radius: 'small', border: 'thick', depth: 'flat', monoFont: 'IBM Plex Mono', chatTextSize: 15 },
     mode: 'light',
     colors: {
       bg: '#fbf8f1', sidebar: '#f3eee3', panel: '#fffdf8', raised: '#ece5d6',
       line: '#e6dfcf', lineStrong: '#d3c9b5', text: '#2b2620', muted: '#574f44', faint: '#7a7063',
       accent: '#2f5fb3', accentText: '#244c94', accentFill: '#2f5fb3', accentFillHover: '#244c94',
       onAccent: '#ffffff', terminal: '#fbf8f1', ok: '#2f7d32', warn: '#9a6700', err: '#b42318',
-      info: '#1f6f8b', selection: '#ece5d6', hover: '#f4efe4', frame: '#e8e1d2'
+      info: '#1f6f8b', selection: '#ece5d6', hover: '#f4efe4', frame: '#e8e1d2',
+      userBubble: '#d9d8d2', codeBlock: '#f5f0e6', diffAdd: '#2f7d321a', diffDel: '#b423181a'
     },
     terminal: {
       background: '#fbf8f1', foreground: '#2b2620', cursor: '#244c94', selection: '#2f5fb338',
@@ -296,9 +372,11 @@ export const ACCENT_PRESETS: Record<AccentName, Record<ThemeName, AccentColors>>
 export function withAccent(t: ThemeFile, accent: AccentName | 'theme'): ThemeFile {
   if (accent === 'theme') return t
   const a = ACCENT_PRESETS[accent][t.mode]
+  // The bubble is tinted by the accent: mixed again from the new one.
+  const { userBubble: _bubble, ...colors } = t.colors
   return {
     ...t,
-    colors: { ...t.colors, ...a },
+    colors: { ...colors, ...a },
     // The terminal cursor and selection follow the accent too.
     terminal: {
       ...t.terminal,
@@ -343,7 +421,11 @@ export function themeVars(t: ThemeFile): Record<string, string> {
     ...BASE_STATUS[t.mode],
     selection: mix('var(--bg)', 90, 'var(--tx)'),
     hover: mix('var(--bg)', 95, 'var(--tx)'),
-    frame: mix('var(--bg2)', dark ? 78 : 93, '#000')
+    frame: mix('var(--bg2)', dark ? 78 : 93, '#000'),
+    userBubble: mix('var(--acc)', 12, 'var(--raise)'),
+    codeBlock: mix('var(--bg2)', 75, 'var(--bg)'),
+    diffAdd: mix('var(--ok)', 10, 'transparent'),
+    diffDel: mix('var(--err)', 10, 'transparent')
   }
   const vars: Record<string, string> = {}
   for (const [name, cssVar] of Object.entries(THEME_COLOR_VARS))
@@ -352,8 +434,6 @@ export function themeVars(t: ThemeFile): Record<string, string> {
   Object.assign(vars, {
     '--selr': 'var(--line2)',
     '--hover-line': mix('var(--fa)', 70, 'var(--bg)'),
-    '--addbg': mix('var(--ok)', 10, 'transparent'),
-    '--delbg': mix('var(--err)', 10, 'transparent'),
     '--scrim': dark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.25)',
     '--banner-bg': mix('var(--warn)', 9, 'var(--bg)'),
     '--banner-line': mix('var(--warn)', 45, 'transparent'),
@@ -365,7 +445,57 @@ export function themeVars(t: ThemeFile): Record<string, string> {
     '--solid-h': mix('var(--tx)', 80, dark ? '#fff' : '#000'),
     '--on-solid': 'var(--bg2)'
   })
+  Object.assign(vars, styleVars(t))
   return vars
+}
+
+const SHADOWS: Record<
+  (typeof THEME_DEPTH)[number],
+  Record<ThemeName, [card: string, pop: string]>
+> = {
+  flat: {
+    dark: ['none', '0 0 0 1px var(--line2)'],
+    light: ['none', '0 0 0 1px var(--line2)']
+  },
+  soft: {
+    dark: [
+      '0 6px 24px -14px rgba(0, 0, 0, 0.55)',
+      '0 16px 40px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--line2)'
+    ],
+    light: [
+      '0 4px 18px -12px rgba(0, 0, 0, 0.25)',
+      '0 16px 40px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line2)'
+    ]
+  },
+  deep: {
+    dark: [
+      '0 14px 36px -12px rgba(0, 0, 0, 0.75)',
+      '0 24px 56px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line2)'
+    ],
+    light: [
+      '0 10px 30px -12px rgba(0, 0, 0, 0.32)',
+      '0 22px 50px -14px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--line2)'
+    ]
+  }
+}
+
+/** A theme's style as CSS variables (motion is the `data-motion` attribute, see App). */
+export function styleVars(t: ThemeFile): Record<string, string> {
+  const s = t.style ?? {}
+  const [card, pop] = SHADOWS[s.depth ?? 'soft'][t.mode]
+  return {
+    '--font-ui': UI_FONTS[s.font ?? 'Geist'],
+    '--font-mono': MONO_FONTS[s.monoFont ?? 'JetBrains Mono'],
+    '--chat-size': `${s.chatTextSize ?? 14.5}px`,
+    '--rs': String(THEME_RADIUS[s.radius ?? 'medium']),
+    '--bw': THEME_BORDER[s.border ?? 'thin'],
+    '--dens': String(THEME_DENSITY[s.density ?? 'comfortable']),
+    '--shadow-card': card,
+    '--shadow-pop': pop,
+    '--frame-img': s.frameGradient
+      ? `radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--acc) ${t.mode === 'dark' ? 10 : 7}%, transparent), transparent 60%)`
+      : 'none'
+  }
 }
 
 /** `#rrggbb[aa]` → `rgba(…)`; xterm and color math want one form. */

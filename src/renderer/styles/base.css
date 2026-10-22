@@ -70,7 +70,7 @@ code {
   font-family: var(--font-mono);
   font-size: 0.92em;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
   background: var(--raise);
   border: 1px solid var(--line);
 }
@@ -81,7 +81,7 @@ kbd,
   font-size: 10.5px;
   line-height: 1.5;
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
   border: 1px solid var(--line2);
   background: var(--bg);
   color: var(--mu);
@@ -135,7 +135,7 @@ kbd,
   width: 34px;
   height: 26px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--mu);
   display: grid;
@@ -210,7 +210,7 @@ kbd,
   letter-spacing: 0;
   text-transform: none;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
 }
 .ws-row {
   width: 100%;
@@ -219,7 +219,7 @@ kbd,
   gap: 8px;
   padding: 7px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   text-align: left;
   font-size: 13px;
@@ -249,7 +249,7 @@ kbd,
   font-size: 10.5px;
   color: var(--mu);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
   padding: 0 4px;
 }
 .dots {
@@ -328,7 +328,7 @@ kbd,
   gap: 8px;
   height: 32px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   border: 1px solid var(--line2);
   background: var(--raise);
   font-size: 13px;
@@ -388,7 +388,7 @@ kbd,
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--mu);
   padding: 0;
@@ -439,7 +439,7 @@ kbd,
 .hidden-chip {
   height: 22px;
   padding: 0 8px;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--rs, 1));
   border: 1px solid var(--line2);
   background: var(--bg2);
   color: var(--mu);
@@ -456,7 +456,7 @@ kbd,
   padding: 2px;
   background: var(--bg2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
 }
 .seg-btn {
   height: 28px;
@@ -467,7 +467,7 @@ kbd,
   gap: 6px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--mu);
   font-size: 12px;
@@ -567,7 +567,7 @@ kbd,
   height: calc(100% - 16px);
   margin: 8px;
   border: 1px dashed var(--line2);
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--mu);
   display: flex;
@@ -649,7 +649,7 @@ kbd,
   gap: 6px;
   height: 20px;
   padding: 0 2px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   font-size: 12px;
   color: var(--mu);
   white-space: nowrap;
@@ -759,7 +759,7 @@ kbd,
   padding: 12px;
   border: 1px solid var(--banner-line);
   background: var(--banner-bg);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   font-size: 12.5px;
   line-height: 1.45;
   color: var(--mu);
@@ -828,7 +828,7 @@ kbd,
   max-width: 360px;
   background: var(--raise);
   border: 1px solid var(--line2);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   padding: 16px;
   box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.6);
   display: flex;
@@ -895,7 +895,7 @@ kbd,
   align-items: center;
   gap: 6px;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
 }
 .sbar button:hover {
   color: var(--tx);
@@ -922,7 +922,7 @@ kbd,
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--rs, 1));
   box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.45);
 }
 .dlg.w6 {
@@ -1009,7 +1009,7 @@ kbd,
   height: 34px;
   padding: 0 10px;
   border: 1px solid var(--line2);
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: var(--bg);
   color: var(--tx);
   font-family: var(--font-mono);
@@ -1034,7 +1034,7 @@ kbd,
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   overflow: hidden;
 }
 .aopt {
@@ -1095,7 +1095,7 @@ kbd,
 .rchip {
   height: 26px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   border: 1px solid var(--line2);
   background: var(--bg);
   font-family: var(--font-mono);
@@ -1116,7 +1116,7 @@ kbd,
 .sw {
   width: 36px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   border: 1px solid var(--line2);
   background: var(--bg);
   position: relative;
@@ -1160,7 +1160,7 @@ kbd,
   font-size: 12px;
   color: var(--mu);
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: var(--term);
   border: 1px solid var(--line);
   overflow-wrap: anywhere;
@@ -1271,7 +1271,7 @@ kbd,
 .swc {
   width: 12px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
   flex: none;
 }
 .badge {
@@ -1286,7 +1286,7 @@ kbd,
 }
 .card {
   border: 1px solid var(--line2);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: var(--panel);
   padding: 18px 20px;
   display: flex;
@@ -1323,7 +1323,7 @@ kbd,
 .cpick .c {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   display: grid;
   place-items: center;
   color: #0a0a12;
@@ -1343,7 +1343,7 @@ kbd,
   padding: 56px 24px;
   text-align: center;
   border: 1px dashed var(--line2);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
 }
 .emptyc h2 {
   margin: 0;
@@ -1414,7 +1414,7 @@ kbd,
   gap: 10px;
   padding: 14px 10px 12px;
   border: 1px solid var(--line2);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: var(--panel);
   font-size: 12.5px;
   color: var(--mu);
@@ -1496,7 +1496,7 @@ kbd,
   align-items: center;
   gap: 6px;
   padding: 4px 6px 4px 4px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
 }
 .wsr.on {
   background: var(--raise);
@@ -1515,7 +1515,7 @@ kbd,
   padding: 8px;
   text-align: left;
   min-width: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
 }
 .wsr .go .nm {
   font-size: 13.5px;
@@ -1612,7 +1612,7 @@ kbd,
 .fopt {
   height: 36px;
   border: 1px solid var(--line2);
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: var(--bg);
   color: var(--mu);
   font-size: 12.5px;
@@ -1630,7 +1630,7 @@ kbd,
   display: flex;
   align-items: center;
   border: 1px solid var(--line2);
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   overflow: hidden;
   width: max-content;
   background: var(--bg);
@@ -1659,7 +1659,7 @@ kbd,
 /* The font preview is drawn in the chosen terminal palette (--pv-* set inline). */
 .prev {
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: var(--pv-bg, var(--term));
   padding: 12px 14px;
   line-height: 1.55;
@@ -1731,7 +1731,7 @@ kbd,
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: var(--bg);
   color: var(--mu);
   text-align: left;
@@ -1750,7 +1750,7 @@ kbd,
   gap: 6px;
   height: 34px;
   padding: 0 8px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   font-family: var(--font-mono);
   font-size: 11.5px;
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.18);
@@ -1777,7 +1777,7 @@ kbd,
   overflow: auto;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: var(--bg2);
   font-size: 12.5px;
   line-height: 1.5;
@@ -1823,7 +1823,7 @@ kbd,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   flex: none;
   line-height: 1;
   font-weight: 700;
@@ -1831,7 +1831,7 @@ kbd,
 }
 .acc-row.drag {
   cursor: grab;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   touch-action: none;
   position: relative;
 }
@@ -1846,7 +1846,7 @@ kbd,
 }
 .fold,
 .acc-root {
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   transition: box-shadow 0.12s;
 }
 .acc-root {
@@ -1876,7 +1876,7 @@ kbd,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
 }
 .fold-tg:hover {
   color: var(--tx);
@@ -1930,7 +1930,7 @@ kbd,
   border: 0;
   background: none;
   padding: 3px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1951,7 +1951,7 @@ kbd,
   width: 264px;
   padding: 10px;
   border: 1px solid var(--line2);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: var(--panel);
   box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -1968,7 +1968,7 @@ kbd,
   border: 0;
   background: none;
   height: 28px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   font-size: 16px;
   line-height: 1;
 }
@@ -2125,7 +2125,7 @@ kbd,
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line2);
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   background: var(--panel);
   box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
   animation: cm-in 110ms ease-out;
@@ -2143,7 +2143,7 @@ kbd,
   gap: 8px;
   padding: 6px 10px 6px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font-size: 12.5px;
@@ -2196,7 +2196,7 @@ kbd,
   height: 34px;
   padding: 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: none;
   text-align: left;
   font-size: 13.5px;
@@ -2232,7 +2232,7 @@ kbd,
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--fa);
   padding: 0;
@@ -2264,7 +2264,7 @@ kbd,
   height: 28px;
   padding: 0 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: none;
   text-align: left;
   font-size: 12.5px;
@@ -2343,7 +2343,7 @@ kbd,
   max-width: 34%;
   padding: 0 7px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   font-size: 11.5px;
   color: var(--fa);
@@ -2417,7 +2417,7 @@ button.dp-branch {
   border: 0;
   background: none;
   padding: 2px 6px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   cursor: pointer;
 }
 button.dp-branch:hover:not(:disabled) {
@@ -2491,7 +2491,7 @@ button.dp-branch:hover:not(:disabled) {
 }
 .df {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   overflow: hidden;
   flex: none;
 }
@@ -2533,7 +2533,7 @@ button.dp-branch:hover:not(:disabled) {
   font-size: 10.5px;
   color: var(--mu);
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
   background: var(--raise);
 }
 .df-n {
@@ -2611,7 +2611,7 @@ button.dp-branch:hover:not(:disabled) {
   align-items: center;
   gap: 12px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   cursor: pointer;
   color: var(--mu);
 }
@@ -2670,7 +2670,7 @@ button.dp-branch:hover:not(:disabled) {
 /* ---- Icon library picker --------------------------------------------------------- */
 
 .icp-pop {
-  border-radius: 14px;
+  border-radius: calc(14px * var(--rs, 1));
   border-color: var(--line);
   padding: 12px;
   gap: 10px;
@@ -2700,7 +2700,7 @@ button.dp-branch:hover:not(:disabled) {
   height: 34px;
   padding: 0 10px;
   border: 1px solid var(--line2);
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   color: var(--fa);
 }
 .icp-srch:focus-within {
@@ -2733,7 +2733,7 @@ button.dp-branch:hover:not(:disabled) {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   background: none;
   color: var(--mu);
   padding: 0;
@@ -2923,4 +2923,17 @@ button.dp-branch:hover:not(:disabled) {
 }
 .sc-row .sc-err {
   flex-basis: 100%;
+}
+
+/* ---- Theme motion (#24): `data-motion` on <html>; prefers-reduced-motion still wins. ---- */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation: none !important;
+}
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation: none !important;
+  transition: none !important;
 }

@@ -15,7 +15,7 @@
   display: inline-flex;
   flex: none;
   padding: 2px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--rs, 1));
   background: var(--raise);
 }
 .vsw button {
@@ -26,7 +26,7 @@
   width: 24px;
   height: 18px;
   border: 0;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: none;
   color: var(--fa);
   cursor: pointer;
@@ -73,10 +73,10 @@
 .chat-col {
   max-width: var(--chat-col);
   margin: 0 auto;
-  padding: 20px 20px 12px;
+  padding: calc(20px * var(--dens, 1)) 20px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(6px * var(--dens, 1));
 }
 .pane.compact .chat-col {
   padding: 14px 12px 8px;
@@ -126,7 +126,7 @@
 .chat-hello-mark {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
   background: conic-gradient(
     from 200deg,
     var(--acc),
@@ -150,7 +150,7 @@
 }
 .chat-sug {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: color-mix(in srgb, var(--panel) 70%, var(--bg));
   color: var(--tx);
   font: inherit;
@@ -195,9 +195,9 @@
 .cmsg-bubble {
   max-width: min(85%, 600px);
   padding: 9px 14px;
-  border-radius: 16px 16px 4px 16px;
+  border-radius: calc(16px * var(--rs, 1)) calc(16px * var(--rs, 1)) 4px calc(16px * var(--rs, 1));
   /* Your words: the theme's accent mixed into "raised", so every theme tints its own. */
-  background: color-mix(in srgb, var(--acc) 12%, var(--raise));
+  background: var(--user-bg, var(--raise));
   border: 1px solid color-mix(in srgb, var(--acc) 22%, var(--line));
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -211,7 +211,7 @@
 .cmsg.agent {
   position: relative;
   padding: 2px 0;
-  font-size: 14.5px;
+  font-size: var(--chat-size, 14.5px);
 }
 .cmsg-tools {
   display: flex;
@@ -291,7 +291,7 @@
   margin-right: 7px;
   vertical-align: -2px;
   border: 1.5px solid var(--line2);
-  border-radius: 4px;
+  border-radius: calc(4px * var(--rs, 1));
 }
 li.done > .md-box,
 .ct-todos .done .md-box {
@@ -317,7 +317,7 @@ li.done > .md-box,
   font-family: var(--font-mono);
   font-size: 0.86em;
   padding: 1px 5px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--rs, 1));
   background: var(--raise);
 }
 .md blockquote {
@@ -334,8 +334,8 @@ li.done > .md-box,
 .md-code {
   margin: 4px 0 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg2) 75%, var(--bg));
+  border-radius: calc(10px * var(--rs, 1));
+  background: var(--code-bg, var(--bg2));
   overflow: hidden;
 }
 .md-code-h {
@@ -372,7 +372,7 @@ li.done > .md-box,
   margin: 4px 0 12px;
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
 }
 .md-table table {
   border-collapse: collapse;
@@ -398,7 +398,7 @@ li.done > .md-box,
   width: 24px;
   height: 22px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: none;
   color: var(--fa);
   cursor: pointer;
@@ -457,7 +457,7 @@ li.done > .md-box,
 }
 .cnote.error {
   align-self: stretch;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   padding: 8px 12px;
   color: var(--err);
   border-color: color-mix(in srgb, var(--err) 35%, transparent);
@@ -475,7 +475,7 @@ li.done > .md-box,
 
 .ct {
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   background: none;
   overflow: hidden;
   transition:
@@ -495,8 +495,8 @@ li.done > .md-box,
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 32px;
-  padding: 5px 10px;
+  min-height: calc(32px * var(--dens, 1));
+  padding: calc(5px * var(--dens, 1)) 10px;
   border: 0;
   background: none;
   color: var(--mu);
@@ -513,7 +513,7 @@ li.done > .md-box,
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: var(--raise);
   color: var(--mu);
   flex: none;
@@ -707,7 +707,7 @@ li.done > .md-box,
   padding: 8px 10px;
   border: 1px dashed color-mix(in srgb, var(--ok) 45%, var(--line));
   background: color-mix(in srgb, var(--ok) 5%, transparent);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   font-size: 12.5px;
   animation: chat-fade 0.3s var(--ease-out);
 }
@@ -784,7 +784,7 @@ li.done > .md-box,
 }
 .ca {
   border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line2));
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
   background: color-mix(in srgb, var(--warn) 6%, var(--panel));
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
   overflow: hidden;
@@ -803,7 +803,7 @@ li.done > .md-box,
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: color-mix(in srgb, var(--warn) 16%, transparent);
   color: var(--warn);
   flex: none;
@@ -821,7 +821,7 @@ li.done > .md-box,
 .ca-preview {
   margin: 0 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   overflow: hidden;
 }
 .ca-preview .ct-code,
@@ -847,7 +847,7 @@ li.done > .md-box,
   gap: 8px;
   padding: 8px 10px 8px 12px;
   border: 1px solid var(--line2);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--rs, 1));
   background: var(--panel);
   font-size: 12.5px;
   color: var(--mu);
@@ -870,8 +870,8 @@ li.done > .md-box,
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line2);
-  border-radius: 16px;
+  border: var(--bw, 1px) solid var(--line2);
+  border-radius: calc(16px * var(--rs, 1));
   background: var(--panel);
   box-shadow:
     0 6px 24px -8px rgba(0, 0, 0, 0.35),
@@ -1024,7 +1024,7 @@ li.done > .md-box,
   max-width: 240px;
   padding: 3px 4px 3px 8px;
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: calc(8px * var(--rs, 1));
   font-size: 12px;
   color: var(--mu);
   animation: chat-pop-in 0.25s var(--ease-spring);
@@ -1062,7 +1062,7 @@ li.done > .md-box,
   position: relative;
   width: 56px;
   height: 56px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--rs, 1));
   overflow: hidden;
   border: 1px solid var(--line2);
   animation: chat-pop-in 0.25s var(--ease-spring);
@@ -1206,7 +1206,7 @@ li.done > .md-box,
   max-height: min(340px, 55vh);
   overflow: auto;
   padding: 6px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--rs, 1));
   background: var(--panel);
   box-shadow: var(--shadow-pop);
   scrollbar-width: thin;
@@ -1218,7 +1218,7 @@ li.done > .md-box,
   left: 6px;
   right: 6px;
   top: 0;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   background: var(--sel);
   opacity: 0;
   pointer-events: none;
@@ -1243,7 +1243,7 @@ li.done > .md-box,
   align-items: baseline;
   gap: 2px 8px;
   padding: 7px 10px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--rs, 1));
   cursor: pointer;
   font-size: 13px;
 }
@@ -1290,7 +1290,7 @@ li.done > .md-box,
   display: inline-block;
   margin-right: 2px;
   padding: 0 7px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--rs, 1));
   background: color-mix(in srgb, var(--acc) 18%, transparent);
   color: var(--acct);
   font-weight: 500;
