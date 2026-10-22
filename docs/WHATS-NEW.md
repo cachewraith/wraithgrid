@@ -1,4 +1,27 @@
-# What's new in 1.12: attach files, delete chats, sign in without a terminal
+# What's new in 1.13: git history, a better New chat, and switching accounts mid-chat
+
+*v1.13.0 · 2026-10-22*
+
+| Feature | How to use it |
+|---|---|
+| Pull | **Pull** next to Push in the Changes panel: fetches, then pulls with your git's own merge/rebase setting. It asks first if you have uncommitted changes |
+| Browse history | The **History** tab in the Changes panel: every branch and tag as a commit graph; click a commit to see its files and diff, **Load more** for older ones |
+| Continue a chat as another account | The account chip under the message box → **Continue as…**: the conversation moves to that account and carries on in place, with a divider marking the switch |
+| New chat, faster | Ctrl+Shift+N: pick the account (plan and sign-in state shown), pick the folder, **Start**. Everything else is under More options |
+| Pick a folder in-app | The folder button opens Wraithgrid's own picker: git repos marked with their branch, filter or paste a path to jump, pinned and recent on top. The system dialog is still there as a fallback |
+| See what's new after an update | **Settings → About** keeps release notes per version, and the status bar shows a one-time "Updated to X · See what's new" |
+
+- The Changes panel is now a rounded card on the frame, like the sidebar and main area.
+- Updates in About show clear states: downloading with a progress bar and Cancel, ready →
+  **Restart now**, failed → Retry or the release page.
+- The usage pill follows the focused pane's claude account and names it when you have more
+  than one.
+- Sidebar motion is calmer: one timing, no overshoot, and the "needs you" dot pulses once.
+- Picking a skill from the `/` menu no longer scrambles letters you had already typed.
+
+---
+
+## Previously, in 1.12: attach files, delete chats, sign in without a terminal
 
 *v1.12.0 · 2026-10-22*
 

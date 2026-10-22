@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.12.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.13.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -158,4 +158,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`.
 
 ## Current focus
-PRs #30–#35 all merged into main (2026-10-22): usage pill per focused account, sidebar motion, About release notes, Changes card + Pull + History graph, account switch mid-chat, New chat dialog + folder picker. Ready to release as v1.13.0 when asked. Waiting on the user for the performance issue (what is slow, which OS). To verify by hand: drag-and-drop attach and the sign-in dialog with a real claude account. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, other chat adapters (need real-output fixtures), codex/cursor/copilot/opencode and mods with real accounts.
+PRs #30–#35 all merged into main (2026-10-22): usage pill per focused account, sidebar motion, About release notes, Changes card + Pull + History graph, account switch mid-chat, New chat dialog + folder picker. Released as v1.13.0 (2026-10-22). Waiting on the user for the performance issue (what is slow, which OS). To verify by hand: drag-and-drop attach and the sign-in dialog with a real claude account. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, other chat adapters (need real-output fixtures), codex/cursor/copilot/opencode and mods with real accounts.
