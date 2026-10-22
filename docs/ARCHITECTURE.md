@@ -21,7 +21,8 @@
 | `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens Settings → Updates |
 | `update-install.ts` | `UpdateInstaller`: facade over electron-updater; check, download (progress events), install and relaunch |
 | `paths.ts` | Config file path, accounts root, worktrees root, `~` resolution, `isStrictlyInside` guard |
-| `chat/` | Chat panes (ADR 0002): `sessions.ts` `ChatSessions` runs one headless CLI per pane on pipes (JSON lines in/out, quiet stop, crash = exit event with last stderr line); `adapter.ts` registry; `claude.ts` stream-json ↔ `ChatEvent`, keeps pending approvals; `spawn.ts` masked fds + own process group |
+| `chat/` | Chat panes (ADR 0002): `sessions.ts` `ChatSessions` runs one headless CLI per pane on pipes (JSON lines in/out, quiet stop, crash = exit event with last stderr line); `adapter.ts` registry; `claude.ts` stream-json ↔ `ChatEvent`, keeps pending approvals; `spawn.ts` masked fds + own process group; `attach.ts` reads files picked in main's attach dialog (images as images, the rest as paths) |
+| `login.ts` | Sign-in dialog: `Logins` runs claude's own `claude auth login` over pipes per account (link → pasted code on stdin → `auth status --json`); only Anthropic https links reach the renderer; stopped on quit |
 | `git.ts` | `gitStatus`/`gitDiff` for a pane's folder (resolved from main's config by paneId), `addWorktree` on a validated new branch; git via an injected `execFile` runner, no shell |
 
 ## Renderer

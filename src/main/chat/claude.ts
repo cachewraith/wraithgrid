@@ -137,6 +137,9 @@ export function createClaudeAdapter(): ChatAdapter {
   let helloId = ''
   /** The user stopped this turn, so its error result is expected, not news. */
   let interrupted = false
+  /** The mode claude last said is in force, and our switch requests it hasn't answered yet. */
+  let mode: ChatMode | null = null
+  const modeReqs = new Set<string>()
 
   const decode = (msg: unknown): Decoded => {
     const out: Decoded = { events: [], replies: [] }
@@ -148,9 +151,11 @@ export function createClaudeAdapter(): ChatAdapter {
     switch (msg.type) {
       case 'system': {
         // claude says which mode is in force at start and after every switch (`status`).
-        const mode = str(msg.permissionMode)
-        if ((CHAT_MODES as readonly string[]).includes(mode))
-          push({ t: 'mode', mode: mode as ChatMode })
+        const m = str(msg.permissionMode)
+        if ((CHAT_MODES as readonly string[]).includes(m)) {
+          mode = m as ChatMode
+          push({ t: 'mode', mode })
+        }
         if (msg.subtype === 'init' && str(msg.session_id))
           push({
             t: 'session',
@@ -264,6 +269,16 @@ export function createClaudeAdapter(): ChatAdapter {
 
       case 'control_response': {
         const r = isObj(msg.response) ? msg.response : {}
+        // A refused switch (e.g. bypass in a session not allowed it): say why, show the mode in force.
+        if (modeReqs.delete(str(r.request_id)) && r.subtype === 'error') {
+          push({
+            t: 'notice',
+            level: 'error',
+            text: `Couldn't change mode: ${str(r.error) || 'claude refused it'}`
+          })
+          if (mode) push({ t: 'mode', mode })
+          break
+        }
         if (r.request_id !== helloId || r.subtype !== 'success' || !isObj(r.response)) break
         const info = r.response
         const models: ChatModel[] = (Array.isArray(info.models) ? info.models : [])
@@ -350,6 +365,8 @@ export function createClaudeAdapter(): ChatAdapter {
       '--include-partial-messages',
       '--permission-prompt-tool',
       'stdio',
+      // Only makes Bypass a mode the user can pick mid-chat; without it claude refuses the switch.
+      '--allow-dangerously-skip-permissions',
       ...(sessionId ? ['--resume', sessionId] : continueLast ? ['--continue'] : []),
       ...(model ? ['--model', model] : []),
       ...(effort ? ['--effort', effort] : []),
@@ -359,11 +376,15 @@ export function createClaudeAdapter(): ChatAdapter {
       helloId = reqId()
       return [{ type: 'control_request', request_id: helloId, request: { subtype: 'initialize' } }]
     },
-    setMode: (mode) => ({
-      type: 'control_request',
-      request_id: reqId(),
-      request: { subtype: 'set_permission_mode', mode }
-    }),
+    setMode: (m) => {
+      const id = reqId()
+      modeReqs.add(id)
+      return {
+        type: 'control_request',
+        request_id: id,
+        request: { subtype: 'set_permission_mode', mode: m }
+      }
+    },
     setModel: (model) => ({
       type: 'control_request',
       request_id: reqId(),

@@ -1,6 +1,10 @@
 # TODO
 
 ## Now
+- Plan (2026-10-22): attach files from the local machine in chat panes. Today the message box only takes pasted images (Composer `onPaste`; PNG/JPEG/GIF/WebP, max 4, ~5 MB each, `CHAT_IMAGE_*` in shared/chat.ts). To decide: an attach button with a native file picker (main `dialog.showOpenDialog` behind a new IPC channel + zod contract; main reads the file, never trusts a renderer path), drag and drop, which file types (images as image parts; text/code inlined or passed as a path for claude to read; PDFs?), size limits
+- Issue (2026-10-22): improve desktop app performance. Needs specifics from the user first: what feels slow (startup, switching projects/panes, typing, long chat threads, many panes, memory use) and on which OS. Then measure before changing (DevTools Performance profile, `process.getProcessMemoryInfo`); overlaps with the NFR-1 8-pane check above
+- Issue (2026-10-22): no visible way to delete a chat on the project screen (ProjectView). Open chats have no delete at all; History rows have a trash button (`.pj-del`) but it is invisible until hover (opacity 0, polish.css), and it deletes at once with no confirm. Want: a visible delete for chats (open and History), and clicking it opens a "Delete this chat?" confirm dialog (build on `Dialog.tsx`, like `RemoveWorktreeDialog`) before `deleteHistory` / stopping an open chat. To decide: show the button always or on hover + in a right-click menu; what deleting an open chat does (stop + forget the session?)
+- Plan (2026-10-22): sign in from a UI dialog, not a terminal. Today the account Login action opens a terminal pane running claude's own `/login` (store.ts `loginAccount`, `loginFlow` ~640). Want: a Wraithgrid dialog (steps: open browser → paste code if asked → "Signed in as …"), with claude still doing the OAuth itself in the account's config dir (never handle tokens ourselves). To check with the real CLI: is there a non-interactive login command (e.g. `claude auth login`) whose URL/code prompt main can drive over pipes; else drive `/login` in a hidden pty and parse the URL. Then the same for other CLIs (codex/gemini…) or keep the terminal for them
 - Herdr parity (released in v1.10.0): verify on Windows (named pipe host, ConPTY in a detached ELECTRON_RUN_AS_NODE process, NSIS update closing the host) and macOS (host from the .app, tray, ⌘Q asks); a real ssh machine for H5; NFR-1: memory/CPU of the host with 8 busy panes (headless xterm per pane)
 - Windows: `wraithgrid` CLI prints nothing in a console (GUI-subsystem exe); needs AttachConsole or a `wraithgrid.cmd` shim
 - H5 follow-ups: a machine's own `wraithgrid` path (AppImage/macOS remote), remote sign-in state per machine (login banner uses the local flag), remote Mods/Changes panel (local only today)
@@ -30,7 +34,10 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 
 ## Later
 - `agy`/opencode per-account isolation if they gain a config-dir variable
-- Chat-style pane (`claude -p --output-format stream-json`): rejected for now (2026-10-05), revisit if asked
+
+## Done (2026-10-22)
+- Chat diagrams draw whole (no per-line border, tight lines for box drawing); mermaid stays code (DECISIONS)
+- Mode switches mid-chat incl. Bypass (allow flag at start), refused switches show claude's reason, bypass confirm resets on close
 
 ## Done (2026-10-21)
 - account-folders e2e flake fixed (wait for the drop target)

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AccountsView, RemoveAccountDialog } from '../components/AccountsView'
 import { CommandPalette } from '../components/CommandPalette'
 import { RemoveWorktreeDialog } from '../components/RemoveWorktreeDialog'
+import { DeleteChatDialog } from '../components/DeleteChatDialog'
+import { LoginDialog } from '../components/LoginDialog'
 import { BranchPicker } from '../components/BranchPicker'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
@@ -160,6 +162,10 @@ function Modals() {
       return <CommandPalette />
     case 'removeWorktree':
       return <RemoveWorktreeDialog cwd={modal.cwd} title={modal.title} />
+    case 'login':
+      return <LoginDialog accountId={modal.accountId} />
+    case 'deleteChat':
+      return <DeleteChatDialog wsId={modal.wsId} paneId={modal.paneId} />
     case 'branches':
       return <BranchPicker paneId={modal.paneId} at={modal.at} />
   }

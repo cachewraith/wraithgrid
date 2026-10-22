@@ -6,8 +6,10 @@ sid=fake-new
 model=default
 effort=auto
 mode=default
+bypass=no
 prev=
 for a in "$@"; do
+  [ "$a" = "--allow-dangerously-skip-permissions" ] && bypass=yes
   [ "$prev" = "--resume" ] && sid="resumed-$a"
   [ "$prev" = "--model" ] && model="$a"
   [ "$prev" = "--effort" ] && effort="$a"
@@ -45,6 +47,15 @@ while IFS= read -r line; do
     *'"subtype":"set_model"'*)
       model=$(field model "$line")
       say "{\"type\":\"control_response\",\"response\":{\"subtype\":\"success\",\"request_id\":\"$(field request_id "$line")\"}}" ;;
+    # As real claude 2.1.306: bypass is refused unless the session was allowed it.
+    *'"subtype":"set_permission_mode"'*'"bypassPermissions"'*)
+      if [ "$bypass" = no ]; then
+        say "{\"type\":\"control_response\",\"response\":{\"subtype\":\"error\",\"request_id\":\"$(field request_id "$line")\",\"error\":\"Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions\",\"error_code\":\"bypass_not_launched\"}}"
+      else
+        mode=bypassPermissions
+        say "{\"type\":\"control_response\",\"response\":{\"subtype\":\"success\",\"request_id\":\"$(field request_id "$line")\",\"response\":{\"mode\":\"$mode\"}}}"
+        say "{\"type\":\"system\",\"subtype\":\"status\",\"status\":null,\"permissionMode\":\"$mode\",\"session_id\":\"$sid\"}"
+      fi ;;
     # As real claude 2.1.306: an answer, then a status line with the mode in force.
     *'"subtype":"set_permission_mode"'*)
       mode=$(field mode "$line")

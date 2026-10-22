@@ -120,7 +120,7 @@ const Item = memo(function Item({
  * knows which CLI that is; main's adapter turned the CLI's output into ChatEvents.
  */
 export function ChatView({ paneId, visible, focused }: Props) {
-  const { chat, store } = useServices()
+  const { api, chat, store } = useServices()
   const actions = useActions()
   const thread = useSyncExternalStore(
     useCallback((cb) => chat.subscribe(paneId, cb), [chat, paneId]),
@@ -191,8 +191,9 @@ export function ChatView({ paneId, visible, focused }: Props) {
   const chosenModel =
     thread.models.find((m) => m.value === (pane.model ?? 'default')) ?? thread.models[0]
   const autoMode = chosenModel?.autoMode === true
-  // What the CLI says is in force; before it said, what this chat asked for.
-  const mode = thread.mode ?? pane.chatMode ?? 'default'
+  // The pick shows at once; `pane.chatMode` also follows what the CLI reports (and a refused
+  // switch puts it back), so waiting for the CLI here only made the picker look stuck.
+  const mode = pane.chatMode ?? 'default'
   const runCommand = (item: SlashItem): void => {
     if (item.group === 'terminal') {
       // The CLI's own screen starts (or comes forward); the command waits there for Enter.
@@ -348,6 +349,8 @@ export function ChatView({ paneId, visible, focused }: Props) {
           onCommand={runCommand}
           onSend={send}
           onStop={() => actions.chatInterrupt(paneId)}
+          onPickFiles={() => api.chat.pickFiles(paneId)}
+          filePath={api.chat.filePath}
         />
       </div>
     </div>

@@ -158,6 +158,14 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(win.getByRole('option', { name: /^Click again to bypass/ })).toBeVisible()
     await win.keyboard.press('Escape')
     await expect(modeBtn).toHaveText('Accept edits')
+    // The second click switches live: claude was started allowing it.
+    await modeBtn.click()
+    await win.getByRole('option', { name: /^Bypass permissions/ }).click()
+    await win.getByRole('option', { name: /^Click again to bypass/ }).click()
+    await expect(modeBtn).toHaveText('Bypass permissions')
+    await composer(win).fill('which mode')
+    await composer(win).press('Enter')
+    await expect(pane(win).locator('.cmsg.agent').last()).toContainText('mode bypassPermissions')
     await modeBtn.click()
     await win.getByRole('option', { name: /^Ask before edits/ }).click()
     await expect(modeBtn).toHaveText('Ask before edits')
@@ -196,6 +204,27 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
       'session resumed-resumed-fake-new'
     )
+
+    // ---- Attach: main's picker; an image goes as an image, a text file as a path.
+    const notes = path.join(home, 'proj', 'notes.md')
+    const pic = path.join(home, 'proj', 'pic.png')
+    fs.writeFileSync(notes, '# notes')
+    fs.writeFileSync(pic, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    await app.evaluate(
+      ({ dialog }, files) => {
+        dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: files })) as never
+      },
+      [notes, pic]
+    )
+    await pane(win).getByRole('button', { name: 'Attach files' }).click()
+    await expect(pane(win).getByRole('img', { name: 'Pasted image 1' })).toBeVisible()
+    await expect(pane(win).locator('.cc-file')).toHaveText('notes.md')
+    await composer(win).fill('read this')
+    await composer(win).press('Enter')
+    await expect(pane(win).locator('.cmsg.user').last()).toContainText(
+      /read this\s+Attached files:\s+- .*notes\.md/
+    )
+    await expect(pane(win).locator('.cc-file')).toHaveCount(0)
 
     // ---- Quit and relaunch: the conversation view comes back and resumes its session.
     await app.close()
@@ -237,14 +266,29 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('session resumed-fake-new')
 
-    // ---- Deleting it from History removes its saved view for good.
+    // ---- Delete asks first: "Keep it" leaves the History entry alone.
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
     await pane(win)
       .getByRole('button', { name: /Close pane/ })
       .click()
     await side.locator('.ws-row', { hasText: 'main' }).click()
-    await win.getByRole('button', { name: /Delete fresh from history/ }).click()
+    await history.getByRole('button', { name: 'Delete fresh' }).click()
+    const confirm = win.getByRole('alertdialog', { name: 'Delete “fresh”?' })
+    await confirm.getByRole('button', { name: 'Keep it' }).click()
+    await expect(confirm).toBeHidden()
+    await expect(history.locator('.pj-row', { hasText: 'fresh' })).toBeVisible()
+
+    // ---- An open chat is deleted from its right-click menu: stopped, not archived, view gone.
+    await history.locator('.pj-row', { hasText: 'fresh' }).click()
+    await expect(pane(win).locator('.cmsg.user').last()).toHaveText('back again')
+    await side.locator('.ws-row', { hasText: 'main' }).click()
+    const openChats = win.getByRole('region', { name: 'Open chats' })
+    await openChats.locator('.pj-row', { hasText: 'fresh' }).click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Delete chat…' }).click()
+    await confirm.getByRole('button', { name: 'Delete chat' }).click()
+    await expect(openChats).toHaveCount(0)
     await expect(history).toHaveCount(0)
+    await expect.poll(() => chatPids()).toHaveLength(0)
     await expect.poll(() => fs.existsSync(saved)).toBe(false)
     await app.close()
   } finally {
