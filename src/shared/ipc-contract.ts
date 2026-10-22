@@ -12,7 +12,8 @@ import {
   type ApprovalDecision,
   type ChatMode,
   type ChatEventMessage,
-  type ChatImage
+  type ChatImage,
+  type ChatPickResult
 } from './chat'
 import { idSchema, sshHostSchema } from './schema'
 import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
@@ -437,6 +438,10 @@ export interface WraithApi {
     /** The conversation view saved for this pane, as `save` got it. */
     load(paneId: string): Promise<string | null>
     save(paneId: string, data: string): void
+    /** The native file picker in the pane's folder; null when cancelled. */
+    pickFiles(paneId: string): Promise<ChatPickResult | null>
+    /** A dropped file's path on disk ('' when it has none). */
+    filePath(file: File): string
   }
   config: {
     get(): Promise<Config>

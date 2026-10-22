@@ -120,7 +120,7 @@ const Item = memo(function Item({
  * knows which CLI that is; main's adapter turned the CLI's output into ChatEvents.
  */
 export function ChatView({ paneId, visible, focused }: Props) {
-  const { chat, store } = useServices()
+  const { api, chat, store } = useServices()
   const actions = useActions()
   const thread = useSyncExternalStore(
     useCallback((cb) => chat.subscribe(paneId, cb), [chat, paneId]),
@@ -349,6 +349,8 @@ export function ChatView({ paneId, visible, focused }: Props) {
           onCommand={runCommand}
           onSend={send}
           onStop={() => actions.chatInterrupt(paneId)}
+          onPickFiles={() => api.chat.pickFiles(paneId)}
+          filePath={api.chat.filePath}
         />
       </div>
     </div>

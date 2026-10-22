@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type {
   CliAction,
@@ -37,7 +37,9 @@ const api: WraithApi = {
     stop: (paneId, forget) => ipcRenderer.send(IPC.chatStop, { paneId, forget }),
     onEvent: (cb) => subscribe<ChatEventMessage>(IPC.chatEvent, cb),
     load: (paneId) => ipcRenderer.invoke(IPC.chatLoad, { paneId }),
-    save: (paneId, data) => ipcRenderer.send(IPC.chatSave, { paneId, data })
+    save: (paneId, data) => ipcRenderer.send(IPC.chatSave, { paneId, data }),
+    pickFiles: (paneId) => ipcRenderer.invoke(IPC.chatPickFiles, { paneId }),
+    filePath: (file) => webUtils.getPathForFile(file)
   },
   config: {
     get: () => ipcRenderer.invoke(IPC.configGet),

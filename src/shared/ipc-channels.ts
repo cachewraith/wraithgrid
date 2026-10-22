@@ -13,6 +13,7 @@ export const IPC = {
   chatStop: 'chat:stop',
   chatSetModel: 'chat:setModel',
   chatSetMode: 'chat:setMode',
+  chatPickFiles: 'chat:pickFiles',
   chatEvent: 'chat:event',
   chatLoad: 'chat:load',
   chatSave: 'chat:save',

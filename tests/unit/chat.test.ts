@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { EventEmitter } from 'node:events'
 import { describe, expect, it } from 'vitest'
-import type { ChatEvent } from '@shared/chat'
+import { CHAT_FILES_MAX, CHAT_IMAGES_MAX, withAttachments, type ChatEvent } from '@shared/chat'
+import { readPicked } from '../../src/main/chat/attach'
 import { chatAdapterFor } from '../../src/main/chat/adapter'
 import { createClaudeAdapter, describeClaudeTool } from '../../src/main/chat/claude'
 import { ChatSessions, type ChatChild } from '../../src/main/chat/sessions'
@@ -526,5 +528,40 @@ describe('markdown', () => {
       { t: 'text', v: ' ' },
       { t: 's', c: [{ t: 'text', v: 's' }] }
     ])
+  })
+})
+
+describe('chat attachments', () => {
+  it('lists attached files after the message, one path a line', () => {
+    expect(withAttachments('look', [])).toBe('look')
+    expect(withAttachments('look', ['/a/b.ts', '/c d.md'])).toBe(
+      'look\n\nAttached files:\n- /a/b.ts\n- /c d.md'
+    )
+    expect(withAttachments('', ['/x\nevil'])).toBe('Attached files:\n- /x evil')
+  })
+
+  it('reads picked images as images; other files, and images past the limit, go as paths', async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'wg-attach-'))
+    try {
+      const png = (n: number): string => {
+        const f = path.join(dir, `i${n}.PNG`)
+        writeFileSync(f, Buffer.from([0x89, 0x50, 0x4e, 0x47, n]))
+        return f
+      }
+      const imgs = Array.from({ length: CHAT_IMAGES_MAX + 1 }, (_, i) => png(i))
+      const txt = path.join(dir, 'notes.ts')
+      writeFileSync(txt, 'x')
+      const r = await readPicked([...imgs, txt])
+      expect(r.images).toHaveLength(CHAT_IMAGES_MAX)
+      expect(r.images[0]).toEqual({
+        mediaType: 'image/png',
+        data: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0]).toString('base64')
+      })
+      expect(r.files).toEqual([imgs.at(-1), txt])
+      const many = await readPicked(Array.from({ length: CHAT_FILES_MAX + 5 }, () => txt))
+      expect(many.files).toHaveLength(CHAT_FILES_MAX)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

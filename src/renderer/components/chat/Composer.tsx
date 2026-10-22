@@ -1,12 +1,24 @@
-import { useEffect, useId, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
 import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode
+} from 'react'
+import {
+  CHAT_FILES_MAX,
   CHAT_IMAGE_MAX,
   CHAT_IMAGE_TYPES,
   CHAT_IMAGES_MAX,
+  withAttachments,
   type ChatImage,
-  type ChatImageType
+  type ChatImageType,
+  type ChatPickResult
 } from '@shared/chat'
-import { IconArrowUp, IconClose, IconStop } from '../icons'
+import { baseName } from '@shared/paths'
+import { IconArrowUp, IconClose, IconFile, IconPaperclip, IconStop } from '../icons'
 import { rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
 
@@ -29,6 +41,10 @@ interface Props {
   onCycleMode?: () => void
   onSend: (text: string, images: ChatImage[]) => void
   onStop: () => void
+  /** The attach button: main's file picker; no prop, no button. */
+  onPickFiles?: () => Promise<ChatPickResult | null>
+  /** A dropped file's path on disk ('' when it has none). */
+  filePath?: (file: File) => string
 }
 
 /** Reads a pasted image as base64, or null when it is too big or not a kind agents take. */
@@ -58,10 +74,15 @@ export function Composer({
   onCommand,
   onCycleMode,
   onSend,
-  onStop
+  onStop,
+  onPickFiles,
+  filePath
 }: Props) {
   const [text, setText] = useState('')
   const [images, setImages] = useState<ChatImage[]>([])
+  /** Attached files sent as paths, listed after the message. */
+  const [files, setFiles] = useState<string[]>([])
+  const [dragging, setDragging] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
   const listId = useId().replace(/:/g, '')
 
@@ -98,12 +119,34 @@ export function Composer({
     if (autoFocus) ref.current?.focus({ preventScroll: true })
   }, [autoFocus])
 
-  const canSend = ready && (text.trim().length > 0 || images.length > 0)
+  const canSend = ready && (text.trim().length > 0 || images.length > 0 || files.length > 0)
   const send = (): void => {
     if (!canSend) return
-    onSend(text.trim(), images)
+    onSend(withAttachments(text.trim(), files), images)
     setText('')
     setImages([])
+    setFiles([])
+  }
+
+  const attach = (add: ChatPickResult): void => {
+    setImages((cur) => [...cur, ...add.images].slice(0, CHAT_IMAGES_MAX))
+    setFiles((cur) => [...new Set([...cur, ...add.files])].slice(0, CHAT_FILES_MAX))
+  }
+
+  // Dropped images are read here, like a paste; other files (and too-big images) go as paths.
+  const onDrop = (e: DragEvent<HTMLDivElement>): void => {
+    setDragging(false)
+    const dropped = [...e.dataTransfer.files]
+    if (!dropped.length) return
+    e.preventDefault()
+    void Promise.all(
+      dropped.map(async (f) => ({ image: await readImage(f), path: filePath?.(f) ?? '' }))
+    ).then((read) =>
+      attach({
+        images: read.flatMap((r) => (r.image ? [r.image] : [])),
+        files: read.flatMap((r) => (!r.image && r.path ? [r.path] : []))
+      })
+    )
   }
 
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>): void => {
@@ -121,7 +164,7 @@ export function Composer({
   }
 
   return (
-    <div className={`cc${busy ? ' busy' : ''}`}>
+    <div className={`cc${busy ? ' busy' : ''}${dragging ? ' drop' : ''}`}>
       {open ? (
         <SlashMenu
           id={listId}
@@ -132,7 +175,35 @@ export function Composer({
           onHover={setActive}
         />
       ) : null}
-      <div className="cc-box">
+      <div
+        className="cc-box"
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes('Files')) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+          setDragging(true)
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false)
+        }}
+        onDrop={onDrop}
+      >
+        {files.length ? (
+          <div className="cc-files" aria-label="Attached files">
+            {files.map((f) => (
+              <span key={f} className="cc-file" title={f}>
+                <IconFile small />
+                <span>{baseName(f)}</span>
+                <button
+                  aria-label={`Remove ${baseName(f)}`}
+                  onClick={() => setFiles(files.filter((x) => x !== f))}
+                >
+                  <IconClose small />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         {images.length ? (
           <div className="cc-imgs">
             {images.map((img, i) => (
@@ -210,6 +281,16 @@ export function Composer({
               <span key={m}>{m}</span>
             ))}
           </div>
+          {onPickFiles ? (
+            <button
+              className="cc-btn attach"
+              aria-label="Attach files"
+              title="Attach files (or drop them here)"
+              onClick={() => void onPickFiles().then((r) => r && attach(r))}
+            >
+              <IconPaperclip small />
+            </button>
+          ) : null}
           {busy ? (
             <button
               className="cc-btn stop"

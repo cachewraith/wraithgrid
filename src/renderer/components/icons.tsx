@@ -217,6 +217,9 @@ export const IconFile = make(
     <path d="M9 2.5v3h3" />
   </>
 )
+export const IconPaperclip = make(
+  <path d="M12.5 7.5l-4.8 4.8a2.9 2.9 0 0 1-4.1-4.1l5.3-5.3a1.9 1.9 0 0 1 2.7 2.7L6.4 10.8a.9.9 0 0 1-1.3-1.3L9.6 5" />
+)
 export const IconGlobe = make(
   <>
     <circle cx="8" cy="8" r="5.5" />

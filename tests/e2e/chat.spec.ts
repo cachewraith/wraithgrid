@@ -205,6 +205,27 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
       'session resumed-resumed-fake-new'
     )
 
+    // ---- Attach: main's picker; an image goes as an image, a text file as a path.
+    const notes = path.join(home, 'proj', 'notes.md')
+    const pic = path.join(home, 'proj', 'pic.png')
+    fs.writeFileSync(notes, '# notes')
+    fs.writeFileSync(pic, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    await app.evaluate(
+      ({ dialog }, files) => {
+        dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: files })) as never
+      },
+      [notes, pic]
+    )
+    await pane(win).getByRole('button', { name: 'Attach files' }).click()
+    await expect(pane(win).getByRole('img', { name: 'Pasted image 1' })).toBeVisible()
+    await expect(pane(win).locator('.cc-file')).toHaveText('notes.md')
+    await composer(win).fill('read this')
+    await composer(win).press('Enter')
+    await expect(pane(win).locator('.cmsg.user').last()).toContainText(
+      /read this\s+Attached files:\s+- .*notes\.md/
+    )
+    await expect(pane(win).locator('.cc-file')).toHaveCount(0)
+
     // ---- Quit and relaunch: the conversation view comes back and resumes its session.
     await app.close()
     await expect.poll(() => chatPids()).toHaveLength(0)

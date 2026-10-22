@@ -153,6 +153,8 @@ import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import type { ChatSessions } from './chat/sessions'
+import { readPicked } from './chat/attach'
+import type { ChatPickResult } from '@shared/chat'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
 
@@ -664,6 +666,23 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     }
     return null
   }
+  // Attach files to a chat message: picked in main's own dialog, starting in the pane's folder.
+  handle(
+    IPC.chatPickFiles,
+    chatPaneArgs,
+    async (a): Promise<ChatPickResult | null> => {
+      const win = deps.getWindow()
+      if (!win) return null
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Attach files',
+        properties: ['openFile', 'multiSelections'],
+        defaultPath: paneCwd(a.paneId) ?? homeDir
+      })
+      return res.canceled ? null : readPicked(res.filePaths)
+    },
+    null
+  )
+
   const noRepo: GitStatus = { repo: false, branch: null, ahead: 0, behind: 0, changed: 0 }
 
   handle(

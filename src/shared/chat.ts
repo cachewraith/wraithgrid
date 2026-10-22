@@ -186,6 +186,30 @@ export interface ChatImage {
   data: string
 }
 
+/** Image files attached from disk, by extension; anything else is sent as a path. */
+export const CHAT_IMAGE_EXT: Record<string, ChatImageType> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp'
+}
+/** Files attached to one message as paths (the agent reads them with its own tools). */
+export const CHAT_FILES_MAX = 20
+
+/** What the attach picker gave: images to send as images, other files as paths. */
+export interface ChatPickResult {
+  images: ChatImage[]
+  files: string[]
+}
+
+/** The message with its attached files listed after it, one path a line. */
+export function withAttachments(text: string, files: string[]): string {
+  if (!files.length) return text
+  const list = files.map((f) => `- ${f.replace(/[\r\n]+/g, ' ')}`).join('\n')
+  return `${text ? `${text}\n\n` : ''}Attached files:\n${list}`
+}
+
 /** Clips tool output so a huge result never floods the view or the saved transcript. */
 export function clip(text: string, max = 8000): string {
   return text.length > max
