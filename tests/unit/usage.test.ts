@@ -19,6 +19,9 @@ import {
   fmtTokens,
   fmtUntil,
   limitAccountId,
+  limitIsFocused,
+  panesOpen,
+  panesPerAccount,
   severity
 } from '../../src/renderer/lib/usage-format'
 import { defaultConfig } from '../../src/shared/schema'
@@ -242,5 +245,25 @@ describe('whose limits the pill shows', () => {
     const c = config(null)
     c.accounts = [acct('gem', 'gemini')]
     expect(limitAccountId(c, 'p-gem')).toBeNull()
+  })
+  it("says whether it is the focused chat's account or the new-chat one (#49)", () => {
+    expect(limitIsFocused(config('work'), 'p-home')).toBe(true)
+    expect(limitIsFocused(config('work'), 'p-gem')).toBe(false)
+    expect(limitIsFocused(config('work'), null)).toBe(false)
+  })
+})
+
+describe('accounts in use (#49)', () => {
+  it('counts open panes per account across projects; shells run none', () => {
+    const c = defaultConfig()
+    const p = (id: string, accountId: string | null, shell = false): Pane =>
+      ({ id, accountId, shell }) as Pane
+    c.workspaces = [
+      { ...c.workspaces[0]!, panes: [p('a', 'work'), p('b', 'home'), p('s', null, true)] },
+      { ...c.workspaces[0]!, id: 'w2', panes: [p('c', 'work')] }
+    ]
+    expect(panesPerAccount(c)).toEqual({ work: 2, home: 1 })
+    expect(panesOpen(1)).toBe('1 pane open')
+    expect(panesOpen(2)).toBe('2 panes open')
   })
 })

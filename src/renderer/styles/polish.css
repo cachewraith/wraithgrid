@@ -1279,6 +1279,15 @@
   border: 1px solid var(--line2);
   border-radius: 999px;
 }
+/* Whether any pane runs this account (#49): plain text at the end, not another chip. */
+.u-acct-hd .u-inuse {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+}
+.u-acct-hd .u-inuse.on {
+  color: var(--mu);
+}
 /* The limits are the headline: one quiet cell per window, the number first. */
 .u-lims {
   display: grid;
