@@ -108,6 +108,15 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(answer.locator('strong')).toHaveText('fake')
     await expect(answer).toContainText(`config ${home}/.wraithgrid/accounts/work`)
     await expect(answer).not.toContainText('(full copy)')
+    // While streaming, the end of the text shows a small round dot, not a block cursor (#62).
+    const dot = await answer.evaluate((el) => {
+      el.classList.add('streaming')
+      const cs = getComputedStyle(el.querySelector('.md > :last-child')!, '::after')
+      const r = { w: parseFloat(cs.width), h: parseFloat(cs.height), round: cs.borderRadius }
+      el.classList.remove('streaming')
+      return r
+    })
+    expect(dot).toEqual({ w: 6, h: 6, round: '50%' })
     await expect(pane(win).locator('.cturn')).toContainText('1s')
     // The account's models, from the CLI's own list; Default reads as the model it means.
     await expect(pane(win).getByRole('button', { name: /^Model:/ })).toHaveText(/Opus 5\.5/)
@@ -200,8 +209,13 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     // ---- Stop interrupts the turn without an error.
     await composer(win).fill('slow')
     await composer(win).press('Enter')
+    // While it streams, its words are spans that fade in, in a block that eases in (#62).
+    const streaming = pane(win).locator('.cmsg.agent.streaming')
+    await expect(streaming.locator('.md-in .md-w').first()).toBeVisible()
     await pane(win).getByRole('button', { name: 'Stop (Esc)' }).click()
     await expect(pane(win).locator('.cnote', { hasText: 'Interrupted' })).toBeVisible()
+    // Once it ends the text is plain again: nothing left to animate.
+    await expect(pane(win).locator('.md-w, .md-in')).toHaveCount(0)
     await expect(pane(win).locator('.cnote.error')).toHaveCount(0)
     await expect(pane(win).getByRole('button', { name: 'Stop (Esc)' })).toBeHidden()
 

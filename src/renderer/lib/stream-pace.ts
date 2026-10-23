@@ -23,3 +23,15 @@ export function revealed(text: string, n: number): string {
   const code = text.charCodeAt(n - 1)
   return text.slice(0, code >= 0xd800 && code <= 0xdbff ? n + 1 : n)
 }
+
+/**
+ * The first `n` characters, cut back to the end of the last whole word (#62), so a word appears
+ * all at once and can fade in, never letter by letter. A word longer than what is shown (a long
+ * link) waits until it is all there.
+ */
+export function revealedWords(text: string, n: number): string {
+  if (n >= text.length) return text
+  let i = Math.max(n, 0)
+  while (i > 0 && !/\s/.test(text[i]!)) i--
+  return text.slice(0, i)
+}
