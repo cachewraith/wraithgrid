@@ -1,17 +1,18 @@
 # What's new in 1.18: switch accounts at the limit, Codex accounts, a tidier sidebar
 
-*v1.18.0 · 2026-10-23*
+*v1.18.1 · 2026-10-23*
 
 | Feature | How to use it |
 |---|---|
 | Switch account at the limit | When a Claude or Codex chat's account reaches 95% of its 5-hour or weekly limit, the chat carries on as your next account of the same CLI, with the whole conversation. A message the limit refused is sent again there. **Settings → Chat → Switch account at limit** turns it off or sets 80/90/95/100% |
 | Codex accounts | A Codex chat's account button now offers **Continue as…** like Claude: pick another Codex account and the conversation carries on there |
-| Projects as dropdowns | Each project in the sidebar opens and closes its chats with the arrow beside it (or → ← on the row), and remembers it. The project of the chat you're in opens on its own |
+| Projects as dropdowns | Each project in the sidebar opens and closes its chats with the arrow beside it (or → ← on the row), and remembers it. The project of the chat you're in opens on its own. Chats are plain one-line rows with their time; hover one for its branch and account |
 | Results under their row | When a background agent or command finishes, its result sits under its own row: one plain line, the whole answer formatted when you open it |
 
 - The sidebar's account box at the bottom is never covered any more: only the list scrolls.
 - A long account name in the sidebar's Usage row is cut short instead of wrapping; the % stays.
-- Cards without a git branch show their folder instead of an empty line.
+- 1.18.1: the sidebar is a clean list again: no boxes around chats, one line per project, and
+  only the chat you're in is highlighted.
 
 ---
 
