@@ -19,9 +19,15 @@ import {
   serializeThread,
   setUserThumbs,
   validThumbs,
+  type ChatItem,
   type ChatThread
 } from '../../src/renderer/lib/chat-thread'
-import { isDiagram, parseInline, parseMarkdown } from '../../src/renderer/lib/markdown'
+import {
+  isDiagram,
+  parseInline,
+  parseMarkdown,
+  plainFirstLine
+} from '../../src/renderer/lib/markdown'
 
 // Real claude 2.1.306 output (paths and the plugin list taken out): a Write that asks for
 // approval, an interrupted turn, then a second turn in the same process.
@@ -294,11 +300,13 @@ describe('background work (#39)', () => {
       }
     ])
     expect(bg[1]!.tasks).toEqual([])
-    // The ending is news, and claude's unasked follow-up turn marks the chat busy again.
-    const at = all.findIndex((e) => e.t === 'notice')
+    // The ending is news, under the tool that started it (#63), and claude's unasked follow-up
+    // turn marks the chat busy again.
+    const at = all.findIndex((e) => e.t === 'taskResult')
     expect(all[at]).toEqual({
-      t: 'notice',
-      level: 'info',
+      t: 'taskResult',
+      toolId: 'toolu_019GrbvoSNixgnNjkvrCAZ5W',
+      ok: true,
       text: 'Background command "Sleep 15 seconds then echo done" completed (exit code 0)'
     })
     expect(all.slice(at)).toContainEqual({ t: 'busy', busy: true })
@@ -312,6 +320,41 @@ describe('background work (#39)', () => {
     t = fold(all.slice(firstEnd + 2), t)
     expect(t.background).toEqual([])
     expect(chatStatus(t)).toBe('idle')
+    const tool = t.items.find((i) => i.kind === 'tool' && i.id === 'toolu_019GrbvoSNixgnNjkvrCAZ5W')
+    expect(tool).toMatchObject({ result: { ok: true, text: expect.stringContaining('completed') } })
+    expect(t.items.some((i) => i.kind === 'notice' && i.text.includes('completed'))).toBe(false)
+  })
+
+  it('a result for a tool not in the thread falls back to a short notice (#63)', () => {
+    const t = applyChatEvent(
+      EMPTY_THREAD,
+      { t: 'taskResult', toolId: 'gone', ok: false, text: 'x'.repeat(500) },
+      0
+    )
+    expect(t.items).toEqual([
+      { kind: 'notice', id: expect.any(String), level: 'error', text: 'x'.repeat(300) }
+    ])
+  })
+
+  it('a saved result is kept only when well-formed (#63)', () => {
+    const tool = (result: unknown) => ({
+      kind: 'tool',
+      id: 't1',
+      name: 'Agent',
+      toolKind: 'agent',
+      subtitle: 's',
+      preview: null,
+      output: 'ok',
+      isError: false,
+      approval: null,
+      result
+    })
+    const load = (result: unknown) =>
+      parseThread(serializeThread({ ...EMPTY_THREAD, items: [tool(result) as ChatItem] })).items[0]
+    expect(load({ ok: true, text: '**Verdict:** PASS' })).toMatchObject({
+      result: { ok: true, text: '**Verdict:** PASS' }
+    })
+    expect(load({ ok: 'yes', text: 1 })).not.toHaveProperty('result')
   })
 
   it("keeps a task's start time across list updates; the process ending clears the list", () => {
@@ -721,5 +764,22 @@ describe('chat attachments', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('a result as one plain line (#63)', () => {
+  it('takes the first real line without markdown marks', () => {
+    expect(plainFirstLine('**Verdict: FAIL** All 53 tests pass')).toBe(
+      'Verdict: FAIL All 53 tests pass'
+    )
+    expect(plainFirstLine('```\nVerdict: PASS\n```')).toBe('Verdict: PASS')
+    expect(plainFirstLine('\n\n## Summary\nmore')).toBe('Summary')
+    expect(plainFirstLine('- [x] `parseTuition` checked, see [docs](http://x)')).toBe(
+      'parseTuition checked, see docs'
+    )
+    expect(plainFirstLine('use *care* with snake_case_names')).toBe(
+      'use care with snake_case_names'
+    )
+    expect(plainFirstLine('  \n ')).toBe('')
   })
 })

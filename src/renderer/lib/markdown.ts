@@ -233,3 +233,21 @@ export function parseInline(src: string): Inline[] {
   pushText()
   return out
 }
+
+/**
+ * A result's first real line as plain text (#63), for the one-line summary of a closed tool
+ * row: no fences, heading/quote/list marks, emphasis or code ticks.
+ */
+export function plainFirstLine(src: string): string {
+  for (const raw of src.split('\n')) {
+    const line = raw
+      .replace(/^\s*(?:`{3,}|~{3,}).*$/, '')
+      .replace(/^\s*(?:#{1,6}\s+|>\s?|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/, '')
+      .replace(/(\*\*|__|~~|`)/g, '')
+      .replace(/(^|\W)[*_]([^*_\s][^*_]*?)[*_](?=\W|$)/g, '$1$2')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .trim()
+    if (line) return line
+  }
+  return ''
+}

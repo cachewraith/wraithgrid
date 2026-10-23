@@ -36,6 +36,8 @@ export type ChatItem =
       output: string | null
       isError: boolean
       approval: ToolApproval | null
+      /** What the task it started reported when it ended (#63), e.g. a sub-agent's answer. */
+      result?: { ok: boolean; text: string }
     }
   /** `divider`: a line across the chat, e.g. "Continued as home · 14:32". */
   | { kind: 'notice'; id: string; level: 'info' | 'error' | 'divider'; text: string }
@@ -207,6 +209,14 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
       )
       return updated ? { ...t, items: updated } : t
     }
+    case 'taskResult': {
+      const result = { ok: e.ok, text: e.text }
+      const updated = updateItem(t.items, e.toolId, (it) =>
+        it.kind === 'tool' ? { ...it, result } : it
+      )
+      if (updated) return { ...t, items: updated }
+      return addNotice(t, e.ok ? 'info' : 'error', e.text.slice(0, 300))
+    }
     case 'approval': {
       const approval: ToolApproval = { reqId: e.reqId, canAlways: e.canAlways, decided: null }
       const id = e.toolId ?? `approval-${e.reqId}`
@@ -327,8 +337,16 @@ export function parseThread(raw: string | null): ChatThread {
         )
       })
       .map((it): ChatItem => {
-        if (it.kind === 'tool' && it.approval && it.approval.decided === null)
-          return { ...it, approval: { ...it.approval, decided: 'deny' as const } }
+        if (it.kind === 'tool') {
+          const { result, ...rest } = it
+          const tool =
+            result && typeof result.text === 'string' && typeof result.ok === 'boolean'
+              ? { ...rest, result: { ok: result.ok, text: result.text } }
+              : rest
+          return tool.approval && tool.approval.decided === null
+            ? { ...tool, approval: { ...tool.approval, decided: 'deny' as const } }
+            : tool
+        }
         if (it.kind === 'user') {
           const { thumbs, ...rest } = it
           const ok = validThumbs(thumbs)

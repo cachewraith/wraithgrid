@@ -1,6 +1,8 @@
 import { memo, useState, type ReactNode } from 'react'
 import type { ApprovalDecision, ToolKind, ToolPreview } from '@shared/chat'
 import type { ChatItem } from '../../lib/chat-thread'
+import { plainFirstLine } from '../../lib/markdown'
+import { Markdown } from './Markdown'
 import {
   IconCheck,
   IconChevron,
@@ -108,7 +110,7 @@ export const ToolCard = memo(function ToolCard({
   const subtitle =
     cwd && item.subtitle.startsWith(`${cwd}/`) ? item.subtitle.slice(cwd.length + 1) : item.subtitle
   const verb = KIND_LABEL[item.toolKind]
-  const hasBody = !!item.preview || !!item.output
+  const hasBody = !!item.preview || !!item.output || !!item.result
   return (
     <div className={`ct ct-${state}${open ? ' open' : ''}`}>
       <button
@@ -134,11 +136,26 @@ export const ToolCard = memo(function ToolCard({
         </span>
         {hasBody ? <IconChevron small className="ct-chev" /> : null}
       </button>
+      {item.result && !open ? (
+        <button
+          className={`ct-res${item.result.ok ? '' : ' err'}`}
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => setOpen(true)}
+        >
+          {plainFirstLine(item.result.text)}
+        </button>
+      ) : null}
       <div className="ct-body">
         <div className="ct-inner">
           {item.preview ? <Preview preview={item.preview} /> : null}
           {item.output ? (
             <pre className={`ct-out${item.isError ? ' err' : ''}`}>{item.output}</pre>
+          ) : null}
+          {item.result ? (
+            <div className={`ct-md${item.result.ok ? '' : ' err'}`}>
+              <Markdown text={item.result.text} />
+            </div>
           ) : null}
         </div>
       </div>
