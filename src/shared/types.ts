@@ -240,6 +240,8 @@ export interface Settings {
   /** Folders pinned at the top of the New chat folder picker. */
   pinnedFolders: string[]
   sidebarCollapsed: boolean
+  /** Projects whose chats show as a dropdown in the sidebar (#67). */
+  sidebarOpenProjects: string[]
   /** Expanded sidebar width in px; dragged from its right edge. */
   sidebarWidth: number
   /** Changes (git diff) panel width in px; dragged from its left edge. */

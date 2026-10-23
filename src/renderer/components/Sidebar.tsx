@@ -16,7 +16,7 @@ import {
   type Pane,
   type Workspace
 } from '@shared/types'
-import { useActions, useApp } from '../app/services'
+import { useActions, useApp, useServices } from '../app/services'
 import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { Initial } from './AccountIcon'
@@ -87,6 +87,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
     }, null)
   )
   const now = useNow()
+  const openList = useApp((s) => s.config.settings.sidebarOpenProjects)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -121,6 +122,17 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
       disabled: panes > 0,
       onSelect: () => actions.setWorkspaceMachine(w.id, t.id)
     }))
+
+  // A dropdown of the project's chats (#67); open or closed is saved per project.
+  const canOpen = panes > 0
+  const open = canOpen && openList.includes(w.id)
+  const setOpen = (next: boolean): void => {
+    if (!canOpen || next === open) return
+    const ids = new Set(config.workspaces.map((x) => x.id))
+    const kept = openList.filter((id) => id !== w.id && ids.has(id))
+    actions.updateSettings({ sidebarOpenProjects: next ? [...kept, w.id] : kept })
+  }
+  const listId = `side-chats-${w.id}`
 
   const saveRename = (): void => {
     if (renaming?.trim()) actions.renameWorkspace(w.id, renaming)
@@ -159,10 +171,29 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
     <div className="proj">
       <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
+          className="ws-tg"
+          aria-label={open ? `Hide chats in ${w.name}` : `Show chats in ${w.name}`}
+          aria-expanded={canOpen ? open : undefined}
+          aria-controls={open ? listId : undefined}
+          disabled={!canOpen}
+          tabIndex={canOpen ? 0 : -1}
+          onMouseDown={keepFocus}
+          onClick={() => setOpen(!open)}
+        >
+          <IconChevron small className={`chev-i${open ? ' open' : ''}`} />
+        </button>
+        <button
           className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
           aria-current={on ? 'true' : undefined}
           title={key ? `Open ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Open ${w.name}`}
+          onMouseDown={keepFocus}
           onClick={() => actions.openProject(w.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              e.preventDefault()
+              setOpen(e.key === 'ArrowRight')
+            }
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
             setConfirmDelete(false)
@@ -198,6 +229,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
           <IconPlus small />
         </button>
       </div>
+      {open ? <ProjectChats w={w} id={listId} /> : null}
       {menu ? (
         <ContextMenu
           at={menu}
@@ -233,19 +265,19 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   )
 }
 
-/** A project's short badge: the first letters of its first two words, else its first two. */
-export function projectBadge(name: string): string {
-  const words = name
-    .trim()
-    .split(/[\s_.-]+/)
-    .filter(Boolean)
-  const letters =
-    words.length > 1 ? words.slice(0, 2).map((w) => [...w][0]) : [...(words[0] ?? '?')].slice(0, 2)
-  return letters.join('').toUpperCase()
+/** The last part of a folder path: what a card shows when the folder isn't a git repo. */
+function folderName(cwd: string): string {
+  return cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd
 }
 
-/** One open chat as a card (#59): project and time, the chat's title, its branch and account. */
-function ChatCard({ w, pane, now }: { w: Workspace; pane: Pane; now: number }) {
+/** Clicks don't move keyboard focus onto sidebar rows, so a later key press shows no ring. */
+const keepFocus = (e: MouseEvent): void => e.preventDefault()
+
+/**
+ * One open chat as a card under its project (#59, #67): title and time, then its branch (or
+ * folder) and account. The project heading above says which project it is.
+ */
+function ChatCard({ pane, now }: { pane: Pane; now: number }) {
   const actions = useActions()
   const account = useApp((s) => accountById(s.config, pane.accountId))
   const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
@@ -259,25 +291,24 @@ function ChatCard({ w, pane, now }: { w: Workspace; pane: Pane; now: number }) {
     <button
       className={`chat-card${on ? ' on' : ''}`}
       aria-current={on ? 'true' : undefined}
-      title={`${pane.title} · ${w.name}`}
+      title={pane.title}
+      onMouseDown={keepFocus}
       onClick={() => actions.revealPane(pane.id)}
     >
       <span className="cc-top">
-        <span className="cc-badge" aria-hidden="true">
-          {projectBadge(w.name)}
-        </span>
-        <span className="cc-proj">{w.name}</span>
+        <span className="cc-title">{pane.title}</span>
         {busy ? (
           <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
         ) : null}
         {when ? <span className={`cc-when${loud ? ' warn' : ''}`}>{when}</span> : null}
       </span>
-      <span className="cc-title">{pane.title}</span>
       <span className="cc-bot">
-        <span className="cc-branch">{branch ?? ''}</span>
+        <span className={`cc-branch${branch ? '' : ' folder'}`}>
+          {branch ?? folderName(pane.cwd)}
+        </span>
         {account ? (
           <span title={account.name}>
-            <Initial name={account.name} size={20} />
+            <Initial name={account.name} size={18} />
           </span>
         ) : null}
       </span>
@@ -285,28 +316,19 @@ function ChatCard({ w, pane, now }: { w: Workspace; pane: Pane; now: number }) {
   )
 }
 
-/** Every open chat, most recently active first (never-active ones keep their order, last). */
-function ChatCards() {
-  const workspaces = useApp((s) => s.config.workspaces)
+/** A project's open chats, most recently active first (never-active ones keep their order). */
+function ProjectChats({ w, id }: { w: Workspace; id: string }) {
   const runtime = useApp((s) => s.runtime)
   const now = useNow()
-  const chats = workspaces
-    .flatMap((w) => w.panes.map((pane) => ({ w, pane, at: runtime[pane.id]?.activeAt ?? -1 })))
+  const chats = w.panes
+    .map((pane) => ({ pane, at: runtime[pane.id]?.activeAt ?? -1 }))
     .sort((a, b) => b.at - a.at)
-  if (!chats.length) return null
   return (
-    <>
-      <div className="sec-hd">
-        <span>
-          Chats <span className="sec-n">{chats.length}</span>
-        </span>
-      </div>
-      <div className="cc-list">
-        {chats.map(({ w, pane }) => (
-          <ChatCard key={pane.id} w={w} pane={pane} now={now} />
-        ))}
-      </div>
-    </>
+    <div className="cc-list" id={id} role="group" aria-label={`Chats in ${w.name}`}>
+      {chats.map(({ pane }) => (
+        <ChatCard key={pane.id} pane={pane} now={now} />
+      ))}
+    </div>
   )
 }
 
@@ -458,6 +480,18 @@ export function Sidebar() {
   const view = useApp((s) => s.view)
   const { workspaces } = config
 
+  // The project holding the focused chat opens its dropdown (#67), once per focus change.
+  const focusWs = useApp(
+    (s) => s.config.workspaces.find((w) => w.panes.some((p) => p.id === s.focusedPaneId))?.id
+  )
+  const { store } = useServices()
+  useEffect(() => {
+    const st = store.getState()
+    const open = st.config.settings.sidebarOpenProjects
+    if (focusWs && !open.includes(focusWs))
+      st.updateSettings({ sidebarOpenProjects: [...open, focusWs] })
+  }, [focusWs, store])
+
   // The drawer closes once you go somewhere, or on Escape.
   const place = `${view}:${activeWs}`
   const [lastPlace, setLastPlace] = useState(place)
@@ -500,7 +534,8 @@ export function Sidebar() {
     const ind = indRef.current
     if (!list || !ind) return
     const place = (): void => {
-      const row = list.querySelector<HTMLElement>('.ws-row.on')
+      const on = list.querySelector<HTMLElement>('.ws-row.on')
+      const row = on?.closest<HTMLElement>('.ws-wrap') ?? on
       if (!row) {
         ind.style.opacity = '0'
         return
@@ -605,7 +640,6 @@ export function Sidebar() {
             </nav>
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
-              <ChatCards />
               <div className="sec-hd">
                 <span>
                   Projects <span className="sec-n">{workspaces.length}</span>

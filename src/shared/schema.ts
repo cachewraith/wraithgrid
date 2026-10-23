@@ -134,6 +134,7 @@ export const settingsSchema = z.object({
   /** Folders pinned at the top of the New chat folder picker. */
   pinnedFolders: z.array(pathSchema).max(20).default([]).catch([]),
   sidebarCollapsed: z.boolean().default(false),
+  sidebarOpenProjects: z.array(idSchema).max(500).default([]).catch([]),
   sidebarWidth: z
     .number()
     .int()
