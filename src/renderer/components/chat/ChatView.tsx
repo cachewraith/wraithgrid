@@ -28,7 +28,7 @@ import {
 import { liveWindow } from '@shared/usage'
 import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
-import { paceStep, revealed } from '../../lib/stream-pace'
+import { paceStep, revealedWords } from '../../lib/stream-pace'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
 interface Props {
@@ -196,7 +196,8 @@ const motionReduced = (): boolean =>
   document.documentElement.dataset.motion === 'off'
 
 /**
- * Streamed text revealed at a steady pace (#52) instead of in the bursts it arrives in. Once
+ * Streamed text revealed at a steady pace (#52), a whole word at a time (#62), instead of in the
+ * bursts it arrives in. Once
  * the stream ends (turn over, Stop, or a tool call next) all of it shows at once.
  */
 function usePacedText(text: string, streaming: boolean): string {
@@ -221,14 +222,14 @@ function usePacedText(text: string, streaming: boolean): string {
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [on])
-  return on ? revealed(text, shown) : text
+  return on ? revealedWords(text, shown) : text
 }
 
 function AgentMessage({ text, streaming }: { text: string; streaming: boolean }) {
   const shown = usePacedText(text, streaming)
   return (
     <div className={`cmsg agent${streaming ? ' streaming' : ''}`}>
-      <Markdown text={shown} />
+      <Markdown text={shown} streaming={streaming} />
       {streaming ? null : (
         <div className="cmsg-tools">
           <CopyButton text={text} label="Copy answer" />
@@ -325,25 +326,48 @@ export function ChatView({ paneId, visible, focused }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
   const [atBottom, setAtBottom] = useState(true)
+  // A glide toward the bottom while streamed text grows (#62); `glideAt` is where it last put
+  // the view, so its own scrolling isn't taken for the user scrolling up.
+  const glide = useRef(0)
+  const glideAt = useRef(0)
   useLayoutEffect(() => {
     const el = scrollRef.current
-    if (el && stick.current) el.scrollTop = el.scrollHeight
+    if (el && stick.current && !glide.current) el.scrollTop = el.scrollHeight
   }, [thread, visible])
-  // Paced text grows between thread updates (#52): follow the column's height too.
+  // Paced text grows between thread updates (#52): follow the column's height too, gliding
+  // a quarter of the way each frame instead of jumping a line at a time.
   const colRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = scrollRef.current
     const col = colRef.current
     if (!el || !col) return
+    const step = (): void => {
+      const gap = el.scrollHeight - el.clientHeight - el.scrollTop
+      if (!stick.current || gap <= 1) {
+        glide.current = 0
+        return
+      }
+      el.scrollTop += Math.max(1, gap / 4)
+      glideAt.current = el.scrollTop
+      glide.current = requestAnimationFrame(step)
+    }
     const ro = new ResizeObserver(() => {
-      if (stick.current) el.scrollTop = el.scrollHeight
+      if (!stick.current) return
+      if (motionReduced()) el.scrollTop = el.scrollHeight
+      else if (!glide.current) glide.current = requestAnimationFrame(step)
     })
     ro.observe(col)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(glide.current)
+      glide.current = 0
+    }
   }, [])
   const onScroll = (): void => {
     const el = scrollRef.current
     if (!el) return
+    // The glide's own scroll: only moving up from where it put the view is the user.
+    if (glide.current && el.scrollTop >= glideAt.current - 2) return
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX
     stick.current = bottom
     if (bottom !== atBottom) setAtBottom(bottom)

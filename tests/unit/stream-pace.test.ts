@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { BASE_CPS, CATCH_UP_S, paceStep, revealed } from '../../src/renderer/lib/stream-pace'
+import {
+  BASE_CPS,
+  CATCH_UP_S,
+  paceStep,
+  revealed,
+  revealedWords
+} from '../../src/renderer/lib/stream-pace'
 import { parseMarkdown, settledLength } from '../../src/renderer/lib/markdown'
 
 describe('stream pacing (#52)', () => {
@@ -67,5 +73,21 @@ describe('settled part of a growing answer (#52)', () => {
         )
       }
     }
+  })
+})
+
+describe('word-at-a-time reveal (#62)', () => {
+  it('cuts back to the end of the last whole word', () => {
+    expect(revealedWords('Hello world foo', 8)).toBe('Hello')
+    expect(revealedWords('Hello world foo', 11)).toBe('Hello world')
+    expect(revealedWords('Hello world foo', 3)).toBe('')
+  })
+  it('shows everything once all of it is revealed', () => {
+    expect(revealedWords('Hello world', 11)).toBe('Hello world')
+    expect(revealedWords('Hello', 99)).toBe('Hello')
+  })
+  it('breaks at newlines too and never splits an emoji', () => {
+    expect(revealedWords('one\ntwo three', 6)).toBe('one')
+    expect(revealedWords('hi 😀😀 there', 5)).toBe('hi')
   })
 })

@@ -308,16 +308,25 @@
 .cmsg-tools:focus-within {
   opacity: 1;
 }
+/* While an answer streams, a small muted dot after the text (#62), not a block cursor. */
 .cmsg.streaming .md > :last-child::after {
   content: '';
   display: inline-block;
-  width: 7px;
-  height: 1.05em;
-  margin-left: 2px;
-  vertical-align: -0.15em;
-  border-radius: 2px;
-  background: var(--tx);
-  animation: chat-caret 1s steps(1) infinite;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  vertical-align: 0.1em;
+  border-radius: 50%;
+  background: var(--fa);
+  animation: chat-dot 1.4s ease-in-out infinite;
+}
+
+/* Streaming text (#62): each new word fades in, each new block eases up 2px as it starts. */
+.md-w {
+  animation: md-word 260ms ease-out both;
+}
+.md-in {
+  animation: md-block 220ms var(--ease-out) both;
 }
 
 /* Markdown */
@@ -1191,9 +1200,20 @@ li.done > .md-box,
     opacity: 0;
   }
 }
-@keyframes chat-caret {
-  50% {
+@keyframes md-word {
+  from {
     opacity: 0;
+  }
+}
+@keyframes md-block {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+@keyframes chat-dot {
+  50% {
+    opacity: 0.35;
   }
 }
 @keyframes chat-bounce {
@@ -1264,7 +1284,9 @@ li.done > .md-box,
   .chat-viewer,
   .md-copy.done,
   .cc.busy .cc-box::before,
-  .cmsg.streaming .md > :last-child::after {
+  .cmsg.streaming .md > :last-child::after,
+  .md-w,
+  .md-in {
     animation: none;
   }
   .vsw button,
