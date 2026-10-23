@@ -109,19 +109,21 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     const toggle = side.getByRole('button', { name: /chats in main$/ })
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     const group = side.getByRole('group', { name: 'Chats in main' })
-    const cards = group.locator('.chat-card')
+    const cards = group.locator('.side-chat')
     await expect(cards).toHaveCount(2)
+    // Plain one-line rows: the title; branch (or folder) and account only in the tooltip.
     const apiCard = cards.filter({ hasText: 'api' })
-    await expect(apiCard.locator('.cc-title')).toHaveText('api')
-    await expect(apiCard.locator('.cc-branch')).toHaveText('main')
-    await expect(apiCard.locator('.initial')).toHaveText('W')
-    // Not a git repo: the card shows its folder instead of an empty line.
-    await expect(cards.filter({ hasText: 'notes' }).locator('.cc-branch.folder')).toHaveText(
-      'notes'
+    await expect(apiCard.locator('.sch-t')).toHaveText('api')
+    await expect(apiCard).toHaveAttribute('title', 'api · main · work')
+    await expect(cards.filter({ hasText: 'notes' })).toHaveAttribute(
+      'title',
+      'notes · notes · work'
     )
-    await expect(side.locator('.cc-badge, .cc-proj')).toHaveCount(0)
+    await expect(side.locator('.side-chat .initial')).toHaveCount(0)
     await apiCard.click()
     await expect(apiCard).toHaveClass(/\bon\b/)
+    // In the grid the chat is what's highlighted, not its project.
+    await expect(side.locator('.ws-row.on')).toHaveCount(0)
     // Closing is saved; the arrow keys open and close it from the project row too.
     const openSaved = (): string[] =>
       JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8')).settings
@@ -148,7 +150,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.setViewportSize({ width: 1440, height: 860 })
 
     // A project's screen lists its chats; clicking one focuses it in the grid.
-    await side.locator('.ws-row.on').click()
+    await side.locator('.ws-row', { hasText: 'main' }).click()
+    await expect(side.locator('.ws-row.on')).toHaveText('main')
     const open = win.getByRole('region', { name: 'Open chats' })
     await expect(open.locator('.pj-row', { hasText: 'api' })).toBeVisible()
     await open.locator('.pj-row', { hasText: 'notes' }).click()

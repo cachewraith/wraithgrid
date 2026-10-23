@@ -140,7 +140,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(bg).toContainText('Running in background')
     await expect(bg).toContainText('Wait two seconds')
     await expect(pane(win).locator('.st')).toHaveText(/in background/)
-    await expect(win.locator('.ws-sub').first()).toContainText('in background')
+    await expect(win.locator('.side-chat .pn-spin.bg')).toHaveCount(1)
     // claude reads the result in a turn of its own; then the chat is really idle.
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('It finished.')
     await expect(bg).toHaveCount(0)
