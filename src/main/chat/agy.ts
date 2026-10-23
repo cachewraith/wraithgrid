@@ -13,6 +13,7 @@ import {
   type ToolKind,
   type ToolPreview
 } from '@shared/chat'
+import type { TurnUsage } from '@shared/usage'
 import type { ChatAdapter, Decoded } from './adapter'
 import { saveChatImages } from './images'
 
@@ -116,12 +117,29 @@ export function describeAgyTool(
 
 const SIGN_IN = /not authenticated|sign[ -]?in|log ?in|unauthenticated|credentials/i
 
+/** agy's `result.usage` → one turn's tokens (agy 1.4.4 reports no cost). */
+export function usageOf(u: unknown, model: string | null): TurnUsage | null {
+  if (!isObj(u)) return null
+  const n = (v: unknown): number => (typeof v === 'number' && v > 0 ? v : 0)
+  return {
+    model,
+    costUsd: null,
+    input: n(u.input_tokens),
+    // Thinking is output the model generated, like claude's.
+    output: n(u.output_tokens) + n(u.thinking_tokens),
+    cacheRead: n(u.cache_read_tokens),
+    cacheWrite: 0
+  }
+}
+
 export function createAgyAdapter(): ChatAdapter {
   const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   /** The mode it was started in: agy's init doesn't say. */
   let mode: ChatMode = 'default'
   /** Messages agy took since the last result: one result can answer several queued ones. */
   let taken = 0
+  /** The model init named, for the usage record. */
+  let model: string | null = null
 
   const decode = (msg: unknown): Decoded => {
     const out: Decoded = { events: [], replies: [] }
@@ -131,7 +149,8 @@ export function createAgyAdapter(): ChatAdapter {
       case 'init': {
         const init = isObj(msg.init) ? msg.init : {}
         const id = str(msg.conversation_id)
-        if (id) push({ t: 'session', id, model: str(init.model) || null })
+        model = str(init.model) || null
+        if (id) push({ t: 'session', id, model })
         push({
           t: 'controls',
           controls: {
@@ -212,7 +231,8 @@ export function createAgyAdapter(): ChatAdapter {
           durationMs:
             typeof r.duration_seconds === 'number' ? Math.round(r.duration_seconds * 1000) : null,
           error,
-          usage: null
+          // agy reports tokens, never a cost or limits (#53).
+          usage: usageOf(r.usage, model)
         })
         // One turn end per message it answered, so a queued one doesn't leave the chat busy.
         const ends = Math.max(1, taken)

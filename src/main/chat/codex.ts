@@ -83,6 +83,30 @@ function limitsOf(snapshot: unknown): ChatEvent | null {
     : null
 }
 
+/** codex's token counts (`thread/tokenUsage/updated`); input includes the cached part. */
+interface CodexTokens {
+  input: number
+  cached: number
+  cacheWrite: number
+  output: number
+}
+function tokensOf(u: unknown): CodexTokens | null {
+  if (!isObj(u)) return null
+  const n = (v: unknown): number => (typeof v === 'number' && v > 0 ? v : 0)
+  return {
+    input: n(u.inputTokens),
+    cached: n(u.cachedInputTokens),
+    cacheWrite: n(u.cacheWriteInputTokens),
+    output: n(u.outputTokens)
+  }
+}
+const minus = (a: CodexTokens, b: CodexTokens): CodexTokens => ({
+  input: Math.max(0, a.input - b.input),
+  cached: Math.max(0, a.cached - b.cached),
+  cacheWrite: Math.max(0, a.cacheWrite - b.cacheWrite),
+  output: Math.max(0, a.output - b.output)
+})
+
 /** `bash -lc '…'` as codex runs commands → the command itself. */
 function commandOf(item: Obj): string {
   const actions = Array.isArray(item.commandActions) ? item.commandActions.filter(isObj) : []
@@ -187,6 +211,10 @@ export function createCodexAdapter(): ChatAdapter {
   let turn: string | null = null
   let steered = 0
   let stopAsked = false
+  /** The thread's token total when this turn began, and the latest one (#53). `last` is per
+   *  model call and a turn can repeat it, so a turn's use is the change in `total`. */
+  let turnBase: CodexTokens | null = null
+  let latest: CodexTokens | null = null
   /** Messages sent before the thread was ready. */
   const waiting: Obj[] = []
   /** Items that already streamed their text, so the full copy isn't shown twice. */
@@ -400,6 +428,15 @@ export function createCodexAdapter(): ChatAdapter {
           if (String(q.id) === String(p.requestId)) pending.delete(reqId)
         break
       }
+      case 'thread/tokenUsage/updated': {
+        const u = isObj(p.tokenUsage) ? p.tokenUsage : {}
+        const total = tokensOf(u.total)
+        if (!total) break
+        // First count seen (a resumed thread's total holds its history): start before it.
+        if (!latest) turnBase = minus(total, tokensOf(u.last) ?? total)
+        latest = total
+        break
+      }
       case 'account/rateLimits/updated': {
         const l = limitsOf(p.rateLimits)
         if (l) push(l)
@@ -421,12 +458,24 @@ export function createCodexAdapter(): ChatAdapter {
         stopAsked = false
         if (status === 'interrupted') push({ t: 'notice', level: 'info', text: 'Interrupted' })
         const err = isObj(t.error) ? str(t.error.message) : ''
+        const used = latest && turnBase ? minus(latest, turnBase) : null
+        turnBase = latest
         push({
           t: 'turnEnd',
           costUsd: null,
           durationMs: typeof t.durationMs === 'number' ? t.durationMs : null,
           error: status === 'failed' ? err || 'The turn failed.' : null,
-          usage: null
+          // codex reports tokens, never a cost (#53).
+          usage: used
+            ? {
+                model: start.model,
+                costUsd: null,
+                input: Math.max(0, used.input - used.cached),
+                output: used.output,
+                cacheRead: used.cached,
+                cacheWrite: used.cacheWrite
+              }
+            : null
         })
         // Messages added to a running turn end with it.
         const ends = 1 + steered

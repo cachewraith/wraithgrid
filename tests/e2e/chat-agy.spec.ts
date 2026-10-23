@@ -129,6 +129,13 @@ test('agy chat: answer, models with effort, refused tool, stop and mode restart 
     await composer(win).press('Enter')
     await expect(last(win)).toContainText('mode plan')
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
+
+    // ---- Usage (#53): agy reports tokens, no limits; the screen says so.
+    await win.locator('.u-pill').click()
+    const acct = win.getByRole('group', { name: 'Account agy' })
+    await expect(acct).toContainText(/Antigravity CLI doesn.t report usage limits/)
+    await expect(acct).toContainText(/\d+ tokens over \d+ turns in the last 7 days/)
+    await expect(acct).toContainText('1 pane open')
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

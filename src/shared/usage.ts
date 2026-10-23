@@ -1,6 +1,7 @@
-// Usage: what chat turns cost (from the CLI's own `result`), kept per day, account, project
+// Usage: what chat turns used (from the CLI's own reports), kept per day, account, project
 // and chat in userData/usage.json; and each account's plan limits as the CLI last reported
-// them (claude's `rate_limit_event`). Terminal panes are not measured: their output is a
+// them (claude's `rate_limit_event`, codex's `account/rateLimits`). claude reports a cost;
+// codex and agy only tokens (#53). Terminal panes are not measured: their output is a
 // screen, not data. Pure functions, so main records and the renderer summarizes the same way.
 import { z } from 'zod'
 
@@ -20,7 +21,8 @@ export interface AccountLimits {
 /** What one turn used, from the CLI's `result`. */
 export interface TurnUsage {
   model: string | null
-  costUsd: number
+  /** null: the CLI reports no cost (codex, agy); never guessed. */
+  costUsd: number | null
   input: number
   output: number
   cacheRead: number
@@ -41,6 +43,8 @@ export interface UsageBucket {
   cacheRead: number
   cacheWrite: number
   turns: number
+  /** Turns whose CLI reported no cost: their cost is unknown, not $0. */
+  unpriced: number
 }
 
 export interface UsageData {
@@ -70,7 +74,8 @@ export const usageDataSchema = z.object({
         output: num,
         cacheRead: num,
         cacheWrite: num,
-        turns: num
+        turns: num,
+        unpriced: num
       })
     )
     .max(50_000)
@@ -117,12 +122,13 @@ export function addTurn(
     return {
       ...b,
       title: t.title || b.title,
-      costUsd: b.costUsd + u.costUsd,
+      costUsd: b.costUsd + (u.costUsd ?? 0),
       input: b.input + u.input,
       output: b.output + u.output,
       cacheRead: b.cacheRead + u.cacheRead,
       cacheWrite: b.cacheWrite + u.cacheWrite,
-      turns: b.turns + 1
+      turns: b.turns + 1,
+      unpriced: b.unpriced + (u.costUsd === null ? 1 : 0)
     }
   })
   if (!found)
@@ -132,12 +138,13 @@ export function addTurn(
       workspaceId: t.workspaceId,
       paneId: t.paneId,
       title: t.title,
-      costUsd: u.costUsd,
+      costUsd: u.costUsd ?? 0,
       input: u.input,
       output: u.output,
       cacheRead: u.cacheRead,
       cacheWrite: u.cacheWrite,
-      turns: 1
+      turns: 1,
+      unpriced: u.costUsd === null ? 1 : 0
     })
   return { ...data, buckets }
 }
@@ -156,14 +163,26 @@ export interface UsageTotals {
   /** Everything sent and received, cache included. */
   tokens: number
   turns: number
+  /** Of `turns`, those with no cost reported (codex, agy). */
+  unpriced: number
 }
+
+/** Some of it has a known cost: else the cost reads "–", not $0. */
+export const hasCost = (t: { turns: number; unpriced: number }): boolean => t.unpriced < t.turns
 
 export interface UsageSummary {
   total: UsageTotals
   /** Per account: totals in the range, and cost per day (oldest first). */
   accounts: Record<string, UsageTotals & { daily: { day: string; costUsd: number }[] }>
-  projects: { workspaceId: string | null; costUsd: number; turns: number; tokens: number }[]
-  chats: { paneId: string; title: string; workspaceId: string | null; costUsd: number }[]
+  projects: (UsageTotals & { workspaceId: string | null })[]
+  chats: {
+    paneId: string
+    title: string
+    workspaceId: string | null
+    costUsd: number
+    turns: number
+    unpriced: number
+  }[]
 }
 
 const tokensOf = (b: UsageBucket): number => b.input + b.output + b.cacheRead + b.cacheWrite
@@ -179,9 +198,9 @@ export function summarizeUsage(data: UsageData, range: UsageRange, now: number):
     dayKey(now - (seriesDays - 1 - i) * 86_400_000)
   )
   const from = series[seriesDays - days]!
-  const total: UsageTotals = { costUsd: 0, tokens: 0, turns: 0 }
+  const total: UsageTotals = { costUsd: 0, tokens: 0, turns: 0, unpriced: 0 }
   const accounts: UsageSummary['accounts'] = {}
-  const projects = new Map<string | null, { costUsd: number; turns: number; tokens: number }>()
+  const projects = new Map<string | null, UsageTotals>()
   const chats = new Map<string, UsageSummary['chats'][number]>()
   for (const b of data.buckets) {
     if (b.day < series[0]!) continue
@@ -190,6 +209,7 @@ export function summarizeUsage(data: UsageData, range: UsageRange, now: number):
       costUsd: 0,
       tokens: 0,
       turns: 0,
+      unpriced: 0,
       daily: series.map((day) => ({ day, costUsd: 0 }))
     })
     const point = a.daily.find((p) => p.day === b.day)
@@ -198,22 +218,33 @@ export function summarizeUsage(data: UsageData, range: UsageRange, now: number):
     a.costUsd += b.costUsd
     a.tokens += tokensOf(b)
     a.turns += b.turns
+    a.unpriced += b.unpriced
     total.costUsd += b.costUsd
     total.tokens += tokensOf(b)
     total.turns += b.turns
-    const p = projects.get(b.workspaceId) ?? { costUsd: 0, turns: 0, tokens: 0 }
+    total.unpriced += b.unpriced
+    const p = projects.get(b.workspaceId) ?? { costUsd: 0, turns: 0, tokens: 0, unpriced: 0 }
     projects.set(b.workspaceId, {
       costUsd: p.costUsd + b.costUsd,
       turns: p.turns + b.turns,
-      tokens: p.tokens + tokensOf(b)
+      tokens: p.tokens + tokensOf(b),
+      unpriced: p.unpriced + b.unpriced
     })
     const c = chats.get(b.paneId) ?? {
       paneId: b.paneId,
       title: b.title,
       workspaceId: b.workspaceId,
-      costUsd: 0
+      costUsd: 0,
+      turns: 0,
+      unpriced: 0
     }
-    chats.set(b.paneId, { ...c, title: b.title || c.title, costUsd: c.costUsd + b.costUsd })
+    chats.set(b.paneId, {
+      ...c,
+      title: b.title || c.title,
+      costUsd: c.costUsd + b.costUsd,
+      turns: c.turns + b.turns,
+      unpriced: c.unpriced + b.unpriced
+    })
   }
   return {
     total,

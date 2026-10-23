@@ -7,6 +7,7 @@ import { UsageStore } from '../../src/main/usage-store'
 import {
   EMPTY_USAGE,
   addTurn,
+  hasCost,
   dayKey,
   liveWindow,
   pruneUsage,
@@ -88,6 +89,27 @@ describe('claude adapter: limits and usage', () => {
 
 describe('usage data', () => {
   const owner = { accountId: 'a1', workspaceId: 'w1', paneId: 'p1', title: 'api' }
+
+  it('a turn with no cost (codex, agy) counts its tokens, and its cost as unknown (#53)', () => {
+    const tokensOnly = { ...turn(0), costUsd: null }
+    let d = addTurn(EMPTY_USAGE, { ...owner, accountId: 'cx', at: NOW, usage: tokensOnly })
+    d = addTurn(d, { ...owner, accountId: 'cx', at: NOW + 1, usage: tokensOnly })
+    expect(d.buckets[0]).toMatchObject({ costUsd: 0, turns: 2, unpriced: 2, input: 20 })
+    const sum = summarizeUsage(d, 'today', NOW)
+    expect(sum.accounts.cx).toMatchObject({ turns: 2, unpriced: 2 })
+    expect(hasCost(sum.accounts.cx!)).toBe(false)
+    expect(hasCost(sum.chats[0]!)).toBe(false)
+    // Mixed with a priced claude turn: the total has a cost, codex's part adds nothing to it.
+    d = addTurn(d, { ...owner, accountId: 'cl', at: NOW, usage: turn(0.5) })
+    const mixed = summarizeUsage(d, 'today', NOW)
+    expect(mixed.total).toMatchObject({ costUsd: 0.5, turns: 3, unpriced: 2 })
+    expect(hasCost(mixed.total)).toBe(true)
+    // Files written before #53 have no `unpriced`: every turn there had a cost.
+    expect(
+      usageDataSchema.parse({ buckets: [{ ...d.buckets[1], unpriced: undefined }] }).buckets[0]!
+        .unpriced
+    ).toBe(0)
+  })
 
   it('adds turns into one bucket per day, account, project and chat', () => {
     let d = addTurn(EMPTY_USAGE, { ...owner, at: NOW, usage: turn(0.5) })
