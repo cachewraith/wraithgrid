@@ -40,7 +40,7 @@ test('theme editor: live edits, contrast fix, undo, cancel, save as a new theme'
       .getByRole('radiogroup', { name: 'Corners' })
       .getByRole('radio', { name: 'Large' })
       .click()
-    await expect.poll(() => cssVar('--rs')).toBe('1.4')
+    await expect.poll(() => cssVar('--rs')).toBe('1.6')
     await ed.getByRole('radiogroup', { name: 'Motion' }).getByRole('radio', { name: 'Off' }).click()
     await expect(win.locator('html')).toHaveAttribute('data-motion', 'off')
 

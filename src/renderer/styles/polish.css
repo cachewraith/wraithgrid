@@ -3,9 +3,9 @@
    it refines base.css (and the chat and sidebar sheets) without rewriting it. */
 
 :root {
-  --r-sm: 7px;
-  --r: 10px;
-  --r-lg: 14px;
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 16px;
   --shadow-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--line2);
   --shadow-card: 0 6px 24px -14px rgba(0, 0, 0, 0.55);
 }
