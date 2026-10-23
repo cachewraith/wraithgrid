@@ -14,7 +14,12 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
-import { AGENT_CLI_SPECS, CONTINUE_AS_CLIS, DIALOG_LOGIN_CLIS } from '@shared/agent-clis'
+import {
+  AGENT_CLI_LABEL,
+  AGENT_CLI_SPECS,
+  CONTINUE_AS_CLIS,
+  DIALOG_LOGIN_CLIS
+} from '@shared/agent-clis'
 import type {
   ApprovalDecision,
   ChatAccountInfo,
@@ -61,6 +66,7 @@ import {
   swapPanes,
   type Path
 } from '../layout/tree'
+import { decideSwitch } from '../lib/auto-switch'
 import { newId } from '../lib/ids'
 import type { ChatBus } from '../lib/chat-bus'
 import type { PtyBus } from '../lib/pty-bus'
@@ -922,14 +928,78 @@ export function createAppStore({
             if (!accountId) return
             const usage = get().usage
             set({ usage: { ...usage, limits: { ...usage.limits, [accountId]: e.limits } } })
-          } else if (e.usage && !usageTimer) {
+            return
+          }
+          if (e.usage && !usageTimer) {
             // Main has recorded the turn by now; read it back once things settle.
             usageTimer = setTimeout(() => {
               usageTimer = null
               void get().loadUsage()
             }, 400)
           }
+          void autoSwitch(paneId, e.error)
         })
+
+        // Switching account at the limit (#61): after a turn, a chat at its account's limit
+        // carries on as the next account of its CLI with room, via "Continue as…" (the whole
+        // conversation goes with it). A turn the limit refused is sent again there, once.
+        const switching = new Set<string>()
+        const toldNoneLeft = new Set<string>()
+        const autoSwitch = async (paneId: string, error: string | null): Promise<void> => {
+          if (!get().config.settings.autoSwitchAtLimit || switching.has(paneId)) return
+          // The turn's end and "not busy" come as separate messages: let the turn settle.
+          for (let i = 0; i < 40 && chat.thread(paneId).busy; i++)
+            await new Promise((r) => setTimeout(r, 50))
+          const s = get()
+          if (switching.has(paneId)) return
+          const pane = findPane(s.config, paneId)?.pane
+          const from = pane ? accountById(s.config, pane.accountId) : null
+          const thread = chat.thread(paneId)
+          // Never under running background work: switching restarts the chat.
+          if (!pane || !from || thread.busy || thread.background.length) return
+          const d = decideSwitch(
+            s.config.accounts,
+            from,
+            s.usage.limits,
+            now(),
+            s.config.settings.autoSwitchAt,
+            error
+          )
+          if (d.kind === 'stay') {
+            toldNoneLeft.delete(paneId)
+            return
+          }
+          if (d.kind === 'none-left') {
+            if (toldNoneLeft.has(paneId)) return
+            toldNoneLeft.add(paneId)
+            chat.notice(
+              paneId,
+              'error',
+              `${d.reason}, and no other ${AGENT_CLI_LABEL[from.cli]} account has room left.`
+            )
+            return
+          }
+          toldNoneLeft.delete(paneId)
+          const last = [...thread.items].reverse().find((it) => it.kind === 'user')
+          switching.add(paneId)
+          chat.notice(paneId, 'info', `${d.reason}: switching to ${d.to.name}`)
+          const err = await get().chatSwitchAccount(paneId, d.to.id)
+          switching.delete(paneId)
+          if (err) {
+            chat.notice(paneId, 'error', `Could not switch to ${d.to.name}: ${err}`)
+            return
+          }
+          if (d.resend && last?.kind === 'user' && last.text.trim()) {
+            // Once the new account's chat is up (a few seconds at most).
+            const until = now() + 30_000
+            const wait = setInterval(() => {
+              if (get().runtime[paneId]?.started) {
+                clearInterval(wait)
+                get().chatSend(paneId, last.text, [])
+              } else if (now() > until) clearInterval(wait)
+            }, 200)
+          }
+        }
         // claude can change mode itself (leaving plan mode): the next start keeps that.
         chat.onMode((paneId, mode) => {
           const pane = findPane(get().config, paneId)?.pane

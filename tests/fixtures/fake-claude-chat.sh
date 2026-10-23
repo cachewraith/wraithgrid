@@ -29,7 +29,8 @@ field() { sed -E "s/.*\"$1\":\"([^\"]*)\".*/\\1/" <<<"$2"; }
 # Limits and usage in the shapes real claude 2.1.306 sends (tests/fixtures/claude-usage.ndjson).
 result() {
   local now; now=$(date +%s)
-  say "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"allowed\",\"unifiedWindows\":{\"five_hour\":{\"utilization\":0.42,\"resetsAt\":$((now + 7800))},\"seven_day\":{\"utilization\":0.75,\"resetsAt\":$((now + 259200))}}},\"session_id\":\"$sid\"}"
+  local five="${1:-0.42}"
+  say "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"allowed\",\"unifiedWindows\":{\"five_hour\":{\"utilization\":$five,\"resetsAt\":$((now + 7800))},\"seven_day\":{\"utilization\":0.75,\"resetsAt\":$((now + 259200))}}},\"session_id\":\"$sid\"}"
   say "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":1200,\"total_cost_usd\":0.0042,\"usage\":{\"input_tokens\":12,\"output_tokens\":340,\"cache_read_input_tokens\":9000,\"cache_creation_input_tokens\":1200},\"modelUsage\":{\"claude-opus-5-5\":{\"costUSD\":0.0042}},\"result\":\"\",\"session_id\":\"$sid\"}"
 }
 text() {
@@ -40,6 +41,13 @@ text() {
     sleep 0.05
   done
   say "{\"type\":\"assistant\",\"message\":{\"id\":\"m$n\",\"content\":[{\"type\":\"text\",\"text\":\"(full copy)\"}]},\"parent_tool_use_id\":null}"
+}
+# Like real claude: the conversation is kept in the account's dir, per folder.
+keep() {
+  if [ -n "$CLAUDE_CONFIG_DIR" ]; then
+    tdir="$CLAUDE_CONFIG_DIR/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
+    mkdir -p "$tdir" && printf '%s\n' "$line" >> "$tdir/$sid.jsonl"
+  fi
 }
 while IFS= read -r line; do
   case "$line" in
@@ -86,14 +94,21 @@ while IFS= read -r line; do
         say "{\"type\":\"system\",\"subtype\":\"background_tasks_changed\",\"tasks\":[],\"session_id\":\"$sid\"}"
         text "It finished." && result
       ) & ;;
+    # Usage limits (#61): "nearly out" leaves this account at 97% of its 5-hour window; "over
+    # limit" is refused like a real limit, but only for the account named "home".
+    *'"type":"user"'*'nearly out'*)
+      keep && text "Noted." && result 0.97 ;;
+    *'"type":"user"'*'over limit'*)
+      keep
+      if [ "${CLAUDE_CONFIG_DIR##*/}" = "home" ]; then
+        say "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"duration_ms\":10,\"result\":\"Claude AI usage limit reached|$(( $(date +%s) + 3600 ))\",\"session_id\":\"$sid\"}"
+      else
+        text "Hello from fake claude: over limit (config ${CLAUDE_CONFIG_DIR})" && result
+      fi ;;
     *'"type":"user"'*'slow'*)
       text "Working" "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." ;;
     *'"type":"user"'*)
-      # Like real claude: the conversation is kept in the account's dir, per folder.
-      if [ -n "$CLAUDE_CONFIG_DIR" ]; then
-        tdir="$CLAUDE_CONFIG_DIR/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
-        mkdir -p "$tdir" && printf '%s\n' "$line" >> "$tdir/$sid.jsonl"
-      fi
+      keep
       text "Hello from **fake** claude: " "$(field content "$line")" " (config ${CLAUDE_CONFIG_DIR}, session ${sid}, model ${model}, effort ${effort}, mode ${mode})" && result ;;
   esac
 done

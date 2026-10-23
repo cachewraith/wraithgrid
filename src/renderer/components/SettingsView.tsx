@@ -1548,7 +1548,53 @@ function ChatDefaultsRow() {
           </span>
         </div>
       </div>
+      <AutoSwitchRow />
     </>
+  )
+}
+
+/** Switch account at the limit (#61): on/off and the percentage that counts as reached. */
+function AutoSwitchRow() {
+  const actions = useActions()
+  const on = useApp((s) => s.config.settings.autoSwitchAtLimit)
+  const at = useApp((s) => s.config.settings.autoSwitchAt)
+  return (
+    <div className="srow">
+      <div>
+        <h3 id="auto-switch-h">Switch account at limit</h3>
+        <p className="ex">
+          When a Claude or Codex chat's account reaches its 5-hour or weekly limit, the chat carries
+          on as your next account of the same CLI that has room, with the whole conversation. A
+          message the limit refused is sent again there.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="swrow">
+          <button
+            className={`sw${on ? ' on' : ''}`}
+            role="switch"
+            aria-checked={on}
+            aria-labelledby="set-auto-switch"
+            onClick={() => actions.updateSettings({ autoSwitchAtLimit: !on })}
+          />
+          <span id="set-auto-switch">Switch to the next account at the limit</span>
+        </div>
+        <div className="seg" role="radiogroup" aria-label="Switch at">
+          {[80, 90, 95, 100].map((p) => (
+            <button
+              key={p}
+              role="radio"
+              aria-checked={at === p}
+              disabled={!on}
+              className={`seg-btn${at === p ? ' on' : ''}`}
+              onClick={() => actions.updateSettings({ autoSwitchAt: p })}
+            >
+              {p}%
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 

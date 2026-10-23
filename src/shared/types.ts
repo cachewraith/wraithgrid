@@ -255,6 +255,10 @@ export interface Settings {
   checkUpdatesOnLaunch: boolean
   /** OS notification when a pane you aren't looking at finishes or needs approval. */
   notifyPanes: boolean
+  /** After a turn, a chat at its account's limit carries on as the next account (#61). */
+  autoSwitchAtLimit: boolean
+  /** The limit, in percent of the 5-hour or weekly window, that counts as reached. */
+  autoSwitchAt: number
   /** The shell plain shell panes run: a path or a name on PATH. Empty: automatic. */
   shellPath: string
   /** Arguments for `shellPath`, e.g. `--login -i` for Git Bash. */

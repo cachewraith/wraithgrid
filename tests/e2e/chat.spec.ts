@@ -447,3 +447,70 @@ test('a chat continues as another claude account: conversation copied, same pane
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })
+
+test('at its limit a chat carries on as the next account, and a refused message is sent again (#61)', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-auto-switch-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  const account = (id: string, name: string) => ({
+    id,
+    name,
+    configDir: `~/.wraithgrid/accounts/${name}`,
+    color: '#7c5cff',
+    signedIn: true,
+    imported: false
+  })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: FAKE_CLAUDE,
+      accounts: [account('a-work', 'work'), account('a-home', 'home'), account('a-spare', 'spare')],
+      workspaces: [
+        {
+          id: 'ws-main',
+          name: 'main',
+          panes: [
+            { id: 'p-chat', accountId: 'a-work', cwd: '~/proj', title: 'proj', view: 'chat' }
+          ],
+          layout: null
+        }
+      ],
+      activeWorkspace: 'ws-main',
+      recentFolders: [],
+      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false }
+    })
+  )
+  const { app, win } = await launch(home, userData)
+  try {
+    const box = win.getByLabel('Message', { exact: true })
+    const chip = (name: string) =>
+      win.getByRole('button', { name: `Account: ${name}. Continue as another account` })
+
+    // At 97% of work's 5-hour window (over the default 95%) the chat moves on to home.
+    await box.fill('nearly out')
+    await box.press('Enter')
+    await expect(
+      win.locator('.cnote', { hasText: 'work reached 97% of its 5-hour limit' })
+    ).toHaveText('work reached 97% of its 5-hour limit: switching to home')
+    await expect(win.getByRole('separator', { name: /^Continued as home · / })).toBeVisible()
+    await expect(chip('home')).toBeVisible()
+
+    // home refuses a message at its limit: on to spare (work is still at 97%), sent again there.
+    await box.fill('over limit')
+    await expect(win.getByRole('button', { name: 'Send (Enter)' })).toBeEnabled()
+    await box.press('Enter')
+    await expect(win.locator('.cnote', { hasText: 'home hit its usage limit' })).toHaveText(
+      'home hit its usage limit: switching to spare'
+    )
+    await expect(chip('spare')).toBeVisible()
+    await expect(win.locator('.cmsg.agent').last()).toContainText(
+      'over limit (config ' + path.join(home, '.wraithgrid/accounts/spare')
+    )
+    await expect(win.locator('.cmsg.user', { hasText: 'over limit' })).toHaveCount(2)
+  } finally {
+    await app.close()
+  }
+})

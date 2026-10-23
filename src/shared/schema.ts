@@ -152,6 +152,8 @@ export const settingsSchema = z.object({
   sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true),
   notifyPanes: z.boolean().default(true),
+  autoSwitchAtLimit: z.boolean().default(true),
+  autoSwitchAt: z.number().int().min(50).max(100).default(95).catch(95),
   shellPath: z.string().max(4096).default(''),
   shellArgs: z
     .array(
