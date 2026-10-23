@@ -28,6 +28,7 @@ import {
 import { liveWindow } from '@shared/usage'
 import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
+import { paceStep, revealed } from '../../lib/stream-pace'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
 interface Props {
@@ -188,6 +189,55 @@ function ImageViewer({
   )
 }
 
+/** The theme or the system asks for no motion: text then appears as it arrives. */
+const motionReduced = (): boolean =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+  document.documentElement.dataset.motion === 'reduced' ||
+  document.documentElement.dataset.motion === 'off'
+
+/**
+ * Streamed text revealed at a steady pace (#52) instead of in the bursts it arrives in. Once
+ * the stream ends (turn over, Stop, or a tool call next) all of it shows at once.
+ */
+function usePacedText(text: string, streaming: boolean): string {
+  const [paced] = useState(() => streaming && !motionReduced())
+  // A long answer already there when the view opened (back to the pane) isn't replayed.
+  const [shown, setShown] = useState(() => (paced && text.length < 200 ? 0 : text.length))
+  const target = useRef(text.length)
+  useLayoutEffect(() => {
+    target.current = text.length
+  })
+  const on = paced && streaming
+  useEffect(() => {
+    if (!on) return
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number): void => {
+      const dt = now - last
+      last = now
+      setShown((n) => paceStep(n, target.current, dt))
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [on])
+  return on ? revealed(text, shown) : text
+}
+
+function AgentMessage({ text, streaming }: { text: string; streaming: boolean }) {
+  const shown = usePacedText(text, streaming)
+  return (
+    <div className={`cmsg agent${streaming ? ' streaming' : ''}`}>
+      <Markdown text={shown} />
+      {streaming ? null : (
+        <div className="cmsg-tools">
+          <CopyButton text={text} label="Copy answer" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 const Item = memo(function Item({
   paneId,
   item,
@@ -212,16 +262,8 @@ const Item = memo(function Item({
         </div>
       )
     case 'assistant':
-      return (
-        <div className={`cmsg agent${streaming ? ' streaming' : ''}`}>
-          <Markdown text={item.text} />
-          {streaming ? null : (
-            <div className="cmsg-tools">
-              <CopyButton text={item.text} label="Copy answer" />
-            </div>
-          )}
-        </div>
-      )
+      return <AgentMessage text={item.text} streaming={streaming} />
+
     case 'thinking':
       return item.text.trim() ? (
         <details className="cthink">
@@ -287,6 +329,18 @@ export function ChatView({ paneId, visible, focused }: Props) {
     const el = scrollRef.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
   }, [thread, visible])
+  // Paced text grows between thread updates (#52): follow the column's height too.
+  const colRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = scrollRef.current
+    const col = colRef.current
+    if (!el || !col) return
+    const ro = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(col)
+    return () => ro.disconnect()
+  }, [])
   const onScroll = (): void => {
     const el = scrollRef.current
     if (!el) return
@@ -379,7 +433,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
   return (
     <div className="chat">
       <div className="chat-scroll" ref={scrollRef} onScroll={onScroll}>
-        <div className="chat-col">
+        <div className="chat-col" ref={colRef}>
           {thread.items.length === 0 ? (
             <div className="chat-hello">
               <div className="chat-hello-mark" aria-hidden="true" />

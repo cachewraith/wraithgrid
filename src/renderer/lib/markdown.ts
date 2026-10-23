@@ -48,6 +48,27 @@ const splitRow = (line: string): string[] => {
 /** A code block drawn with box-drawing/block characters: shown with tight lines so they join. */
 export const isDiagram = (text: string): boolean => /[─-▟]/.test(text)
 
+/**
+ * Where the settled part of a growing answer ends: just after its last blank line outside a
+ * code fence (0 if none). Every block ends at a blank line, so parsing the two halves apart
+ * gives the same blocks as parsing it whole, and a streaming view re-parses only the tail.
+ */
+export function settledLength(src: string): number {
+  let cut = 0
+  let mark = ''
+  let at = 0
+  for (const line of src.split('\n')) {
+    const end = at + line.length + 1
+    if (mark) {
+      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line)
+      if (close && close[1]![0] === mark[0] && close[1]!.length >= mark.length) mark = ''
+    } else if (FENCE.test(line)) mark = FENCE.exec(line)![1]!
+    else if (!line.trim() && end <= src.length) cut = end
+    at = end
+  }
+  return cut
+}
+
 export function parseMarkdown(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, '\n').split('\n')
   const blocks: Block[] = []
