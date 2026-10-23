@@ -144,7 +144,16 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     // claude reads the result in a turn of its own; then the chat is really idle.
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('It finished.')
     await expect(bg).toHaveCount(0)
-    await expect(pane(win).locator('.cnote').last()).toContainText('completed (exit code 0)')
+    // Its result sits under the row that started it (#63): one plain line, the text when open.
+    const bgRow = pane(win).locator('.ct', { hasText: 'Wait two seconds' })
+    await expect(bgRow.locator('.ct-res')).toHaveText(
+      'Background command "Wait two seconds" completed (exit code 0)'
+    )
+    await expect(pane(win).locator('.cnote', { hasText: 'completed (exit code 0)' })).toHaveCount(0)
+    await bgRow.locator('.ct-h').click()
+    await expect(bgRow.locator('.ct-md')).toContainText('completed (exit code 0)')
+    await expect(bgRow.locator('.ct-res')).toHaveCount(0)
+    await bgRow.locator('.ct-h').click()
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
     await pane(win)
       .getByRole('button', { name: /^Effort:/ })

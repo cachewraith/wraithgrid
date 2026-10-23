@@ -704,6 +704,42 @@ li.done > .md-box,
 .ct-out.err {
   color: var(--err);
 }
+/* A task's result under its row (#63): one quiet plain line while closed (lined up with the
+   row's text, no box), the answer as markdown when open. */
+.ct-res {
+  display: block;
+  width: 100%;
+  margin-top: -4px;
+  padding: 0 10px calc(6px * var(--dens, 1)) 40px;
+  border: 0;
+  background: none;
+  color: var(--fa);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ct-res.err {
+  color: var(--err);
+}
+.ct-md {
+  padding: 10px 14px;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 13px;
+  color: var(--tx);
+  scrollbar-width: thin;
+}
+.ct-md.err {
+  color: var(--err);
+}
+.ct-code + .ct-md,
+.ct-out + .ct-md {
+  border-top: 1px solid var(--line);
+}
 .ct-diff {
   padding: 6px 0;
   background: var(--bg2);

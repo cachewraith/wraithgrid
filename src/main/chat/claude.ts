@@ -203,9 +203,12 @@ export function createClaudeAdapter(): ChatAdapter {
           msg.subtype === 'task_notification' &&
           (backgrounded.delete(str(msg.task_id)) || str(msg.output_file) !== '')
         ) {
-          const status = str(msg.status)
-          const text = str(msg.summary).slice(0, 300)
-          if (text) push({ t: 'notice', level: status === 'completed' ? 'info' : 'error', text })
+          const ok = str(msg.status) === 'completed'
+          const toolId = str(msg.tool_use_id)
+          const text = str(msg.summary).slice(0, toolId ? 20_000 : 300)
+          // Shown under the tool that started it (#63); a notice only when there is none.
+          if (text && toolId) push({ t: 'taskResult', toolId, ok, text })
+          else if (text) push({ t: 'notice', level: ok ? 'info' : 'error', text })
           push({ t: 'busy', busy: true })
         }
         break

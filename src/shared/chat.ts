@@ -190,6 +190,8 @@ export type ChatEvent =
   /** The account's plan limits as the CLI reports them (claude: `rate_limit_event`). */
   | { t: 'limits'; limits: AccountLimits }
   | { t: 'notice'; level: 'info' | 'error'; text: string }
+  /** A task started by a tool call ended (#63): its result belongs under that tool's row. */
+  | { t: 'taskResult'; toolId: string; ok: boolean; text: string }
   /** The CLI process ended; the conversation can be resumed by starting again. */
   | { t: 'exit'; code: number | null; signal: number | null; error: string | null }
 
