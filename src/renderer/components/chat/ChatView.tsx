@@ -8,7 +8,7 @@ import {
   useState,
   useSyncExternalStore
 } from 'react'
-import { AGENT_CLI_LABEL } from '@shared/agent-clis'
+import { AGENT_CLI_LABEL, CONTINUE_AS_CLIS } from '@shared/agent-clis'
 import { baseName, contractHome, expandHome } from '@shared/paths'
 import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
@@ -394,7 +394,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
     () => buildSlashItems(thread.commands, thread.terminalOnly),
     [thread.commands, thread.terminalOnly]
   )
-  // "Continue as…": the claude accounts this chat could carry on as (#29).
+  // "Continue as…": the accounts of this chat's CLI it could carry on as (#29, #60).
   const accounts = useApp((s) => s.config.accounts)
   const accountInfo = useApp((s) => s.accountInfo)
   const limits = useApp((s) => s.usage.limits)
@@ -402,7 +402,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
   const at = useTicker(60_000)
   const choices = useMemo((): AccountChoice[] => {
     return accounts
-      .filter((a) => a.cli === 'claude')
+      .filter((a) => a.cli === account?.cli && CONTINUE_AS_CLIS.includes(a.cli))
       .map((a) => {
         const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
         return {
@@ -413,7 +413,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
           signedIn: a.signedIn
         }
       })
-  }, [accounts, accountInfo, limits, at])
+  }, [accounts, accountInfo, limits, at, account?.cli])
   const currentChoice = choices.find((c) => c.id === account?.id)
   if (!pane) return null
 

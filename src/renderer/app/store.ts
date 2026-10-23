@@ -14,7 +14,7 @@ import type {
   UpdateProgress,
   WraithApi
 } from '@shared/ipc-contract'
-import { AGENT_CLI_SPECS, DIALOG_LOGIN_CLIS } from '@shared/agent-clis'
+import { AGENT_CLI_SPECS, CONTINUE_AS_CLIS, DIALOG_LOGIN_CLIS } from '@shared/agent-clis'
 import type {
   ApprovalDecision,
   ChatAccountInfo,
@@ -206,7 +206,8 @@ export interface AppState {
   /** Sets a chat's effort; the chat restarts and carries on the conversation. */
   chatSetEffort(paneId: string, effort: ChatEffort | null): void
   /**
-   * Carries the chat on as another claude account: its conversation is copied there, then the
+   * Carries the chat on as another account of its CLI (claude, codex): its conversation is
+   * copied there, then the
    * chat restarts as that account and resumes. Returns why it could not, or null.
    */
   chatSwitchAccount(paneId: string, accountId: string): Promise<string | null>
@@ -1105,8 +1106,8 @@ export function createAppStore({
         if (pane.accountId === accountId) return null
         const from = accountById(get().config, pane.accountId)
         const to = accountById(get().config, accountId)
-        if (!to || to.cli !== 'claude' || from?.cli !== 'claude')
-          return 'Only claude chats can switch to another claude account.'
+        if (!to || !from || to.cli !== from.cli || !CONTINUE_AS_CLIS.includes(from.cli))
+          return 'This chat can only switch to another account of the same CLI.'
         if (!to.signedIn) return `${to.name} is not signed in yet.`
         if (chat.thread(paneId).busy) return 'Wait for the answer to finish, or stop it first.'
         const running = !!get().runtime[paneId]?.requested

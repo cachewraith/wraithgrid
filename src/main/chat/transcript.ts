@@ -4,6 +4,7 @@
 // stays with the first account), and the chat then restarts as the other account with
 // `--resume <id>`. Checked with claude 2.1.306: a copied transcript resumes and carries on.
 // Only between Wraithgrid's own account dirs; session ids are plain tokens.
+import type { Dirent } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { chatSessionIdSchema } from '@shared/chat'
@@ -67,6 +68,60 @@ export async function copyTranscript(
     if (await isDir(extra)) {
       await fs.cp(extra, path.join(dst, sessionId), { recursive: true, force: true })
     }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: `Could not copy the conversation: ${(err as Error).message}` }
+  }
+}
+
+/**
+ * codex (#60): a thread is `sessions/YYYY/MM/DD/rollout-<time>-<thread id>.jsonl` in the
+ * account's CODEX_HOME. Copied to the same place in `toDir`, `thread/resume` finds it there
+ * (checked with codex-cli 0.164.0; its sqlite index isn't needed). Both dirs inside `root`.
+ */
+export async function copyCodexRollout(
+  fromDir: string,
+  toDir: string,
+  threadId: string,
+  root: string
+): Promise<CopyResult> {
+  if (!chatSessionIdSchema.safeParse(threadId).success)
+    return { ok: false, error: 'Not a conversation id.' }
+  if (!isStrictlyInside(fromDir, root) || !isStrictlyInside(toDir, root))
+    return { ok: false, error: 'Only accounts in Wraithgrid’s own folder can be switched.' }
+  if (path.resolve(fromDir) === path.resolve(toDir))
+    return { ok: false, error: 'This chat already runs as that account.' }
+
+  // Three folder levels (year, month, day), then the file; found, not derived from a date.
+  const sessions = path.join(fromDir, 'sessions')
+  const find = async (dir: string, depth: number): Promise<string | null> => {
+    let list: Dirent[]
+    try {
+      list = await fs.readdir(dir, { withFileTypes: true })
+    } catch {
+      return null
+    }
+    for (const d of list) {
+      const p = path.join(dir, d.name)
+      if (depth < 3 && d.isDirectory() && /^\d{1,4}$/.test(d.name)) {
+        const hit = await find(p, depth + 1)
+        if (hit) return hit
+      } else if (
+        depth === 3 &&
+        d.isFile() &&
+        d.name.startsWith('rollout-') &&
+        d.name.endsWith(`-${threadId}.jsonl`)
+      )
+        return p
+    }
+    return null
+  }
+  const found = await find(sessions, 0)
+  if (!found) return { ok: false, error: 'This conversation’s file was not found.' }
+  const dst = path.join(toDir, 'sessions', path.relative(sessions, found))
+  try {
+    await fs.mkdir(path.dirname(dst), { recursive: true })
+    await fs.copyFile(found, dst)
     return { ok: true }
   } catch (err) {
     return { ok: false, error: `Could not copy the conversation: ${(err as Error).message}` }
