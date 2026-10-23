@@ -105,16 +105,47 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.setViewportSize({ width: 1440, height: 860 })
     const side = win.getByRole('complementary', { name: 'Sidebar' })
 
-    // Every open chat is a card (#59): project badge and name, title, branch, account.
-    const cards = side.locator('.chat-card')
+    // Projects are dropdowns of their chats (#59, #67). The focused chat's project is open.
+    const toggle = side.getByRole('button', { name: /chats in main$/ })
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const group = side.getByRole('group', { name: 'Chats in main' })
+    const cards = group.locator('.chat-card')
     await expect(cards).toHaveCount(2)
     const apiCard = cards.filter({ hasText: 'api' })
-    await expect(apiCard.locator('.cc-badge')).toHaveText('MA')
-    await expect(apiCard.locator('.cc-proj')).toHaveText('main')
+    await expect(apiCard.locator('.cc-title')).toHaveText('api')
     await expect(apiCard.locator('.cc-branch')).toHaveText('main')
     await expect(apiCard.locator('.initial')).toHaveText('W')
+    // Not a git repo: the card shows its folder instead of an empty line.
+    await expect(cards.filter({ hasText: 'notes' }).locator('.cc-branch.folder')).toHaveText(
+      'notes'
+    )
+    await expect(side.locator('.cc-badge, .cc-proj')).toHaveCount(0)
     await apiCard.click()
     await expect(apiCard).toHaveClass(/\bon\b/)
+    // Closing is saved; the arrow keys open and close it from the project row too.
+    const openSaved = (): string[] =>
+      JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8')).settings
+        .sidebarOpenProjects
+    await toggle.click()
+    await expect(group).toHaveCount(0)
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect.poll(openSaved).toEqual([])
+    await side.locator('.ws-row', { hasText: 'main' }).focus()
+    await win.keyboard.press('ArrowRight')
+    await expect(group).toBeVisible()
+    await expect.poll(openSaved).toEqual(['ws-main'])
+    // A project with no chats has nothing to open.
+    await expect(side.getByRole('button', { name: 'Show chats in side' })).toBeDisabled()
+    // Only the list scrolls: in a short window it never covers the account footer.
+    await win.setViewportSize({ width: 1440, height: 360 })
+    const covered = await side.locator('.side-ft').evaluate((ft) => {
+      const r = ft.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return !ft.contains(hit)
+    })
+    expect(covered).toBe(false)
+    await expect(side.locator('.side-list')).toHaveCSS('overflow-y', 'auto')
+    await win.setViewportSize({ width: 1440, height: 860 })
 
     // A project's screen lists its chats; clicking one focuses it in the grid.
     await side.locator('.ws-row.on').click()
