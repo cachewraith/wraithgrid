@@ -53,3 +53,26 @@ export function limitAccountId(config: LimitConfig, focusedPaneId: string | null
   const def = config.settings.defaultAccountId
   return isClaude(def) ? def : (claude[0]?.id ?? null)
 }
+
+/** Whether the pill shows the focused chat's account or, with none, the one new chats use. */
+export function limitIsFocused(config: LimitConfig, focusedPaneId: string | null): boolean {
+  const id = limitAccountId(config, focusedPaneId)
+  const focused = focusedPaneId
+    ? config.workspaces.flatMap((w) => w.panes).find((p) => p.id === focusedPaneId)
+    : undefined
+  return !!id && !!focused && !focused.shell && focused.accountId === id
+}
+
+/**
+ * Open panes per account, across every project (#49): each pane runs its own account, so
+ * the account menu and Usage say which ones are in use. Plain shells run no account.
+ */
+export function panesPerAccount(config: Pick<Config, 'workspaces'>): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const p of config.workspaces.flatMap((w) => w.panes))
+    if (!p.shell && p.accountId) out[p.accountId] = (out[p.accountId] ?? 0) + 1
+  return out
+}
+
+/** `1 pane open`, `3 panes open`. */
+export const panesOpen = (n: number): string => `${n} pane${n === 1 ? '' : 's'} open`

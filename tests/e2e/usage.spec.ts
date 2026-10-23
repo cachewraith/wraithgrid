@@ -200,14 +200,26 @@ test("usage: the pill follows the focused chat's account and names it", async ()
     await expect(pill).toHaveText('home·42%')
     await expect(pill).toHaveAttribute(
       'aria-label',
-      'Usage: home: 42% of the current session limit'
+      'Usage: home: 42% of the current session limit (the focused chat’s account)'
     )
 
     // Focusing work's chat switches to work's limit; so does the sidebar row.
     await workPane.getByLabel('Message', { exact: true }).click()
     await expect(pill).toHaveText('work·13%')
     const side = win.getByRole('complementary', { name: 'Sidebar' })
-    await expect(side.getByRole('button', { name: /^Usage/ })).toContainText('13%')
+    await expect(side.getByRole('button', { name: /^Usage/ })).toContainText('work · 13%')
+
+    // The account menu says who new chats use and which accounts have open panes (#49).
+    await side.getByRole('button', { name: /Switch account/ }).click()
+    const menu = win.getByRole('menu', { name: 'Accounts' })
+    await expect(menu).toContainText('New chats use')
+    await expect(menu.getByRole('menuitemradio', { name: /^home/ })).toContainText('1 pane open')
+    await expect(menu.getByRole('menuitemradio', { name: /^work/ })).toContainText('1 pane open')
+    await win.keyboard.press('Escape')
+    // Usage lists the accounts in use with their pane counts.
+    await win.locator('.u-pill').click()
+    await expect(win.getByRole('group', { name: 'Account home' })).toContainText('1 pane open')
+    await expect(win.getByRole('group', { name: 'Account work' })).toContainText('1 pane open')
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

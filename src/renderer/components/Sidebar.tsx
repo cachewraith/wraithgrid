@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -34,6 +35,7 @@ import {
   IconUsers
 } from './icons'
 import { ago } from '../lib/time'
+import { panesOpen, panesPerAccount } from '../lib/usage-format'
 import { useNow } from './ProjectView'
 import { sessionLimitLabel, useSessionLimit } from './UsageView'
 
@@ -242,7 +244,12 @@ function UsageNavRow() {
     >
       <IconGauge />
       <span>Usage</span>
-      {limit.pct !== null ? <span className={`nav-pct sev-${limit.sev}`}>{limit.pct}%</span> : null}
+      {limit.pct !== null ? (
+        <span className={`nav-pct sev-${limit.sev}`}>
+          {limit.named && limit.account ? `${limit.account.name} · ` : ''}
+          {limit.pct}%
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -256,6 +263,8 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
   const current = accounts.find((a) => a.id === defaultId) ?? accounts[0]
   const plans = useApp((s) => s.accountInfo)
   const plan = (current ? plans[current.id]?.info?.plan : null) ?? null
+  const workspaces = useApp((s) => s.config.workspaces)
+  const inUse = useMemo(() => panesPerAccount({ workspaces }), [workspaces])
   const open = (e: MouseEvent<HTMLButtonElement>): void => {
     const r = e.currentTarget.getBoundingClientRect()
     // Sits on top of the button, as wide as it (a little wider than the icon rail's).
@@ -266,9 +275,9 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
     <>
       <button
         className={`acct-sw${compact ? ' compact' : ''}${menu ? ' open' : ''}`}
-        aria-label={`Account: ${label}. Switch account`}
+        aria-label={`New chats use: ${label}. Switch account`}
         aria-haspopup="menu"
-        title={compact ? label : undefined}
+        title={compact ? `New chats use ${label}` : undefined}
         onClick={open}
       >
         {current ? (
@@ -287,7 +296,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
                   ? 'Add one to start'
                   : current && !current.signedIn
                     ? 'Login needed'
-                    : (plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`)}
+                    : `New chats · ${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`}`}
               </span>
             </span>
             <IconChevron small className="acct-chev" />
@@ -305,10 +314,16 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
           items={[
             ...accounts.map((a, i) => ({
               label: a.name,
-              sub: a.signedIn ? (plans[a.id]?.info?.plan ?? 'Signed in') : 'Login needed',
+              // Each pane runs its own account (#49): the tick only says who new chats use.
+              sub: [
+                a.signedIn ? (plans[a.id]?.info?.plan ?? 'Signed in') : 'Login needed',
+                inUse[a.id] ? panesOpen(inUse[a.id]!) : null
+              ]
+                .filter(Boolean)
+                .join(' · '),
               subWarn: !a.signedIn,
               checked: a.id === current?.id,
-              heading: i === 0 ? 'Accounts' : undefined,
+              heading: i === 0 ? 'New chats use' : undefined,
               icon: <Initial name={a.name} size={26} />,
               onSelect: () => actions.updateSettings({ defaultAccountId: a.id })
             })),

@@ -10,7 +10,16 @@ import {
   type UsageWindow
 } from '@shared/usage'
 import { useActions, useApp } from '../app/services'
-import { fmtCost, fmtTokens, fmtUntil, limitAccountId, severity } from '../lib/usage-format'
+import {
+  fmtCost,
+  fmtTokens,
+  fmtUntil,
+  limitAccountId,
+  limitIsFocused,
+  panesOpen,
+  panesPerAccount,
+  severity
+} from '../lib/usage-format'
 import { Initial } from './AccountIcon'
 import { IconChevron, IconGauge } from './icons'
 
@@ -215,11 +224,14 @@ export function UsageView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Accounts with open panes first, most used first (#49), then the one new chats use.
+  const inUse = useMemo(() => panesPerAccount({ workspaces }), [workspaces])
   const claude = accounts.filter((a) => a.cli === 'claude')
-  const ordered = [
-    ...claude.filter((a) => a.id === defaultId),
-    ...claude.filter((a) => a.id !== defaultId)
-  ]
+  const ordered = [...claude].sort(
+    (a, b) =>
+      (inUse[b.id] ?? 0) - (inUse[a.id] ?? 0) ||
+      Number(b.id === defaultId) - Number(a.id === defaultId)
+  )
   const wsName = (id: string | null): string =>
     workspaces.find((w) => w.id === id)?.name ?? 'Deleted project'
   const projects = useMemo(() => {
@@ -284,6 +296,9 @@ export function UsageView() {
                   <Initial name={a.name} size={18} />
                   <b>{a.name}</b>
                   {plan ? <span>{plan}</span> : null}
+                  <span className={`u-inuse${inUse[a.id] ? ' on' : ''}`}>
+                    {inUse[a.id] ? panesOpen(inUse[a.id]!) : 'No panes open'}
+                  </span>
                 </div>
                 {five || week ? (
                   <div className="u-lims">
@@ -380,6 +395,8 @@ export interface SessionLimit {
   /** The account the limit belongs to; named when there is more than one claude account. */
   account: { id: string; name: string } | null
   named: boolean
+  /** It is the focused chat's account; else the one new chats use (no claude chat focused). */
+  focused: boolean
   pct: number | null
   sev: ReturnType<typeof severity>
 }
@@ -387,6 +404,7 @@ export interface SessionLimit {
 /** The session limit of the focused chat's account (else the default one), when known. */
 export function useSessionLimit(): SessionLimit {
   const id = useApp((s) => limitAccountId(s.config, s.focusedPaneId))
+  const focused = useApp((s) => limitIsFocused(s.config, s.focusedPaneId))
   const name = useApp((s) => s.config.accounts.find((a) => a.id === id)?.name ?? null)
   const named = useApp((s) => s.config.accounts.filter((a) => a.cli === 'claude').length > 1)
   const lim = useApp((s) => (id ? s.usage.limits[id] : undefined))
@@ -395,6 +413,7 @@ export function useSessionLimit(): SessionLimit {
   return {
     account: id && name ? { id, name } : null,
     named,
+    focused,
     pct: five ? Math.round(five.utilization * 100) : null,
     sev: five ? severity(five.utilization) : 'ok'
   }
@@ -403,7 +422,14 @@ export function useSessionLimit(): SessionLimit {
 /** "work: 42% of the current session limit", or why there is no number. */
 export function sessionLimitLabel(l: SessionLimit): string {
   const who = l.named && l.account ? `${l.account.name}: ` : ''
-  if (l.pct !== null) return `Usage: ${who}${l.pct}% of the current session limit`
+  // With several accounts, say whose this is (#49): panes can each run another one.
+  const whose =
+    l.named && l.account
+      ? l.focused
+        ? ' (the focused chat’s account)'
+        : ' (the account new chats use)'
+      : ''
+  if (l.pct !== null) return `Usage: ${who}${l.pct}% of the current session limit${whose}`
   return l.named && l.account
     ? `Usage: no limits from ${l.account.name} yet (they show after its first chat turn)`
     : 'Usage'
