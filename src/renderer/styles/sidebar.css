@@ -481,6 +481,24 @@
   font-variant-numeric: tabular-nums;
   color: var(--fa);
 }
+/* One line however long the account's name (#64): the name gives way, the % never does. */
+.side-nav .nav-row .nav-pct {
+  flex: 0 1 auto;
+  display: flex;
+  min-width: 0;
+  max-width: 62%;
+  white-space: nowrap;
+}
+.side-nav .nav-row .nav-pct-nm {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+.side-nav .nav-row .nav-pct-n {
+  flex: none;
+}
 .nav-pct.sev-warn {
   color: var(--warn);
 }

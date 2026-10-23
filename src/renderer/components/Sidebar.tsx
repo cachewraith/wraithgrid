@@ -326,8 +326,10 @@ function UsageNavRow() {
       <span>Usage</span>
       {limit.pct !== null ? (
         <span className={`nav-pct sev-${limit.sev}`}>
-          {limit.named && limit.account ? `${limit.account.name} · ` : ''}
-          {limit.pct}%
+          {limit.named && limit.account ? (
+            <span className="nav-pct-nm">{limit.account.name} · </span>
+          ) : null}
+          <span className="nav-pct-n">{limit.pct}%</span>
         </span>
       ) : null}
     </button>
