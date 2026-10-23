@@ -11,10 +11,13 @@ import {
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
+  PANE_STATUS_LABEL,
   type Config,
+  type Pane,
   type Workspace
 } from '@shared/types'
 import { useActions, useApp } from '../app/services'
+import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { Initial } from './AccountIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
@@ -227,6 +230,83 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
         />
       ) : null}
     </div>
+  )
+}
+
+/** A project's short badge: the first letters of its first two words, else its first two. */
+export function projectBadge(name: string): string {
+  const words = name
+    .trim()
+    .split(/[\s_.-]+/)
+    .filter(Boolean)
+  const letters =
+    words.length > 1 ? words.slice(0, 2).map((w) => [...w][0]) : [...(words[0] ?? '?')].slice(0, 2)
+  return letters.join('').toUpperCase()
+}
+
+/** One open chat as a card (#59): project and time, the chat's title, its branch and account. */
+function ChatCard({ w, pane, now }: { w: Workspace; pane: Pane; now: number }) {
+  const actions = useActions()
+  const account = useApp((s) => accountById(s.config, pane.accountId))
+  const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
+  const activeAt = useApp((s) => s.runtime[pane.id]?.activeAt ?? null)
+  const branch = useApp((s) => s.git[pane.id]?.branch ?? null)
+  const on = useApp((s) => s.focusedPaneId === pane.id && s.view === 'grid')
+  const busy = status === 'running' || status === 'starting' || status === 'background'
+  const loud = status === 'approval' || status === 'login'
+  const when = loud && status ? PANE_STATUS_LABEL[status] : activeAt ? ago(activeAt, now) : null
+  return (
+    <button
+      className={`chat-card${on ? ' on' : ''}`}
+      aria-current={on ? 'true' : undefined}
+      title={`${pane.title} · ${w.name}`}
+      onClick={() => actions.revealPane(pane.id)}
+    >
+      <span className="cc-top">
+        <span className="cc-badge" aria-hidden="true">
+          {projectBadge(w.name)}
+        </span>
+        <span className="cc-proj">{w.name}</span>
+        {busy ? (
+          <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
+        ) : null}
+        {when ? <span className={`cc-when${loud ? ' warn' : ''}`}>{when}</span> : null}
+      </span>
+      <span className="cc-title">{pane.title}</span>
+      <span className="cc-bot">
+        <span className="cc-branch">{branch ?? ''}</span>
+        {account ? (
+          <span title={account.name}>
+            <Initial name={account.name} size={20} />
+          </span>
+        ) : null}
+      </span>
+    </button>
+  )
+}
+
+/** Every open chat, most recently active first (never-active ones keep their order, last). */
+function ChatCards() {
+  const workspaces = useApp((s) => s.config.workspaces)
+  const runtime = useApp((s) => s.runtime)
+  const now = useNow()
+  const chats = workspaces
+    .flatMap((w) => w.panes.map((pane) => ({ w, pane, at: runtime[pane.id]?.activeAt ?? -1 })))
+    .sort((a, b) => b.at - a.at)
+  if (!chats.length) return null
+  return (
+    <>
+      <div className="sec-hd">
+        <span>
+          Chats <span className="sec-n">{chats.length}</span>
+        </span>
+      </div>
+      <div className="cc-list">
+        {chats.map(({ w, pane }) => (
+          <ChatCard key={pane.id} w={w} pane={pane} now={now} />
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -523,6 +603,7 @@ export function Sidebar() {
             </nav>
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
+              <ChatCards />
               <div className="sec-hd">
                 <span>
                   Projects <span className="sec-n">{workspaces.length}</span>

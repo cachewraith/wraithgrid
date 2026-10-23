@@ -74,7 +74,7 @@ export type UiFont = keyof typeof UI_FONTS
 export type MonoFont = keyof typeof MONO_FONTS
 
 /** Corner radius: a scale on every rounded corner (`--rs`). */
-export const THEME_RADIUS = { small: 0.5, medium: 1, large: 1.4 } as const
+export const THEME_RADIUS = { small: 0.6, medium: 1.2, large: 1.6 } as const
 export const THEME_BORDER = { thin: '1px', thick: '1.5px' } as const
 export const THEME_DEPTH = ['flat', 'soft', 'deep'] as const
 export const THEME_DENSITY = { compact: 0.85, comfortable: 1, spacious: 1.15 } as const

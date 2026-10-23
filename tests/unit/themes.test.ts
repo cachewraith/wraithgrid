@@ -229,7 +229,7 @@ describe('theme style (#24)', () => {
     expect(v['--font-ui']).toContain("'Inter'")
     expect(v['--font-mono']).toContain("'Fira Code'")
     expect(v['--chat-size']).toBe('16px')
-    expect(v['--rs']).toBe('1.4')
+    expect(v['--rs']).toBe('1.6')
     expect(v['--bw']).toBe('1.5px')
     expect(v['--dens']).toBe('0.85')
     expect(v['--frame-img']).toContain('radial-gradient')
@@ -260,7 +260,7 @@ describe('theme style (#24)', () => {
     if (!r.ok) return
     expect(r.theme.style).toBeUndefined()
     const v = themeVars(r.theme)
-    expect(v['--rs']).toBe('1')
+    expect(v['--rs']).toBe('1.2')
     expect(v['--font-ui']).toContain("'Geist'")
     expect(v['--frame-img']).toBe('none')
     expect(v['--user-bg']).toContain('color-mix')

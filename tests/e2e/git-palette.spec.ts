@@ -105,6 +105,17 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.setViewportSize({ width: 1440, height: 860 })
     const side = win.getByRole('complementary', { name: 'Sidebar' })
 
+    // Every open chat is a card (#59): project badge and name, title, branch, account.
+    const cards = side.locator('.chat-card')
+    await expect(cards).toHaveCount(2)
+    const apiCard = cards.filter({ hasText: 'api' })
+    await expect(apiCard.locator('.cc-badge')).toHaveText('MA')
+    await expect(apiCard.locator('.cc-proj')).toHaveText('main')
+    await expect(apiCard.locator('.cc-branch')).toHaveText('main')
+    await expect(apiCard.locator('.initial')).toHaveText('W')
+    await apiCard.click()
+    await expect(apiCard).toHaveClass(/\bon\b/)
+
     // A project's screen lists its chats; clicking one focuses it in the grid.
     await side.locator('.ws-row.on').click()
     const open = win.getByRole('region', { name: 'Open chats' })
