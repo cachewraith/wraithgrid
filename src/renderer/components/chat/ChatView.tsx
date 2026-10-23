@@ -14,7 +14,8 @@ import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
 import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
 import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
-import { IconArrowDown, IconRestart, IconTerminal } from '../icons'
+import { createPortal } from 'react-dom'
+import { IconArrowDown, IconClose, IconRestart, IconTerminal } from '../icons'
 import { Composer } from './Composer'
 import { cycleModes, type ChatBackgroundTask } from '@shared/chat'
 import {
@@ -94,12 +95,107 @@ function BackgroundTasks({ tasks }: { tasks: ChatBackgroundTask[] }) {
   )
 }
 
+/** A sent message's images as tiles (#50); a click opens them at full size. */
+function UserImages({
+  paneId,
+  item
+}: {
+  paneId: string
+  item: Extract<ChatItem, { kind: 'user' }>
+}) {
+  const { chat } = useServices()
+  const [open, setOpen] = useState<number | null>(null)
+  const thumbs = item.thumbs ?? []
+  if (!thumbs.length)
+    // Saved before thumbnails, or still being made: the count.
+    return item.images ? (
+      <span className="cmsg-imgs">
+        {item.images} image{item.images === 1 ? '' : 's'}
+      </span>
+    ) : null
+  return (
+    <>
+      <div className={`cmsg-thumbs${thumbs.length === 1 ? ' one' : ''}`}>
+        {thumbs.map((src, i) => (
+          <button
+            key={i}
+            className="cmsg-thumb"
+            aria-label={`Open image ${i + 1} of ${thumbs.length}`}
+            onClick={() => setOpen(i)}
+          >
+            <img src={src} alt="" draggable={false} />
+          </button>
+        ))}
+      </div>
+      {open !== null ? (
+        <ImageViewer
+          images={chat.images(paneId, item.id) ?? thumbs}
+          at={Math.min(open, thumbs.length - 1)}
+          onMove={setOpen}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
+    </>
+  )
+}
+
+/** One image over the whole window: Esc or a click closes it, ← → step through the message's. */
+function ImageViewer({
+  images,
+  at,
+  onMove,
+  onClose
+}: {
+  images: string[]
+  at: number
+  onMove: (i: number) => void
+  onClose: () => void
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    return () => prev?.focus()
+  }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft' && at > 0) onMove(at - 1)
+      else if (e.key === 'ArrowRight' && at < images.length - 1) onMove(at + 1)
+      else return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [at, images.length, onClose, onMove])
+  const label = images.length > 1 ? `Image ${at + 1} of ${images.length}` : 'Image'
+  return createPortal(
+    <div
+      className="chat-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      onClick={onClose}
+    >
+      <img src={images[at]} alt={label} draggable={false} />
+      <button ref={closeRef} className="chat-viewer-close" aria-label="Close image">
+        <IconClose />
+      </button>
+      {images.length > 1 ? <span className="chat-viewer-count">{label}</span> : null}
+    </div>,
+    document.body
+  )
+}
+
 const Item = memo(function Item({
+  paneId,
   item,
   live,
   streaming,
   cwd
 }: {
+  paneId: string
   item: ChatItem
   live: boolean
   streaming: boolean
@@ -110,11 +206,7 @@ const Item = memo(function Item({
       return (
         <div className="cmsg user">
           <div className="cmsg-bubble">
-            {item.images ? (
-              <span className="cmsg-imgs">
-                {item.images} image{item.images === 1 ? '' : 's'}
-              </span>
-            ) : null}
+            <UserImages paneId={paneId} item={item} />
             <UserText text={item.text} />
           </div>
         </div>
@@ -316,6 +408,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
               return (
                 <div key={it.id} className={`chat-it ${it.kind}${i >= still ? ' enter' : ''}`}>
                   <Item
+                    paneId={paneId}
                     item={it}
                     live={thread.busy}
                     streaming={it.id === streamingId}

@@ -17,6 +17,8 @@ import {
   parseThread,
   pendingApproval,
   serializeThread,
+  setUserThumbs,
+  validThumbs,
   type ChatThread
 } from '../../src/renderer/lib/chat-thread'
 import { isDiagram, parseInline, parseMarkdown } from '../../src/renderer/lib/markdown'
@@ -424,6 +426,37 @@ describe('chat thread', () => {
     expect(parseThread('{"v":99}')).toBe(EMPTY_THREAD)
     expect(parseThread('not json')).toBe(EMPTY_THREAD)
     expect(parseThread(null)).toBe(EMPTY_THREAD)
+  })
+
+  it('keeps sent thumbnails in the saved view, and only image data URLs (#50)', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo='
+    let t = addUserMessage(EMPTY_THREAD, 'look', 2, 1000)
+    const id = t.items[0]!.id
+    expect(t.items[0]).toMatchObject({ images: 2 })
+    expect(t.items[0]).not.toHaveProperty('thumbs')
+    t = setUserThumbs(t, id, [png, 'data:image/webp;base64,UklGRg=='])
+    expect(t.items[0]).toMatchObject({ thumbs: [png, 'data:image/webp;base64,UklGRg=='] })
+    expect(setUserThumbs(t, 'nope', [png])).toBe(t)
+    const back = parseThread(serializeThread(t))
+    expect(back.items[0]).toMatchObject({ images: 2, thumbs: [png, expect.any(String)] })
+
+    expect(
+      validThumbs([
+        png,
+        'javascript:alert(1)',
+        'data:text/html;base64,PGI+',
+        'data:image/svg+xml;base64,PHN2Zz4=',
+        7
+      ])
+    ).toEqual([png])
+    expect(validThumbs(['data:image/png;base64,abc"onerror="x'])).toBeUndefined()
+    expect(validThumbs('x')).toBeUndefined()
+    // A damaged save loses the thumbnails, not the message.
+    const raw = JSON.parse(serializeThread(t)) as { items: { thumbs: unknown }[] }
+    raw.items[0]!.thumbs = ['data:text/html;base64,PGI+']
+    const bad = parseThread(JSON.stringify(raw))
+    expect(bad.items[0]).toMatchObject({ kind: 'user', text: 'look', images: 2 })
+    expect(bad.items[0]).not.toHaveProperty('thumbs')
   })
 
   it("drops saved notices that only repeat the tool's description (#51)", () => {

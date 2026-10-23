@@ -15,6 +15,7 @@ import { App } from './app/App'
 import { ServicesProvider, type Services } from './app/services'
 import { createAppStore } from './app/store'
 import { ChatBus } from './lib/chat-bus'
+import { makeThumbs } from './lib/chat-images'
 import { PtyBus } from './lib/pty-bus'
 import { RectRegistry } from './lib/scheduling'
 
@@ -22,7 +23,7 @@ import { RectRegistry } from './lib/scheduling'
 const api = window.wraith
 const bus = new PtyBus(api.pty)
 const rects = new RectRegistry()
-const chat = new ChatBus(api.chat)
+const chat = new ChatBus(api.chat, undefined, makeThumbs)
 const store = createAppStore({ api, bus, chat, rects })
 const services: Services = { api, bus, chat, rects, store }
 
