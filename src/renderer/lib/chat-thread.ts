@@ -293,12 +293,23 @@ export function parseThread(raw: string | null): ChatThread {
         ITEM_KINDS.has(it.kind) &&
         typeof it.id === 'string'
     )
-    // A request the old process asked can never be answered now.
-    const settled = items.map((it) =>
-      it.kind === 'tool' && it.approval && it.approval.decided === null
-        ? { ...it, approval: { ...it.approval, decided: 'deny' as const } }
-        : it
-    )
+    // A request the old process asked can never be answered now. Views saved before #51 hold
+    // a notice repeating the tool's description after each long command: drop it.
+    const settled = items
+      .filter((it, i) => {
+        const prev = items[i - 1]
+        return !(
+          it.kind === 'notice' &&
+          it.level === 'info' &&
+          prev?.kind === 'tool' &&
+          prev.subtitle === it.text
+        )
+      })
+      .map((it) =>
+        it.kind === 'tool' && it.approval && it.approval.decided === null
+          ? { ...it, approval: { ...it.approval, decided: 'deny' as const } }
+          : it
+      )
     return {
       ...EMPTY_THREAD,
       items: settled,

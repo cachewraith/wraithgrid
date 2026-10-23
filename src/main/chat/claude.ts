@@ -143,6 +143,9 @@ export function createClaudeAdapter(): ChatAdapter {
   const modeReqs = new Set<string>()
   /** When each background task was first seen, so its age survives list updates. */
   const taskSince = new Map<string, number>()
+  /** Tasks that ran in the background. claude also reports a long foreground command as a
+   *  task (`is_backgrounded: false`), and its end is just the tool finishing (#51). */
+  const backgrounded = new Set<string>()
 
   const decode = (msg: unknown): Decoded => {
     const out: Decoded = { events: [], replies: [] }
@@ -186,11 +189,20 @@ export function createClaudeAdapter(): ChatAdapter {
               }
             })
           taskSince.clear()
-          for (const x of tasks) taskSince.set(x.id, x.since)
+          for (const x of tasks) {
+            taskSince.set(x.id, x.since)
+            backgrounded.add(x.id)
+          }
           push({ t: 'background', tasks })
         }
-        // A background task ended: claude reads its result in a turn of its own, unasked.
-        if (msg.subtype === 'task_notification') {
+        if (msg.subtype === 'task_started' && msg.is_backgrounded === true)
+          backgrounded.add(str(msg.task_id))
+        // A background task ended: claude reads its result in a turn of its own, unasked. A
+        // foreground one (no output file, never backgrounded) ended with its tool: nothing to say.
+        if (
+          msg.subtype === 'task_notification' &&
+          (backgrounded.delete(str(msg.task_id)) || str(msg.output_file) !== '')
+        ) {
           const status = str(msg.status)
           const text = str(msg.summary).slice(0, 300)
           if (text) push({ t: 'notice', level: status === 'completed' ? 'info' : 'error', text })

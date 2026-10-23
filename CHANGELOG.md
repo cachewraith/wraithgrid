@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-23
+
+- [chat] A long foreground command no longer adds a box repeating its description under the "Ran …" row (#51): claude 2.1.306 reports it as a task too (`task_started` `is_backgrounded: false`, then `task_notification` with the description as summary and no `output_file`); only tasks that ran in the background make a notice now, and saved views drop the old duplicates on load (files: src/main/chat/claude.ts, src/renderer/lib/chat-thread.ts, tests/unit/chat.test.ts, docs/CONTEXT.md)
+
 ## 2026-10-22
 
 - [release] v1.15.0: Codex chats + sign-in dialog (#40), Antigravity chats (#41), background work in chat (#39), chat redesign (#21), full theming — style keys and refreshed built-ins, theme editor, community gallery with the template and list repos (#24) (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
