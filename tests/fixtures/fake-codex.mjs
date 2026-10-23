@@ -52,10 +52,34 @@ function appServer() {
   /** The running turn: its id, its stream timer, and an approval it waits on. */
   let turn = null
   const waitingApproval = new Map()
+  /** The thread's token total, reported like real codex (total + the last call's). */
+  let total = 0
 
   const endTurn = (status) => {
     if (!turn) return
     clearInterval(turn.timer)
+    total += 1000
+    const t = (n) => ({
+      totalTokens: n,
+      inputTokens: n - 100,
+      cachedInputTokens: 400,
+      cacheWriteInputTokens: 0,
+      outputTokens: 100,
+      reasoningOutputTokens: 0
+    })
+    note('thread/tokenUsage/updated', {
+      threadId: thread,
+      turnId: turn.id,
+      tokenUsage: {
+        total: {
+          ...t(total),
+          outputTokens: (total / 1000) * 100,
+          inputTokens: total - (total / 1000) * 100,
+          cachedInputTokens: (total / 1000) * 400
+        },
+        last: t(1000)
+      }
+    })
     note('turn/completed', {
       threadId: thread,
       turn: { id: turn.id, items: [], status, error: null, durationMs: 1200 }

@@ -108,6 +108,19 @@ test('codex: sign in from the dialog, then chat with approvals, stop, model and 
     await expect(pane(win).locator('.cnote', { hasText: 'Interrupted' })).toBeVisible()
     await expect(pane(win).getByRole('button', { name: 'Stop (Esc)' })).toBeHidden()
 
+    // ---- Usage (#53): codex's limits in the pill and on the screen, its tokens, no cost.
+    const pill = win.locator('.u-pill')
+    await expect(pill).toHaveText('12%')
+    await pill.click()
+    const acct = win.getByRole('group', { name: 'Account cx' })
+    await expect(acct).toContainText('Current session')
+    await expect(acct).toContainText('12%')
+    await expect(acct).toContainText('Weekly')
+    await expect(acct).toContainText(/K tokens over \d+ turns in the last 7 days/)
+    await expect(acct).not.toContainText('$')
+    await expect(win.locator('.u-tbl td').last()).toHaveText('–')
+    await pill.click()
+
     // ---- Model and mode from codex's list switch with the next turn, no restart.
     await pane(win)
       .getByRole('button', { name: /^Model:/ })

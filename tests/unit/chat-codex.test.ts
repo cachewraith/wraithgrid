@@ -43,6 +43,38 @@ function replay() {
 }
 
 describe('codex chat adapter (#40)', () => {
+  it('counts each turn as the change in the thread total, never a cost (#53)', () => {
+    const ends = replay().events.filter((e) => e.t === 'turnEnd')
+    expect(ends).toHaveLength(3)
+    const used = ends.map((e) => (e.t === 'turnEnd' ? e.usage : null))
+    // Real codex-cli 0.163.0 counts: turn 1 made two model calls; turn 2 none (repeats the
+    // total); turn 3 one. `input` here excludes the cached part, which is cacheRead.
+    expect(used[0]).toEqual({
+      model: null,
+      costUsd: null,
+      input: 28771 - 26368,
+      output: 78,
+      cacheRead: 26368,
+      cacheWrite: 0
+    })
+    expect(used[1]).toMatchObject({ input: 0, output: 0, cacheRead: 0 })
+    const sum = used.reduce((n, u) => n + (u ? u.input + u.output + u.cacheRead : 0), 0)
+    expect(sum).toBe(44916)
+  })
+
+  it('a resumed thread counts from its first report, not its whole history (#53)', () => {
+    const a = createCodexAdapter()
+    const tok = (n: number) => ({ inputTokens: n, cachedInputTokens: 0, outputTokens: 1 })
+    a.decode({
+      method: 'thread/tokenUsage/updated',
+      params: { tokenUsage: { total: tok(90_000), last: tok(500) } }
+    })
+    const end = a
+      .decode({ method: 'turn/completed', params: { turn: { id: 't', status: 'completed' } } })
+      .events.find((e) => e.t === 'turnEnd')
+    expect(end).toMatchObject({ usage: { input: 500, output: 1 } })
+  })
+
   it('is registered and runs the app server', () => {
     expect(chatAdapterFor('codex')).not.toBeNull()
     expect(AGENT_CLI_SPECS.codex.chat).toBe(true)

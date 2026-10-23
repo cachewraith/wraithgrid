@@ -1,9 +1,13 @@
 // The Usage screen and its top-bar button. Limits first, as claude words them (current
-// session, weekly), then what chat turns cost: one sentence, a daily column chart and two
-// tables. Quiet on purpose: grey until a limit gets close, color only when it matters.
+// session, weekly), for every account whatever its CLI (#53), then what chat turns used: one
+// sentence, a daily column chart and two tables. Only claude reports a cost; codex and agy
+// report tokens, so their cost reads "–", never $0. Quiet on purpose: grey until a limit gets
+// close, color only when it matters.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import {
   RANGE_DAYS,
+  hasCost,
   liveWindow,
   summarizeUsage,
   type UsageRange,
@@ -15,6 +19,7 @@ import {
   fmtTokens,
   fmtUntil,
   limitAccountId,
+  limitAccounts,
   limitIsFocused,
   panesOpen,
   panesPerAccount,
@@ -22,6 +27,10 @@ import {
 } from '../lib/usage-format'
 import { Initial } from './AccountIcon'
 import { IconChevron, IconGauge } from './icons'
+
+/** A cost, or "–" when none of it was reported (codex, agy: tokens only). */
+const costOf = (t: { costUsd: number; turns: number; unpriced: number }): string =>
+  hasCost(t) ? fmtCost(t.costUsd) : '–'
 
 /** The time now, updated every `ms`. */
 export function useTicker(ms: number): number {
@@ -224,10 +233,10 @@ export function UsageView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Accounts with open panes first, most used first (#49), then the one new chats use.
+  // Every account, whatever its CLI (#53): open panes first, most used first (#49), then the
+  // one new chats use.
   const inUse = useMemo(() => panesPerAccount({ workspaces }), [workspaces])
-  const claude = accounts.filter((a) => a.cli === 'claude')
-  const ordered = [...claude].sort(
+  const ordered = [...accounts].sort(
     (a, b) =>
       (inUse[b.id] ?? 0) - (inUse[a.id] ?? 0) ||
       Number(b.id === defaultId) - Number(a.id === defaultId)
@@ -283,13 +292,21 @@ export function UsageView() {
         <section className="u-sec" aria-labelledby="u-lim-h">
           <h2 id="u-lim-h">Plan limits</h2>
           {ordered.length === 0 ? (
-            <p className="u-empty">Add a claude account to see its limits.</p>
+            <p className="u-empty">Add an account to see its usage.</p>
           ) : null}
           {ordered.map((a) => {
-            const lim = usage.limits[a.id]
+            const spec = AGENT_CLI_SPECS[a.cli]
+            const lim = spec.reportsLimits ? usage.limits[a.id] : undefined
             const five = liveWindow(lim?.fiveHour ?? null, now)
             const week = liveWindow(lim?.sevenDay ?? null, now)
             const plan = info[a.id]?.info?.plan
+            const used = sum.accounts[a.id]
+            // Why there are no limits: not yet, not reported by this CLI, or a terminal only.
+            const none = spec.reportsLimits
+              ? 'Shows after this account’s next chat turn.'
+              : spec.chat
+                ? `${spec.label} doesn’t report usage limits.`
+                : `Usage isn’t available for ${spec.label}: its panes run as terminals.`
             return (
               <div key={a.id} className="u-acct" role="group" aria-label={`Account ${a.name}`}>
                 <div className="u-acct-hd">
@@ -306,8 +323,14 @@ export function UsageView() {
                     {week ? <LimitRow label="Weekly" w={week} now={now} /> : null}
                   </div>
                 ) : (
-                  <p className="u-empty">Shows after this account&apos;s next chat turn.</p>
+                  <p className="u-empty">{none}</p>
                 )}
+                {used?.turns ? (
+                  <p className="u-acct-use">
+                    {fmtTokens(used.tokens)} tokens over {turns(used.turns)} {r.sentence}
+                    {hasCost(used) ? ` · ${fmtCost(used.costUsd)}` : ''}
+                  </p>
+                ) : null}
               </div>
             )
           })}
@@ -316,7 +339,7 @@ export function UsageView() {
         <section className="u-sec" aria-labelledby="u-spend-h">
           <h2 id="u-spend-h">Spend</h2>
           <p className="u-sum">
-            <b>{fmtCost(sum.total.costUsd)}</b> over {turns(sum.total.turns)} and{' '}
+            <b>{costOf(sum.total)}</b> over {turns(sum.total.turns)} and{' '}
             {fmtTokens(sum.total.tokens)} tokens {r.sentence}.
           </p>
           {series ? <DailyChart daily={series} inRange={RANGE_DAYS[range]} /> : null}
@@ -345,7 +368,7 @@ export function UsageView() {
                     <td>{wsName(p.workspaceId)}</td>
                     <td>{p.turns}</td>
                     <td>{fmtTokens(p.tokens)}</td>
-                    <td>{fmtCost(p.costUsd)}</td>
+                    <td>{costOf(p)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -374,7 +397,7 @@ export function UsageView() {
                   <tr key={c.paneId}>
                     <td>{c.title || 'Untitled chat'}</td>
                     <td className="u-dim">{wsName(c.workspaceId)}</td>
-                    <td>{fmtCost(c.costUsd)}</td>
+                    <td>{costOf(c)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -383,8 +406,9 @@ export function UsageView() {
         </section>
 
         <p className="u-note">
-          Limits are what claude reported after its last turn. Cost is at API prices: on Pro or Max
-          you pay your plan, not this. Terminal panes are not measured.
+          Limits are what each CLI reported after its last turn. Cost comes only from claude, at API
+          prices (on Pro or Max you pay your plan, not this); Codex and Antigravity report tokens,
+          so their cost shows as –. Terminal panes are not measured.
         </p>
       </div>
     </div>
@@ -406,7 +430,7 @@ export function useSessionLimit(): SessionLimit {
   const id = useApp((s) => limitAccountId(s.config, s.focusedPaneId))
   const focused = useApp((s) => limitIsFocused(s.config, s.focusedPaneId))
   const name = useApp((s) => s.config.accounts.find((a) => a.id === id)?.name ?? null)
-  const named = useApp((s) => s.config.accounts.filter((a) => a.cli === 'claude').length > 1)
+  const named = useApp((s) => limitAccounts(s.config.accounts).length > 1)
   const lim = useApp((s) => (id ? s.usage.limits[id] : undefined))
   const now = useTicker(60_000)
   const five = liveWindow(lim?.fiveHour ?? null, now)

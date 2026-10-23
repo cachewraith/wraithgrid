@@ -1,5 +1,6 @@
 // How usage numbers read: compact, never more precise than useful.
 
+import { AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import type { Config } from '@shared/types'
 
 /** `$0.14`, `$12.40`, `$1.2K`; tiny amounts read `<$0.01`. */
@@ -38,12 +39,16 @@ export function severity(utilization: number): Severity {
 
 type LimitConfig = Pick<Config, 'accounts' | 'workspaces' | 'settings'>
 
+/** Accounts whose CLI reports plan limits (claude, codex; #53). */
+export const limitAccounts = <A extends { cli: AgentCli }>(accounts: A[]): A[] =>
+  accounts.filter((a) => AGENT_CLI_SPECS[a.cli].reportsLimits)
+
 /**
- * Whose limits the top-bar pill and the sidebar row show: the focused pane's claude account
- * (limits are per account), else the default account, else the first claude account.
+ * Whose limits the top-bar pill and the sidebar row show: the focused pane's account when its
+ * CLI reports limits (they are per account), else the default one, else the first such.
  */
 export function limitAccountId(config: LimitConfig, focusedPaneId: string | null): string | null {
-  const claude = config.accounts.filter((a) => a.cli === 'claude')
+  const claude = limitAccounts(config.accounts)
   const isClaude = (id: string | null | undefined): id is string =>
     !!id && claude.some((a) => a.id === id)
   const focused = focusedPaneId

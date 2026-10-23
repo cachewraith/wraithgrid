@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChatEvent } from '@shared/chat'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { chatAdapterFor } from '../../src/main/chat/adapter'
-import { createAgyAdapter, describeAgyTool, parseAgyModels } from '../../src/main/chat/agy'
+import { usageOf, createAgyAdapter, describeAgyTool, parseAgyModels } from '../../src/main/chat/agy'
 import {
   EMPTY_THREAD,
   addUserMessage,
@@ -29,6 +29,23 @@ const decodeAll = (msgs: unknown[]): ChatEvent[] => {
 }
 
 describe('agy chat adapter (#41)', () => {
+  it("records each turn's tokens from result.usage, never a cost (#53)", () => {
+    const ends = decodeAll(CHAT).filter((e) => e.t === 'turnEnd')
+    // Real agy 1.4.4: input 4869, output 307, thinking 0, cache read 10995.
+    expect(ends[0]).toMatchObject({
+      usage: { costUsd: null, input: 4869, output: 307, cacheRead: 10995, cacheWrite: 0 }
+    })
+    expect(usageOf(null, null)).toBeNull()
+    expect(usageOf({ output_tokens: 5, thinking_tokens: 7 }, 'm')).toEqual({
+      model: 'm',
+      costUsd: null,
+      input: 0,
+      output: 12,
+      cacheRead: 0,
+      cacheWrite: 0
+    })
+  })
+
   it('is registered and the CLI has the chat view and a terminal resume', () => {
     expect(chatAdapterFor('agy')).not.toBeNull()
     expect(AGENT_CLI_SPECS.agy.chat).toBe(true)
