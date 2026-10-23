@@ -69,9 +69,8 @@ const SIDE_MOVE_MS = 260
 function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   const actions = useActions()
   const config = useApp((s) => s.config)
-  const on = useApp(
-    (s) => s.config.activeWorkspace === w.id && (s.view === 'grid' || s.view === 'project')
-  )
+  // Highlighted on its own screen; in the grid the focused chat's row is.
+  const on = useApp((s) => s.config.activeWorkspace === w.id && s.view === 'project')
   const running = useApp((s) => w.panes.some((p) => s.runtime[p.id]?.status === 'running'))
   const background = useApp((s) => w.panes.some((p) => s.runtime[p.id]?.status === 'background'))
   const waiting = useApp((s) =>
@@ -80,13 +79,6 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
       return st === 'approval' || st === 'login'
     })
   )
-  const lastAt = useApp((s) =>
-    w.panes.reduce<number | null>((m, p) => {
-      const t = s.runtime[p.id]?.activeAt ?? null
-      return t !== null && (m === null || t > m) ? t : m
-    }, null)
-  )
-  const now = useNow()
   const openList = useApp((s) => s.config.settings.sidebarOpenProjects)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -100,15 +92,9 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
     : history
       ? `${history} in history`
       : 'No chats yet'
-  const state = waiting
-    ? 'needs you'
-    : running
-      ? 'working'
-      : background
-        ? 'in background'
-        : lastAt !== null
-          ? ago(lastAt, now)
-          : null
+  const state = waiting ? 'needs you' : running ? 'working' : 'in background'
+  const busy = waiting || running || background
+  const hint = key ? ` (${SHORTCUT_HINT.workspaceN(key)})` : ''
   const machine = config.machines.find((m) => m.id === w.machineId)
   // Where the panes run can change only while there are none: running ones stay where they are.
   const runOn = [
@@ -185,7 +171,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
         <button
           className={`ws-row${on ? ' on' : ''}${menu ? ' menu' : ''}`}
           aria-current={on ? 'true' : undefined}
-          title={key ? `Open ${w.name} (${SHORTCUT_HINT.workspaceN(key)})` : `Open ${w.name}`}
+          title={[w.name, count, busy ? state : null].filter(Boolean).join(' · ') + hint}
           onMouseDown={keepFocus}
           onClick={() => actions.openProject(w.id)}
           onKeyDown={(e) => {
@@ -200,19 +186,14 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             setMenu(menuPoint(e))
           }}
         >
-          <span className="ws-txt">
-            <span className="ws-name">{w.name}</span>
-            <span className={`ws-sub${waiting ? ' warn' : running || background ? ' busy' : ''}`}>
-              {count}
-              {state ? ` · ${state}` : null}
-            </span>
-          </span>
+          <span className="ws-name">{w.name}</span>
           {machine ? (
             <span className="ws-mach" title={`Runs on ${machine.name} (${machine.sshHost})`}>
               {machine.name}
             </span>
           ) : null}
-          {waiting ? (
+          {/* A closed project marks what needs attention; an open one's chats say it. */}
+          {open ? null : waiting ? (
             <span className="ws-wait" title="A chat needs you" />
           ) : running ? (
             <span className="pn-spin" title="A chat is working" />
@@ -274,10 +255,10 @@ function folderName(cwd: string): string {
 const keepFocus = (e: MouseEvent): void => e.preventDefault()
 
 /**
- * One open chat as a card under its project (#59, #67): title and time, then its branch (or
- * folder) and account. The project heading above says which project it is.
+ * One open chat as a plain row under its project: its title, and its time or state on the
+ * right. Branch (or folder) and account are in its tooltip.
  */
-function ChatCard({ pane, now }: { pane: Pane; now: number }) {
+function ChatRow({ pane, now }: { pane: Pane; now: number }) {
   const actions = useActions()
   const account = useApp((s) => accountById(s.config, pane.accountId))
   const status = useApp((s) => s.runtime[pane.id]?.status ?? null)
@@ -287,31 +268,21 @@ function ChatCard({ pane, now }: { pane: Pane; now: number }) {
   const busy = status === 'running' || status === 'starting' || status === 'background'
   const loud = status === 'approval' || status === 'login'
   const when = loud && status ? PANE_STATUS_LABEL[status] : activeAt ? ago(activeAt, now) : null
+  const tip = [pane.title, branch ?? folderName(pane.cwd), account?.name].filter(Boolean)
   return (
     <button
-      className={`chat-card${on ? ' on' : ''}`}
+      className={`side-chat${on ? ' on' : ''}`}
       aria-current={on ? 'true' : undefined}
-      title={pane.title}
+      title={tip.join(' · ')}
       onMouseDown={keepFocus}
       onClick={() => actions.revealPane(pane.id)}
     >
-      <span className="cc-top">
-        <span className="cc-title">{pane.title}</span>
-        {busy ? (
-          <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
-        ) : null}
-        {when ? <span className={`cc-when${loud ? ' warn' : ''}`}>{when}</span> : null}
-      </span>
-      <span className="cc-bot">
-        <span className={`cc-branch${branch ? '' : ' folder'}`}>
-          {branch ?? folderName(pane.cwd)}
-        </span>
-        {account ? (
-          <span title={account.name}>
-            <Initial name={account.name} size={18} />
-          </span>
-        ) : null}
-      </span>
+      <span className="sch-t">{pane.title}</span>
+      {busy ? (
+        <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
+      ) : when ? (
+        <span className={`sch-when${loud ? ' warn' : ''}`}>{when}</span>
+      ) : null}
     </button>
   )
 }
@@ -324,9 +295,9 @@ function ProjectChats({ w, id }: { w: Workspace; id: string }) {
     .map((pane) => ({ pane, at: runtime[pane.id]?.activeAt ?? -1 }))
     .sort((a, b) => b.at - a.at)
   return (
-    <div className="cc-list" id={id} role="group" aria-label={`Chats in ${w.name}`}>
+    <div className="side-chats" id={id} role="group" aria-label={`Chats in ${w.name}`}>
       {chats.map(({ pane }) => (
-        <ChatCard key={pane.id} pane={pane} now={now} />
+        <ChatRow key={pane.id} pane={pane} now={now} />
       ))}
     </div>
   )

@@ -59,90 +59,64 @@
   margin-top: 1px;
 }
 
-/* ---- Chats: cards in a project's dropdown (#59, #67) --------------------------------- */
+/* ---- Chats: plain rows in a project's dropdown (#67) --------------------------------- */
 
-.cc-list {
+.side-chats {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  margin: 3px 0 8px 22px;
+  gap: 1px;
+  margin: 1px 0 6px;
 }
-.chat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-  padding: 8px 10px 7px;
-  border: 0;
-  border-radius: calc(10px * var(--rs, 1));
-  background: var(--raise);
-  box-shadow: inset 0 0 0 var(--bw, 1px) var(--line);
-  color: var(--tx);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  animation: cc-in var(--side-t) var(--side-ease);
-  transition:
-    background var(--side-t),
-    box-shadow var(--side-t);
-}
-.chat-card:hover {
-  background: var(--hover);
-  box-shadow: inset 0 0 0 var(--bw, 1px) var(--line2);
-}
-.chat-card.on {
-  background: var(--sel);
-  box-shadow: inset 0 0 0 var(--bw, 1px) var(--line2);
-}
-.cc-top,
-.cc-bot {
+.side-chat {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
+  gap: 8px;
+  width: 100%;
+  height: calc(30px * var(--dens, 1));
+  padding: 0 8px 0 24px;
+  border: 0;
+  border-radius: calc(8px * var(--rs, 1));
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  animation: sch-in var(--side-t) var(--side-ease);
+  transition:
+    background var(--side-t),
+    color var(--side-t);
 }
-.cc-bot {
-  min-height: 18px;
-  font-size: 11.5px;
-  line-height: 1.2;
-  color: var(--fa);
+.side-chat:hover {
+  background: var(--hover);
+  color: var(--tx);
 }
-.cc-title,
-.cc-branch {
+.side-chat.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.sch-t {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cc-title {
-  font-size: 13.5px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-.cc-branch.folder {
-  font-style: italic;
-}
-.cc-when {
+.sch-when {
   flex: none;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--fa);
 }
-.cc-when.warn {
+.sch-when.warn {
   color: var(--warn);
 }
-.cc-top .pn-spin {
+.side-chat .pn-spin {
   flex: none;
 }
-.cc-bot > :last-child:not(.cc-branch) {
-  flex: none;
-  display: flex;
-}
-@keyframes cc-in {
+@keyframes sch-in {
   from {
     opacity: 0;
-    transform: translateY(-3px);
   }
 }
 
@@ -154,12 +128,12 @@
 }
 .ws-row {
   position: relative;
-  height: 46px;
+  height: calc(32px * var(--dens, 1));
   gap: 8px;
   padding: 0 32px 0 12px;
   border-radius: calc(8px * var(--rs, 1));
-  font-size: 13.5px;
-  font-weight: 400;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--mu);
   transition:
     background var(--side-t),
@@ -170,33 +144,11 @@
 }
 .ws-wrap .ws-tg {
   width: 22px;
-  height: 46px;
+  height: calc(32px * var(--dens, 1));
   color: var(--fa);
 }
 .ws-wrap .ws-tg:disabled {
   opacity: 0;
-}
-.ws-txt {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.2;
-}
-.ws-sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11.5px;
-  font-weight: 400;
-  color: var(--fa);
-}
-.ws-sub.busy {
-  color: var(--ok);
-}
-.ws-sub.warn {
-  color: var(--warn);
 }
 .sec-n {
   margin-left: 4px;
