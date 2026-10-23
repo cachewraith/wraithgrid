@@ -1,4 +1,23 @@
-# What's new in 1.15: Codex and Antigravity chats, a new chat look, and full theming
+# What's new in 1.16: usage for every account, smoother chats, images you can see
+
+*v1.16.0 · 2026-10-23*
+
+| Feature | How to use it |
+|---|---|
+| Usage for Codex and Antigravity | **Usage** lists every account, the ones with open panes first. Codex shows its current session and weekly limits (also in the top-bar pill); Antigravity says it reports no limits. Both show the tokens they used |
+| Which account is in use | The account menu's tick is headed **New chats use**, and each account says how many panes run on it. Usage marks every account "N panes open" |
+| Images in your messages | A sent image shows in the message instead of "1 image". Click it to see it full size; ← → step through several, Esc closes |
+| Smoother answers | Answers stream in at a steady pace instead of in bursts, and the chat stays at the bottom while they grow, unless you scrolled up |
+
+- Codex and Antigravity don't report what a turn costs, so their cost shows as "–", never a
+  guessed number. Cost still comes from Claude accounts only.
+- A long command no longer leaves a box under its "Ran …" row repeating its description.
+  Chats you already have lose those boxes the next time they open.
+- Your system's or theme's reduce-motion setting turns the paced streaming off.
+
+---
+
+## Previously, in 1.15: Codex and Antigravity chats, a new chat look, and full theming
 
 *v1.15.0 · 2026-10-22*
 
