@@ -2,6 +2,7 @@
 
 ## 2026-10-23
 
+- [release] v1.17.0: sidebar chat cards + rounder corners (#59), small streaming dot, word fade-in and smooth follow (#62) (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
 - [chat] Calmer, smoother streaming (#62): the big blinking block cursor is now a small muted dot that pulses softly; text is revealed a whole word at a time (`revealedWords`), each new word fades in (`.md-w`) and each new block eases up 2px (`.md-in`), only in the streaming tail (plain again once it ends); the view glides to the bottom instead of jumping; all off with reduced motion (files: src/renderer/components/chat/{ChatView,Markdown}.tsx, src/renderer/lib/stream-pace.ts, src/renderer/styles/chat.css, tests/unit/stream-pace.test.ts, tests/e2e/chat.spec.ts, docs/CONTEXT.md)
 - [ui] Sidebar chat cards + rounder corners (#59): a "Chats" section above Projects shows every open chat as a card (project badge + name, time/status, title, git branch, account initial), most recently active first, click reveals it; corner scale `THEME_RADIUS` 0.5/1/1.4 → 0.6/1.2/1.6 and `--r-sm/--r/--r-lg` 7/10/14 → 8/12/16 (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/{sidebar,polish}.css, src/shared/themes.ts, tests/unit/themes.test.ts, tests/e2e/{git-palette,theme-editor}.spec.ts, docs/CONTEXT.md)
 - [release] v1.16.0: Usage for every provider (#53), accounts in use in the menu and Usage (#49), sent images shown (#50), smooth streaming (#52), no repeated tool description box (#51) (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)

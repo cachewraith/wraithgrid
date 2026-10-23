@@ -1,4 +1,20 @@
-# What's new in 1.16: usage for every account, smoother chats, images you can see
+# What's new in 1.17: chat cards in the sidebar, calmer streaming
+
+*v1.17.0 · 2026-10-23*
+
+| Feature | How to use it |
+|---|---|
+| Chat cards | The sidebar's **Chats** list shows every open chat as a card: project, how long ago, title, git branch and account. The most recent comes first; click one to go to it. **Projects** are still listed below |
+| Rounder corners | Cards, buttons, menus and dialogs are a little rounder, in every theme |
+| Calmer streaming | No more big blinking block while an answer comes in: a small dot pulses softly instead. Words appear whole and fade in, new paragraphs ease in, and the chat glides down as it grows |
+
+- Your system's or theme's reduce-motion setting turns the fades and the glide off.
+- A card's branch is updated for the project you have open; other projects' cards keep the
+  last one seen.
+
+---
+
+## Previously, in 1.16: usage for every account, smoother chats, images you can see
 
 *v1.16.0 · 2026-10-23*
 

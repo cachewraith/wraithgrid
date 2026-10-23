@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.16.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.17.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -166,4 +166,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-Released v1.16.0 (2026-10-23): Usage for every provider (#53: codex limits + tokens, agy tokens, cost "–" when not reported), accounts in use (#49), sent-image thumbnails + viewer (#50), paced streaming (#52), no repeated tool box (#51). Before: v1.15.0 (codex/agy chats, chat redesign, theming + community gallery). To verify by hand: codex limits/tokens with a real account in a packaged build, the gallery (Ember needs 1.15.0), drag-and-drop attach, streaming feel with several busy panes. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, cursor/copilot/opencode chat adapters, mods with real accounts.
+Released v1.17.0 (2026-10-23): sidebar chat cards + rounder corners (#59), streaming dot + word fade + glide (#62). Open: #60 codex account switching, #61 auto-switch account at limit, #63 Agent result box, #64 Usage row long names. Before: v1.16.0 (usage for every provider, accounts in use, image thumbnails, paced streaming). To verify by hand: codex limits/tokens with a real account in a packaged build, the gallery (Ember needs 1.15.0), drag-and-drop attach, streaming feel with several busy panes. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, cursor/copilot/opencode chat adapters, mods with real accounts.
