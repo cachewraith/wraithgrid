@@ -327,6 +327,32 @@ describe('background work (#39)', () => {
     const t = fold([second, { t: 'exit', code: 0, signal: null, error: null }])
     expect(t.background).toEqual([])
   })
+
+  it('a long foreground command is a task too, but its end is no notice (#51)', () => {
+    // Real claude 2.1.306 output for `sleep 5 && echo hi` run in the foreground, trimmed.
+    const a = createClaudeAdapter()
+    const events = [
+      {
+        type: 'system',
+        subtype: 'task_started',
+        task_id: 'bjnrnx53m',
+        tool_use_id: 'toolu_01',
+        description: 'Wait then say hi',
+        is_backgrounded: false,
+        task_type: 'local_bash'
+      },
+      {
+        type: 'system',
+        subtype: 'task_notification',
+        task_id: 'bjnrnx53m',
+        tool_use_id: 'toolu_01',
+        status: 'completed',
+        output_file: '',
+        summary: 'Wait then say hi'
+      }
+    ].flatMap((m) => a.decode(m).events)
+    expect(events).toEqual([])
+  })
 })
 
 describe('chat thread', () => {
@@ -398,6 +424,23 @@ describe('chat thread', () => {
     expect(parseThread('{"v":99}')).toBe(EMPTY_THREAD)
     expect(parseThread('not json')).toBe(EMPTY_THREAD)
     expect(parseThread(null)).toBe(EMPTY_THREAD)
+  })
+
+  it("drops saved notices that only repeat the tool's description (#51)", () => {
+    const t = fold([
+      { t: 'tool', id: 'x', name: 'Bash', kind: 'shell', subtitle: 'Run tests', preview: null },
+      { t: 'notice', level: 'info', text: 'Run tests' },
+      { t: 'notice', level: 'info', text: 'Interrupted' },
+      { t: 'tool', id: 'y', name: 'Bash', kind: 'shell', subtitle: 'Build', preview: null },
+      { t: 'notice', level: 'error', text: 'Build' }
+    ])
+    const back = parseThread(serializeThread(t))
+    expect(back.items.map((i) => (i.kind === 'notice' ? i.text : i.id))).toEqual([
+      'x',
+      'Interrupted',
+      'y',
+      'Build'
+    ])
   })
 })
 
