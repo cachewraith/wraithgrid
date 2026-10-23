@@ -208,6 +208,24 @@ test("usage: the pill follows the focused chat's account and names it", async ()
     await expect(pill).toHaveText('work·13%')
     const side = win.getByRole('complementary', { name: 'Sidebar' })
     await expect(side.getByRole('button', { name: /^Usage/ })).toContainText('work · 13%')
+    // A long name stays on one line, cut with an ellipsis; the % stays whole (#64).
+    const fit = await side.getByRole('button', { name: /^Usage/ }).evaluate((live) => {
+      // Measured on a copy beside it, so React's own nodes are left alone.
+      const row = live.cloneNode(true) as HTMLElement
+      live.after(row)
+      const nm = row.querySelector<HTMLElement>('.nav-pct-nm')!
+      nm.textContent = 'a-very-long-account-name-for-testing · '
+      const n = row.querySelector<HTMLElement>('.nav-pct-n')!
+      const r = {
+        sameHeight: row.getBoundingClientRect().height === live.getBoundingClientRect().height,
+        cut: nm.scrollWidth > nm.clientWidth,
+        pctWhole: n.scrollWidth <= n.clientWidth,
+        pctInside: n.getBoundingClientRect().right <= row.getBoundingClientRect().right
+      }
+      row.remove()
+      return r
+    })
+    expect(fit).toEqual({ sameHeight: true, cut: true, pctWhole: true, pctInside: true })
 
     // The account menu says who new chats use and which accounts have open panes (#49).
     await side.getByRole('button', { name: /Switch account/ }).click()
