@@ -1,6 +1,12 @@
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { useServices } from '../../app/services'
-import { isDiagram, parseMarkdown, type Block, type Inline } from '../../lib/markdown'
+import {
+  isDiagram,
+  parseMarkdown,
+  settledLength,
+  type Block,
+  type Inline
+} from '../../lib/markdown'
 import { IconCheck, IconCopy } from '../icons'
 
 /** Copies `text`; the button shows a tick for a moment. */
@@ -164,14 +170,22 @@ function BlockView({ b }: { b: Block }): ReactNode {
   }
 }
 
-/** Agent text as markdown; parsed again only when the text changes. */
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+/** Blocks of one stretch of text, parsed again only when that stretch changes. */
+const Blocks = memo(function Blocks({ text }: { text: string }) {
   const blocks = useMemo(() => parseMarkdown(text), [text])
+  return blocks.map((b, i) => <BlockView key={i} b={b} />)
+})
+
+/**
+ * Agent text as markdown. While it grows, only the part after its last finished block is
+ * parsed and drawn again (#52); the finished part stays as it was.
+ */
+export const Markdown = memo(function Markdown({ text }: { text: string }) {
+  const cut = settledLength(text)
   return (
     <div className="md">
-      {blocks.map((b, i) => (
-        <BlockView key={i} b={b} />
-      ))}
+      <Blocks key="done" text={text.slice(0, cut)} />
+      <Blocks key="tail" text={text.slice(cut)} />
     </div>
   )
 })
