@@ -113,7 +113,7 @@ import {
   saveClipboardImage
 } from './clipboard-image'
 import { detectClaude, findOnPath, resolveClaudePath } from './claude-detect'
-import type { AgentCli } from '@shared/agent-clis'
+import { CONTINUE_AS_CLIS, type AgentCli } from '@shared/agent-clis'
 import type { Account, Config } from '@shared/types'
 import type { ConfigStore } from './config-store'
 import {
@@ -174,7 +174,7 @@ import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
 import { listFolder } from './folders'
-import { copyTranscript } from './chat/transcript'
+import { copyCodexRollout, copyTranscript } from './chat/transcript'
 import { LOGIN_FLOWS, type Logins } from './login'
 import type { ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
@@ -363,9 +363,9 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   // ---- Chat panes (ADR 0002) -------------------------------------------------------
 
   const { chats } = deps
-  // Switching a chat's account (#29): the conversation file is copied into the other
-  // account's dir; both accounts come from main's own config and must be claude accounts in
-  // Wraithgrid's own folder.
+  // Switching a chat's account (#29, #60): the conversation file is copied into the other
+  // account's dir; both accounts come from main's own config, use the same CLI (claude or
+  // codex) and live in Wraithgrid's own folder.
   handle(
     IPC.chatMoveAccount,
     chatMoveAccountArgs,
@@ -378,9 +378,9 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       const from = cfg.accounts.find((x) => x.id === pane.accountId)
       const to = cfg.accounts.find((x) => x.id === a.toAccountId)
       if (!from || !to) return fail('That account is gone.')
-      if (from.cli !== 'claude' || to.cli !== 'claude')
-        return fail('Only claude chats can switch accounts for now.')
-      return copyTranscript(
+      if (from.cli !== to.cli || !CONTINUE_AS_CLIS.includes(from.cli))
+        return fail('This chat can only switch to another account of the same CLI.')
+      return (from.cli === 'codex' ? copyCodexRollout : copyTranscript)(
         resolveUserPath(from.configDir, homeDir),
         resolveUserPath(to.configDir, homeDir),
         a.sessionId,

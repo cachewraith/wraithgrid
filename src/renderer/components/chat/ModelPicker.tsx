@@ -366,7 +366,7 @@ export interface AccountChoice {
   signedIn: boolean
 }
 
-/** "Continue as…": carries the chat on as another claude account (#29). */
+/** "Continue as…": carries the chat on as another account of its CLI (#29, #60). */
 export function AccountPicker({
   current,
   accounts,

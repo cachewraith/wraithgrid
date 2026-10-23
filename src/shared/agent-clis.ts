@@ -179,3 +179,9 @@ export function withResumeArgs(cli: AgentCli, args: string[]): string[] {
 
 /** CLIs whose Login opens the sign-in dialog (src/main/login.ts); the rest sign in in a terminal. */
 export const DIALOG_LOGIN_CLIS: readonly AgentCli[] = ['claude', 'codex']
+
+/**
+ * CLIs whose chats can carry on as another account of the same CLI (#29, #60): their
+ * conversation is a file in the account's config dir that Wraithgrid can copy over.
+ */
+export const CONTINUE_AS_CLIS: readonly AgentCli[] = ['claude', 'codex']

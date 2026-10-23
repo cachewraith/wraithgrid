@@ -3,7 +3,9 @@
 // (tests/fixtures/codex-chat.ndjson): `codex app-server` (JSON-RPC lines on stdio),
 // `codex login --device-auth` (prints the link and code, signs in after a moment) and
 // `codex login status`. "run it" asks before a command; "slow" streams until interrupted;
-// anything else is echoed back with the turn's settings.
+// anything else is echoed back with the turn's settings. Ids are unique per process, as real
+// codex's are, so a restarted chat appends. Like real codex (0.164.0) a thread is a
+// rollout file under $CODEX_HOME/sessions/YYYY/MM/DD/, and resuming one that isn't there fails.
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -41,6 +43,28 @@ if (args[0] === 'login') {
 } else {
   process.stdout.write(`fake codex terminal: ${args.join(' ')}\n`)
   process.stdin.pipe(process.stdout)
+}
+
+/** The rollout file of thread `id` in this CODEX_HOME, or null. */
+function findRollout(id) {
+  const root = path.join(home, 'sessions')
+  const walk = (dir, depth) => {
+    let list
+    try {
+      list = fs.readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return null
+    }
+    for (const d of list) {
+      const p = path.join(dir, d.name)
+      if (depth < 3 && d.isDirectory()) {
+        const hit = walk(p, depth + 1)
+        if (hit) return hit
+      } else if (depth === 3 && d.isFile() && d.name.endsWith(`-${id}.jsonl`)) return p
+    }
+    return null
+  }
+  return walk(root, 0)
 }
 
 function appServer() {
@@ -87,7 +111,7 @@ function appServer() {
     turn = null
   }
   const say = (text) => {
-    const id = `msg_${++n}`
+    const id = `msg_${process.pid}_${++n}`
     note('item/started', { item: { type: 'agentMessage', id, text: '' }, threadId: thread })
     for (const part of text.match(/.{1,12}/gs) ?? [])
       note('item/agentMessage/delta', { threadId: thread, itemId: id, delta: part })
@@ -126,10 +150,23 @@ function appServer() {
         send({ id: m.id, result: { userAgent: 'fake', codexHome: home } })
         break
       case 'thread/start':
-      case 'thread/resume':
+      case 'thread/resume': {
+        if (m.method === 'thread/resume' && !findRollout(p.threadId)) {
+          send({
+            id: m.id,
+            error: { code: -32600, message: `no rollout found for thread id ${p.threadId}` }
+          })
+          break
+        }
         thread = m.method === 'thread/resume' ? p.threadId : 'cx-new'
+        if (m.method === 'thread/start') {
+          const dir = path.join(home, 'sessions', '2026', '10', '23')
+          fs.mkdirSync(dir, { recursive: true })
+          fs.writeFileSync(path.join(dir, `rollout-2026-10-23T00-00-00-${thread}.jsonl`), '')
+        }
         send({ id: m.id, result: { thread: { id: thread }, model: p.model ?? 'gpt-fake' } })
         break
+      }
       case 'thread/list':
         send({ id: m.id, result: { data: [], nextCursor: null } })
         break
@@ -183,7 +220,9 @@ function appServer() {
         break
       case 'turn/start': {
         const text = (p.input ?? []).map((i) => i.text ?? `[${i.type}]`).join(' ')
-        const id = `turn-${++n}`
+        const file = findRollout(thread)
+        if (file) fs.appendFileSync(file, `${JSON.stringify({ user: text })}\n`)
+        const id = `turn-${process.pid}-${++n}`
         turn = { id, timer: null }
         send({ id: m.id, result: { turn: { id, items: [], status: 'inProgress' } } })
         note('turn/started', { threadId: thread, turn: { id, items: [], status: 'inProgress' } })
@@ -212,7 +251,7 @@ function appServer() {
             }
           })
         } else if (text.includes('slow')) {
-          const mid = `msg_${++n}`
+          const mid = `msg_${process.pid}_${++n}`
           note('item/started', {
             item: { type: 'agentMessage', id: mid, text: '' },
             threadId: thread

@@ -1,4 +1,4 @@
-// Asked before a chat carries on as another claude account (#29): what changes (limits, no
+// Asked before a chat carries on as another account of its CLI (#29, #60): what changes (limits, no
 // cache, approvals) and that the conversation is copied into that account's folder.
 import { useState } from 'react'
 import { useActions, useApp } from '../app/services'
