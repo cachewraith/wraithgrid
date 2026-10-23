@@ -223,7 +223,10 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     const notes = path.join(home, 'proj', 'notes.md')
     const pic = path.join(home, 'proj', 'pic.png')
     fs.writeFileSync(notes, '# notes')
-    fs.writeFileSync(pic, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    // A real 1×1 PNG, so the sent message can show it (#50).
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    fs.writeFileSync(pic, Buffer.from(png, 'base64'))
     await app.evaluate(
       ({ dialog }, files) => {
         dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: files })) as never
@@ -239,6 +242,25 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
       /read this\s+Attached files:\s+- .*notes\.md/
     )
     await expect(pane(win).locator('.cc-file')).toHaveCount(0)
+    // The sent image shows as a tile, opens full size, and Esc closes it.
+    const tile = pane(win).getByRole('button', { name: 'Open image 1 of 1' })
+    await expect(tile).toBeVisible()
+    await expect(pane(win).locator('.cmsg-imgs')).toHaveCount(0)
+    await tile.click()
+    const viewer = win.getByRole('dialog', { name: 'Image' })
+    await expect(viewer.locator('img')).toHaveAttribute('src', `data:image/png;base64,${png}`)
+    await win.keyboard.press('Escape')
+    await expect(viewer).toHaveCount(0)
+    // The thumbnail is saved with the view (after a short debounce).
+    await expect
+      .poll(() => {
+        try {
+          return fs.readFileSync(path.join(userData, 'chats', 'p-chat.json'), 'utf8')
+        } catch {
+          return ''
+        }
+      })
+      .toContain(`"thumbs":["data:image/png;base64,${png}"]`)
 
     // ---- Quit and relaunch: the conversation view comes back and resumes its session.
     await app.close()
@@ -246,6 +268,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     ;({ app, win } = await launch(home, userData))
     await expect(pane(win).locator('.cmsg.user').first()).toHaveText('hi there')
     await expect(pane(win).locator('.chat-it.enter')).toHaveCount(0)
+    await expect(pane(win).getByRole('button', { name: 'Open image 1 of 1' })).toBeVisible()
     await composer(win).fill('after restart')
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(

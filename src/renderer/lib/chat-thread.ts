@@ -21,7 +21,8 @@ export interface ToolApproval {
 }
 
 export type ChatItem =
-  | { kind: 'user'; id: string; text: string; images: number }
+  /** `thumbs`: the images as small data URLs (#50); views saved before have only the count. */
+  | { kind: 'user'; id: string; text: string; images: number; thumbs?: string[] }
   | { kind: 'assistant'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string }
   | {
@@ -125,6 +126,25 @@ export function addUserMessage(
     turnStartedAt: t.turnStartedAt ?? now,
     items: [...t.items, { kind: 'user', id, text, images }]
   }
+}
+
+/** A sent message's thumbnails, made after it was added. */
+export function setUserThumbs(t: ChatThread, id: string, thumbs: string[]): ChatThread {
+  const updated = updateItem(t.items, id, (it) => (it.kind === 'user' ? { ...it, thumbs } : it))
+  return updated ? { ...t, items: updated } : t
+}
+
+/** Saved thumbnails go into <img src>: only base64 data URLs of the image kinds agents take. */
+const THUMB_RE = /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+=*$/
+const THUMB_MAX = 400_000
+const MAX_THUMBS = 20
+
+export function validThumbs(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const ok = v
+    .filter((s): s is string => typeof s === 'string' && s.length <= THUMB_MAX && THUMB_RE.test(s))
+    .slice(0, MAX_THUMBS)
+  return ok.length ? ok : undefined
 }
 
 export function addNotice(
@@ -294,7 +314,8 @@ export function parseThread(raw: string | null): ChatThread {
         typeof it.id === 'string'
     )
     // A request the old process asked can never be answered now. Views saved before #51 hold
-    // a notice repeating the tool's description after each long command: drop it.
+    // a notice repeating the tool's description after each long command: drop it. Saved
+    // thumbnails are checked before they reach an <img>.
     const settled = items
       .filter((it, i) => {
         const prev = items[i - 1]
@@ -305,11 +326,16 @@ export function parseThread(raw: string | null): ChatThread {
           prev.subtitle === it.text
         )
       })
-      .map((it) =>
-        it.kind === 'tool' && it.approval && it.approval.decided === null
-          ? { ...it, approval: { ...it.approval, decided: 'deny' as const } }
-          : it
-      )
+      .map((it): ChatItem => {
+        if (it.kind === 'tool' && it.approval && it.approval.decided === null)
+          return { ...it, approval: { ...it.approval, decided: 'deny' as const } }
+        if (it.kind === 'user') {
+          const { thumbs, ...rest } = it
+          const ok = validThumbs(thumbs)
+          return ok ? { ...rest, thumbs: ok } : rest
+        }
+        return it
+      })
     return {
       ...EMPTY_THREAD,
       items: settled,
