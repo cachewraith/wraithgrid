@@ -52,10 +52,12 @@ test('usage: limits from claude fill the button and panel; turns are recorded', 
   })
   try {
     const win = await app.firstWindow()
-    // Before any limit is known: the pill and the sidebar row just say Usage.
+    // Before any limit is known: the pill just says Usage; the sidebar says there are none yet.
     const side = win.getByRole('complementary', { name: 'Sidebar' })
     await expect(win.locator('.u-pill')).toHaveText('Usage')
-    await expect(side.getByRole('button', { name: 'Usage', exact: true })).toBeVisible()
+    await expect(side.getByRole('button', { name: /^Usage; open the Usage screen/ })).toContainText(
+      'no limits yet'
+    )
 
     const composer = win.getByLabel('Message', { exact: true })
     await composer.fill('count my tokens')
@@ -63,7 +65,10 @@ test('usage: limits from claude fill the button and panel; turns are recorded', 
     await expect(win.locator('.cmsg.agent').first()).toContainText('Hello from fake claude')
 
     // The button reads the current session limit claude reported.
-    const button = win.getByRole('button', { name: 'Usage: 42% of the current session limit' })
+    const button = win.getByRole('button', {
+      name: 'Usage: 42% of the current session limit',
+      exact: true
+    })
     await expect(button).toHaveText('42%')
     await button.click()
 
@@ -92,7 +97,12 @@ test('usage: limits from claude fill the button and panel; turns are recorded', 
     await expect(page).toHaveCount(0)
     // The sidebar row shows the limit too, and the account menu leads there as well.
     const row = side.getByRole('button', { name: /^Usage/ })
-    await expect(row).toContainText('42%')
+    // A line per window (#75): 5-hour and week, each with its percentage and reset.
+    await expect(row.locator('.su-win')).toHaveCount(2)
+    await expect(row.locator('.su-win').first()).toContainText('5h')
+    await expect(row.locator('.su-win').first()).toContainText('42%')
+    await expect(row.locator('.su-win').last()).toContainText('week')
+    await expect(row.locator('.su-win').last()).toContainText('75%')
     await row.click()
     await expect(page).toBeVisible()
     await expect(row).toHaveAttribute('aria-current', 'page')
@@ -207,15 +217,16 @@ test("usage: the pill follows the focused chat's account and names it", async ()
     await workPane.getByLabel('Message', { exact: true }).click()
     await expect(pill).toHaveText('work·13%')
     const side = win.getByRole('complementary', { name: 'Sidebar' })
-    await expect(side.getByRole('button', { name: /^Usage/ })).toContainText('work · 13%')
-    // A long name stays on one line, cut with an ellipsis; the % stays whole (#64).
+    await expect(side.locator('.su-nm')).toHaveText('work')
+    await expect(side.locator('.su-win').first()).toContainText('13%')
+    // A long name stays on one line, cut with an ellipsis (#64).
     const fit = await side.getByRole('button', { name: /^Usage/ }).evaluate((live) => {
       // Measured on a copy beside it, so React's own nodes are left alone.
       const row = live.cloneNode(true) as HTMLElement
       live.after(row)
-      const nm = row.querySelector<HTMLElement>('.nav-pct-nm')!
-      nm.textContent = 'a-very-long-account-name-for-testing · '
-      const n = row.querySelector<HTMLElement>('.nav-pct-n')!
+      const nm = row.querySelector<HTMLElement>('.su-nm')!
+      nm.textContent = 'a-very-long-account-name-for-testing-and-more'
+      const n = row.querySelector<HTMLElement>('.su-pct')!
       const r = {
         sameHeight: row.getBoundingClientRect().height === live.getBoundingClientRect().height,
         cut: nm.scrollWidth > nm.clientWidth,

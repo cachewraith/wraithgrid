@@ -405,42 +405,147 @@
     color var(--side-t);
 }
 
-/* Usage row: the session limit on the right, colored only near the limit. */
 .nav-row.on {
   background: var(--sel);
 }
 .side-nav .nav-row {
   width: 100%;
 }
-.nav-pct {
-  margin-left: auto;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--fa);
-}
-/* One line however long the account's name (#64): the name gives way, the % never does. */
-.side-nav .nav-row .nav-pct {
-  flex: 0 1 auto;
+
+/* Usage (#75): the account, then a line per window; grey until near a limit. */
+.side-use {
   display: flex;
-  min-width: 0;
-  max-width: 62%;
-  white-space: nowrap;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 8px 6px;
+  padding: 8px 10px 9px;
+  border: 0;
+  border-radius: calc(8px * var(--rs, 1));
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--side-t);
 }
-.side-nav .nav-row .nav-pct-nm {
-  flex: 0 1 auto;
+.side-use:hover,
+.side-use.on {
+  background: var(--hover);
+}
+.su-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+}
+.su-nm {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: pre;
+  white-space: nowrap;
 }
-.side-nav .nav-row .nav-pct-n {
-  flex: none;
+.su-win {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px 44px;
+  align-items: center;
+  gap: 8px;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fa);
 }
-.nav-pct.sev-warn {
+.su-pct {
+  text-align: right;
+  color: var(--tx);
+  font-variant-numeric: tabular-nums;
+}
+.su-at {
+  text-align: right;
+}
+.su-meter {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line2);
+}
+.su-meter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: var(--mu);
+}
+/* Where auto-switch (#61) moves on. */
+.su-meter b {
+  position: absolute;
+  top: -2px;
+  width: 1px;
+  height: 7px;
+  background: var(--fa);
+  opacity: 0.6;
+}
+.su-win.hot .su-meter i {
+  background: var(--warn);
+}
+.su-win.hot .su-pct {
   color: var(--warn);
 }
-.nav-pct.sev-err {
+.su-win.full .su-meter i {
+  background: var(--err);
+}
+.su-win.full .su-pct {
   color: var(--err);
+}
+.su-ft {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--fa);
+}
+.su-ft b {
+  font-weight: 500;
+  color: var(--mu);
+}
+
+/* States as words (#75): "working" with a light sweeping across it, no spinners or dots. */
+.sch-st,
+.ws-n {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fa);
+}
+.sch-st.warn {
+  color: var(--warn);
+}
+.sch-st.working {
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ok) 60%, var(--fa)) 0%,
+    color-mix(in srgb, var(--ok) 60%, var(--fa)) 35%,
+    color-mix(in srgb, var(--ok) 35%, #fff) 50%,
+    color-mix(in srgb, var(--ok) 60%, var(--fa)) 65%,
+    color-mix(in srgb, var(--ok) 60%, var(--fa)) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: sch-sweep 1.8s linear infinite;
+}
+@keyframes sch-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+.sch-when {
+  font-family: var(--font-mono);
+}
+.ws-wrap:hover .ws-n,
+.ws-wrap:hover .sch-st {
+  visibility: hidden;
 }
 .rail .icon-btn.on {
   background: var(--sel);
