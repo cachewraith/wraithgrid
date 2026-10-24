@@ -2,6 +2,7 @@
 
 ## 2026-10-24
 
+- [release] v1.19.0: whole-app/sidebar v3.4 (#75), all-account picker and cross-CLI handoff (#78), project icons (#80), compact empty projects and single footer counts (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT,TODO,UI-75}.md)
 - [fix] Pane/account counts appear only in the sidebar footer; the shortcut/update bar sits inside the main content so it no longer adds a duplicate row beneath the sidebar (files: src/renderer/components/StatusBar.tsx, src/renderer/app/App.tsx, tests/e2e/ui-design.spec.ts, docs/{CONTEXT,TODO,UI-75}.md, docs/ui-75/*.png)
 - [fix] Empty projects no longer inherit the full-page `.empty` layout; sidebar row heights, indentation, Usage and footer spacing now match sidebar-v3.html, with an eight-project regression and optional direct mockup comparison (files: src/renderer/components/{Sidebar,icons}.tsx, src/renderer/styles/{sidebar,ui}.css, tests/e2e/ui-design.spec.ts, docs/{CONTEXT,DECISIONS,TODO,UI-75}.md, docs/ui-75/*.png)
 - [ui] Complete the whole-app v3.4 pass (#75): shared page/type/motion rhythm, flat chrome and pane headers, unboxed Usage, themed listboxes/controls, remaining sidebar identity/rail/footer, and global reduced-motion support (files: src/renderer/styles/{tokens,polish,ui}.css, src/renderer/main.tsx, src/renderer/components/{Select,Sidebar,UsageView,SettingsView,ThemeEditor,CommunityThemes}.tsx, tests/e2e/{ui-design,chat,usage}.spec.ts, docs/{UI-75,CONTEXT,DECISIONS,TODO}.md, docs/ui-75/*.png)

@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.18.1.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.19.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -139,5 +139,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-#75: whole-app v3.4 pass implemented (shared layout/type/motion, flat chrome and pages, themed controls and remaining sidebar details), built on #78 in PR #83. Screen references/audit in docs/UI-75.md; #77 remains the separate scheduler. Next release uncut.
-Released v1.18.1 (2026-10-23; clean-list sidebar after the boxed cards were rejected). v1.18.0: switch account at limit (#61), codex Continue as… (#60), project dropdowns + pinned footer (#67), task results under their row (#63), Usage row long names (#64). To verify by hand: #61's limit-error switch against a real claude/codex limit message (wording guessed). Before: v1.17.0 (sidebar chat cards, rounder corners, streaming dot + word fade). To verify by hand: codex limits/tokens with a real account in a packaged build, the gallery (Ember needs 1.15.0), drag-and-drop attach, streaming feel with several busy panes. Still open from v1.10/1.11: host + CLI on Windows/macOS, a real ssh machine, NFR-1 (8 busy panes), H8 publishing, cursor/copilot/opencode chat adapters, mods with real accounts.
+v1.19.0 (2026-10-24): #75, #78 and #80 merged on main. Whole-app/sidebar v3.4, provider/account picker and cross-CLI handoff, project icons, compact empty-project rows and one footer count line. Release notes: docs/WHATS-NEW.md; design references: docs/UI-75.md. Scheduled remains disabled until #77 supplies the scheduler. Manual follow-ups remain: real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.

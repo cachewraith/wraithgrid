@@ -1,4 +1,26 @@
-# What's new in 1.18: switch accounts at the limit, Codex accounts, a tidier sidebar
+# What's new in 1.19: a cleaner app, project icons, and chats across CLIs
+
+*v1.19.0 · 2026-10-24*
+
+| Feature | How to use it |
+|---|---|
+| A cleaner app | Flatter surfaces, more breathing room, consistent controls and smoother transitions across Settings, Usage, Projects, Accounts, chats, terminals, dialogs and menus. System and theme reduced-motion settings turn motion off |
+| The new sidebar | Projects and chats form compact, left-aligned rows with provider marks and quiet times or state words. The icon rail keeps projects reachable when collapsed. Account, pane count and version stay in the footer |
+| Limits at a glance | The sidebar shows the account new chats use, with separate **5h** and **week** meters, reset times and where auto-switch will go next. Amber starts at 80%, red at 95%; click the block to open Usage |
+| Project icons | Right-click a project → **Change icon** to choose from the offline library. New projects can suggest icons from files in their folder, such as Laravel, Spring, React or Rust |
+| Pick any account | The account button in the composer lists accounts grouped by provider. Search by typing, use ↑↓ and Enter to choose, or Esc to close |
+| Continue in another CLI | Picking another chat CLI previews a text handoff before anything changes. Confirm to start the target CLI in the same pane position; the original chat stays reopenable in **History**. Picking a terminal-only CLI opens a fresh terminal pane |
+
+- Switching between Claude accounts or between Codex accounts still copies and resumes the conversation. Antigravity accounts resume their shared conversation and explain that they use the same login.
+- Cross-CLI handoffs carry recent visible user and assistant text, without tool output or thinking. Model, effort and permission mode reset to the target CLI's defaults.
+- Composer controls are larger, long account names truncate, and the folder/branch appear below the box.
+- Empty projects keep the same compact alignment as active projects. Pane/account counts appear once in the sidebar footer, without an extra row underneath.
+- Theme-tool dropdowns follow the app's theme and support the keyboard. Settings sections support arrows, Home and End.
+- **Scheduled** is visible in the sidebar but disabled; scheduling is not included in this release.
+
+---
+
+## Previously, in 1.18: switch accounts at the limit, Codex accounts, a tidier sidebar
 
 *v1.18.1 · 2026-10-23*
 
