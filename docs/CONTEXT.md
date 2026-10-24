@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.19.1.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.19.2.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -136,8 +136,9 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Login button: claude accounts get LoginDialog (`login:*` IPC, fake claude handles `auth login`/`auth status`, code `good-code`); other CLIs and "Use a terminal instead" = `loginInTerminal` (the old pane). Chat attachments: picked/dropped non-images are sent as an "Attached files:" path list for claude's Read tool; drag-drop paths come from preload `webUtils.getPathForFile`.
 - Fake claude (`fake-claude-chat.sh`) appends each user turn to `$CLAUDE_CONFIG_DIR/projects/<cwd with non-alnum → ->/<sid>.jsonl`, like real claude; `--resume X` answers as session `resumed-X`.
 - Release About e2e: saved-note fixtures must be newer than the bundled application notes (yet older than unpackaged Electron); a fixed 0.x note falls out of the intentional ten-entry history as releases grow. v1.19.0 never published because this test failed; v1.19.1 fixes it without rewriting that tag.
+- Chat follow owns its scrolling: never apply CSS `scroll-behavior: smooth` to `.chat-scroll` (it restarts each rAF assignment). User input cancels follow even inside the near-bottom threshold; picker hover never scrolls rows, and Codex uses the local ChatGPT knot.
 - Empty sidebar projects use `proj-empty`: `.empty` is the full-page centered layout, not a state marker. Verify eight-project row alignment/height in `ui-design.spec.ts`; `WRAITHGRID_SIDEBAR_REFERENCE` optionally compares geometry directly with the approved local sidebar-v3.html.
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-v1.19.1 (2026-10-24): #75, #78 and #80 merged on main. Whole-app/sidebar v3.4, provider/account picker and cross-CLI handoff, project icons, compact empty-project rows and one footer count line. Release notes: docs/WHATS-NEW.md; design references: docs/UI-75.md. Scheduled remains disabled until #77 supplies the scheduler. Manual follow-ups remain: real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.
+v1.19.2 (2026-10-24): #75, #78 and #80 merged on main. Whole-app/sidebar v3.4, provider/account picker and cross-CLI handoff, project icons, compact empty-project rows and one footer count line. Release notes: docs/WHATS-NEW.md; design references: docs/UI-75.md. Scheduled remains disabled until #77 supplies the scheduler. Current fixes: interruptible chat follow, stable account-picker navigation and the ChatGPT mark for Codex. Manual follow-ups remain: real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.

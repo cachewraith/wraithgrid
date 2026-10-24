@@ -215,6 +215,40 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(pane(win).locator('.ct.ct-done').last()).toContainText('Remove build')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('Ran it.')
 
+    // ---- Even a tiny upward wheel movement pauses follow while real output keeps growing.
+    await composer(win).fill('scroll stream')
+    await composer(win).press('Enter')
+    const scroll = pane(win).locator('.chat-scroll')
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollHeight - el.clientHeight))
+      .toBeGreaterThan(700)
+    await scroll.hover()
+    await win.mouse.wheel(0, -12)
+    const latest = pane(win).getByRole('button', { name: 'Scroll to the latest message' })
+    await expect(latest).toBeVisible()
+    const paused = await scroll.evaluate((el) => ({ top: el.scrollTop, height: el.scrollHeight }))
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollHeight))
+      .toBeGreaterThan(paused.height + 50)
+    expect(await scroll.evaluate((el) => el.scrollTop)).toBeCloseTo(paused.top, 0)
+    // Reading farther up stays put too. The explicit latest button resumes following.
+    const beforeReading = await scroll.evaluate((el) => el.scrollTop)
+    await win.mouse.wheel(0, -300)
+    await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeLessThan(beforeReading - 100)
+    const reading = await scroll.evaluate((el) => ({ top: el.scrollTop, height: el.scrollHeight }))
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollHeight))
+      .toBeGreaterThan(reading.height + 50)
+    expect(await scroll.evaluate((el) => el.scrollTop)).toBeCloseTo(reading.top, 0)
+    await latest.click()
+    await expect(latest).toBeHidden()
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop))
+      .toBeLessThan(2)
+    await expect(pane(win).getByRole('button', { name: 'Stop (Esc)' })).toBeHidden({
+      timeout: 10_000
+    })
+
     // ---- Stop interrupts the turn without an error.
     await composer(win).fill('slow')
     await composer(win).press('Enter')

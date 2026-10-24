@@ -1,4 +1,16 @@
-# What's new in 1.19: a cleaner app, project icons, and chats across CLIs
+# What's new in 1.19.2: stop auto-scroll and identify Codex accounts
+
+*v1.19.2 · 2026-10-24*
+
+| Fix | What changed |
+|---|---|
+| Chat auto-scroll | Scrolling up pauses follow immediately, even with a small wheel movement during a streamed reply. Reach the bottom or click the latest-message button to resume |
+| Codex identity | Codex accounts use the ChatGPT knot in account pickers, composer controls and provider badges |
+| Account picker | Keyboard selection starts on the current account. Hovering rows no longer scrolls the list |
+
+---
+
+## Previously, in 1.19: a cleaner app, project icons, and chats across CLIs
 
 *v1.19.1 · 2026-10-24*
 

@@ -82,6 +82,11 @@ for (const theme of ['dark', 'light'] as const) {
       await chip.click()
       const picker = win.getByRole('dialog', { name: 'Continue as', exact: true })
       await expect(picker.getByRole('option')).toHaveCount(4)
+      await expect(
+        picker
+          .getByRole('group', { name: 'Codex', exact: true })
+          .locator('.account-group > svg.provider-logo path')
+      ).toHaveCount(1)
       await expect(picker).toContainText('continue · same chat')
       await expect(picker).toContainText('new chat · handoff')
       await expect(picker).toContainText('terminal · no handoff')
@@ -135,6 +140,20 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(win.locator('.cmsg.user')).toHaveCount(0)
       await expect(win.locator('.cmsg.agent')).toContainText('Remember PEACH')
       await expect(win.locator('.cmsg.agent')).toContainText('model default, effort default')
+      // Opening on a later provider must focus the current account, so Enter is a no-op.
+      const codexChip = win.getByRole('button', {
+        name: `Account: ${CODEX_NAME}. Continue as another account`
+      })
+      await expect(codexChip.locator('svg.provider-logo path')).toHaveCount(1)
+      await expect(codexChip.locator('.initial')).toHaveCount(0)
+      await expect(codexChip).toBeEnabled()
+      await codexChip.click()
+      await expect(search).toHaveAttribute('aria-activedescendant', 'account-option-codex')
+      await search.press('Enter')
+      await expect(picker).toHaveCount(0)
+      await expect(codexChip).toBeVisible()
+      await expect(win.getByRole('dialog')).toHaveCount(0)
+
       if (shots)
         await win.screenshot({
           animations: 'disabled',

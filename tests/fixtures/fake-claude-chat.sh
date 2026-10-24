@@ -105,6 +105,10 @@ while IFS= read -r line; do
       else
         text "Hello from fake claude: over limit (config ${CLAUDE_CONFIG_DIR})" && result
       fi ;;
+    *'"type":"user"'*'scroll stream'*)
+      parts=()
+      for i in $(seq 1 120); do parts+=("Paragraph $i of the live answer. Reading earlier output must stay possible.\n\n"); done
+      text "${parts[@]}" && result ;;
     *'"type":"user"'*'slow'*)
       text "Working" "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." ;;
     *'"type":"user"'*)

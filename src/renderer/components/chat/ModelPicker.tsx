@@ -416,10 +416,18 @@ function AccountList({
   onSignIn: (id: string) => void
   close: () => void
 }) {
-  const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
-  const listRef = useRef<HTMLDivElement>(null)
   const order: AgentCli[] = ['claude', 'codex', 'agy', 'gemini', 'cursor', 'copilot', 'opencode']
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(() =>
+    Math.max(
+      0,
+      order
+        .flatMap((cli) => accounts.filter((a) => a.cli === cli))
+        .findIndex((a) => a.id === current.id)
+    )
+  )
+  const keyboardScroll = useRef(true)
+  const listRef = useRef<HTMLDivElement>(null)
   const filtered = order.flatMap((cli) =>
     accounts.filter(
       (a) =>
@@ -437,7 +445,10 @@ function AccountList({
     else onSignIn(a.id)
   }
   useEffect(() => {
-    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+    if (!keyboardScroll.current) return
+    listRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
   }, [active, query])
   return (
     <>
@@ -454,6 +465,7 @@ function AccountList({
         }
         value={query}
         onChange={(e) => {
+          keyboardScroll.current = true
           setQuery(e.target.value)
           setActive(0)
         }}
@@ -461,6 +473,7 @@ function AccountList({
           if (e.nativeEvent.isComposing) return
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault()
+            keyboardScroll.current = true
             setActive(
               (active + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) % (filtered.length || 1)
             )
@@ -505,7 +518,10 @@ function AccountList({
                   data-active={filtered[active]?.id === a.id}
                   className={`account-option${a.id === current.id ? ' current' : ''}${!a.signedIn ? ' unsigned' : ''}`}
                   disabled={busy && a.id !== current.id}
-                  onMouseMove={() => setActive(filtered.indexOf(a))}
+                  onMouseMove={() => {
+                    keyboardScroll.current = false
+                    setActive(filtered.indexOf(a))
+                  }}
                   onClick={() => pick(a)}
                 >
                   <Initial name={a.name} size={22} />

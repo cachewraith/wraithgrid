@@ -380,12 +380,23 @@ export function ChatView({ paneId, visible, focused }: Props) {
       glide.current = 0
     }
   }, [])
+  const pauseFollow = (): void => {
+    cancelAnimationFrame(glide.current)
+    glide.current = 0
+    stick.current = false
+    setAtBottom(false)
+  }
   const onScroll = (): void => {
     const el = scrollRef.current
     if (!el) return
     // The glide's own scroll: only moving up from where it put the view is the user.
-    if (glide.current && el.scrollTop >= glideAt.current - 2) return
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX
+    if (glide.current) {
+      if (el.scrollTop >= glideAt.current - 0.5) return
+      pauseFollow()
+    }
+    // Once paused, only reaching the actual bottom resumes following. A small upward
+    // wheel/touch movement must not reattach just because it is inside STICK_PX.
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < (stick.current ? STICK_PX : 1)
     stick.current = bottom
     if (bottom !== atBottom) setAtBottom(bottom)
   }
@@ -394,7 +405,9 @@ export function ChatView({ paneId, visible, focused }: Props) {
     if (!el) return
     stick.current = true
     setAtBottom(true)
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    cancelAnimationFrame(glide.current)
+    glide.current = 0
+    el.scrollTop = el.scrollHeight
   }
 
   // Items already there when the view opened, or read from disk, appear at once; new ones
@@ -473,7 +486,23 @@ export function ChatView({ paneId, visible, focused }: Props) {
 
   return (
     <div className="chat">
-      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll}>
+      <div
+        className="chat-scroll"
+        ref={scrollRef}
+        onScroll={onScroll}
+        onWheelCapture={(e) => {
+          if (e.deltaY < 0) pauseFollow()
+        }}
+        onTouchStartCapture={pauseFollow}
+        onPointerDown={(e) => {
+          // A press on the scroll container itself includes its scrollbar.
+          if (e.target === e.currentTarget) pauseFollow()
+        }}
+        onKeyDownCapture={(e) => {
+          if (['ArrowUp', 'PageUp', 'Home'].includes(e.key) || (e.key === ' ' && e.shiftKey))
+            pauseFollow()
+        }}
+      >
         <div className="chat-col" ref={colRef}>
           {thread.items.length === 0 ? (
             <div className="chat-hello">

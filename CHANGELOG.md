@@ -2,6 +2,9 @@
 
 ## 2026-10-24
 
+- [release] v1.19.2: interruptible chat follow and the ChatGPT logo for Codex, with stable picker keyboard/hover behavior (files: package.json, docs/WHATS-NEW.md)
+- [fix] Chat follow stops immediately on upward wheel/touch/keyboard/scrollbar input, stays paused through streamed growth and resumes at the bottom; remove conflicting CSS smooth scrolling, use the ChatGPT knot for Codex and keep picker hover from auto-scrolling (files: src/renderer/components/chat/{ChatView,ModelPicker}.tsx, src/renderer/styles/ui.css, src/renderer/lib/provider-logo*, scripts/gen-provider-logos.mjs, tests/e2e/{chat,chat-handoff}.spec.ts, tests/fixtures/fake-claude-chat.sh, docs/{PROVIDER-LOGOS,CONTEXT,TODO,DECISIONS}.md, docs/licenses/simple-icons.txt)
+
 - [release] v1.19.1 replaces the unpublished v1.19.0 release attempt: keep the About e2e saved-note fixture inside the ten-entry history as bundled versions grow (files: package.json, tests/e2e/about.spec.ts, docs/{WHATS-NEW,CONTEXT,TODO,DECISIONS,UI-75}.md)
 - [release] v1.19.0: whole-app/sidebar v3.4 (#75), all-account picker and cross-CLI handoff (#78), project icons (#80), compact empty projects and single footer counts (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT,TODO,UI-75}.md)
 - [fix] Pane/account counts appear only in the sidebar footer; the shortcut/update bar sits inside the main content so it no longer adds a duplicate row beneath the sidebar (files: src/renderer/components/StatusBar.tsx, src/renderer/app/App.tsx, tests/e2e/ui-design.spec.ts, docs/{CONTEXT,TODO,UI-75}.md, docs/ui-75/*.png)
