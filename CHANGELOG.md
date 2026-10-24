@@ -2,6 +2,7 @@
 
 ## 2026-10-24
 
+- [codex] Codex panes start with `-c project_doc_fallback_filenames=["CLAUDE.md"]`, so a project with only a CLAUDE.md is read by codex too (AGENTS.md still wins); fake codex accepts global `-c` overrides and its app-server requires this one (files: src/shared/agent-clis.ts, src/main/spawn-resolve.ts, tests/unit/agent-clis.test.ts, tests/fixtures/fake-codex.mjs)
 - [test] ui-design: measure the chat logo with its working pop paused, so the #87 alignment check no longer flakes while the chat runs (files: tests/e2e/ui-design.spec.ts)
 - [accounts] Shared instructions and skills = one brain per provider: claude accounts share `~/.wraithgrid/shared/claude` (CLAUDE.md, settings, skills, plugins, agents, commands), codex accounts `~/.wraithgrid/shared/codex` (AGENTS.md, skills, prompts), gemini/copilot their own (from docs, untested); each is seeded once from the CLI home, which is never changed; old ~/.claude links are re-pointed; codex accounts no longer get claude files (files: src/main/{shared-config,ipc}.ts, src/renderer/components/{SettingsView,AccountsView}.tsx, src/shared/types.ts, tests/unit/shared-config.test.ts, tests/e2e/shared.spec.ts, docs/{CONTEXT,ARCHITECTURE,DECISIONS,TODO}.md)
 - [ui] Working icons pop: a running chat's provider logo, a closed project's icon and the collapsed rail's project icon do a small repeating scale pop (`ui-icon-pop`, replaces the rail fade); Motion off/reduced stops it (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/ui.css, tests/e2e/chat.spec.ts, docs/{CONTEXT,TODO}.md)

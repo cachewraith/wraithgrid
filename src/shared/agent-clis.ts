@@ -190,6 +190,17 @@ export function withResumeArgs(cli: AgentCli, args: string[]): string[] {
   return [...resume, ...args]
 }
 
+/**
+ * Codex reads a project's AGENTS.md; this makes it fall back to the project's CLAUDE.md when
+ * there is none (`project_doc_fallback_filenames`, codex 0.164). A global `-c` override, so it
+ * goes before any subcommand (`resume`, `app-server`) and after withResumeArgs, which reads a
+ * leading `-c` as claude's continue flag.
+ */
+export function withProjectDocArgs(cli: AgentCli, args: string[]): string[] {
+  if (cli !== 'codex') return args
+  return ['-c', 'project_doc_fallback_filenames=["CLAUDE.md"]', ...args]
+}
+
 /** CLIs whose Login opens the sign-in dialog (src/main/login.ts); the rest sign in in a terminal. */
 export const DIALOG_LOGIN_CLIS: readonly AgentCli[] = ['claude', 'codex']
 

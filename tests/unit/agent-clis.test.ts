@@ -3,6 +3,7 @@ import {
   AGENT_CLIS,
   AGENT_CLI_SPECS,
   CONFIG_DIR_VARS,
+  withProjectDocArgs,
   withResumeArgs
 } from '../../src/shared/agent-clis'
 import { imagePasteText } from '../../src/main/clipboard-image'
@@ -45,5 +46,18 @@ describe('agent CLI registry', () => {
     ).toBe(true)
     expect(AGENT_CLI_SPECS.opencode.approval.test('Run this command? [y/N]')).toBe(true)
     expect(AGENT_CLI_SPECS.claude.approval.test('Allow execution of: ls?')).toBe(false)
+  })
+})
+
+describe('withProjectDocArgs', () => {
+  it("makes codex read a project's CLAUDE.md, before any subcommand", () => {
+    expect(withProjectDocArgs('codex', withResumeArgs('codex', []))).toEqual([
+      '-c',
+      'project_doc_fallback_filenames=["CLAUDE.md"]',
+      'resume',
+      '--last'
+    ])
+    expect(withProjectDocArgs('codex', ['app-server'])[2]).toBe('app-server')
+    expect(withProjectDocArgs('claude', ['--model', 'opus'])).toEqual(['--model', 'opus'])
   })
 })
