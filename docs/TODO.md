@@ -40,7 +40,8 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 
 ## Done (2026-10-24)
 - #87 sidebar tree: projects vs chats clearly apart, plus steadier chat follow (PR #90, merged)
-- #86 account picker search: flat focus (accent divider, no square ring)
+- #86 account picker search: flat focus (accent divider, no square ring) (PR #91, merged)
+- #88 rounded panels: sidebar/main/Changes panel as rounded surfaces with a 6px gap
 - v1.19.5: remove slow animated chat follow entirely; instant column-resize follow and paused reading verified.
 - v1.19.4: Windows real-Git suite timeout and transient cleanup locks fixed; release keeps the chat/picker/footer corrections.
 - v1.19.3: sidebar footer shows one provider mark, on the avatar only.
