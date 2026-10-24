@@ -206,11 +206,11 @@ test('a codex chat continues as another codex account: rollout copied, same thre
     await expect(agent.first()).toContainText('remember PLUM (thread cx-new')
     await expect.poll(() => fs.existsSync(rollout('work'))).toBe(true)
 
-    // Only the other codex account is offered, not the claude one.
+    // Every provider is offered; another Codex account still copies the same thread.
     await win.getByRole('button', { name: 'Account: work. Continue as another account' }).click()
     const list = win.getByRole('listbox', { name: 'Accounts' })
-    await expect(list.getByRole('option')).toHaveCount(2)
-    await expect(list.getByRole('option', { name: /claude-one/ })).toHaveCount(0)
+    await expect(list.getByRole('option')).toHaveCount(3)
+    await expect(list.getByRole('option', { name: /claude-one/ })).toHaveCount(1)
     await list.getByRole('option', { name: /^home/ }).click()
     const dlg = win.getByRole('dialog', { name: 'Continue this conversation as home?' })
     await dlg.getByRole('button', { name: 'Continue as home' }).click()

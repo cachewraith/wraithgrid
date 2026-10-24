@@ -26,6 +26,8 @@ export type SignInIsolation = 'dir' | 'dir-unchecked' | 'shared'
 
 export interface AgentCliSpec {
   label: string
+  /** Short provider name for the account picker and cross-CLI handoffs. */
+  providerLabel: string
   /** The command it is found by on PATH. */
   bin: string
   /** The variable that points it at an account's config dir, or null when it has none. */
@@ -59,6 +61,7 @@ const GENERIC_APPROVAL =
 
 export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
   claude: {
+    providerLabel: 'Claude',
     label: 'Claude Code',
     bin: 'claude',
     configDirVar: 'CLAUDE_CONFIG_DIR',
@@ -73,6 +76,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'After saving, use Login to open a pane running claude under this account and run /login there.'
   },
   gemini: {
+    providerLabel: 'Gemini',
     label: 'Gemini CLI',
     bin: 'gemini',
     configDirVar: 'GEMINI_CLI_HOME',
@@ -86,6 +90,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'Panes run gemini with GEMINI_CLI_HOME set to this config dir; it asks you to sign in on first launch.'
   },
   agy: {
+    providerLabel: 'Antigravity',
     label: 'Antigravity CLI',
     bin: 'agy',
     configDirVar: null,
@@ -99,6 +104,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'Panes run agy. It keeps its sign-in in the system keyring, so every Antigravity account on this machine uses the same Google login; it asks on first launch.'
   },
   codex: {
+    providerLabel: 'Codex',
     label: 'Codex CLI',
     bin: 'codex',
     configDirVar: 'CODEX_HOME',
@@ -112,6 +118,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'Panes run codex with CODEX_HOME set to this config dir. Its sign-in stays separate per account only while codex stores credentials in a file (cli_auth_credentials_store = "file"); with the keyring, accounts share one login.'
   },
   opencode: {
+    providerLabel: 'OpenCode',
     label: 'opencode',
     bin: 'opencode',
     // OPENCODE_CONFIG_DIR adds agents and commands but not auth.json, which lives in the
@@ -127,6 +134,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'Panes run opencode. It keeps provider keys in one place for your user (~/.local/share/opencode), so every opencode account on this machine shares them.'
   },
   cursor: {
+    providerLabel: 'Cursor',
     label: 'Cursor Agent',
     bin: 'cursor-agent',
     configDirVar: 'CURSOR_CONFIG_DIR',
@@ -140,6 +148,7 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
     note: 'Panes run cursor-agent with CURSOR_CONFIG_DIR set to this config dir. Cursor does not document where it keeps the sign-in, so accounts may share one login; run cursor-agent login in a pane to check.'
   },
   copilot: {
+    providerLabel: 'Copilot',
     label: 'Copilot CLI',
     bin: 'copilot',
     configDirVar: 'COPILOT_HOME',
@@ -156,6 +165,10 @@ export const AGENT_CLI_SPECS: Record<AgentCli, AgentCliSpec> = {
 
 export const AGENT_CLI_LABEL = Object.fromEntries(
   AGENT_CLIS.map((c) => [c, AGENT_CLI_SPECS[c].label])
+) as Record<AgentCli, string>
+
+export const AGENT_PROVIDER_LABEL = Object.fromEntries(
+  AGENT_CLIS.map((c) => [c, AGENT_CLI_SPECS[c].providerLabel])
 ) as Record<AgentCli, string>
 
 /** The command each CLI is found by on PATH. */

@@ -2,6 +2,7 @@
 
 ## 2026-10-24
 
+- [chat] All-provider account picker with search/keyboard, offline provider marks, confirmed cross-CLI text handoffs preserving the source in History, collapsed handoff rows and 30px flat composer chips (#78) (files: src/shared/agent-clis.ts, src/renderer/app/store.ts, src/renderer/components/{ProviderLogo,AccountIcon,AccountsView,Sidebar,SwitchAccountDialog,UsageView}.tsx, src/renderer/components/chat/{ChatView,Composer,ModelPicker}.tsx, src/renderer/lib/{chat-handoff,chat-thread,chat-bus}.ts, src/renderer/lib/provider-logos.json, src/renderer/styles/polish.css, scripts/gen-provider-logos.mjs, tests/unit/chat-handoff.test.ts, tests/e2e/{chat-handoff,chat-codex,chat-agy}.spec.ts, docs/{CONTEXT,DECISIONS,TODO,PROVIDER-LOGOS}.md, docs/licenses/*.txt, docs/ARCHITECTURE.md, electron-builder.yml)
 - [ui] Sidebar v3.4, step 1 of #75: the Usage row becomes a block (account, a `5h` and a `week` line with meter, % and reset time, amber ≥80% / red ≥95%, a tick at the auto-switch point and "at 95% switches to X", "no limits yet" when none); chat and project states are words in mono: `approve` (amber, chat only), `working`/`background` with a light sweep, no spinners or dots; project rows show their chat count (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/sidebar.css, tests/e2e/{usage,chat,git-palette}.spec.ts)
 
 ## 2026-10-23

@@ -14,6 +14,9 @@ import {
   type ChatModel
 } from '@shared/chat'
 import { IconCheck, IconChevron } from '../icons'
+import { AGENT_CLI_SPECS, AGENT_PROVIDER_LABEL, type AgentCli } from '@shared/agent-clis'
+import { ProviderLogo } from '../ProviderLogo'
+import { Initial } from '../AccountIcon'
 
 /** A chip that opens a list above it; Esc or a click outside closes it. */
 function ChipMenu({
@@ -275,7 +278,6 @@ export function ModePicker({
     <ChipMenu
       label={
         <>
-          <span className={`mp-dot mode-${mode}`} aria-hidden="true" />
           <span>{CHAT_MODE_LABEL[mode]}</span>
         </>
       }
@@ -358,10 +360,11 @@ function ModeList({
 }
 
 export interface AccountChoice {
+  cli: AgentCli
   id: string
   name: string
   plan: string | null
-  /** Current-session limit used, in %, when claude has reported one. */
+  /** Five-hour limit used, in %, when the provider has reported one. */
   sessionPct: number | null
   signedIn: boolean
 }
@@ -380,42 +383,150 @@ export function AccountPicker({
   onPick: (id: string) => void
   onSignIn: (id: string) => void
 }) {
-  const hint = (a: AccountChoice): string =>
-    a.signedIn
-      ? [a.plan, a.sessionPct !== null ? `${a.sessionPct}% of session used` : null]
-          .filter(Boolean)
-          .join(' · ') || 'Signed in'
-      : 'Not signed in · sign in first'
   return (
     <ChipMenu
-      label={<span>{current.name}</span>}
+      label={
+        <>
+          <ProviderLogo cli={current.cli} fallbackName={current.name} />
+          <span className="mp-account-name">{current.name}</span>
+        </>
+      }
       ariaLabel={`Account: ${current.name}. Continue as another account`}
       popLabel="Continue as"
       className="mp-acct"
+      width={400}
     >
-      {(close) => (
-        <div className="mp-list" role="listbox" aria-label="Accounts">
-          <div className="mp-hd">Continue as…</div>
-          {busy ? (
-            <div className="mp-empty">Wait for the answer to finish, or stop it first.</div>
-          ) : null}
-          {accounts.map((a) => (
-            <Option
-              key={a.id}
-              on={a.id === current.id}
-              name={a.name}
-              hint={hint(a)}
-              disabled={busy && a.id !== current.id}
-              onPick={() => {
-                close()
-                if (a.id === current.id) return
-                if (a.signedIn) onPick(a.id)
-                else onSignIn(a.id)
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {(close) => <AccountList {...{ current, accounts, busy, onPick, onSignIn, close }} />}
     </ChipMenu>
+  )
+}
+
+function AccountList({
+  current,
+  accounts,
+  busy,
+  onPick,
+  onSignIn,
+  close
+}: {
+  current: AccountChoice
+  accounts: AccountChoice[]
+  busy: boolean
+  onPick: (id: string) => void
+  onSignIn: (id: string) => void
+  close: () => void
+}) {
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(0)
+  const listRef = useRef<HTMLDivElement>(null)
+  const order: AgentCli[] = ['claude', 'codex', 'agy', 'gemini', 'cursor', 'copilot', 'opencode']
+  const filtered = order.flatMap((cli) =>
+    accounts.filter(
+      (a) =>
+        a.cli === cli &&
+        `${a.name} ${a.plan ?? ''} ${AGENT_PROVIDER_LABEL[a.cli]}`
+          .toLowerCase()
+          .includes(query.toLowerCase())
+    )
+  )
+  const pick = (a: AccountChoice): void => {
+    if (busy && a.id !== current.id) return
+    close()
+    if (a.id === current.id) return
+    if (a.signedIn) onPick(a.id)
+    else onSignIn(a.id)
+  }
+  useEffect(() => {
+    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [active, query])
+  return (
+    <>
+      <input
+        autoFocus
+        className="mp-search"
+        aria-label="Search accounts"
+        placeholder="Search accounts"
+        role="combobox"
+        aria-expanded="true"
+        aria-controls={`accounts-${current.id}`}
+        aria-activedescendant={
+          filtered[active] ? `account-option-${filtered[active]!.id}` : undefined
+        }
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setActive(0)
+        }}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            setActive(
+              (active + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) % (filtered.length || 1)
+            )
+          } else if (e.key === 'Enter' && filtered[active]) {
+            e.preventDefault()
+            pick(filtered[active]!)
+          }
+        }}
+      />
+      {busy ? (
+        <div className="mp-empty">Wait for the answer to finish, or stop it first.</div>
+      ) : null}
+      <div
+        ref={listRef}
+        className="mp-list account-list"
+        role="listbox"
+        aria-label="Accounts"
+        id={`accounts-${current.id}`}
+      >
+        {order.map((cli) => {
+          const group = filtered.filter((a) => a.cli === cli)
+          if (!group.length) return null
+          return (
+            <div key={cli} role="group" aria-label={AGENT_PROVIDER_LABEL[cli]}>
+              <div className="account-group">
+                <ProviderLogo cli={cli} />
+                <span>{cli === 'codex' ? 'ChatGPT · Codex' : AGENT_PROVIDER_LABEL[cli]}</span>
+                <span className="mono">
+                  {cli === current.cli
+                    ? 'continue · same chat'
+                    : AGENT_CLI_SPECS[cli].chat
+                      ? 'new chat · handoff'
+                      : 'terminal · no handoff'}
+                </span>
+              </div>
+              {group.map((a) => (
+                <button
+                  key={a.id}
+                  id={`account-option-${a.id}`}
+                  role="option"
+                  aria-selected={a.id === current.id}
+                  data-active={filtered[active]?.id === a.id}
+                  className={`account-option${a.id === current.id ? ' current' : ''}${!a.signedIn ? ' unsigned' : ''}`}
+                  disabled={busy && a.id !== current.id}
+                  onMouseMove={() => setActive(filtered.indexOf(a))}
+                  onClick={() => pick(a)}
+                >
+                  <Initial name={a.name} size={22} />
+                  <span className="mp-txt">
+                    <span className="mp-nm">{a.name}</span>
+                    <span className="mp-ds">
+                      {a.signedIn ? (a.plan ?? 'Signed in') : 'Not signed in'}
+                    </span>
+                  </span>
+                  <span className={`account-use mono${(a.sessionPct ?? 0) >= 80 ? ' hot' : ''}`}>
+                    {a.signedIn ? (a.sessionPct === null ? '—' : `${a.sessionPct}%`) : 'Sign in'}
+                  </span>
+                  {a.id === current.id ? <IconCheck small /> : <span />}
+                </button>
+              ))}
+            </div>
+          )
+        })}
+        {!filtered.length ? <div className="mp-empty">No accounts found.</div> : null}
+      </div>
+      <p className="mp-foot">↑↓ move · ↵ choose · esc close</p>
+    </>
   )
 }

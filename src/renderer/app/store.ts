@@ -16,6 +16,7 @@ import type {
 } from '@shared/ipc-contract'
 import {
   AGENT_CLI_LABEL,
+  AGENT_PROVIDER_LABEL,
   AGENT_CLI_SPECS,
   CONTINUE_AS_CLIS,
   DIALOG_LOGIN_CLIS
@@ -67,6 +68,7 @@ import {
   swapPanes,
   type Path
 } from '../layout/tree'
+import { buildHandoff } from '../lib/chat-handoff'
 import { decideSwitch } from '../lib/auto-switch'
 import { newId } from '../lib/ids'
 import type { ChatBus } from '../lib/chat-bus'
@@ -555,8 +557,16 @@ export function createAppStore({
         if (res.ok) api.chat.stop(paneId, false)
         return
       }
-      if (res.ok) patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
-      else {
+      if (res.ok) {
+        patchRuntime(paneId, { started: true, pid: res.pid, exit: null })
+        if (
+          !pane.hasConversation &&
+          chat.thread(paneId).items.some((it) => it.kind === 'handoff')
+        ) {
+          chat.sendPreparedHandoff(paneId)
+          get().markConversation(paneId)
+        }
+      } else {
         chat.notice(paneId, 'error', res.error)
         patchRuntime(paneId, {
           started: false,
@@ -984,7 +994,9 @@ export function createAppStore({
             return
           }
           toldNoneLeft.delete(paneId)
-          const last = [...thread.items].reverse().find((it) => it.kind === 'user')
+          const last = [...thread.items]
+            .reverse()
+            .find((it) => it.kind === 'user' || it.kind === 'handoff')
           switching.add(paneId)
           chat.notice(paneId, 'info', `${d.reason}: switching to ${d.to.name}`)
           const err = await get().chatSwitchAccount(paneId, d.to.id)
@@ -993,13 +1005,14 @@ export function createAppStore({
             chat.notice(paneId, 'error', `Could not switch to ${d.to.name}: ${err}`)
             return
           }
-          if (d.resend && last?.kind === 'user' && last.text.trim()) {
+          if (d.resend && (last?.kind === 'user' || last?.kind === 'handoff') && last.text.trim()) {
             // Once the new account's chat is up (a few seconds at most).
             const until = now() + 30_000
             const wait = setInterval(() => {
               if (get().runtime[paneId]?.started) {
                 clearInterval(wait)
-                get().chatSend(paneId, last.text, [])
+                if (last.kind === 'handoff') chat.sendPreparedHandoff(paneId)
+                else get().chatSend(paneId, last.text, [])
               } else if (now() > until) clearInterval(wait)
             }, 200)
           }
@@ -1180,13 +1193,88 @@ export function createAppStore({
         if (pane.accountId === accountId) return null
         const from = accountById(get().config, pane.accountId)
         const to = accountById(get().config, accountId)
-        if (!to || !from || to.cli !== from.cli || !CONTINUE_AS_CLIS.includes(from.cli))
-          return 'This chat can only switch to another account of the same CLI.'
+        if (!to || !from) return 'That account is gone.'
         if (!to.signedIn) return `${to.name} is not signed in yet.`
         if (chat.thread(paneId).busy) return 'Wait for the answer to finish, or stop it first.'
+        if (to.cli !== from.cli) {
+          if (!AGENT_CLI_SPECS[to.cli].chat) {
+            const found = findPane(get().config, paneId)!
+            get().switchWorkspace(found.ws.id)
+            addPaneToActive({
+              accountId,
+              cwd: pane.cwd,
+              args: [],
+              shell: false,
+              view: 'terminal',
+              slotId: null
+            })
+            return null
+          }
+          const found = findPane(get().config, paneId)!
+          const handoff = buildHandoff(chat.thread(paneId).items, from.cli, from.name)
+          const id = newId('p')
+          const next: Pane = {
+            ...pane,
+            id,
+            accountId,
+            args: [],
+            view: 'chat',
+            resume: false,
+            hasConversation: false,
+            chatSessionId: null,
+            model: null,
+            effort: null,
+            chatMode: null
+          }
+          // Preserve the original session and saved view under its original id. A new id also
+          // isolates late process events and lets History reopen the source independently.
+          api.chat.stop(paneId, false)
+          chat.forget(paneId, true)
+          api.pty.kill(paneId)
+          bus.forget(paneId)
+          const s = get()
+          const history = [{ pane, closedAt: now() }, ...found.ws.history]
+          history.slice(HISTORY_MAX).forEach((h) => api.chat.stop(h.pane.id, true))
+          const replace = (node: LayoutNode | null): LayoutNode | null => {
+            if (!node) return null
+            if (node.type === 'empty') return node
+            if (node.type === 'pane') return node.paneId === paneId ? { ...node, paneId: id } : node
+            return { ...node, children: node.children.map((child) => replace(child)!) }
+          }
+          const runtime = { ...s.runtime }
+          delete runtime[paneId]
+          runtime[id] = freshRuntime({ requested: true })
+          set({
+            config: withWorkspace(s.config, found.ws.id, (w) => ({
+              ...w,
+              panes: w.panes.map((p) => (p.id === paneId ? next : p)),
+              layout: replace(w.layout),
+              history: history.slice(0, HISTORY_MAX)
+            })),
+            runtime,
+            focusedPaneId: s.focusedPaneId === paneId ? id : s.focusedPaneId,
+            zoomedPaneId: s.zoomedPaneId === paneId ? id : s.zoomedPaneId
+          })
+          const at = new Date(now()).toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+          chat.prepareHandoff(
+            id,
+            handoff,
+            to.cli,
+            `continued in ${AGENT_PROVIDER_LABEL[to.cli]} as ${to.name} · ${at}`
+          )
+          // Pane mounting calls requestStart; mark it requested above so only this start runs.
+          await spawn(id)
+          return null
+        }
+        const shared = AGENT_CLI_SPECS[from.cli].signIn === 'shared'
+        if (!CONTINUE_AS_CLIS.includes(from.cli) && !shared)
+          return 'This CLI cannot copy conversations between accounts.'
         const running = !!get().runtime[paneId]?.requested
         if (running) api.chat.stop(paneId, false)
-        if (pane.chatSessionId) {
+        if (pane.chatSessionId && !shared) {
           const r = await api.chat.moveAccount(paneId, accountId, pane.chatSessionId)
           if (!r.ok) {
             // Nothing changed: carry on as before.

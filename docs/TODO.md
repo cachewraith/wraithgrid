@@ -38,6 +38,9 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 ## Later
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 
+## Done (2026-10-24)
+- #78: all-provider account picker, offline marks/fallbacks, confirmed cross-CLI visible-text handoff with source in History, collapsed row, larger flat chips and folder/branch below; fake-CLI e2e in dark/light, same-CLI/shared-login and terminal flows
+
 ## Done (2026-10-22)
 - #36: ghost buttons broken app-wide by the commit-graph's bare `.gh` CSS rule; scoped to `ol.gh`
 - #26: New project screen (folder → suggested name, account, machine, first chat); switcher no longer creates, says "project"

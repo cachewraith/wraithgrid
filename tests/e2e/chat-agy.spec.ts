@@ -30,6 +30,14 @@ test('agy chat: answer, models with effort, refused tool, stop and mode restart 
           color: '#7c5cff',
           signedIn: true,
           imported: false
+        },
+        {
+          id: 'a-agy-two',
+          name: 'agy-two',
+          cli: 'agy',
+          configDir: '~/.wraithgrid/accounts/agy-two',
+          color: '#7c5cff',
+          signedIn: true
         }
       ],
       workspaces: [
@@ -130,12 +138,25 @@ test('agy chat: answer, models with effort, refused tool, stop and mode restart 
     await expect(last(win)).toContainText('mode plan')
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
 
+    // Shared sign-in: another agy account resumes the same conversation without copying files.
+    await win.getByRole('button', { name: 'Account: agy. Continue as another account' }).click()
+    await win.getByRole('option', { name: /^agy-two/ }).click()
+    const switchDialog = win.getByRole('dialog', { name: 'Continue this conversation as agy-two?' })
+    await expect(switchDialog).toContainText('shares its sign-in')
+    await switchDialog.getByRole('button', { name: 'Continue as agy-two' }).click()
+    await expect(composer(win)).toHaveAttribute('placeholder', /Message Antigravity CLI/)
+    await composer(win).fill('same conversation')
+    await composer(win).press('Enter')
+    await expect(last(win)).toContainText('same conversation (conversation agy-new')
+    await expect(last(win)).toContainText('mode plan')
+
     // ---- Usage (#53): agy reports tokens, no limits; the screen says so.
     await win.locator('.u-pill').click()
-    const acct = win.getByRole('group', { name: 'Account agy' })
+    const acct = win.getByRole('group', { name: 'Account agy', exact: true })
     await expect(acct).toContainText(/Antigravity CLI doesn.t report usage limits/)
     await expect(acct).toContainText(/\d+ tokens over \d+ turns in the last 7 days/)
-    await expect(acct).toContainText('1 pane open')
+    await expect(acct).toContainText('No panes open')
+    await expect(win.getByRole('group', { name: 'Account agy-two' })).toContainText('1 pane open')
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })

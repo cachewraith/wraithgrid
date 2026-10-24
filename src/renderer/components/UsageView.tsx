@@ -25,7 +25,7 @@ import {
   panesPerAccount,
   severity
 } from '../lib/usage-format'
-import { Initial } from './AccountIcon'
+import { AccountAvatar } from './ProviderLogo'
 import { IconChevron, IconGauge } from './icons'
 
 /** A cost, or "–" when none of it was reported (codex, agy: tokens only). */
@@ -310,7 +310,7 @@ export function UsageView() {
             return (
               <div key={a.id} className="u-acct" role="group" aria-label={`Account ${a.name}`}>
                 <div className="u-acct-hd">
-                  <Initial name={a.name} size={18} />
+                  <AccountAvatar cli={a.cli} name={a.name} size={18} />
                   <b>{a.name}</b>
                   {plan ? <span>{plan}</span> : null}
                   <span className={`u-inuse${inUse[a.id] ? ' on' : ''}`}>
