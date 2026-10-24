@@ -141,6 +141,16 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(bg).toContainText('Wait two seconds')
     await expect(pane(win).locator('.st')).toHaveText(/in background/)
     await expect(win.locator('.side-chat .sch-st.working')).toHaveText('background')
+    // A working chat's logo pops; collapsed, its project's rail icon does.
+    const animation = (sel: string): Promise<string> =>
+      win
+        .locator(sel)
+        .first()
+        .evaluate((n) => getComputedStyle(n).animationName)
+    expect(await animation('.side-chat.busy .provider-logo')).toBe('ui-icon-pop')
+    await win.getByRole('button', { name: 'Collapse sidebar' }).click()
+    expect(await animation('.rail-ws.working .pj-icon')).toBe('ui-icon-pop')
+    await win.getByRole('button', { name: 'Expand sidebar' }).click()
     // claude reads the result in a turn of its own; then the chat is really idle.
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText('It finished.')
     await expect(bg).toHaveCount(0)
