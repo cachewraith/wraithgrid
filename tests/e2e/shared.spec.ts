@@ -113,11 +113,12 @@ test('overall mode gives each provider one shared brain', async () => {
     await win.getByRole('menuitem', { name: 'Settings' }).click()
     await win.getByRole('tab', { name: 'Agents & CLIs' }).click()
     await group.getByRole('radio', { name: 'Each account its own' }).click()
+    // Accounts are unlinked one after another: wait for each, not just the first.
     await expect.poll(() => fs.lstatSync(path.join(work, 'CLAUDE.md')).isSymbolicLink()).toBe(false)
+    await expect.poll(() => fs.existsSync(path.join(late, 'CLAUDE.md'))).toBe(false)
+    await expect.poll(() => fs.existsSync(path.join(cx, 'AGENTS.md'))).toBe(false)
     expect(fs.readFileSync(path.join(work, 'CLAUDE.md'), 'utf8')).toBe('# work only\n')
     expect(fs.existsSync(path.join(work, 'skills'))).toBe(false)
-    expect(fs.existsSync(path.join(late, 'CLAUDE.md'))).toBe(false)
-    expect(fs.existsSync(path.join(cx, 'AGENTS.md'))).toBe(false)
     // The provider homes are never changed; the brains keep their files.
     expect(fs.lstatSync(path.join(personal, 'CLAUDE.md')).isSymbolicLink()).toBe(false)
     expect(fs.readFileSync(path.join(brain, 'CLAUDE.md'), 'utf8')).toBe('# one set of rules\n')
