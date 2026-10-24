@@ -99,6 +99,9 @@ for (const theme of ['dark', 'light'] as const) {
         })
       }
       const search = picker.getByRole('combobox', { name: 'Search accounts' })
+      // The focused search row draws no square ring inside the rounded popover (#86).
+      await expect(search).toBeFocused()
+      expect(await search.evaluate((n) => getComputedStyle(n).outlineStyle)).toBe('none')
       await search.fill('unsigned')
       await expect(picker.getByRole('option')).toContainText('Sign in')
       await search.press('Escape')

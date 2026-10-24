@@ -2738,6 +2738,11 @@ ol.gh {
   border-radius: 0;
   background: transparent;
 }
+/* A flat top row of a rounded popover (#86): no square ring, the divider takes the accent. */
+.mp-search:focus-visible {
+  outline: none;
+  border-bottom-color: var(--acc);
+}
 .account-list {
   max-height: min(420px, 45vh);
   overflow-y: auto;
