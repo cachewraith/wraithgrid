@@ -40,7 +40,9 @@ import {
 import { ago } from '../lib/time'
 import { panesOpen, panesPerAccount } from '../lib/usage-format'
 import { useNow } from './ProjectView'
-import { sessionLimitLabel, useSessionLimit } from './UsageView'
+import { sessionLimitLabel, useSessionLimit, useTicker } from './UsageView'
+import { nextAccount } from '../lib/auto-switch'
+import { liveWindow, type UsageWindow as UsageWin } from '@shared/usage'
 
 export function accountColorsFor(config: Config, wsId: string): string[] {
   const ws = config.workspaces.find((w) => w.id === wsId)
@@ -192,13 +194,11 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
               {machine.name}
             </span>
           ) : null}
-          {/* A closed project marks what needs attention; an open one's chats say it. */}
-          {open ? null : waiting ? (
-            <span className="ws-wait" title="A chat needs you" />
-          ) : running ? (
-            <span className="pn-spin" title="A chat is working" />
-          ) : background ? (
-            <span className="pn-spin bg" title="A chat has work running in the background" />
+          {/* A closed project says it's working; approvals show on the chat only (#75). */}
+          {!open && (running || background) ? (
+            <span className="sch-st working">working</span>
+          ) : panes ? (
+            <span className="ws-n">{panes}</span>
           ) : null}
         </button>
         <button
@@ -267,7 +267,7 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
   const on = useApp((s) => s.focusedPaneId === pane.id && s.view === 'grid')
   const busy = status === 'running' || status === 'starting' || status === 'background'
   const loud = status === 'approval' || status === 'login'
-  const when = loud && status ? PANE_STATUS_LABEL[status] : activeAt ? ago(activeAt, now) : null
+  const when = activeAt ? ago(activeAt, now) : null
   const tip = [pane.title, branch ?? folderName(pane.cwd), account?.name].filter(Boolean)
   return (
     <button
@@ -278,10 +278,17 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
       onClick={() => actions.revealPane(pane.id)}
     >
       <span className="sch-t">{pane.title}</span>
-      {busy ? (
-        <span className={`pn-spin${status === 'background' ? ' bg' : ''}`} aria-hidden="true" />
+      {/* States as words (#75): a light sweeps across "working"; no spinners or dots. */}
+      {loud && status ? (
+        <span className="sch-st warn" title={PANE_STATUS_LABEL[status]}>
+          {status === 'login' ? 'sign in' : 'approve'}
+        </span>
+      ) : busy ? (
+        <span className="sch-st working" title={PANE_STATUS_LABEL[status!]}>
+          {status === 'background' ? 'background' : 'working'}
+        </span>
       ) : when ? (
-        <span className={`sch-when${loud ? ' warn' : ''}`}>{when}</span>
+        <span className="sch-when">{when}</span>
       ) : null}
     </button>
   )
@@ -303,26 +310,77 @@ function ProjectChats({ w, id }: { w: Workspace; id: string }) {
   )
 }
 
-/** "Usage" under New chat and Search, with the session limit on the right once known. */
-function UsageNavRow() {
+/** When a window resets: the time today, else the weekday ("13:40", "Mon"). */
+function resetLabel(at: number, now: number): string {
+  const d = new Date(at)
+  return at - now < 20 * 3_600_000
+    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    : d.toLocaleDateString(undefined, { weekday: 'short' })
+}
+
+function UsageWindow({
+  name,
+  w,
+  now,
+  mark
+}: {
+  name: string
+  w: UsageWin
+  now: number
+  mark: number
+}) {
+  const pct = Math.round(w.utilization * 100)
+  const sev = pct >= 95 ? ' full' : pct >= 80 ? ' hot' : ''
+  return (
+    <span className={`su-win${sev}`}>
+      <span>{name}</span>
+      <span className="su-meter">
+        <i style={{ width: `${Math.min(pct, 100)}%` }} />
+        <b style={{ left: `${mark}%` }} />
+      </span>
+      <span className="su-pct">{pct}%</span>
+      <span className="su-at">{resetLabel(w.resetsAt, now)}</span>
+    </span>
+  )
+}
+
+/**
+ * Usage under New chat and Search (#75): the account whose limits these are, a line per
+ * window (5-hour, week) with its reset, colour only near the limit, and where auto-switch
+ * (#61) would go. Opens the Usage screen.
+ */
+function SidebarUsage() {
   const actions = useActions()
   const on = useApp((s) => s.view === 'usage')
   const limit = useSessionLimit()
+  const accounts = useApp((s) => s.config.accounts)
+  const limits = useApp((s) => s.usage.limits)
+  const auto = useApp((s) => s.config.settings.autoSwitchAtLimit)
+  const at = useApp((s) => s.config.settings.autoSwitchAt)
+  const now = useTicker(60_000)
+  const account = accounts.find((a) => a.id === limit.account?.id) ?? null
+  const lim = account ? limits[account.id] : undefined
+  const five = liveWindow(lim?.fiveHour ?? null, now)
+  const week = liveWindow(lim?.sevenDay ?? null, now)
+  const next = account && auto ? nextAccount(accounts, account, limits, now, at) : null
   return (
     <button
-      className={`nav-row${on ? ' on' : ''}`}
+      className={`side-use${on ? ' on' : ''}`}
       aria-current={on ? 'page' : undefined}
+      aria-label={`${sessionLimitLabel(limit)}; open the Usage screen`}
       title={sessionLimitLabel(limit)}
       onClick={() => actions.setView('usage')}
     >
-      <IconGauge />
-      <span>Usage</span>
-      {limit.pct !== null ? (
-        <span className={`nav-pct sev-${limit.sev}`}>
-          {limit.named && limit.account ? (
-            <span className="nav-pct-nm">{limit.account.name} · </span>
-          ) : null}
-          <span className="nav-pct-n">{limit.pct}%</span>
+      <span className="su-hd">
+        <IconGauge small />
+        <span className="su-nm">{account?.name ?? 'Usage'}</span>
+      </span>
+      {five ? <UsageWindow name="5h" w={five} now={now} mark={at} /> : null}
+      {week ? <UsageWindow name="week" w={week} now={now} mark={at} /> : null}
+      {!five && !week ? <span className="su-ft">no limits yet</span> : null}
+      {(five || week) && next ? (
+        <span className="su-ft">
+          at {at}% switches to <b>{next.name}</b>
         </span>
       ) : null}
     </button>
@@ -607,8 +665,8 @@ export function Sidebar() {
                 <span>Search</span>
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
-              <UsageNavRow />
             </nav>
+            <SidebarUsage />
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
               <div className="sec-hd">

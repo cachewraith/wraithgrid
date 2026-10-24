@@ -151,7 +151,7 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
 
     // A project's screen lists its chats; clicking one focuses it in the grid.
     await side.locator('.ws-row', { hasText: 'main' }).click()
-    await expect(side.locator('.ws-row.on')).toHaveText('main')
+    await expect(side.locator('.ws-row.on .ws-name')).toHaveText('main')
     const open = win.getByRole('region', { name: 'Open chats' })
     await expect(open.locator('.pj-row', { hasText: 'api' })).toBeVisible()
     await open.locator('.pj-row', { hasText: 'notes' }).click()
