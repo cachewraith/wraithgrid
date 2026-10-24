@@ -7,6 +7,8 @@ directories:
 files:
   - out/**
   - package.json
+  - docs/licenses/**
+  - docs/PROVIDER-LOGOS.md
   - '!**/*.map'
 asarUnpack:
   - node_modules/node-pty/**

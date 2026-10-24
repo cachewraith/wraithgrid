@@ -19,7 +19,7 @@ import {
 import { useActions, useApp, useServices } from '../app/services'
 import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { Initial } from './AccountIcon'
+import { AccountAvatar } from './ProviderLogo'
 import { ProjectIcon } from './ProjectIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
@@ -421,7 +421,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
         onClick={open}
       >
         {current ? (
-          <Initial name={current.name} size={compact ? 26 : 28} />
+          <AccountAvatar cli={current.cli} name={current.name} size={compact ? 26 : 28} />
         ) : (
           <span className="acct-none">
             <IconUserPlus small />
@@ -464,7 +464,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
               subWarn: !a.signedIn,
               checked: a.id === current?.id,
               heading: i === 0 ? 'New chats use' : undefined,
-              icon: <Initial name={a.name} size={26} />,
+              icon: <AccountAvatar cli={a.cli} name={a.name} size={26} />,
               onSelect: () => actions.updateSettings({ defaultAccountId: a.id })
             })),
             {

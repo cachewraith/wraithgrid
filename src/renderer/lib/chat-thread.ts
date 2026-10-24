@@ -1,3 +1,4 @@
+import { AGENT_CLIS, type AgentCli } from '@shared/agent-clis'
 // A chat pane's conversation as the view draws it, folded from ChatEvents (ADR 0002). Pure,
 // so it is tested without a window; ChatBus keeps one per pane and saves it to disk.
 import type {
@@ -21,6 +22,15 @@ export interface ToolApproval {
 }
 
 export type ChatItem =
+  | {
+      kind: 'handoff'
+      id: string
+      text: string
+      messages: number
+      fromCli: AgentCli
+      toCli: AgentCli
+      divider: string
+    }
   /** `thumbs`: the images as small data URLs (#50); views saved before have only the count. */
   | { kind: 'user'; id: string; text: string; images: number; thumbs?: string[] }
   | { kind: 'assistant'; id: string; text: string }
@@ -308,7 +318,7 @@ export function serializeThread(t: ChatThread): string {
   })
 }
 
-const ITEM_KINDS = new Set(['user', 'assistant', 'thinking', 'tool', 'notice', 'turn'])
+const ITEM_KINDS = new Set(['user', 'assistant', 'thinking', 'tool', 'notice', 'turn', 'handoff'])
 
 /** A saved view, or an empty thread when the file is missing, old or damaged. */
 export function parseThread(raw: string | null): ChatThread {
@@ -321,7 +331,14 @@ export function parseThread(raw: string | null): ChatThread {
         typeof it === 'object' &&
         it !== null &&
         ITEM_KINDS.has(it.kind) &&
-        typeof it.id === 'string'
+        typeof it.id === 'string' &&
+        (it.kind !== 'handoff' ||
+          (typeof it.text === 'string' &&
+            typeof it.divider === 'string' &&
+            Number.isInteger(it.messages) &&
+            it.messages >= 0 &&
+            AGENT_CLIS.includes(it.fromCli) &&
+            AGENT_CLIS.includes(it.toCli)))
     )
     // A request the old process asked can never be answered now. Views saved before #51 hold
     // a notice repeating the tool's description after each long command: drop it. Saved

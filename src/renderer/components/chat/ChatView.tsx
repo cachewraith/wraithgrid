@@ -8,7 +8,7 @@ import {
   useState,
   useSyncExternalStore
 } from 'react'
-import { AGENT_CLI_LABEL, CONTINUE_AS_CLIS } from '@shared/agent-clis'
+import { AGENT_CLI_LABEL, AGENT_PROVIDER_LABEL } from '@shared/agent-clis'
 import { baseName, contractHome, expandHome } from '@shared/paths'
 import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
@@ -17,6 +17,7 @@ import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash
 import { createPortal } from 'react-dom'
 import { IconArrowDown, IconClose, IconRestart, IconTerminal } from '../icons'
 import { Composer } from './Composer'
+import { ProviderLogo } from '../ProviderLogo'
 import { cycleModes, type ChatBackgroundTask } from '@shared/chat'
 import {
   AccountPicker,
@@ -265,6 +266,22 @@ const Item = memo(function Item({
     case 'assistant':
       return <AgentMessage text={item.text} streaming={streaming} />
 
+    case 'handoff':
+      return (
+        <>
+          <div className="cdiv" role="separator">
+            <ProviderLogo cli={item.toCli} />
+            <span>{item.divider}</span>
+          </div>
+          <details className="chat-handoff">
+            <summary>
+              Handoff from {AGENT_PROVIDER_LABEL[item.fromCli]} · {item.messages} messages{' '}
+              <span>show</span>
+            </summary>
+            <pre>{item.text}</pre>
+          </details>
+        </>
+      )
     case 'thinking':
       return item.text.trim() ? (
         <details className="cthink">
@@ -394,26 +411,26 @@ export function ChatView({ paneId, visible, focused }: Props) {
     () => buildSlashItems(thread.commands, thread.terminalOnly),
     [thread.commands, thread.terminalOnly]
   )
-  // "Continue as…": the accounts of this chat's CLI it could carry on as (#29, #60).
+  // All accounts: same-CLI continuation or a cross-CLI handoff (#78).
   const accounts = useApp((s) => s.config.accounts)
   const accountInfo = useApp((s) => s.accountInfo)
   const limits = useApp((s) => s.usage.limits)
   // A limit past its reset reads 0%.
   const at = useTicker(60_000)
   const choices = useMemo((): AccountChoice[] => {
-    return accounts
-      .filter((a) => a.cli === account?.cli && CONTINUE_AS_CLIS.includes(a.cli))
-      .map((a) => {
-        const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
-        return {
-          id: a.id,
-          name: a.name,
-          plan: accountInfo[a.id]?.info?.plan ?? null,
-          sessionPct: five ? Math.round(five.utilization * 100) : null,
-          signedIn: a.signedIn
-        }
-      })
-  }, [accounts, accountInfo, limits, at, account?.cli])
+    return accounts.map((a) => {
+      const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
+      return {
+        id: a.id,
+        cli: a.cli,
+        name: a.name,
+        plan: accountInfo[a.id]?.info?.plan ?? null,
+        sessionPct: five ? Math.round(five.utilization * 100) : null,
+        signedIn: a.signedIn
+      }
+    })
+  }, [accounts, accountInfo, limits, at])
+  const branch = useApp((s) => s.git[paneId]?.branch ?? '')
   const currentChoice = choices.find((c) => c.id === account?.id)
   if (!pane) return null
 
@@ -555,12 +572,12 @@ export function ChatView({ paneId, visible, focused }: Props) {
           ready={ready}
           busy={thread.busy}
           autoFocus={focused && visible && canTakeFocus}
-          meta={[baseName(cwdLabel)]}
+          meta={[cwdLabel, branch]}
           model={
             // Any CLI whose adapter reports models gets the controls.
-            thread.models.length || pane.model ? (
+            currentChoice || thread.models.length || pane.model ? (
               <>
-                {currentChoice && choices.length > 1 ? (
+                {currentChoice ? (
                   <AccountPicker
                     current={currentChoice}
                     accounts={choices}
@@ -568,7 +585,7 @@ export function ChatView({ paneId, visible, focused }: Props) {
                     onPick={(id) =>
                       actions.openModal({ kind: 'switchChatAccount', paneId, accountId: id })
                     }
-                    onSignIn={(id) => actions.openModal({ kind: 'login', accountId: id })}
+                    onSignIn={(id) => actions.loginAccount(id)}
                   />
                 ) : null}
                 <ModelPicker

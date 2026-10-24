@@ -1,3 +1,5 @@
+import type { AgentCli } from '@shared/agent-clis'
+import type { ChatHandoff } from './chat-handoff'
 import type { ApprovalDecision, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
 import type { WraithApi } from '@shared/ipc-contract'
 import {
@@ -36,6 +38,7 @@ export class ChatBus {
   private readonly modeListeners = new Set<(paneId: string, mode: ChatMode) => void>()
   /** Sent images at full size, per pane and message: memory only, never saved (#50). */
   private readonly fullImages = new Map<string, Map<string, string[]>>()
+  private readonly forgotten = new Set<string>()
   private unsubscribe: (() => void) | null = null
 
   constructor(
@@ -55,6 +58,7 @@ export class ChatBus {
   }
 
   private handle(paneId: string, e: ChatEvent): void {
+    if (this.forgotten.has(paneId)) return
     this.set(paneId, applyChatEvent(this.thread(paneId), e, this.now()))
     if (e.t === 'session') this.sessionListeners.forEach((cb) => cb(paneId, e.id))
     if (e.t === 'exit') this.exitListeners.forEach((cb) => cb(paneId, e))
@@ -112,6 +116,7 @@ export class ChatBus {
 
   /** Reads the saved view once; events that arrived first stay after it. */
   load(paneId: string): Promise<void> {
+    this.forgotten.delete(paneId)
     let p = this.loaded.get(paneId)
     if (!p) {
       p = this.api.load(paneId).then((raw) => {
@@ -152,6 +157,27 @@ export class ChatBus {
     })
   }
 
+  /** The first prompt of a cross-CLI chat is shown as a collapsed handoff, not a bubble. */
+  prepareHandoff(paneId: string, handoff: ChatHandoff, toCli: AgentCli, divider: string): void {
+    const t = this.thread(paneId)
+    this.set(paneId, {
+      ...t,
+      seq: t.seq + 1,
+      items: [...t.items, { kind: 'handoff', id: `h-${t.seq + 1}`, ...handoff, toCli, divider }]
+    })
+    this.scheduleSave(paneId)
+  }
+
+  /** Called only once the new CLI starts; a failed start can retry the saved first prompt. */
+  sendPreparedHandoff(paneId: string): void {
+    const t = this.thread(paneId)
+    const handoff = t.items.find((it) => it.kind === 'handoff')
+    if (handoff?.kind !== 'handoff') return
+    this.set(paneId, { ...t, busy: true, turnStartedAt: this.now() })
+    this.api.send(paneId, handoff.text, [])
+    this.scheduleSave(paneId)
+  }
+
   /** A sent message's images at full size, while this run of the app still has them. */
   images(paneId: string, itemId: string): string[] | null {
     return this.fullImages.get(paneId)?.get(itemId) ?? null
@@ -186,6 +212,7 @@ export class ChatBus {
 
   /** The pane closed: drop it from memory. `keep` saves its view first (archived to History). */
   forget(paneId: string, keep = false): void {
+    this.forgotten.add(paneId)
     const timer = this.saveTimers.get(paneId)
     if (timer) clearTimeout(timer)
     if (keep && this.threads.has(paneId))

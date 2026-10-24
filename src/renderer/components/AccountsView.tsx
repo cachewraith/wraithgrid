@@ -17,7 +17,7 @@ import {
   IconTrash,
   IconWarn
 } from './icons'
-import { Initial } from './AccountIcon'
+import { AccountAvatar } from './ProviderLogo'
 import { SidebarAccounts } from './SidebarAccounts'
 
 function AddAccountForm() {
@@ -215,7 +215,7 @@ function AccountRow({ account, uses }: { account: Account; uses: number }) {
   return (
     <div className="tr" role="row">
       <span className="nm" role="cell">
-        <Initial name={account.name} size={24} />
+        <AccountAvatar cli={account.cli} name={account.name} size={24} />
         {renaming ? (
           <input
             className="inpt sans"

@@ -1,6 +1,6 @@
 /**
- * A name's first letter in a quiet circle, as Claude and Codex show who you are. Accounts use
- * it; projects and folders are plain text. No icons or emoji: saved ones are ignored.
+ * A name's first letter in a quiet circle. AccountAvatar adds the CLI provider badge;
+ * saved user-picked account icons and emoji stay ignored.
  */
 export function Initial({ name, size = 20 }: { name: string; size?: number }) {
   const letter = [...name.trim()][0]?.toUpperCase() ?? '?'

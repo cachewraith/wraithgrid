@@ -278,12 +278,7 @@ export function Composer({
           }}
         />
         <div className="cc-row">
-          <div className="cc-meta">
-            {model}
-            {meta.filter(Boolean).map((m) => (
-              <span key={m}>{m}</span>
-            ))}
-          </div>
+          <div className="cc-meta">{model}</div>
           {onPickFiles ? (
             <button
               className="cc-btn attach"
@@ -314,6 +309,13 @@ export function Composer({
             <IconArrowUp small />
           </button>
         </div>
+      </div>
+      <div className="cc-folder">
+        {meta.filter(Boolean).map((m) => (
+          <span key={m} title={m}>
+            {m}
+          </span>
+        ))}
       </div>
     </div>
   )

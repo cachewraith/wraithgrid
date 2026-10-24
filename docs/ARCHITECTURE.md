@@ -37,7 +37,7 @@
 - `lib/scheduling.ts`: `StaggeredQueue` starts restored panes 150 ms apart (NFR-2).
 - Store polls `git:status` every 5 s for the active workspace (one call per folder) into `git[paneId]`;
   status transitions (→ approval, running ≥ 8 s → idle) raise `notify:pane` when the pane isn't in view.
-- No icon library: accounts show their initial (`AccountIcon.tsx` `Initial`), projects and chats are text.
+- Account initials carry offline CLI marks (`ProviderLogo.tsx`, #78); project icons use the pinned Iconify sets (#80). Provider licences and fallback decisions: `docs/PROVIDER-LOGOS.md`. Cross-CLI switches archive the source id/view and start a new session in the same layout slot with a bounded visible-text handoff (`lib/chat-handoff.ts`).
 - `lib/diff.ts` parses `git diff` for `DiffPanel`; `lib/search.ts` matches palette queries.
 
 ## Data flow
