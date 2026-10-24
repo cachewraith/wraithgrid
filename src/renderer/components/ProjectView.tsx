@@ -5,6 +5,7 @@ import { useActions, useApp } from '../app/services'
 import { accountById, activeWorkspace } from '../app/store'
 import { ago } from '../lib/time'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
+import { ProjectIcon } from './ProjectIcon'
 import { IconCompose, IconSearch, IconTrash } from './icons'
 
 /** Matches a chat by its title, account or folder; every word must appear. */
@@ -103,7 +104,10 @@ export function ProjectView() {
       <div className="pj">
         <header className="pj-hd">
           <div>
-            <h1>{ws.name}</h1>
+            <h1>
+              <ProjectIcon icon={ws.icon} size={22} />
+              {ws.name}
+            </h1>
             <p>
               {[
                 folder,

@@ -46,6 +46,7 @@ export const IPC = {
   updateProgress: 'update:progress',
   updateShow: 'update:show',
   gitStatus: 'git:status',
+  projectSuggestIcons: 'project:suggestIcons',
   gitDiff: 'git:diff',
   gitWorktreeAdd: 'git:worktreeAdd',
   gitWorktreeCheck: 'git:worktreeCheck',

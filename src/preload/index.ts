@@ -96,6 +96,9 @@ const api: WraithApi = {
     onProgress: (cb) => subscribe<UpdateProgress>(IPC.updateProgress, cb),
     onShow: (cb) => subscribe<void>(IPC.updateShow, () => cb())
   },
+  project: {
+    suggestIcons: (wsId) => ipcRenderer.invoke(IPC.projectSuggestIcons, { wsId })
+  },
   git: {
     status: (paneId) => ipcRenderer.invoke(IPC.gitStatus, { paneId }),
     diff: (paneId) => ipcRenderer.invoke(IPC.gitDiff, { paneId }),

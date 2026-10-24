@@ -20,6 +20,7 @@ import { useActions, useApp, useServices } from '../app/services'
 import { accountById } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { Initial } from './AccountIcon'
+import { ProjectIcon } from './ProjectIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
 import {
@@ -188,6 +189,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             setMenu(menuPoint(e))
           }}
         >
+          <ProjectIcon icon={w.icon} />
           <span className="ws-name">{w.name}</span>
           {machine ? (
             <span className="ws-mach" title={`Runs on ${machine.name} (${machine.sshHost})`}>
@@ -219,6 +221,11 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
           items={[
             { label: 'New chat', icon: <IconCompose small />, onSelect: newChat },
             { label: 'Rename', icon: <IconRename small />, onSelect: () => setRenaming(w.name) },
+            {
+              label: 'Change icon',
+              icon: <ProjectIcon icon={w.icon} size={14} />,
+              onSelect: () => actions.openModal({ kind: 'projectIcon', wsId: w.id })
+            },
             ...(config.machines.length ? runOn : []),
             {
               label: !canDelete
