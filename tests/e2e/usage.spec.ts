@@ -189,6 +189,7 @@ test("usage: the pill follows the focused chat's account and names it", async ()
   try {
     const win = await app.firstWindow()
     const pill = win.locator('.u-pill')
+    const side = win.getByRole('complementary', { name: 'Sidebar' })
     const homePane = win.getByRole('region', { name: /^h pane, account home/ })
     const workPane = win.getByRole('region', { name: /^w pane, account work/ })
 
@@ -208,15 +209,16 @@ test("usage: the pill follows the focused chat's account and names it", async ()
     await composer.press('Enter')
     await expect(homePane.locator('.cmsg.agent').first()).toContainText('Hello from fake claude')
     await expect(pill).toHaveText('home·42%')
+    await expect(side.locator('.su-nm')).toHaveText('work')
+    await expect(side.locator('.su-win').first()).toContainText('13%')
     await expect(pill).toHaveAttribute(
       'aria-label',
       'Usage: home: 42% of the current session limit (the focused chat’s account)'
     )
 
-    // Focusing work's chat switches to work's limit; so does the sidebar row.
+    // The top bar follows focus; the sidebar always shows the new-chat account (#75).
     await workPane.getByLabel('Message', { exact: true }).click()
     await expect(pill).toHaveText('work·13%')
-    const side = win.getByRole('complementary', { name: 'Sidebar' })
     await expect(side.locator('.su-nm')).toHaveText('work')
     await expect(side.locator('.su-win').first()).toContainText('13%')
     // A long name stays on one line, cut with an ellipsis (#64).

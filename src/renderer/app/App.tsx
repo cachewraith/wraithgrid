@@ -207,10 +207,10 @@ export function App() {
               {view === 'settings' ? <SettingsView /> : null}
             </div>
           </div>
+          <StatusBar />
         </main>
         {diffOpen ? <DiffPanel /> : null}
       </div>
-      <StatusBar />
       <ZoomBadge />
       <Modals />
     </div>

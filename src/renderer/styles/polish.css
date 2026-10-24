@@ -1272,7 +1272,7 @@
 .u-acct-hd b {
   font-weight: 600;
 }
-.u-acct-hd span {
+.u-acct-hd .u-plan {
   font-size: 11.5px;
   color: var(--fa);
   padding: 1px 8px;

@@ -17,14 +17,15 @@ import {
   type Workspace
 } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
-import { accountById } from '../app/store'
+import { accountById, activeWorkspace } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { AccountAvatar } from './ProviderLogo'
+import { AccountAvatar, ProviderLogo } from './ProviderLogo'
 import { ProjectIcon } from './ProjectIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
 import {
   IconChevron,
+  IconClock,
   IconCompose,
   IconGauge,
   IconMods,
@@ -157,7 +158,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   }
 
   return (
-    <div className="proj">
+    <div className={`proj${panes ? '' : ' proj-empty'}`}>
       <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
           className="ws-tg"
@@ -284,6 +285,11 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
       onMouseDown={keepFocus}
       onClick={() => actions.revealPane(pane.id)}
     >
+      {account ? (
+        <ProviderLogo cli={account.cli} fallbackName={account.name} size={14} />
+      ) : (
+        <IconMonitor small />
+      )}
       <span className="sch-t">{pane.title}</span>
       {/* States as words (#75): a light sweeps across "working"; no spinners or dots. */}
       {loud && status ? (
@@ -359,7 +365,7 @@ function UsageWindow({
 function SidebarUsage() {
   const actions = useActions()
   const on = useApp((s) => s.view === 'usage')
-  const limit = useSessionLimit()
+  const limit = useSessionLimit(true)
   const accounts = useApp((s) => s.config.accounts)
   const limits = useApp((s) => s.usage.limits)
   const auto = useApp((s) => s.config.settings.autoSwitchAtLimit)
@@ -379,8 +385,13 @@ function SidebarUsage() {
       onClick={() => actions.setView('usage')}
     >
       <span className="su-hd">
-        <IconGauge small />
+        {account ? (
+          <ProviderLogo cli={account.cli} fallbackName={account.name} size={12} />
+        ) : (
+          <IconGauge small />
+        )}
         <span className="su-nm">{account?.name ?? 'Usage'}</span>
+        <IconChevron small className="su-go" />
       </span>
       {five ? <UsageWindow name="5h" w={five} now={now} mark={at} /> : null}
       {week ? <UsageWindow name="week" w={week} now={now} mark={at} /> : null}
@@ -421,7 +432,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
         onClick={open}
       >
         {current ? (
-          <AccountAvatar cli={current.cli} name={current.name} size={compact ? 26 : 28} />
+          <AccountAvatar cli={current.cli} name={current.name} size={26} />
         ) : (
           <span className="acct-none">
             <IconUserPlus small />
@@ -432,11 +443,16 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
             <span className="acct-txt">
               <span className="acct-nm">{label}</span>
               <span className="acct-sub">
-                {accounts.length === 0
-                  ? 'Add one to start'
-                  : current && !current.signedIn
-                    ? 'Login needed'
-                    : `New chats · ${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`}`}
+                {current ? (
+                  <ProviderLogo cli={current.cli} fallbackName={current.name} size={12} />
+                ) : null}
+                <span>
+                  {accounts.length === 0
+                    ? 'Add one to start'
+                    : current && !current.signedIn
+                      ? 'Login needed'
+                      : `${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`} · new chats`}
+                </span>
               </span>
             </span>
             <IconChevron small className="acct-chev" />
@@ -493,6 +509,46 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
         />
       ) : null}
     </>
+  )
+}
+
+/** Compact project navigation retains identity and work state when the sidebar is collapsed. */
+function RailProject({ w }: { w: Workspace }) {
+  const actions = useActions()
+  const on = useApp((s) => s.config.activeWorkspace === w.id)
+  const working = useApp((s) =>
+    w.panes.some((p) =>
+      ['running', 'starting', 'background'].includes(s.runtime[p.id]?.status ?? '')
+    )
+  )
+  return (
+    <button
+      className={`rail-ws${on ? ' on' : ''}${working ? ' working' : ''}`}
+      aria-label={`Open project ${w.name}${working ? ', working' : ''}`}
+      aria-current={on ? 'page' : undefined}
+      title={`${w.name}${working ? ' · working' : ''}`}
+      onClick={() => actions.openProject(w.id)}
+    >
+      <ProjectIcon icon={w.icon} size={20} />
+    </button>
+  )
+}
+
+function SidebarMeta() {
+  const workspace = useApp(activeWorkspace)
+  const paneCount = workspace.panes.length
+  const accounts = new Set(workspace.panes.flatMap((p) => (p.accountId ? [p.accountId] : []))).size
+  const version = useApp((s) => s.info.version)
+  return (
+    <div className="side-meta">
+      <span>
+        {paneCount} {paneCount === 1 ? 'pane' : 'panes'}
+      </span>
+      <span>
+        {accounts} {accounts === 1 ? 'account' : 'accounts'}
+      </span>
+      {version ? <span className="side-version">v{version}</span> : null}
+    </div>
   )
 }
 
@@ -599,6 +655,7 @@ export function Sidebar() {
         style={{ '--side-width': `${width}px` } as CSSProperties}
       >
         <div className="side-hd">
+          {collapsed ? null : <span className="side-brand">Wraithgrid</span>}
           <button
             className="icon-btn"
             aria-label={toggleLabel}
@@ -607,16 +664,6 @@ export function Sidebar() {
           >
             <IconSidebar />
           </button>
-          {collapsed ? null : (
-            <button
-              className="icon-btn"
-              aria-label={`${newLabel} (${SHORTCUT_HINT.newPane})`}
-              title={`${newLabel} (${SHORTCUT_HINT.newPane})`}
-              onClick={newPane}
-            >
-              <IconCompose />
-            </button>
-          )}
         </div>
 
         {collapsed ? (
@@ -646,6 +693,10 @@ export function Sidebar() {
               >
                 <IconGauge />
               </button>
+              <div className="rail-sep" />
+              {workspaces.map((w) => (
+                <RailProject key={w.id} w={w} />
+              ))}
             </div>
             <div className="side-ft">
               <AccountSwitcher compact />
@@ -672,14 +723,16 @@ export function Sidebar() {
                 <span>Search</span>
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
+              <button className="nav-row" disabled title="Scheduled chats are not available yet">
+                <IconClock />
+                <span>Scheduled</span>
+              </button>
             </nav>
             <SidebarUsage />
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
               <div className="sec-hd">
-                <span>
-                  Projects <span className="sec-n">{workspaces.length}</span>
-                </span>
+                <span>Projects</span>
                 <button
                   onClick={() => actions.openModal({ kind: 'newProject' })}
                   title="New project"
@@ -694,6 +747,7 @@ export function Sidebar() {
             </div>
             <div className="side-ft">
               <AccountSwitcher compact={false} />
+              <SidebarMeta />
             </div>
           </>
         )}

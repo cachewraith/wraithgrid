@@ -2,6 +2,7 @@
 // in cachewraith/wraithgrid-themes. Main fetches and checks everything; this shows the list,
 // installs, updates and removes, and installs a repository given by its address.
 import { useEffect, useMemo, useState } from 'react'
+import { Select } from './Select'
 import type { CommunityTheme } from '@shared/ipc-contract'
 import { useActions, useServices } from '../app/services'
 
@@ -96,15 +97,15 @@ export function CommunityThemes({ onClose }: { onClose: () => void }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <select
-          className="inpt"
-          aria-label="Sort"
+        <Select
+          label="Sort"
           value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-        >
-          <option value="name">Name</option>
-          <option value="author">Author</option>
-        </select>
+          onChange={(value) => setSort(value as Sort)}
+          options={[
+            { value: 'name', label: 'Name' },
+            { value: 'author', label: 'Author' }
+          ]}
+        />
         <div className="ted-seg" role="radiogroup" aria-label="Show">
           {(['all', 'dark', 'light'] as const).map((m) => (
             <button

@@ -312,7 +312,7 @@ export function UsageView() {
                 <div className="u-acct-hd">
                   <AccountAvatar cli={a.cli} name={a.name} size={18} />
                   <b>{a.name}</b>
-                  {plan ? <span>{plan}</span> : null}
+                  {plan ? <span className="u-plan">{plan}</span> : null}
                   <span className={`u-inuse${inUse[a.id] ? ' on' : ''}`}>
                     {inUse[a.id] ? panesOpen(inUse[a.id]!) : 'No panes open'}
                   </span>
@@ -426,9 +426,13 @@ export interface SessionLimit {
 }
 
 /** The session limit of the focused chat's account (else the default one), when known. */
-export function useSessionLimit(): SessionLimit {
-  const id = useApp((s) => limitAccountId(s.config, s.focusedPaneId))
-  const focused = useApp((s) => limitIsFocused(s.config, s.focusedPaneId))
+export function useSessionLimit(newChats = false): SessionLimit {
+  const id = useApp((s) =>
+    newChats
+      ? (s.config.settings.defaultAccountId ?? s.config.accounts[0]?.id ?? null)
+      : limitAccountId(s.config, s.focusedPaneId)
+  )
+  const focused = useApp((s) => !newChats && limitIsFocused(s.config, s.focusedPaneId))
   const name = useApp((s) => s.config.accounts.find((a) => a.id === id)?.name ?? null)
   const named = useApp((s) => limitAccounts(s.config.accounts).length > 1)
   const lim = useApp((s) => (id ? s.usage.limits[id] : undefined))

@@ -1,0 +1,814 @@
+/* Whole-app completion of #75, using the approved v3.4 sidebar language. Colour tokens
+   and optional community-theme treatments remain in themes.ts; this owns the shared rhythm. */
+:root {
+  --ease-out: var(--ui-ease);
+  --ease-spring: var(--ui-ease);
+  --panel-gap: 0px;
+}
+body {
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+:where(.page, .set, .dlg, .cm, .cp-list, .mp-list, .dp-bd, .side-list, .chat-scroll, .fp-list) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line2) transparent;
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+:where(button, a, input, textarea) {
+  -webkit-tap-highlight-color: transparent;
+}
+:where(.btn, .icon-btn, .seg-btn, .aopt, .rchip, .cm-it, .cp-row, .mp-opt, .set-tab) {
+  transition:
+    background var(--ui-time) var(--ui-ease),
+    color var(--ui-time) var(--ui-ease),
+    border-color var(--ui-time) var(--ui-ease);
+}
+/* One window surface per area; no card nested around the whole workspace. */
+.app {
+  background-color: var(--bg2);
+}
+.row {
+  padding: 0;
+}
+.row > .side,
+.row > .main {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.row > .main {
+  margin-left: 0;
+}
+.row > .side {
+  background: var(--bg2);
+  overflow: hidden;
+}
+.row > .side-resize {
+  width: 1px;
+  background: var(--line);
+}
+.row > .side-resize::after {
+  inset: 0 -2px;
+}
+.tb {
+  height: 36px;
+  background: var(--bg2);
+}
+.tb .tb-ws {
+  font-size: var(--text-small);
+}
+.top {
+  height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--bg);
+}
+.top-chip {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: var(--text-small) var(--font-mono);
+}
+.top .seg,
+.vsw {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.top .seg-btn.on,
+.vsw button.on {
+  background: var(--sel);
+  box-shadow: none;
+}
+.sbar {
+  min-height: 28px;
+  font: 11px var(--font-mono);
+  background: var(--bg2);
+}
+.sbar b {
+  font-weight: 400;
+}
+kbd,
+.kbd,
+.cm-kbd {
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+}
+/* Sidebar identity and compact navigation from the approved mockup. */
+.side-hd {
+  height: 44px;
+  padding: 0 8px 0 14px;
+}
+.side-brand {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.side.col .side-hd {
+  padding: 0;
+}
+.nav-row kbd {
+  opacity: 0;
+  transition: opacity var(--ui-time) var(--ui-ease);
+}
+.nav-row:hover kbd,
+.nav-row:focus-visible kbd {
+  opacity: 1;
+}
+.side-ft {
+  border-top: 1px solid var(--line);
+  padding: var(--space-2);
+}
+.side-ft:hover {
+  box-shadow: none;
+}
+.side-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 2px;
+  color: var(--fa);
+  font: 10.5px/1.5 var(--font-mono);
+  white-space: nowrap;
+}
+.side:not(.col) .acct-sw {
+  padding: 6px 8px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 6px;
+}
+.side:not(.col) .acct-sw:hover,
+.side:not(.col) .acct-sw.open {
+  background: var(--hover);
+  box-shadow: none;
+}
+.proj-empty .ws-name {
+  color: var(--fa);
+}
+.acct-sw {
+  border-radius: calc(8px * var(--rs, 1));
+}
+.acct-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-ws.working .pj-icon {
+  animation: ui-project-work 2200ms ease-in-out infinite;
+}
+@keyframes ui-project-work {
+  50% {
+    opacity: 0.4;
+  }
+}
+/* Reading width, generous section rhythm and consistent headings on every page. */
+.page {
+  padding: var(--space-12) var(--page-pad) 64px;
+  animation: ui-view-in var(--ui-time) var(--ui-ease);
+}
+.page-in,
+.u-page .page-in {
+  width: 100%;
+  max-width: var(--page-width);
+  gap: var(--space-8);
+}
+.pg-hd,
+.u-head,
+.pj-hd {
+  gap: var(--space-6);
+  align-items: center;
+}
+.pg-hd h1,
+.u-head h1,
+.pj-hd h1 {
+  font-size: var(--text-title);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+.pg-hd p,
+.pj-hd p {
+  margin-top: var(--space-2);
+  font-size: var(--text-body);
+  line-height: 1.6;
+}
+.page.pj-page {
+  padding: 0;
+}
+.pj {
+  max-width: var(--page-width);
+  padding: var(--space-12) var(--page-pad) 64px;
+  gap: var(--space-8);
+  animation: none;
+}
+.pj-row {
+  min-height: 52px;
+  border: 0;
+  border-radius: calc(8px * var(--rs, 1));
+}
+.pj-h,
+.u-sec h2 {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pj-m,
+.pj-st,
+.ws-n,
+.sch-when,
+.sec-n,
+.tr .num,
+.ul-pct,
+.ul-reset,
+.u-sum b {
+  font-family: var(--font-mono);
+}
+.tbl {
+  overflow: visible;
+  border-radius: 0;
+}
+.tr {
+  padding: var(--space-4) 0;
+  font-size: var(--text-body);
+}
+.tr.hd {
+  font-size: var(--text-small);
+}
+.tr.hd,
+.tr .dir small {
+  color: var(--fa);
+}
+/* Settings becomes a section index beside the same reading column, without another panel. */
+.page.set-page {
+  padding: 0;
+  grid-template-columns: 180px minmax(0, 1fr);
+}
+.set-nav {
+  background: transparent;
+  border: 0;
+  gap: var(--space-1);
+  padding: var(--space-8) var(--space-4);
+}
+.set-nav h1 {
+  font-size: 16px;
+}
+.set-page .set {
+  max-width: 960px;
+  justify-self: center;
+  padding: var(--space-12) var(--page-pad) 64px;
+  animation: ui-view-in var(--ui-time) var(--ui-ease);
+}
+.set-page .set > * {
+  max-width: 800px;
+}
+.set-title {
+  position: sticky;
+  top: calc(-1 * var(--space-12));
+  z-index: 2;
+  background: var(--bg);
+  padding: var(--space-4) 0;
+  margin: calc(-1 * var(--space-4)) 0 var(--space-4);
+  font-size: 24px;
+  line-height: 1.3;
+}
+.set-page .srow {
+  padding: var(--space-6) 0;
+  gap: var(--space-8);
+}
+.set-page .srow h3 {
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+.ex,
+.hint,
+.det,
+.theme-note {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.set-path {
+  font-size: 11px;
+}
+/* Limits remain prominent without being boxed into a second set of cards. */
+.u-sec {
+  margin-top: var(--space-6);
+  padding-top: var(--space-8);
+}
+.u-lims {
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+}
+.u-lims .ul-row {
+  padding: var(--space-2) 0 var(--space-4);
+  border: 0;
+  border-radius: 0;
+  row-gap: var(--space-3);
+}
+.ul-lbl {
+  font-size: 13px;
+}
+.ul-pct {
+  font-size: 32px;
+  font-weight: 400;
+}
+.ul-bar {
+  height: 3px;
+}
+.u-acct + .u-acct {
+  margin-top: var(--space-8);
+}
+.u-acct-hd {
+  font-size: var(--text-body);
+}
+.u-tbl {
+  font-size: 13px;
+}
+.u-tbl td,
+.u-tbl th {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+/* Shared controls: soft fill on selection, no glow, pill or accent edge. */
+.btn {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: none;
+}
+.btn:active:not(:disabled) {
+  transform: none;
+}
+.btn.gh {
+  border-color: transparent;
+}
+.inpt {
+  min-height: 36px;
+  border-color: var(--line);
+  background: var(--bg);
+  font-size: 13px;
+}
+.inpt:focus {
+  border-color: var(--hover-line);
+  box-shadow: none;
+}
+.inpt:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent);
+  outline-offset: 2px;
+}
+.seg {
+  border: 0;
+  background: var(--bg2);
+  padding: var(--space-1);
+}
+.seg-btn {
+  min-height: 28px;
+  font-size: 13px;
+}
+.seg-btn.on,
+.rchip.on,
+.ted-seg button.on {
+  background: var(--sel);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--tx);
+}
+.rchip {
+  height: 30px;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--text-small);
+}
+.apick {
+  border: 0;
+  border-radius: 0;
+  gap: var(--space-1);
+}
+.aopt {
+  border: 0;
+  border-radius: calc(8px * var(--rs, 1));
+  padding: var(--space-3);
+}
+.aopt.on {
+  background: var(--sel);
+}
+.aopt .nm {
+  font-weight: 500;
+}
+.aopt .sb {
+  font-size: var(--text-small);
+}
+.sw {
+  width: 36px;
+  height: 22px;
+  border-color: var(--line2);
+  background: var(--raise);
+  border-radius: 12px;
+}
+.sw::after {
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  transition: left var(--ui-time) var(--ui-ease);
+}
+.sw.on {
+  background: var(--solid);
+  border-color: var(--solid);
+}
+.sw.on::after {
+  left: 17px;
+  background: var(--on-solid);
+}
+input[type='checkbox'] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  background: var(--bg);
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+input[type='checkbox']:checked {
+  background: var(--solid);
+  border-color: var(--solid);
+}
+input[type='checkbox']:checked::before {
+  content: '';
+  width: 8px;
+  height: 5px;
+  border: solid var(--on-solid);
+  border-width: 0 0 2px 2px;
+  transform: translateY(-1px) rotate(-45deg);
+}
+input[type='range'] {
+  accent-color: var(--mu);
+}
+/* Custom listbox: popups share the app's theme and escape clipped panels. */
+.ui-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  text-align: left;
+  font-family: var(--font-ui);
+}
+.ui-select > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-select .i {
+  transform: rotate(90deg);
+}
+.ui-select-list {
+  position: fixed;
+  z-index: 80;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: calc(10px * var(--rs, 1));
+  background: var(--panel);
+  box-shadow: var(--shadow-pop);
+  animation: ui-view-in var(--ui-time) var(--ui-ease);
+}
+.ui-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: calc(6px * var(--rs, 1));
+  cursor: pointer;
+}
+.ui-select-option[data-active='true'] {
+  background: var(--hover);
+}
+.ui-select-option[aria-selected='true'] {
+  background: var(--sel);
+}
+/* Dialogs, menus and palette use one popover surface and a shared entrance. */
+.scrim {
+  padding: min(9vh, 64px) var(--space-6) var(--space-6);
+  backdrop-filter: none;
+  animation: ui-fade-in var(--ui-time) var(--ui-ease);
+}
+.dlg {
+  max-width: 100%;
+  border-color: var(--line);
+  border-radius: calc(14px * var(--rs, 1));
+  box-shadow: var(--shadow-pop);
+  animation: ui-view-in var(--ui-time) var(--ui-ease);
+  font-size: var(--text-body);
+}
+.dlg-hd {
+  padding: var(--space-6) var(--space-6) var(--space-2);
+}
+.dlg-hd h2 {
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+.dlg-bd {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  gap: var(--space-6);
+}
+.dlg-bd p {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.6;
+}
+.dlg-ft {
+  padding: var(--space-4) var(--space-6);
+}
+.cm,
+.mp-pop {
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  animation: ui-view-in var(--ui-time) var(--ui-ease);
+}
+.cm-it {
+  min-height: 34px;
+}
+.cm-hd,
+.cp-grp {
+  font-size: var(--text-small);
+}
+.cm-it[aria-checked='true'],
+.cp-row.on {
+  border: 0;
+  background: var(--sel);
+  box-shadow: none;
+}
+.cp-row {
+  min-height: 46px;
+  padding: var(--space-2) var(--space-3);
+}
+.cp-lb {
+  font-size: var(--text-body);
+}
+.cp-sb {
+  font-size: var(--text-small);
+}
+.cp-list {
+  padding: var(--space-2);
+}
+.srch {
+  min-height: 56px;
+  padding: var(--space-4);
+}
+.srch input {
+  font-size: 15px;
+}
+/* Pane identity comes from the header fill, with one hairline between panes. */
+.ph {
+  height: 38px;
+  background: var(--bg);
+  border-bottom-color: var(--line);
+}
+.pane.focused .ph {
+  box-shadow: none;
+  background: var(--bg2);
+}
+.pane:not(.focused) .ph {
+  background: var(--bg);
+}
+.st,
+.cwd,
+.ph-mode {
+  font: var(--text-small) var(--font-mono);
+}
+.ph-mode {
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--mu);
+}
+.pane {
+  animation: ui-fade-in var(--ui-time) var(--ui-ease);
+  transition:
+    left var(--ui-time) var(--ui-ease),
+    top var(--ui-time) var(--ui-ease),
+    width var(--ui-time) var(--ui-ease),
+    height var(--ui-time) var(--ui-ease);
+}
+.pane.dragging,
+.grid-root:has(.sep[data-separator='active']) .pane,
+.row:has(.side-resize.on) .pane {
+  animation: ui-fade-in var(--ui-time) var(--ui-ease);
+  transition: none;
+}
+.cc-box {
+  border-color: var(--line);
+  box-shadow: none;
+}
+.cc-box:focus-within {
+  border-color: var(--hover-line);
+  box-shadow: none;
+}
+.chat-sug {
+  border-color: transparent;
+  background: transparent;
+}
+.chat-sug:hover {
+  border-color: transparent;
+  background: var(--hover);
+}
+.chat-bg,
+.chat-bar {
+  border-radius: calc(8px * var(--rs, 1));
+}
+.dp {
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+.dp-hd {
+  min-height: 48px;
+}
+.df {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+@keyframes ui-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Preserve the responsive rules after the shared desktop defaults. */
+@container main (max-width: 980px) {
+  .set-page .srow {
+    gap: var(--space-3);
+  }
+}
+@container main (max-width: 760px) {
+  .page.set-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .set-nav {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--line);
+  }
+  .set-page .set {
+    padding: var(--space-6) var(--space-4) var(--space-12);
+  }
+  .set-title {
+    top: calc(-1 * var(--space-6));
+  }
+}
+@container main (max-width: 560px) {
+  .page {
+    padding: var(--space-6) var(--space-4) var(--space-12);
+  }
+  .page.pj-page {
+    padding: 0;
+  }
+  .pj {
+    padding: var(--space-6) var(--space-4) var(--space-12);
+  }
+  .u-lims {
+    gap: var(--space-4);
+  }
+  .tr {
+    grid-template-columns: minmax(100px, 1fr) 90px 32px 100px;
+    gap: var(--space-2);
+  }
+  .tr > .dir,
+  .tr.hd > :nth-child(2) {
+    display: none;
+  }
+}
+.row > .side.drawer {
+  left: 0;
+  bottom: 0;
+  border-right: 1px solid var(--line);
+}
+/* Both the OS preference and the app's reduced/off choices turn off ALL UI motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after,
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+input[type='color'] {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type='color']::-webkit-color-swatch {
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+}
+
+/* Remove the remaining nested selection frames in pickers and theme tools. */
+.side-list {
+  overflow-x: hidden;
+  scrollbar-gutter: auto;
+}
+.thm.on,
+.palette.on {
+  border-color: var(--line);
+  background: var(--sel);
+  box-shadow: none;
+}
+.thm:hover {
+  transform: none;
+}
+.thm-nm .i,
+.np-acct .ck,
+.cm-ck,
+.cp-row.on .cp-ic {
+  color: var(--tx);
+}
+.np-accts {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.np-acct .sb {
+  font-size: var(--text-small);
+}
+.u-acct-hd .u-plan {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: var(--text-small);
+}
+.ted {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.ted-grp {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.ctg-shot.skel {
+  background: var(--raise);
+  animation: ui-project-work 2200ms ease-in-out infinite;
+}
+.page:not(.set-page) > .set {
+  width: 100%;
+  max-width: var(--page-width);
+}
+.page .srow h3 {
+  font-size: var(--text-body);
+}
+.page .srow {
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-6);
+}
+
+/* Chat keeps the theme's message colour, without an accent outline or orbiting glow. */
+.cmsg-bubble {
+  border: 0;
+}
+.cc.busy .cc-box::before {
+  content: none;
+  animation: none;
+}
+
+/* Soft selection never hides the sidebar's inset keyboard focus indicator. */
+.side .acct-sw:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--hover-line);
+}
