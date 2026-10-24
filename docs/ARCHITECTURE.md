@@ -16,7 +16,7 @@
 | `config-store.ts` | `ConfigStore`: parse/migrate/sanitize, atomic write, quarantine to `config.bad-<ts>.json` |
 | `claude-detect.ts` | Locate `claude` on PATH or via override; read version |
 | `platform.ts` | Desktop/window-chrome detection, default/picked shell (`resolvePaneShell`), installed shells (`listShells`), extra bin dirs, spawn command, login-shell PATH (`loginProbeArgs` per shell, `/bin/sh -l` fallback) |
-| `shared-config.ts` | Symlink/junction/hardlink ~/.claude's CLAUDE.md, settings.json, skills, plugins, agents, commands into accounts; backs up real files, replaces stale links |
+| `shared-config.ts` | One brain per provider (`SHARE_SPECS`): `~/.wraithgrid/shared/<cli>` seeded once from the CLI home (~/.claude, ~/.codex…), symlink/junction/hardlink its items into that provider's accounts (claude: CLAUDE.md, settings, skills, plugins, agents, commands; codex: AGENTS.md, skills, prompts; gemini/copilot from docs); backs up real files, replaces stale links |
 | `update-check.ts` | `UpdateChecker`: GitHub Releases API, cached, report only |
 | `update-notify.ts` | `notifyIfNew`: native Notification for a newer release, once per version; click opens Settings → Updates |
 | `update-install.ts` | `UpdateInstaller`: facade over electron-updater; check, download (progress events), install and relaunch |

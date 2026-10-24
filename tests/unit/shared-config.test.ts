@@ -2,7 +2,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { SHARED_ITEMS, ensureSource, linkShared, unlinkShared } from '../../src/main/shared-config'
+import {
+  SHARED_ITEMS,
+  SHARE_SPECS,
+  ensureSource,
+  linkShared,
+  prepareShared,
+  sharedDir,
+  unlinkShared
+} from '../../src/main/shared-config'
 
 describe.skipIf(process.platform === 'win32')('shared CLAUDE.md and skills', () => {
   let root: string
@@ -98,5 +106,42 @@ describe.skipIf(process.platform === 'win32')('shared CLAUDE.md and skills', () 
     fs.rmSync(target, { recursive: true, force: true })
     expect(fs.readFileSync(path.join(source, 'CLAUDE.md'), 'utf8')).toBe('# shared rules\n')
     expect(fs.existsSync(path.join(source, 'skills', 'deploy'))).toBe(true)
+  })
+})
+
+describe.skipIf(process.platform === 'win32')('one brain per provider', () => {
+  let home: string
+  beforeEach(() => {
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-brain-'))
+  })
+  afterEach(() => fs.rmSync(home, { recursive: true, force: true }))
+
+  it('seeds the shared dir once from the CLI home and never changes the home', async () => {
+    fs.mkdirSync(path.join(home, '.claude', 'skills', 'deploy'), { recursive: true })
+    fs.writeFileSync(path.join(home, '.claude', 'CLAUDE.md'), '# rules\n')
+    const dir = await prepareShared(home, 'claude', SHARE_SPECS.claude!)
+    expect(dir).toBe(sharedDir(home, 'claude'))
+    expect(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8')).toBe('# rules\n')
+    expect(fs.existsSync(path.join(dir, 'skills', 'deploy'))).toBe(true)
+    expect(fs.existsSync(path.join(dir, 'plugins'))).toBe(true)
+    // Later changes to the home don't overwrite the shared copy.
+    fs.writeFileSync(path.join(home, '.claude', 'CLAUDE.md'), '# changed\n')
+    await prepareShared(home, 'claude', SHARE_SPECS.claude!)
+    expect(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8')).toBe('# rules\n')
+    expect(fs.lstatSync(path.join(home, '.claude', 'CLAUDE.md')).isSymbolicLink()).toBe(false)
+  })
+
+  it('gives codex accounts AGENTS.md, skills and prompts, not claude files', async () => {
+    fs.mkdirSync(path.join(home, '.codex', 'skills', 'review'), { recursive: true })
+    const spec = SHARE_SPECS.codex!
+    const dir = await prepareShared(home, 'codex', spec)
+    const acc = path.join(home, 'acc')
+    await linkShared(dir, acc, { items: spec.items })
+    expect(fs.readlinkSync(path.join(acc, 'AGENTS.md'))).toBe(path.join(dir, 'AGENTS.md'))
+    expect(fs.existsSync(path.join(acc, 'skills', 'review'))).toBe(true)
+    expect(fs.existsSync(path.join(acc, 'prompts'))).toBe(true)
+    expect(fs.existsSync(path.join(acc, 'CLAUDE.md'))).toBe(false)
+    await unlinkShared(dir, acc, spec.items)
+    expect(fs.existsSync(path.join(acc, 'AGENTS.md'))).toBe(false)
   })
 })

@@ -163,9 +163,11 @@ import { EMPTY_USAGE, type UsageData } from '@shared/usage'
 import { THEMES_FILE_MAX, themeSlug } from '@shared/themes'
 import { listShells, type DesktopInfo } from './platform'
 import {
-  ensureSource,
+  SHARE_SPECS,
+  legacySourceDir,
   linkShared,
-  overallSourceDir,
+  prepareShared,
+  sharedDir,
   unlinkShared,
   type ItemResult
 } from './shared-config'
@@ -292,21 +294,49 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   const fail = (error: string): { ok: false; error: string } => ({ ok: false, error })
   const dirOf = (acc: { configDir: string }): string => resolveUserPath(acc.configDir, homeDir)
 
-  const sharedSource = overallSourceDir(homeDir)
+  // One brain per provider (~/.wraithgrid/shared/<cli>), seeded once per run so panes that
+  // start together never copy at the same time.
+  const prepared = new Map<AgentCli, Promise<string>>()
+  const sharedFor = (cli: AgentCli): Promise<string> | null => {
+    const spec = SHARE_SPECS[cli]
+    if (!spec) return null
+    let p = prepared.get(cli)
+    if (!p) {
+      p = prepareShared(homeDir, cli, spec)
+      p.catch(() => prepared.delete(cli))
+      prepared.set(cli, p)
+    }
+    return p
+  }
+  const targetOf = (acc: { configDir: string; cli: AgentCli }): string =>
+    path.join(dirOf(acc), SHARE_SPECS[acc.cli]?.sub ?? '')
+  /** Takes an account's shared links out: today's and the old ~/.claude ones. */
+  const unshare = async (acc: { configDir: string; cli: AgentCli }): Promise<ItemResult[]> => {
+    const spec = SHARE_SPECS[acc.cli]
+    if (!spec) return []
+    const target = targetOf(acc)
+    return [
+      ...(await unlinkShared(sharedDir(homeDir, acc.cli), target, spec.items)),
+      ...(await unlinkShared(legacySourceDir(homeDir, spec), target, spec.items))
+    ]
+  }
 
-  /** Links the machine's CLAUDE.md, settings, skills and plugins into one account, if sharing is overall. */
+  /** Links its provider's shared instructions and skills into one account, if sharing is overall. */
   const syncShared = async (accountId: string): Promise<void> => {
     const cfg = store.get()
     const account = cfg.accounts.find((x) => x.id === accountId)
     if (cfg.settings.sharedMode !== 'overall' || !account) return
+    const source = sharedFor(account.cli)
+    if (!source) return
     try {
-      await ensureSource(sharedSource)
-      const failed = (await linkShared(sharedSource, dirOf(account))).filter(
-        (r) => r.outcome === 'failed'
-      )
+      const failed = (
+        await linkShared(await source, targetOf(account), {
+          items: SHARE_SPECS[account.cli]!.items
+        })
+      ).filter((r) => r.outcome === 'failed')
       failed.forEach((r) => log(`could not link shared ${r.item} for ${account.name}: ${r.error}`))
     } catch (err) {
-      log(`could not share CLAUDE.md and skills with ${account.name}: ${(err as Error).message}`)
+      log(`could not share instructions and skills with ${account.name}: ${(err as Error).message}`)
     }
   }
 
@@ -345,7 +375,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       if (machine) return ptys.spawnOn(machine, spec)
 
       await deps.envReady
-      if (!a.shell && cli === 'claude' && a.accountId) await syncShared(a.accountId)
+      if (!a.shell && a.accountId) await syncShared(a.accountId)
       const resolved = await resolveSpawn(spec, {
         platform: process.platform,
         env: process.env,
@@ -407,7 +437,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       if (!adapter)
         return fail(`${account.cli} has no chat view yet. Switch this pane to Terminal.`)
       await deps.envReady
-      if (account.cli === 'claude') await syncShared(account.id)
+      await syncShared(account.id)
       const resolved = await resolveSpawn(
         {
           paneId: a.paneId,
@@ -735,7 +765,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       if (!flow) return fail(`${account.cli} signs in from a terminal.`)
       if (!deps.logins) return fail('Sign-in is not available.')
       await deps.envReady
-      if (account.cli === 'claude') await syncShared(account.id)
+      await syncShared(account.id)
       const login = await authLaunch(account, flow.login)
       const status = await authLaunch(account, flow.status)
       if (!login.ok) return fail(login.error)
@@ -769,8 +799,11 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       const realHome = await realpath(homeDir)
       if (!isStrictlyInside(real, realHome))
         return fail('Refusing to delete a folder outside your home directory')
-      // Drop the links to ~/.claude first so a recursive delete can never reach through them.
-      await unlinkShared(sharedSource, real)
+      // Drop the shared links first so a recursive delete can never reach through them.
+      const owner = store
+        .get()
+        .accounts.find((acc) => resolveUserPath(acc.configDir, homeDir) === target)
+      if (owner) await unshare({ configDir: real, cli: owner.cli })
       await rm(real, { recursive: true, force: true })
       log(`deleted account config dir ${contractHome(target, homeDir)} at the user's request`)
       return { ok: true }
@@ -778,7 +811,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Could not delete the config dir')
   )
 
-  // ---- Shared CLAUDE.md and skills ---------------------------------------------------
+  // ---- Shared instructions and skills (one brain per provider) ------------------------
 
   handle(
     IPC.sharedApply,
@@ -789,17 +822,21 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       const add = (account: string, results: ItemResult[]): void => {
         results.forEach((r) => report.push({ account, ...r }))
       }
-      if (a.mode === 'overall') {
-        await ensureSource(sharedSource)
-        for (const acc of cfg.accounts) add(acc.name, await linkShared(sharedSource, dirOf(acc)))
-      } else {
-        // Take the links out, restoring what they replaced.
-        for (const acc of cfg.accounts) add(acc.name, await unlinkShared(sharedSource, dirOf(acc)))
+      for (const acc of cfg.accounts) {
+        const spec = SHARE_SPECS[acc.cli]
+        if (!spec) continue
+        if (a.mode === 'overall') {
+          const source = await sharedFor(acc.cli)!
+          add(acc.name, await linkShared(source, targetOf(acc), { items: spec.items }))
+        } else {
+          // Take the links out, restoring what they replaced.
+          add(acc.name, await unshare(acc))
+        }
       }
       log(
         a.mode === 'overall'
-          ? `sharing ~/.claude with ${cfg.accounts.length} accounts`
-          : 'stopped sharing ~/.claude'
+          ? `sharing one brain per provider with ${cfg.accounts.length} accounts`
+          : 'stopped sharing instructions and skills'
       )
       return { ok: true, report }
     },

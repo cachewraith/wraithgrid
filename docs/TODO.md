@@ -26,6 +26,7 @@
 - Claude mascot ("pet") not animating in panes: needs a repro from the user (which animation, when)
 
 ## Next
+- Shared brain: verify gemini (GEMINI_CLI_HOME/.gemini: GEMINI.md, commands, skills) and copilot (COPILOT_HOME: copilot-instructions.md, agents, skills) with the real CLIs; cursor has no documented global file yet
 - Mods: mark which catalog entries change claude's screen (the catalog doesn't say); try Update on a real downloaded mod and a real multi-mod claudemod.com repo
 - Mods (2026-10-19): try Update/Uninstall/marketplace add-remove and a claudemod.com Download with real accounts (fake CLI only so far); `plugin update` of a command-source mod needs `--accept-command`, shown as claude's error
 - macOS: try a CI-built dmg on a real Mac (Apple Silicon + Intel): first launch via Gatekeeper, ⌘ shortcuts, ⌘C/V in panes, claude found from the Dock, notifications
@@ -42,7 +43,8 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 - #87 sidebar tree: projects vs chats clearly apart, plus steadier chat follow (PR #90, merged)
 - #86 account picker search: flat focus (accent divider, no square ring) (PR #91, merged)
 - #88 rounded panels: sidebar/main/Changes panel as rounded surfaces with a 6px gap (PR #92, merged)
-- Working icons pop (chat logo, closed project icon, rail icon)
+- Working icons pop (chat logo, closed project icon, rail icon) (PR #93, merged)
+- Shared brain per provider (~/.wraithgrid/shared/<cli>)
 - v1.19.5: remove slow animated chat follow entirely; instant column-resize follow and paused reading verified.
 - v1.19.4: Windows real-Git suite timeout and transient cleanup locks fixed; release keeps the chat/picker/footer corrections.
 - v1.19.3: sidebar footer shows one provider mark, on the avatar only.

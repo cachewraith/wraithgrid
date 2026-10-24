@@ -247,8 +247,8 @@ export interface Settings {
   /** Changes (git diff) panel width in px; dragged from its left edge. */
   diffWidth: number
   /**
-   * 'overall': every account links to the machine's ~/.claude CLAUDE.md, settings,
-   * skills and plugins. 'per-account': each account keeps its own.
+   * 'overall': each provider's accounts share one brain in ~/.wraithgrid/shared/<cli>
+   * (claude: CLAUDE.md, skills…; codex: AGENTS.md, skills…). 'per-account': each keeps its own.
    */
   sharedMode: SharedMode
   /** Ask GitHub for a newer release once at startup. */
