@@ -120,7 +120,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(pane(win).locator('.cturn')).toContainText('1s')
     // The account's models, from the CLI's own list; Default reads as the model it means.
     await expect(pane(win).getByRole('button', { name: /^Model:/ })).toHaveText(/Opus 5\.5/)
-    await expect(win.locator('.acct-sub')).toHaveText('New chats · Claude Pro')
+    await expect(win.locator('.acct-sub')).toHaveText('Claude Pro · new chats')
 
     // ---- Switch model mid-chat (no restart), then effort (restart, same conversation).
     await pane(win)

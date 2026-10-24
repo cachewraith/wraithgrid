@@ -922,9 +922,12 @@ function PaneViewRow() {
           ))}
         </div>
         <span className="hint">
-          Chat is for Claude Code for now; other CLIs open as terminals. A pane signs in from the
-          terminal view. Chat agents stop when Wraithgrid quits and carry on the conversation at the
-          next launch.
+          Chat is available for{' '}
+          {AGENT_CLIS.filter((c) => AGENT_CLI_SPECS[c].chat)
+            .map((c) => AGENT_CLI_LABEL[c])
+            .join(', ')}
+          . Other CLIs open as terminals. A pane signs in from the terminal view. Chat agents stop
+          when Wraithgrid quits and carry on the conversation at the next launch.
         </span>
       </div>
     </div>
@@ -1635,7 +1638,34 @@ export function SettingsView() {
           <button
             key={t.id}
             role="tab"
+            id={`settings-tab-${t.id}`}
+            aria-controls={`settings-panel-${t.id}`}
             aria-selected={tab === t.id}
+            tabIndex={tab === t.id ? 0 : -1}
+            onKeyDown={(e) => {
+              const step =
+                e.key === 'ArrowDown' || e.key === 'ArrowRight'
+                  ? 1
+                  : e.key === 'ArrowUp' || e.key === 'ArrowLeft'
+                    ? -1
+                    : 0
+              const index =
+                e.key === 'Home'
+                  ? 0
+                  : e.key === 'End'
+                    ? SETTINGS_TABS.length - 1
+                    : step
+                      ? (SETTINGS_TABS.findIndex((item) => item.id === tab) +
+                          step +
+                          SETTINGS_TABS.length) %
+                        SETTINGS_TABS.length
+                      : -1
+              if (index < 0) return
+              e.preventDefault()
+              const next = SETTINGS_TABS[index]!.id
+              setTab(next)
+              document.getElementById(`settings-tab-${next}`)?.focus()
+            }}
             className={`set-tab${tab === t.id ? ' on' : ''}`}
             onClick={() => setTab(t.id)}
           >
@@ -1648,6 +1678,9 @@ export function SettingsView() {
       </nav>
       <div
         className="set"
+        key={tab}
+        id={`settings-panel-${tab}`}
+        aria-labelledby={`settings-tab-${tab}`}
         role="tabpanel"
         aria-label={SETTINGS_TABS.find((t) => t.id === tab)?.label}
       >

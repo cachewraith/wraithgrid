@@ -17,9 +17,9 @@ import {
   type Workspace
 } from '@shared/types'
 import { useActions, useApp, useServices } from '../app/services'
-import { accountById } from '../app/store'
+import { accountById, activeWorkspace } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { AccountAvatar } from './ProviderLogo'
+import { AccountAvatar, ProviderLogo } from './ProviderLogo'
 import { ProjectIcon } from './ProjectIcon'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
@@ -157,7 +157,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   }
 
   return (
-    <div className="proj">
+    <div className={`proj${panes ? '' : ' empty'}`}>
       <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
           className="ws-tg"
@@ -197,10 +197,9 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             </span>
           ) : null}
           {/* A closed project says it's working; approvals show on the chat only (#75). */}
+          {panes ? <span className="ws-n">{panes}</span> : null}
           {!open && (running || background) ? (
             <span className="sch-st working">working</span>
-          ) : panes ? (
-            <span className="ws-n">{panes}</span>
           ) : null}
         </button>
         <button
@@ -284,6 +283,11 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
       onMouseDown={keepFocus}
       onClick={() => actions.revealPane(pane.id)}
     >
+      {account ? (
+        <ProviderLogo cli={account.cli} fallbackName={account.name} size={14} />
+      ) : (
+        <IconMonitor small />
+      )}
       <span className="sch-t">{pane.title}</span>
       {/* States as words (#75): a light sweeps across "working"; no spinners or dots. */}
       {loud && status ? (
@@ -359,7 +363,7 @@ function UsageWindow({
 function SidebarUsage() {
   const actions = useActions()
   const on = useApp((s) => s.view === 'usage')
-  const limit = useSessionLimit()
+  const limit = useSessionLimit(true)
   const accounts = useApp((s) => s.config.accounts)
   const limits = useApp((s) => s.usage.limits)
   const auto = useApp((s) => s.config.settings.autoSwitchAtLimit)
@@ -379,7 +383,11 @@ function SidebarUsage() {
       onClick={() => actions.setView('usage')}
     >
       <span className="su-hd">
-        <IconGauge small />
+        {account ? (
+          <ProviderLogo cli={account.cli} fallbackName={account.name} size={14} />
+        ) : (
+          <IconGauge small />
+        )}
         <span className="su-nm">{account?.name ?? 'Usage'}</span>
       </span>
       {five ? <UsageWindow name="5h" w={five} now={now} mark={at} /> : null}
@@ -436,7 +444,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
                   ? 'Add one to start'
                   : current && !current.signedIn
                     ? 'Login needed'
-                    : `New chats · ${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`}`}
+                    : `${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`} · new chats`}
               </span>
             </span>
             <IconChevron small className="acct-chev" />
@@ -493,6 +501,42 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
         />
       ) : null}
     </>
+  )
+}
+
+/** Compact project navigation retains identity and work state when the sidebar is collapsed. */
+function RailProject({ w }: { w: Workspace }) {
+  const actions = useActions()
+  const on = useApp((s) => s.config.activeWorkspace === w.id)
+  const working = useApp((s) =>
+    w.panes.some((p) =>
+      ['running', 'starting', 'background'].includes(s.runtime[p.id]?.status ?? '')
+    )
+  )
+  return (
+    <button
+      className={`rail-ws${on ? ' on' : ''}${working ? ' working' : ''}`}
+      aria-label={`Open project ${w.name}${working ? ', working' : ''}`}
+      aria-current={on ? 'page' : undefined}
+      title={`${w.name}${working ? ' · working' : ''}`}
+      onClick={() => actions.openProject(w.id)}
+    >
+      <ProjectIcon icon={w.icon} size={20} />
+    </button>
+  )
+}
+
+function SidebarMeta() {
+  const workspace = useApp(activeWorkspace)
+  const paneCount = workspace.panes.length
+  const accounts = new Set(workspace.panes.flatMap((p) => (p.accountId ? [p.accountId] : []))).size
+  const version = useApp((s) => s.info.version)
+  return (
+    <div className="side-meta">
+      {paneCount} {paneCount === 1 ? 'pane' : 'panes'} · {accounts}{' '}
+      {accounts === 1 ? 'account' : 'accounts'}
+      {version ? ` · v${version}` : ''}
+    </div>
   )
 }
 
@@ -599,6 +643,7 @@ export function Sidebar() {
         style={{ '--side-width': `${width}px` } as CSSProperties}
       >
         <div className="side-hd">
+          {collapsed ? null : <span className="side-brand">Wraithgrid</span>}
           <button
             className="icon-btn"
             aria-label={toggleLabel}
@@ -607,16 +652,6 @@ export function Sidebar() {
           >
             <IconSidebar />
           </button>
-          {collapsed ? null : (
-            <button
-              className="icon-btn"
-              aria-label={`${newLabel} (${SHORTCUT_HINT.newPane})`}
-              title={`${newLabel} (${SHORTCUT_HINT.newPane})`}
-              onClick={newPane}
-            >
-              <IconCompose />
-            </button>
-          )}
         </div>
 
         {collapsed ? (
@@ -646,6 +681,10 @@ export function Sidebar() {
               >
                 <IconGauge />
               </button>
+              <div className="rail-sep" />
+              {workspaces.map((w) => (
+                <RailProject key={w.id} w={w} />
+              ))}
             </div>
             <div className="side-ft">
               <AccountSwitcher compact />
@@ -694,6 +733,7 @@ export function Sidebar() {
             </div>
             <div className="side-ft">
               <AccountSwitcher compact={false} />
+              <SidebarMeta />
             </div>
           </>
         )}

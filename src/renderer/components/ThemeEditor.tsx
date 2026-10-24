@@ -2,6 +2,7 @@
 // warns about hard-to-read pairs, and saves the draft as a new theme file (checked again in
 // main). Leaving it puts the chosen theme back.
 import { useEffect, useMemo, useState } from 'react'
+import { Select } from './Select'
 import { contrastIssues } from '@shared/contrast'
 import {
   CHAT_TEXT_MAX,
@@ -178,22 +179,17 @@ export function ThemeEditor({ start, onClose }: { start: AppTheme; onClose: () =
       <div className="ted-hd">
         <label className="ted-start">
           <span>Start from</span>
-          <select
-            className="inpt"
+          <Select
+            label="Start from"
             value={base.id}
-            onChange={(e) => {
-              const t = themes.find((x) => x.id === e.target.value)
+            onChange={(value) => {
+              const t = themes.find((x) => x.id === value)
               if (!t) return
               setBase(t)
               change(fileOf(t, draft.name))
             }}
-          >
-            {themes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.mode})
-              </option>
-            ))}
-          </select>
+            options={themes.map((t) => ({ value: t.id, label: `${t.name} (${t.mode})` }))}
+          />
         </label>
         <label className="ted-name">
           <span>Name</span>
@@ -259,29 +255,21 @@ export function ThemeEditor({ start, onClose }: { start: AppTheme; onClose: () =
             <legend>Type</legend>
             <label className="ted-row">
               <span>Font</span>
-              <select
-                className="inpt"
-                aria-label="Font"
+              <Select
+                label="Font"
                 value={st.font ?? 'Geist'}
-                onChange={(e) => setStyle({ font: e.target.value as ThemeStyle['font'] })}
-              >
-                {Object.keys(UI_FONTS).map((f) => (
-                  <option key={f}>{f}</option>
-                ))}
-              </select>
+                onChange={(value) => setStyle({ font: value as ThemeStyle['font'] })}
+                options={Object.keys(UI_FONTS).map((value) => ({ value, label: value }))}
+              />
             </label>
             <label className="ted-row">
               <span>Code font</span>
-              <select
-                className="inpt"
-                aria-label="Code font"
+              <Select
+                label="Code font"
                 value={st.monoFont ?? 'JetBrains Mono'}
-                onChange={(e) => setStyle({ monoFont: e.target.value as ThemeStyle['monoFont'] })}
-              >
-                {Object.keys(MONO_FONTS).map((f) => (
-                  <option key={f}>{f}</option>
-                ))}
-              </select>
+                onChange={(value) => setStyle({ monoFont: value as ThemeStyle['monoFont'] })}
+                options={Object.keys(MONO_FONTS).map((value) => ({ value, label: value }))}
+              />
             </label>
             <label className="ted-row">
               <span>Chat text</span>

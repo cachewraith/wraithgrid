@@ -1,6 +1,21 @@
 /* Design tokens. Neutral greys in the style of Claude and ChatGPT: surfaces differ by a
    few steps of lightness, borders are quiet, and the accent is kept for focus and state. */
 :root {
+  /* Shared layout, type and motion rhythm (#75); colours remain theme-owned. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --page-width: 960px;
+  --page-pad: clamp(20px, 4cqw, 48px);
+  --text-body: 14px;
+  --text-small: 12px;
+  --text-title: 26px;
+  --ui-time: 180ms;
+  --ui-ease: cubic-bezier(0.2, 0, 0, 1);
   --bg: #1c1c1c;
   --bg2: #171717;
   --panel: #232323;
