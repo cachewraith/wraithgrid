@@ -125,6 +125,7 @@
 .ws-wrap {
   position: relative;
   padding-left: 4px;
+  column-gap: 6px;
   border-radius: calc(8px * var(--rs, 1));
 }
 .ws-row {

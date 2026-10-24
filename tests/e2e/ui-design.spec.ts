@@ -190,6 +190,27 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
           )
         )
         expect(actual).toEqual(expected)
+
+        const expectedAlignment = await reference.locator('aside.side').evaluate((el) => {
+          const origin = el.getBoundingClientRect().left
+          return ['.hd .ws', '.prow .pi', '.prow .pn', '.c .pv', '.c .ct'].map(
+            (selector) => el.querySelector(selector)!.getBoundingClientRect().left - origin
+          )
+        })
+        const actualAlignment = await side.evaluate((el) => {
+          const origin = el.getBoundingClientRect().left
+          return [
+            '.side-brand',
+            '.ws-row .pj-icon',
+            '.ws-row .ws-name',
+            '.side-chat .provider-logo',
+            '.side-chat .sch-t'
+          ].map((selector) => el.querySelector(selector)!.getBoundingClientRect().left - origin)
+        })
+        // The mockup's outer 1px card border is absent in the integrated app frame.
+        actualAlignment.forEach((x, i) =>
+          expect(Math.abs(x - expectedAlignment[i]!)).toBeLessThanOrEqual(1)
+        )
         await reference
           .locator('aside.side')
           .screenshot({ path: '/tmp/sidebar-v3-reference.png', animations: 'disabled' })
