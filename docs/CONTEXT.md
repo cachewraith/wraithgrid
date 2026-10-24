@@ -135,6 +135,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Top bar has no Settings/Mods/Shortcuts buttons: e2e click `More` then the menuitem. Sidebar and `.main` are flat areas separated by a 1px resizer (#75); dialogs and menus alone use popover elevation.
 - Login button: claude accounts get LoginDialog (`login:*` IPC, fake claude handles `auth login`/`auth status`, code `good-code`); other CLIs and "Use a terminal instead" = `loginInTerminal` (the old pane). Chat attachments: picked/dropped non-images are sent as an "Attached files:" path list for claude's Read tool; drag-drop paths come from preload `webUtils.getPathForFile`.
 - Fake claude (`fake-claude-chat.sh`) appends each user turn to `$CLAUDE_CONFIG_DIR/projects/<cwd with non-alnum → ->/<sid>.jsonl`, like real claude; `--resume X` answers as session `resumed-X`.
+- Empty sidebar projects use `proj-empty`: `.empty` is the full-page centered layout, not a state marker. Verify eight-project row alignment/height in `ui-design.spec.ts`; `WRAITHGRID_SIDEBAR_REFERENCE` optionally compares geometry directly with the approved local sidebar-v3.html.
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus

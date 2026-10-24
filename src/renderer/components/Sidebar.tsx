@@ -25,6 +25,7 @@ import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { EdgeResizer } from './EdgeResizer'
 import {
   IconChevron,
+  IconClock,
   IconCompose,
   IconGauge,
   IconMods,
@@ -157,7 +158,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   }
 
   return (
-    <div className={`proj${panes ? '' : ' empty'}`}>
+    <div className={`proj${panes ? '' : ' proj-empty'}`}>
       <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
           className="ws-tg"
@@ -197,9 +198,10 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
             </span>
           ) : null}
           {/* A closed project says it's working; approvals show on the chat only (#75). */}
-          {panes ? <span className="ws-n">{panes}</span> : null}
           {!open && (running || background) ? (
             <span className="sch-st working">working</span>
+          ) : panes ? (
+            <span className="ws-n">{panes}</span>
           ) : null}
         </button>
         <button
@@ -384,11 +386,12 @@ function SidebarUsage() {
     >
       <span className="su-hd">
         {account ? (
-          <ProviderLogo cli={account.cli} fallbackName={account.name} size={14} />
+          <ProviderLogo cli={account.cli} fallbackName={account.name} size={12} />
         ) : (
           <IconGauge small />
         )}
         <span className="su-nm">{account?.name ?? 'Usage'}</span>
+        <IconChevron small className="su-go" />
       </span>
       {five ? <UsageWindow name="5h" w={five} now={now} mark={at} /> : null}
       {week ? <UsageWindow name="week" w={week} now={now} mark={at} /> : null}
@@ -429,7 +432,7 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
         onClick={open}
       >
         {current ? (
-          <AccountAvatar cli={current.cli} name={current.name} size={compact ? 26 : 28} />
+          <AccountAvatar cli={current.cli} name={current.name} size={26} />
         ) : (
           <span className="acct-none">
             <IconUserPlus small />
@@ -440,11 +443,16 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
             <span className="acct-txt">
               <span className="acct-nm">{label}</span>
               <span className="acct-sub">
-                {accounts.length === 0
-                  ? 'Add one to start'
-                  : current && !current.signedIn
-                    ? 'Login needed'
-                    : `${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`} · new chats`}
+                {current ? (
+                  <ProviderLogo cli={current.cli} fallbackName={current.name} size={12} />
+                ) : null}
+                <span>
+                  {accounts.length === 0
+                    ? 'Add one to start'
+                    : current && !current.signedIn
+                      ? 'Login needed'
+                      : `${plan ?? `${accounts.length} account${accounts.length === 1 ? '' : 's'}`} · new chats`}
+                </span>
               </span>
             </span>
             <IconChevron small className="acct-chev" />
@@ -533,9 +541,13 @@ function SidebarMeta() {
   const version = useApp((s) => s.info.version)
   return (
     <div className="side-meta">
-      {paneCount} {paneCount === 1 ? 'pane' : 'panes'} · {accounts}{' '}
-      {accounts === 1 ? 'account' : 'accounts'}
-      {version ? ` · v${version}` : ''}
+      <span>
+        {paneCount} {paneCount === 1 ? 'pane' : 'panes'}
+      </span>
+      <span>
+        {accounts} {accounts === 1 ? 'account' : 'accounts'}
+      </span>
+      {version ? <span className="side-version">v{version}</span> : null}
     </div>
   )
 }
@@ -711,14 +723,16 @@ export function Sidebar() {
                 <span>Search</span>
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
+              <button className="nav-row" disabled title="Scheduled chats are not available yet">
+                <IconClock />
+                <span>Scheduled</span>
+              </button>
             </nav>
             <SidebarUsage />
             <div className="sec side-list" ref={listRef}>
               <div className="side-ind" ref={indRef} aria-hidden="true" />
               <div className="sec-hd">
-                <span>
-                  Projects <span className="sec-n">{workspaces.length}</span>
-                </span>
+                <span>Projects</span>
                 <button
                   onClick={() => actions.openModal({ kind: 'newProject' })}
                   title="New project"

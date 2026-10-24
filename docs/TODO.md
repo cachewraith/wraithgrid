@@ -39,6 +39,7 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 
 ## Done (2026-10-24)
+- #75 correction: empty-project CSS collision fixed; exact sidebar-v3 row rhythm and eight-project alignment/height covered; Scheduled navigation is disabled pending #77.
 - #75: remaining whole-app v3.4 pass implemented across pages/chrome/panes/controls/dialogs/menus; complete sidebar identity/rail/footer, theme references and screen audit (docs/UI-75.md); five built-ins plus community theme and reduced motion covered. Scheduled remains #77.
 - #78: all-provider account picker, offline marks/fallbacks, confirmed cross-CLI visible-text handoff with source in History, collapsed row, larger flat chips and folder/branch below; fake-CLI e2e in dark/light, same-CLI/shared-login and terminal flows
 

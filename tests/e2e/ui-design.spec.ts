@@ -71,13 +71,20 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
             ],
             layout: { type: 'pane', paneId: 'chat' }
           },
-          { id: 'empty', name: 'Empty project', panes: [], layout: null }
+          { id: 'empty', name: 'Empty project', panes: [], layout: null },
+          ...Array.from({ length: 6 }, (_, i) => ({
+            id: `empty-${i}`,
+            name: `Empty project ${i + 2}`,
+            panes: [],
+            layout: null
+          }))
         ],
         activeWorkspace: 'project',
         settings: {
           theme: light ? 'light' : 'dark',
           themeDark: theme,
           themeLight: theme,
+          sidebarWidth: 264,
           checkUpdatesOnLaunch: false
         }
       })
@@ -99,12 +106,38 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
       const win = await app.firstWindow()
       const side = win.getByRole('complementary', { name: 'Sidebar' })
       await expect(side.locator('.side-brand')).toHaveText('Wraithgrid')
+      // Seven empty projects and one active project must form one compact, left-aligned list.
+      await expect(side.locator('.ws-row')).toHaveCount(8)
+      const rows = await side.locator('.ws-row').evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const row = button.getBoundingClientRect()
+          const project = button.closest('.proj')!.getBoundingClientRect()
+          const title = button.querySelector('.ws-name')!.getBoundingClientRect()
+          const empty = button.parentElement!.querySelector<HTMLButtonElement>('.ws-tg')!.disabled
+          return {
+            top: project.top,
+            bottom: project.bottom,
+            height: project.height,
+            rowHeight: row.height,
+            titleLeft: title.left,
+            empty
+          }
+        })
+      )
+      expect(
+        Math.max(...rows.map((r) => r.titleLeft)) - Math.min(...rows.map((r) => r.titleLeft))
+      ).toBeLessThan(1)
+      for (const row of rows.filter((r) => r.empty))
+        expect(row.height).toBeLessThanOrEqual(row.rowHeight + 2)
+      for (let i = 1; i < rows.length; i++)
+        expect(rows[i]!.top - rows[i - 1]!.bottom).toBeLessThanOrEqual(4)
+
       await expect(win.locator('html')).toHaveAttribute('data-theme', light ? 'light' : 'dark')
       if (theme === 'community')
         expect(
           await win.evaluate(() => document.documentElement.style.getPropertyValue('--bg'))
         ).toBe('#172026')
-      await expect(side.locator('.side-meta')).toContainText('1 pane · 1 account · v')
+      await expect(side.locator('.side-meta')).toHaveText(/1 pane\s*1 account\s*v/)
       await expect(side.locator('.side-chat .provider-logo')).toHaveCount(1)
       await expect(side.locator('.su-hd .provider-logo')).toHaveCount(1)
       await expect(win.locator('.chat-host')).toBeVisible()
@@ -115,6 +148,55 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
       await win.getByLabel('Message', { exact: true }).fill('Review this change')
       await win.getByLabel('Message', { exact: true }).press('Enter')
       await expect(win.locator('.cmsg.agent')).toContainText('Review this change')
+      // Opt-in comparison against the actual approved local HTML, not a recreated drawing.
+      if (theme === 'wraith' && process.env.WRAITHGRID_SIDEBAR_REFERENCE) {
+        await expect(side.locator('.su-win')).toHaveCount(2)
+        await app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]!.setSize(1200, 804)
+        )
+        const nextWindow = app.waitForEvent('window')
+        await app.evaluate(async ({ BrowserWindow }, file) => {
+          const reference = new BrowserWindow({ width: 1200, height: 1000 })
+          await reference.loadFile(file)
+        }, process.env.WRAITHGRID_SIDEBAR_REFERENCE)
+        const reference = await nextWindow
+        await reference.evaluate(() => document.fonts.ready)
+        const expected = await reference.evaluate(() =>
+          Object.fromEntries(
+            Object.entries({
+              header: '.hd',
+              nav: '.nav .row',
+              project: '.prow',
+              chat: '.c',
+              window: '.win'
+            }).map(([key, selector]) => [
+              key,
+              document.querySelector(selector)!.getBoundingClientRect().height
+            ])
+          )
+        )
+        const actual = await side.evaluate((el) =>
+          Object.fromEntries(
+            Object.entries({
+              header: '.side-hd',
+              nav: '.nav-row',
+              project: '.ws-row',
+              chat: '.side-chat',
+              window: '.su-win'
+            }).map(([key, selector]) => [
+              key,
+              el.querySelector(selector)!.getBoundingClientRect().height
+            ])
+          )
+        )
+        expect(actual).toEqual(expected)
+        await reference
+          .locator('aside.side')
+          .screenshot({ path: '/tmp/sidebar-v3-reference.png', animations: 'disabled' })
+        await reference.close()
+        await side.screenshot({ path: '/tmp/sidebar-expanded-fixed.png', animations: 'disabled' })
+      }
+
       for (const selector of ['.main', '.side', '.pane.focused .ph']) {
         expect(await win.locator(selector).evaluate((n) => getComputedStyle(n).boxShadow)).toBe(
           'none'
@@ -123,8 +205,10 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
       await shot(win, 'chat')
       await side.getByRole('button', { name: 'Collapse sidebar' }).click()
       await expect(side.getByRole('button', { name: 'Open project project' })).toBeVisible()
-      await expect(side.getByRole('button', { name: 'Open project Empty project' })).toBeVisible()
-      await side.getByRole('button', { name: 'Open project Empty project' }).click()
+      await expect(
+        side.getByRole('button', { name: 'Open project Empty project', exact: true })
+      ).toBeVisible()
+      await side.getByRole('button', { name: 'Open project Empty project', exact: true }).click()
       await expect(win.getByRole('heading', { name: 'Empty project', exact: true })).toBeVisible()
       await side.getByRole('button', { name: 'Expand sidebar' }).click()
       await side.locator('.ws-row', { hasText: 'project' }).filter({ hasNotText: 'Empty' }).click()

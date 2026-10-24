@@ -98,14 +98,14 @@ kbd,
 }
 /* Sidebar identity and compact navigation from the approved mockup. */
 .side-hd {
-  height: 50px;
-  padding: 0 var(--space-3) 0 var(--space-4);
+  height: 44px;
+  padding: 0 8px 0 14px;
 }
 .side-brand {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.005em;
 }
 .side.col .side-hd {
   padding: 0;
@@ -126,22 +126,26 @@ kbd,
   box-shadow: none;
 }
 .side-meta {
-  margin: var(--space-2) var(--space-2) 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 2px;
   color: var(--fa);
   font: 10.5px/1.5 var(--font-mono);
   white-space: nowrap;
 }
 .side:not(.col) .acct-sw {
+  padding: 6px 8px;
   background: transparent;
   box-shadow: none;
-  border-radius: calc(8px * var(--rs, 1));
+  border-radius: 6px;
 }
 .side:not(.col) .acct-sw:hover,
 .side:not(.col) .acct-sw.open {
   background: var(--hover);
   box-shadow: none;
 }
-.proj.empty .ws-name {
+.proj-empty .ws-name {
   color: var(--fa);
 }
 .acct-sw {

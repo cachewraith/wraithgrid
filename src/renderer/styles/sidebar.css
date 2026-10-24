@@ -5,7 +5,7 @@
    no scaling, bouncing or endless pulses. */
 
 .side {
-  --side-t: 140ms;
+  --side-t: 120ms;
   --side-ease: cubic-bezier(0.2, 0, 0, 1);
   transition: width var(--side-t) var(--side-ease);
 }
@@ -17,7 +17,7 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  padding-bottom: 12px;
+  padding: 10px 8px;
   /* Only the list scrolls (#67): it never spills over the account footer below it. */
   overflow-y: auto;
   scrollbar-width: thin;
@@ -65,15 +65,15 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin: 1px 0 6px;
+  margin: 0 0 4px 22px;
 }
 .side-chat {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: calc(30px * var(--dens, 1));
-  padding: 0 8px 0 24px;
+  height: calc(28px * var(--dens, 1));
+  padding: 0 8px;
   border: 0;
   border-radius: calc(8px * var(--rs, 1));
   background: none;
@@ -124,27 +124,28 @@
 
 .ws-wrap {
   position: relative;
+  padding-left: 4px;
   border-radius: calc(8px * var(--rs, 1));
 }
 .ws-row {
   position: relative;
-  height: calc(32px * var(--dens, 1));
-  gap: 8px;
-  padding: 0 32px 0 12px;
+  height: calc(30px * var(--dens, 1));
+  gap: 6px;
+  padding: 0 6px 0 0;
   border-radius: calc(8px * var(--rs, 1));
   font-size: 13px;
-  font-weight: 500;
-  color: var(--mu);
+  font-weight: 400;
+  color: var(--tx);
   transition:
     background var(--side-t),
     color var(--side-t);
 }
 .ws-wrap .ws-row {
-  padding-left: 2px;
+  padding-left: 0;
 }
 .ws-wrap .ws-tg {
-  width: 22px;
-  height: calc(32px * var(--dens, 1));
+  width: 16px;
+  height: calc(30px * var(--dens, 1));
   color: var(--fa);
 }
 .ws-wrap .ws-tg:disabled {
@@ -416,11 +417,12 @@
 .side-use {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 2px 8px 6px;
-  padding: 8px 10px 9px;
+  gap: 0;
+  margin: 0;
+  padding: 10px 16px 12px;
   border: 0;
-  border-radius: calc(8px * var(--rs, 1));
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   background: none;
   color: var(--mu);
   font: inherit;
@@ -435,9 +437,9 @@
 .su-hd {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-  font-size: 12.5px;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
 }
 .su-nm {
   min-width: 0;
@@ -447,10 +449,10 @@
 }
 .su-win {
   display: grid;
-  grid-template-columns: 34px 1fr 34px 44px;
+  grid-template-columns: 34px 1fr 34px 46px;
   align-items: center;
   gap: 8px;
-  height: 18px;
+  height: 20px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fa);
@@ -497,7 +499,9 @@
   color: var(--err);
 }
 .su-ft {
-  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
   font-size: 11px;
   color: var(--fa);
 }
@@ -545,7 +549,7 @@
 }
 .ws-wrap:hover .ws-n,
 .ws-wrap:hover .sch-st {
-  visibility: hidden;
+  display: none;
 }
 .rail .icon-btn.on {
   background: var(--sel);
@@ -558,5 +562,88 @@
   color: var(--fa);
 }
 .ws-row .pj-icon {
-  margin-right: 2px;
+  margin-right: 0;
+}
+
+/* Exact sidebar row rhythm from mockups/sidebar-v3.html; never reuse the page `.empty`. */
+.side {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.side-hd .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+.side-nav {
+  padding: 2px 8px 8px;
+}
+.side-nav .nav-row {
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--mu);
+}
+.side-nav .nav-row:first-child {
+  color: var(--tx);
+}
+.side .sec-hd {
+  height: 26px;
+  padding: 0 4px 0 8px;
+}
+.side .sec-hd button {
+  width: 24px;
+  height: 24px;
+}
+.ws-wrap:focus-within .ws-row,
+.ws-wrap:hover .ws-row {
+  padding-right: 32px;
+}
+.ws-wrap .chev-i {
+  width: 12px;
+  height: 12px;
+}
+.ws-wrap,
+.ws-row,
+.side-chat,
+.side-ind {
+  border-radius: 6px;
+}
+.sch-when,
+.sch-st,
+.ws-n {
+  font-size: 11px;
+}
+.proj-empty .pj-icon {
+  opacity: 0.7;
+}
+.su-go {
+  margin-left: auto;
+  opacity: 0;
+  color: var(--fa);
+}
+.side-use:hover .su-go,
+.side-use:focus-visible .su-go {
+  opacity: 1;
+}
+.acct-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.acct-sub > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.side-version {
+  margin-left: auto;
+}
+
+.side-nav .nav-row:disabled {
+  opacity: 1;
+  color: var(--fa);
+  cursor: default;
+}
+.side-nav .nav-row:disabled:hover {
+  background: transparent;
 }

@@ -199,6 +199,13 @@ export const IconDiff = make(
     <path d="M8 4v4M6 6h4M6 11h4" />
   </>
 )
+export const IconClock = make(
+  <>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 4.5V8l2 1.5" />
+  </>
+)
+
 export const IconChevron = make(<path d="M6 4l4 4-4 4" />)
 
 // Chat view (ADR 0002): tool kinds, the composer and the view switch.
