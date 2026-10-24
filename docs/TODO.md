@@ -39,6 +39,7 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 
 ## Done (2026-10-24)
+- v1.19.5: remove slow animated chat follow entirely; instant column-resize follow and paused reading verified.
 - v1.19.4: Windows real-Git suite timeout and transient cleanup locks fixed; release keeps the chat/picker/footer corrections.
 - v1.19.3: sidebar footer shows one provider mark, on the avatar only.
 - v1.19.2 chat/picker follow-up (2026-10-24): cancel follow on reading input and remove CSS/JS smooth-scroll conflict; picker starts on current account and hover does not scroll; Codex uses the offline ChatGPT knot.

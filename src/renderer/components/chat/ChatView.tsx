@@ -38,8 +38,6 @@ interface Props {
   focused: boolean
 }
 
-const STICK_PX = 48
-
 /** Starters on a new chat's first screen: what is sent, and a line on what it does. */
 const SUGGESTIONS: { text: string; hint: string }[] = [
   {
@@ -342,72 +340,55 @@ export function ChatView({ paneId, visible, focused }: Props) {
   // Follow new output while the view is at the bottom; leave it alone once scrolled up.
   const scrollRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
+  const lastScrollTop = useRef(0)
   const [atBottom, setAtBottom] = useState(true)
-  // A glide toward the bottom while streamed text grows (#62); `glideAt` is where it last put
-  // the view, so its own scrolling isn't taken for the user scrolling up.
-  const glide = useRef(0)
-  const glideAt = useRef(0)
   useLayoutEffect(() => {
     const el = scrollRef.current
-    if (el && stick.current && !glide.current) el.scrollTop = el.scrollHeight
+    if (el && stick.current) {
+      el.scrollTop = el.scrollHeight
+      lastScrollTop.current = el.scrollTop
+    }
   }, [thread, visible])
-  // Paced text grows between thread updates (#52): follow the column's height too, gliding
-  // a quarter of the way each frame instead of jumping a line at a time.
+  // Paced text, images and tool details can resize between thread updates. Follow
+  // immediately: a catch-up animation makes the chat keep moving after output arrives.
   const colRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = scrollRef.current
     const col = colRef.current
     if (!el || !col) return
-    const step = (): void => {
-      const gap = el.scrollHeight - el.clientHeight - el.scrollTop
-      if (!stick.current || gap <= 1) {
-        glide.current = 0
-        return
-      }
-      el.scrollTop += Math.max(1, gap / 4)
-      glideAt.current = el.scrollTop
-      glide.current = requestAnimationFrame(step)
-    }
     const ro = new ResizeObserver(() => {
-      if (!stick.current) return
-      if (motionReduced()) el.scrollTop = el.scrollHeight
-      else if (!glide.current) glide.current = requestAnimationFrame(step)
+      if (stick.current) {
+        el.scrollTop = el.scrollHeight
+        lastScrollTop.current = el.scrollTop
+      }
     })
     ro.observe(col)
-    return () => {
-      ro.disconnect()
-      cancelAnimationFrame(glide.current)
-      glide.current = 0
-    }
+    return () => ro.disconnect()
   }, [])
   const pauseFollow = (): void => {
-    cancelAnimationFrame(glide.current)
-    glide.current = 0
     stick.current = false
     setAtBottom(false)
   }
   const onScroll = (): void => {
     const el = scrollRef.current
     if (!el) return
-    // The glide's own scroll: only moving up from where it put the view is the user.
-    if (glide.current) {
-      if (el.scrollTop >= glideAt.current - 0.5) return
-      pauseFollow()
-    }
-    // Once paused, only reaching the actual bottom resumes following. A small upward
-    // wheel/touch movement must not reattach just because it is inside STICK_PX.
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < (stick.current ? STICK_PX : 1)
-    stick.current = bottom
-    if (bottom !== atBottom) setAtBottom(bottom)
+    // Content growing can increase the bottom gap before its resize callback runs.
+    // Only upward movement pauses follow; a gap by itself is not user input.
+    const maxTop = el.scrollHeight - el.clientHeight
+    if (el.scrollTop < Math.min(lastScrollTop.current, maxTop) - 0.5) stick.current = false
+    lastScrollTop.current = el.scrollTop
+    // A small upward movement remains paused until the actual bottom is reached.
+    if (maxTop - el.scrollTop < 1) stick.current = true
+    if (stick.current !== atBottom) setAtBottom(stick.current)
   }
+
   const jump = (): void => {
     const el = scrollRef.current
     if (!el) return
     stick.current = true
     setAtBottom(true)
-    cancelAnimationFrame(glide.current)
-    glide.current = 0
     el.scrollTop = el.scrollHeight
+    lastScrollTop.current = el.scrollTop
   }
 
   // Items already there when the view opened, or read from disk, appear at once; new ones

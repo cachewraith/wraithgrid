@@ -222,9 +222,24 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect
       .poll(() => scroll.evaluate((el) => el.scrollHeight - el.clientHeight))
       .toBeGreaterThan(700)
+    const latest = pane(win).getByRole('button', { name: 'Scroll to the latest message' })
+    if (await latest.isVisible()) await latest.click()
+    // Large content growth (e.g. a tool result or loaded image) follows in one frame,
+    // without an animated tail that keeps moving toward the bottom.
+    const resizeGap = await scroll.evaluate(async (el) => {
+      const growth = document.createElement('div')
+      growth.style.height = '900px'
+      growth.style.flexShrink = '0'
+      el.querySelector('.chat-col')!.append(growth)
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const gap = el.scrollHeight - el.clientHeight - el.scrollTop
+      growth.remove()
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      return gap
+    })
+    expect(resizeGap).toBeLessThan(2)
     await scroll.hover()
     await win.mouse.wheel(0, -12)
-    const latest = pane(win).getByRole('button', { name: 'Scroll to the latest message' })
     await expect(latest).toBeVisible()
     const paused = await scroll.evaluate((el) => ({ top: el.scrollTop, height: el.scrollHeight }))
     await expect

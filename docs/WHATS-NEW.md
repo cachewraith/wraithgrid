@@ -1,4 +1,15 @@
-# What's new in 1.19.4: chat and sidebar fixes
+# What's new in 1.19.5: instant chat scrolling
+
+*v1.19.5 · 2026-10-24*
+
+| Fix | What changed |
+|---|---|
+| Instant chat follow | New content follows immediately without a slow glide or catch-up animation |
+| Read earlier messages | Scrolling up still pauses follow; reach the bottom or click the latest-message button to resume |
+
+---
+
+## Previously, in 1.19.4: chat and sidebar fixes
 
 *v1.19.4 · 2026-10-24*
 

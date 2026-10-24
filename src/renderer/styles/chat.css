@@ -63,6 +63,7 @@
   flex-direction: column;
 }
 .chat-scroll {
+  scroll-behavior: auto;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
