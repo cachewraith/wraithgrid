@@ -2,6 +2,7 @@
 
 ## 2026-10-24
 
+- [test] shared e2e: wait for every account's links to go after "Each account its own" (accounts unlink one after another), fixing the v1.20.0 main-build failure on Linux CI ; ignore `core.[0-9]*` crash dumps (files: tests/e2e/shared.spec.ts, .gitignore)
 - [release] v1.20.0: one shared brain per provider + codex CLAUDE.md fallback (#94), sidebar tree (#87), rounded panels (#88), working-icon pop, steadier chat follow, flat account-search focus (#86) (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)
 - [codex] Codex panes start with `-c project_doc_fallback_filenames=["CLAUDE.md"]`, so a project with only a CLAUDE.md is read by codex too (AGENTS.md still wins); fake codex accepts global `-c` overrides and its app-server requires this one (files: src/shared/agent-clis.ts, src/main/spawn-resolve.ts, tests/unit/agent-clis.test.ts, tests/fixtures/fake-codex.mjs)
 - [test] ui-design: measure the chat logo with its working pop paused, so the #87 alignment check no longer flakes while the chat runs (files: tests/e2e/ui-design.spec.ts)
