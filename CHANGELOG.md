@@ -2,6 +2,8 @@
 
 ## 2026-10-24
 
+- [fix] v1.19.3 removes the duplicate provider icon beside the sidebar footer subtitle; keep the single avatar badge (files: src/renderer/components/Sidebar.tsx, package.json, docs/{WHATS-NEW,CONTEXT,TODO}.md)
+
 - [release] v1.19.2: interruptible chat follow and the ChatGPT logo for Codex, with stable picker keyboard/hover behavior (files: package.json, docs/WHATS-NEW.md)
 - [fix] Chat follow stops immediately on upward wheel/touch/keyboard/scrollbar input, stays paused through streamed growth and resumes at the bottom; remove conflicting CSS smooth scrolling, use the ChatGPT knot for Codex and keep picker hover from auto-scrolling (files: src/renderer/components/chat/{ChatView,ModelPicker}.tsx, src/renderer/styles/ui.css, src/renderer/lib/provider-logo*, scripts/gen-provider-logos.mjs, tests/e2e/{chat,chat-handoff}.spec.ts, tests/fixtures/fake-claude-chat.sh, docs/{PROVIDER-LOGOS,CONTEXT,TODO,DECISIONS}.md, docs/licenses/simple-icons.txt)
 

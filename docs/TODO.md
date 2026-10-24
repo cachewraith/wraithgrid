@@ -39,6 +39,7 @@ H1–H7 released in v1.10.0; H8 publishing needs the accounts (Now).
 - `agy`/opencode per-account isolation if they gain a config-dir variable
 
 ## Done (2026-10-24)
+- v1.19.3: sidebar footer shows one provider mark, on the avatar only.
 - v1.19.2 chat/picker follow-up (2026-10-24): cancel follow on reading input and remove CSS/JS smooth-scroll conflict; picker starts on current account and hover does not scroll; Codex uses the offline ChatGPT knot.
 - v1.19.1: #83/#84 merged, #75/#78 closed; replace unpublished v1.19.0 attempt after fixing the capped-history About e2e fixture.
 - #75 footer: remove duplicate status-bar counts and place the shortcut/update bar inside main; sidebar footer ends at the window bottom.

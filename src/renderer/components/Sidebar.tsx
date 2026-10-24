@@ -443,9 +443,6 @@ function AccountSwitcher({ compact }: { compact: boolean }) {
             <span className="acct-txt">
               <span className="acct-nm">{label}</span>
               <span className="acct-sub">
-                {current ? (
-                  <ProviderLogo cli={current.cli} fallbackName={current.name} size={12} />
-                ) : null}
                 <span>
                   {accounts.length === 0
                     ? 'Add one to start'

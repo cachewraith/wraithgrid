@@ -1,4 +1,14 @@
-# What's new in 1.19.2: stop auto-scroll and identify Codex accounts
+# What's new in 1.19.3: one provider icon in the sidebar footer
+
+*v1.19.3 · 2026-10-24*
+
+| Fix | What changed |
+|---|---|
+| Sidebar account footer | Keep the provider badge on the avatar and remove the duplicate icon beside the account details |
+
+---
+
+## Previously, in 1.19.2: stop auto-scroll and identify Codex accounts
 
 *v1.19.2 · 2026-10-24*
 
