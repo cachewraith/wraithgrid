@@ -158,12 +158,28 @@ kbd,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Working icons pop a little: a running chat's logo, a closed project's icon and the rail's
+   project icon. Motion off/reduced turns it off with every other animation. */
+.side-chat.busy .provider-logo,
+.proj.working .ws-row .pj-icon,
 .rail-ws.working .pj-icon {
-  animation: ui-project-work 2200ms ease-in-out infinite;
+  animation: ui-icon-pop 1800ms var(--ui-ease) infinite;
+  transform-origin: center;
 }
-@keyframes ui-project-work {
-  50% {
-    opacity: 0.4;
+@keyframes ui-icon-pop {
+  0%,
+  60%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.18);
+  }
+  35% {
+    transform: scale(0.94);
+  }
+  48% {
+    transform: scale(1.04);
   }
 }
 /* Reading width, generous section rhythm and consistent headings on every page. */

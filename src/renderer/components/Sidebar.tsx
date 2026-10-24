@@ -158,7 +158,9 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   }
 
   return (
-    <div className={`proj${panes ? '' : ' proj-empty'}`}>
+    <div
+      className={`proj${panes ? '' : ' proj-empty'}${!open && (running || background) ? ' working' : ''}`}
+    >
       <div className={`ws-wrap${menu ? ' menu' : ''}`}>
         <button
           className="ws-tg"
@@ -277,7 +279,7 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
   const tip = [pane.title, branch ?? folderName(pane.cwd), account?.name].filter(Boolean)
   return (
     <button
-      className={`side-chat${on ? ' on' : ''}`}
+      className={`side-chat${on ? ' on' : ''}${busy ? ' busy' : ''}`}
       aria-current={on ? 'true' : undefined}
       title={tip.join(' · ')}
       onMouseDown={keepFocus}
