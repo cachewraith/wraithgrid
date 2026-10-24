@@ -136,8 +136,11 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await win.keyboard.press('ArrowRight')
     await expect(group).toBeVisible()
     await expect.poll(openSaved).toEqual(['ws-main'])
-    // A project with no chats has nothing to open.
-    await expect(side.getByRole('button', { name: 'Show chats in side' })).toBeDisabled()
+    // A project with no chats opens to a "New chat" row (#87).
+    await side.getByRole('button', { name: 'Show chats in side' }).click()
+    await expect(side.getByRole('group', { name: 'Chats in side' })).toHaveText('New chat')
+    await side.getByRole('button', { name: 'Hide chats in side' }).click()
+    await expect.poll(openSaved).toEqual(['ws-main'])
     // Only the list scrolls: in a short window it never covers the account footer.
     await win.setViewportSize({ width: 1440, height: 360 })
     const covered = await side.locator('.side-ft').evaluate((ft) => {

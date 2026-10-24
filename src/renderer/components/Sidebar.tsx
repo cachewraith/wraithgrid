@@ -113,11 +113,11 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
       onSelect: () => actions.setWorkspaceMachine(w.id, t.id)
     }))
 
-  // A dropdown of the project's chats (#67); open or closed is saved per project.
-  const canOpen = panes > 0
-  const open = canOpen && openList.includes(w.id)
+  // A dropdown of the project's chats (#67); open or closed is saved per project. Empty
+  // projects open too, to a "New chat" row, so every project keeps its chevron (#87).
+  const open = openList.includes(w.id)
   const setOpen = (next: boolean): void => {
-    if (!canOpen || next === open) return
+    if (next === open) return
     const ids = new Set(config.workspaces.map((x) => x.id))
     const kept = openList.filter((id) => id !== w.id && ids.has(id))
     actions.updateSettings({ sidebarOpenProjects: next ? [...kept, w.id] : kept })
@@ -163,10 +163,8 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
         <button
           className="ws-tg"
           aria-label={open ? `Hide chats in ${w.name}` : `Show chats in ${w.name}`}
-          aria-expanded={canOpen ? open : undefined}
+          aria-expanded={open}
           aria-controls={open ? listId : undefined}
-          disabled={!canOpen}
-          tabIndex={canOpen ? 0 : -1}
           onMouseDown={keepFocus}
           onClick={() => setOpen(!open)}
         >
@@ -213,7 +211,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
           <IconPlus small />
         </button>
       </div>
-      {open ? <ProjectChats w={w} id={listId} /> : null}
+      {open ? <ProjectChats w={w} id={listId} onNewChat={newChat} /> : null}
       {menu ? (
         <ContextMenu
           at={menu}
@@ -286,7 +284,7 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
       onClick={() => actions.revealPane(pane.id)}
     >
       {account ? (
-        <ProviderLogo cli={account.cli} fallbackName={account.name} size={14} />
+        <ProviderLogo cli={account.cli} fallbackName={account.name} size={13} />
       ) : (
         <IconMonitor small />
       )}
@@ -307,8 +305,11 @@ function ChatRow({ pane, now }: { pane: Pane; now: number }) {
   )
 }
 
-/** A project's open chats, most recently active first (never-active ones keep their order). */
-function ProjectChats({ w, id }: { w: Workspace; id: string }) {
+/**
+ * A project's open chats, most recently active first (never-active ones keep their order);
+ * an empty project offers "New chat" instead.
+ */
+function ProjectChats({ w, id, onNewChat }: { w: Workspace; id: string; onNewChat: () => void }) {
   const runtime = useApp((s) => s.runtime)
   const now = useNow()
   const chats = w.panes
@@ -319,6 +320,12 @@ function ProjectChats({ w, id }: { w: Workspace; id: string }) {
       {chats.map(({ pane }) => (
         <ChatRow key={pane.id} pane={pane} now={now} />
       ))}
+      {chats.length ? null : (
+        <button className="side-chat side-new" onMouseDown={keepFocus} onClick={onNewChat}>
+          <IconPlus small />
+          <span className="sch-t">New chat</span>
+        </button>
+      )}
     </div>
   )
 }

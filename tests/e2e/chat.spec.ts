@@ -238,6 +238,19 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
       return gap
     })
     expect(resizeGap).toBeLessThan(2)
+    // Not input that pauses follow: a click on the empty margin beside the column, a sideways
+    // swipe with vertical noise, or the viewport shrinking under the composer.
+    const followGap = (): Promise<number> =>
+      scroll.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop)
+    await scroll.click({ position: { x: 4, y: 40 } })
+    await scroll.hover()
+    await win.mouse.wheel(-40, -3)
+    await composer(win).fill('one\ntwo\nthree\nfour\nfive')
+    const grown = await scroll.evaluate((el) => el.scrollHeight)
+    await expect.poll(() => scroll.evaluate((el) => el.scrollHeight)).toBeGreaterThan(grown + 50)
+    await expect(latest).toBeHidden()
+    await expect.poll(followGap).toBeLessThan(2)
+    await composer(win).fill('')
     await scroll.hover()
     await win.mouse.wheel(0, -12)
     await expect(latest).toBeVisible()
