@@ -138,6 +138,13 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
           await win.evaluate(() => document.documentElement.style.getPropertyValue('--bg'))
         ).toBe('#172026')
       await expect(side.locator('.side-meta')).toHaveText(/1 pane\s*1 account\s*v/)
+      // Counts belong to the sidebar footer once; the content's status bar ends beside it.
+      await expect(win.locator('.sbar')).not.toContainText(/\bpanes?\b|\baccounts?\b/)
+      const footerBottoms = await win.evaluate(() => [
+        document.querySelector('.side-ft')!.getBoundingClientRect().bottom,
+        document.querySelector('.main .sbar')!.getBoundingClientRect().bottom
+      ])
+      expect(Math.abs(footerBottoms[0]! - footerBottoms[1]!)).toBeLessThanOrEqual(1)
       await expect(side.locator('.side-chat .provider-logo')).toHaveCount(1)
       await expect(side.locator('.su-hd .provider-logo')).toHaveCount(1)
       await expect(win.locator('.chat-host')).toBeVisible()
@@ -152,7 +159,7 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
       if (theme === 'wraith' && process.env.WRAITHGRID_SIDEBAR_REFERENCE) {
         await expect(side.locator('.su-win')).toHaveCount(2)
         await app.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows()[0]!.setSize(1200, 804)
+          BrowserWindow.getAllWindows()[0]!.setSize(1200, 776)
         )
         const nextWindow = app.waitForEvent('window')
         await app.evaluate(async ({ BrowserWindow }, file) => {
