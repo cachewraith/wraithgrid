@@ -1,6 +1,6 @@
 # What's new in 1.19: a cleaner app, project icons, and chats across CLIs
 
-*v1.19.0 · 2026-10-24*
+*v1.19.1 · 2026-10-24*
 
 | Feature | How to use it |
 |---|---|

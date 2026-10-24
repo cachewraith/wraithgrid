@@ -24,13 +24,20 @@ test('after an update: "Updated to" once, What’s new in About, earlier version
       settings: { checkUpdatesOnLaunch: false }
     })
   )
-  // An older version ran last and saved notes a check found back then.
+  // The saved note must remain among the ten newest earlier versions as bundled notes grow.
+  // Unpackaged Electron reports its own (newer) version, so the next application patch is
+  // an earlier note there, above the bundle's latest entry, rather than a pruned 0.x fixture.
+  const appVersion = (
+    JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as { version: string }
+  ).version
+  const [major, minor, patch] = appVersion.split('.')
+  const savedVersion = `${major}.${minor}.${Number.parseInt(patch!, 10) + 1}`
   const notesFile = path.join(userData, 'release-notes.json')
   fs.writeFileSync(
     notesFile,
     JSON.stringify({
       lastRun: '0.9.0',
-      saved: [{ version: '0.9.5', title: '', date: null, notes: 'Saved **from GitHub**.' }]
+      saved: [{ version: savedVersion, title: '', date: null, notes: 'Saved **from GitHub**.' }]
     })
   )
   const launch = () =>
@@ -60,11 +67,13 @@ test('after an update: "Updated to" once, What’s new in About, earlier version
     // Earlier versions: collapsed, as markdown (the bundled WHATS-NEW has tables), and the
     // notes saved from GitHub.
     const earlier = wn.getByLabel('Earlier versions')
-    const bundled = earlier.locator('details').first()
+    const bundled = earlier
+      .locator('details')
+      .filter({ has: win.getByText(appVersion, { exact: true }) })
     await expect(bundled).not.toHaveAttribute('open')
     await bundled.locator('summary').click()
     await expect(bundled.getByRole('table').first()).toBeVisible()
-    const old = earlier.locator('details', { hasText: '0.9.5' })
+    const old = earlier.locator('details', { hasText: savedVersion })
     await old.locator('summary').click()
     await expect(old.locator('strong')).toHaveText('from GitHub')
 
