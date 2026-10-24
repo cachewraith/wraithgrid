@@ -3,6 +3,7 @@
 ## 2026-10-24
 
 - [ui] Sidebar v3.4, step 1 of #75: the Usage row becomes a block (account, a `5h` and a `week` line with meter, % and reset time, amber ≥80% / red ≥95%, a tick at the auto-switch point and "at 95% switches to X", "no limits yet" when none); chat and project states are words in mono: `approve` (amber, chat only), `working`/`background` with a light sweep, no spinners or dots; project rows show their chat count (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/sidebar.css, tests/e2e/{usage,chat,git-palette}.spec.ts)
+
 ## 2026-10-23
 
 - [release] v1.18.1: sidebar as a clean list (one-line chat rows and project headers, single highlight) (files: package.json, CHANGELOG.md, docs/{CONTEXT,WHATS-NEW}.md)
