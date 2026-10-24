@@ -2,6 +2,8 @@
 
 ## 2026-10-24
 
+- [fix] Chat follow no longer stops by itself: a click on the empty margin beside the column, a sideways swipe over code (vertical noise) or scrolling an inner tool-output box no longer pause it, and the viewport shrinking (composer grows, approval bar) keeps the latest text in view (files: src/renderer/components/chat/ChatView.tsx, tests/e2e/chat.spec.ts)
+- [ui] Sidebar tree (#87): every project keeps its chevron (faint when empty) so projects line up on the left; an open empty project shows "New chat"; chats hang off a 1px guide under the project icon, logo aligned with project names, 12.5px muted text; project names 500 weight; the selected chat is a 50% `--sel` tint (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/{sidebar,ui}.css, tests/e2e/{ui-design,git-palette}.spec.ts, docs/{CONTEXT,TODO}.md)
 - [fix] v1.19.5 removes the animated chat-follow glide entirely: streamed text, image and tool-result growth follow instantly, while upward input still pauses; regression covers a large resize and paused reading (files: src/renderer/components/chat/ChatView.tsx, src/renderer/styles/chat.css, tests/e2e/chat.spec.ts, package.json, docs/{WHATS-NEW,CONTEXT,TODO,DECISIONS}.md)
 
 - [release] v1.19.4: give the real-Git integration suites a 30s deadline and bounded temporary-directory removal retries so slow Windows runners do not time out at 5s and race cleanup (files: tests/unit/git.test.ts, package.json, docs/{WHATS-NEW,CONTEXT,TODO,DECISIONS}.md)

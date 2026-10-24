@@ -145,7 +145,7 @@ kbd,
   box-shadow: none;
 }
 .proj-empty .ws-name {
-  color: var(--fa);
+  color: var(--mu);
 }
 .acct-sw {
   border-radius: calc(8px * var(--rs, 1));

@@ -61,11 +61,24 @@
 
 /* ---- Chats: plain rows in a project's dropdown (#67) --------------------------------- */
 
+/* A tree (#87): chats hang off a 1px guide under the project icon and start where the
+   project name starts, so a project row and a chat row never share an indent. */
 .side-chats {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin: 0 0 4px 22px;
+  margin: 0 0 4px 33px;
+  padding-left: 6px;
+}
+.side-chats::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--line);
 }
 .side-chat {
   display: flex;
@@ -79,7 +92,7 @@
   background: none;
   color: var(--mu);
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   text-align: left;
   cursor: pointer;
   animation: sch-in var(--side-t) var(--side-ease);
@@ -91,8 +104,15 @@
   background: var(--hover);
   color: var(--tx);
 }
+/* The selected chat is a soft tint, not a block: the bright title already marks it. */
 .side-chat.on {
-  background: var(--sel);
+  background: color-mix(in srgb, var(--sel) 50%, transparent);
+  color: var(--tx);
+}
+.side-chat.side-new {
+  color: var(--fa);
+}
+.side-chat.side-new:hover {
   color: var(--tx);
 }
 .sch-t {
@@ -135,7 +155,7 @@
   padding: 0 6px 0 0;
   border-radius: calc(8px * var(--rs, 1));
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--tx);
   transition:
     background var(--side-t),
@@ -149,8 +169,13 @@
   height: calc(30px * var(--dens, 1));
   color: var(--fa);
 }
-.ws-wrap .ws-tg:disabled {
-  opacity: 0;
+/* Empty projects keep a faint chevron so every project lines up on the left edge (#87). */
+.proj-empty .ws-tg {
+  opacity: 0.35;
+}
+.proj-empty .ws-tg:hover,
+.proj-empty .ws-tg:focus-visible {
+  opacity: 1;
 }
 .sec-n {
   margin-left: 4px;

@@ -113,7 +113,7 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
           const row = button.getBoundingClientRect()
           const project = button.closest('.proj')!.getBoundingClientRect()
           const title = button.querySelector('.ws-name')!.getBoundingClientRect()
-          const empty = button.parentElement!.querySelector<HTMLButtonElement>('.ws-tg')!.disabled
+          const empty = button.closest('.proj')!.classList.contains('proj-empty')
           return {
             top: project.top,
             bottom: project.bottom,
@@ -131,6 +131,14 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
         expect(row.height).toBeLessThanOrEqual(row.rowHeight + 2)
       for (let i = 1; i < rows.length; i++)
         expect(rows[i]!.top - rows[i - 1]!.bottom).toBeLessThanOrEqual(4)
+      // A tree (#87): every project keeps its chevron, and a chat starts where project names
+      // start, never at a project's indent.
+      await expect(side.locator('.ws-tg:disabled')).toHaveCount(0)
+      const chatLeft = await side
+        .locator('.side-chat .provider-logo')
+        .evaluate((n) => n.getBoundingClientRect().left)
+      expect(chatLeft - rows[0]!.titleLeft).toBeGreaterThanOrEqual(-1)
+      expect(chatLeft - rows[0]!.titleLeft).toBeLessThanOrEqual(2)
 
       await expect(win.locator('html')).toHaveAttribute('data-theme', light ? 'light' : 'dark')
       if (theme === 'community')
@@ -200,21 +208,18 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
 
         const expectedAlignment = await reference.locator('aside.side').evaluate((el) => {
           const origin = el.getBoundingClientRect().left
-          return ['.hd .ws', '.prow .pi', '.prow .pn', '.c .pv', '.c .ct'].map(
+          return ['.hd .ws', '.prow .pi', '.prow .pn'].map(
             (selector) => el.querySelector(selector)!.getBoundingClientRect().left - origin
           )
         })
         const actualAlignment = await side.evaluate((el) => {
           const origin = el.getBoundingClientRect().left
-          return [
-            '.side-brand',
-            '.ws-row .pj-icon',
-            '.ws-row .ws-name',
-            '.side-chat .provider-logo',
-            '.side-chat .sch-t'
-          ].map((selector) => el.querySelector(selector)!.getBoundingClientRect().left - origin)
+          return ['.side-brand', '.ws-row .pj-icon', '.ws-row .ws-name'].map(
+            (selector) => el.querySelector(selector)!.getBoundingClientRect().left - origin
+          )
         })
-        // The mockup's outer 1px card border is absent in the integrated app frame.
+        // The mockup's outer 1px card border is absent in the integrated app frame; chat rows
+        // follow the v4 tree (#87) instead of the v3 indent.
         actualAlignment.forEach((x, i) =>
           expect(Math.abs(x - expectedAlignment[i]!)).toBeLessThanOrEqual(1)
         )
@@ -231,6 +236,12 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
         )
       }
       await shot(win, 'chat')
+      // An empty project opens to a "New chat" row (#87).
+      const empty = side.locator('.proj-empty').first()
+      await empty.locator('.ws-tg').click()
+      await expect(empty.locator('.side-new')).toHaveText('New chat')
+      await empty.locator('.ws-tg').click()
+      await expect(empty.locator('.side-new')).toHaveCount(0)
       await side.getByRole('button', { name: 'Collapse sidebar' }).click()
       await expect(side.getByRole('button', { name: 'Open project project' })).toBeVisible()
       await expect(
