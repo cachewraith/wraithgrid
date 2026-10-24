@@ -134,9 +134,14 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
       // A tree (#87): every project keeps its chevron, and a chat starts where project names
       // start, never at a project's indent.
       await expect(side.locator('.ws-tg:disabled')).toHaveCount(0)
-      const chatLeft = await side
-        .locator('.side-chat .provider-logo')
-        .evaluate((n) => n.getBoundingClientRect().left)
+      const chatLeft = await side.locator('.side-chat .provider-logo').evaluate((n) => {
+        // A working chat's logo pops (scale); measure its resting box.
+        const el = n as SVGElement
+        el.style.animation = 'none'
+        const left = el.getBoundingClientRect().left
+        el.style.animation = ''
+        return left
+      })
       expect(chatLeft - rows[0]!.titleLeft).toBeGreaterThanOrEqual(-1)
       expect(chatLeft - rows[0]!.titleLeft).toBeLessThanOrEqual(2)
 

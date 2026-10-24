@@ -193,12 +193,18 @@ function ImportAccountForm() {
   )
 }
 
+/** What "Overall" sharing gives an account of each provider (main's SHARE_SPECS). */
+const SHARED_NOTE: Partial<Record<Account['cli'], string>> = {
+  claude: 'Shares the claude brain (CLAUDE.md, skills, plugins)',
+  codex: 'Shares the codex brain (AGENTS.md, skills, prompts)',
+  gemini: 'Shares the gemini brain (GEMINI.md, commands, skills)',
+  copilot: 'Shares the copilot brain (instructions, agents, skills)'
+}
+
 function AccountRow({ account, uses }: { account: Account; uses: number }) {
   const actions = useActions()
   const sharedNote = useApp((s) =>
-    s.config.settings.sharedMode === 'overall' && account.cli === 'claude'
-      ? 'Shares ~/.claude (CLAUDE.md, skills, plugins)'
-      : null
+    s.config.settings.sharedMode === 'overall' ? (SHARED_NOTE[account.cli] ?? null) : null
   )
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(account.name)

@@ -1380,22 +1380,25 @@ function SharedRow() {
   return (
     <div className="srow">
       <div>
-        <h3 id="shared-h">Shared CLAUDE.md and skills</h3>
+        <h3 id="shared-h">Shared instructions and skills</h3>
         <p className="ex">
-          Overall gives every account, including new ones, your normal claude setup. Logins and
-          history always stay separate.
+          Overall gives each provider one brain: all claude accounts share one CLAUDE.md and skills,
+          all codex accounts one AGENTS.md and skills, and so on. Logins and history always stay
+          separate.
         </p>
       </div>
       <div className="ctl">
         <div className="recent" role="radiogroup" aria-labelledby="shared-h">
-          {chip('overall', 'Overall (~/.claude)')}
+          {chip('overall', 'Overall (one per provider)')}
           {chip('per-account', 'Each account its own')}
         </div>
         <span className="hint">
-          Links <span className="mono">CLAUDE.md</span>, <span className="mono">settings.json</span>
-          , <span className="mono">skills</span>, <span className="mono">plugins</span>,{' '}
-          <span className="mono">agents</span> and <span className="mono">commands</span> from{' '}
-          <span className="mono">~/.claude</span>. Files an account already had are kept as backups.
+          Kept in <span className="mono">~/.wraithgrid/shared/&lt;provider&gt;</span>, first copied
+          from that provider&apos;s own home (<span className="mono">~/.claude</span>,{' '}
+          <span className="mono">~/.codex</span>…), which is left as it is. claude:{' '}
+          <span className="mono">CLAUDE.md</span>, settings, skills, plugins, agents, commands.
+          codex: <span className="mono">AGENTS.md</span>, skills, prompts. Files an account already
+          had are kept as backups.
         </span>
         {error ? <span className="hint err">{error}</span> : null}
         {lines.length ? (

@@ -12,7 +12,10 @@ import process from 'node:process'
 import { clearInterval, setInterval, setTimeout } from 'node:timers'
 import readline from 'node:readline'
 
+// Like codex: global `-c key=value` overrides come before the subcommand.
 const args = process.argv.slice(2)
+const overrides = []
+while (args[0] === '-c' && args.length > 1) overrides.push(args.splice(0, 2)[1])
 const home = process.env.CODEX_HOME ?? ''
 const auth = path.join(home, 'auth.json')
 
@@ -38,6 +41,13 @@ if (args[0] === 'login') {
     process.stdout.write('Successfully logged in\n')
     process.exit(0)
   }, 800)
+} else if (
+  args[0] === 'app-server' &&
+  !overrides.includes('project_doc_fallback_filenames=["CLAUDE.md"]')
+) {
+  // Wraithgrid makes codex read a project's CLAUDE.md when it has no AGENTS.md.
+  process.stderr.write('fake codex: missing the CLAUDE.md project doc fallback\n')
+  process.exit(2)
 } else if (args[0] === 'app-server') {
   appServer()
 } else {

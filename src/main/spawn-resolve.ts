@@ -10,6 +10,7 @@ import {
   AGENT_CLI_BIN,
   AGENT_CLI_LABEL,
   AGENT_CLI_SPECS,
+  withProjectDocArgs,
   withResumeArgs
 } from '@shared/agent-clis'
 import type { SpawnRequest } from '../host/pty-manager'
@@ -107,6 +108,7 @@ export async function resolveSpawn(spec: SpawnSpec, ctx: ResolveContext): Promis
       file = found
     }
     if (spec.resume) args = withResumeArgs(cli, args)
+    args = withProjectDocArgs(cli, args)
   } else {
     const resolved = await resolveClaudePath(ctx.claudePath, homeDir)
     if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
