@@ -35,7 +35,7 @@ const pathSchema = z.string().min(1).max(4096)
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 /** An icon tint; '' means neutral. Cosmetic, so a bad value resets instead of failing the file. */
 const tintSchema = z.union([z.literal(''), colorSchema]).catch('')
-/** Kept so older config files still load; the app no longer draws icons or emoji. */
+/** Projects draw it again as `set:name` (#80); accounts and folders keep it unused. */
 const iconSchema = z.string().max(64).catch('')
 
 export const layoutNodeSchema: z.ZodType<LayoutNode> = z.lazy(() =>

@@ -140,6 +140,7 @@ export const updateNotesArgs = z.object({})
 export const shellListArgs = z.object({})
 export const clipboardImageArgs = z.object({ paneId: idSchema })
 export const gitPaneArgs = z.object({ paneId: idSchema })
+export const projectIconArgs = z.object({ wsId: idSchema })
 export const gitLogArgs = z.object({ paneId: idSchema, skip: z.number().int().min(0).max(100_000) })
 export const gitShowArgs = z.object({ paneId: idSchema, sha: z.string().regex(/^[0-9a-f]{7,40}$/) })
 export const gitWorktreeAddArgs = z.object({
@@ -614,6 +615,13 @@ export interface WraithApi {
     onProgress(cb: (p: UpdateProgress) => void): () => void
     /** The user clicked the new-release notification: show the updates section. */
     onShow(cb: () => void): () => void
+  }
+  project: {
+    /**
+     * Icons that fit a project, read from its folder's marker files (#80); [] when remote,
+     * null while main doesn't know the project yet (just created, config not saved).
+     */
+    suggestIcons(wsId: string): Promise<string[] | null>
   }
   git: {
     status(paneId: string): Promise<GitStatus>

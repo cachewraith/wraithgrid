@@ -14,6 +14,7 @@ import {
 import type { z } from 'zod'
 import { marketplaceOf } from '@shared/mods'
 import { contractHome } from '@shared/paths'
+import { PROJECT_MARKER_FILES, suggestProjectIcons, type MarkerFile } from '@shared/project-icons'
 import {
   IPC,
   chatApproveArgs,
@@ -37,6 +38,7 @@ import {
   updateInstallArgs,
   updateNotesArgs,
   gitPaneArgs,
+  projectIconArgs,
   gitWorktreeAddArgs,
   gitWorktreeArgs,
   gitWorktreeRemoveArgs,
@@ -892,6 +894,35 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return res.canceled ? null : readPicked(res.filePaths)
     },
     null
+  )
+
+  // Project icons (#80): the project's own folder (from main's config, never a renderer
+  // path), top-level marker files only, small ones only; nothing for remote projects.
+  handle(
+    IPC.projectSuggestIcons,
+    projectIconArgs,
+    async (a): Promise<string[] | null> => {
+      const ws = store.get().workspaces.find((w) => w.id === a.wsId)
+      if (!ws) return null
+      if (ws.machineId) return []
+      const dir = ws.folder || ws.panes[0]?.cwd
+      if (!dir) return []
+      const root = resolveUserPath(dir, homeDir)
+      const files: Partial<Record<MarkerFile, string | null>> = {}
+      await Promise.all(
+        PROJECT_MARKER_FILES.map(async (f) => {
+          try {
+            const p = path.join(root, f)
+            const st = await stat(p)
+            files[f] = st.isFile() && st.size <= 256 * 1024 ? await readFile(p, 'utf8') : ''
+          } catch {
+            files[f] = null
+          }
+        })
+      )
+      return suggestProjectIcons(files)
+    },
+    []
   )
 
   const noRepo: GitStatus = { repo: false, branch: null, ahead: 0, behind: 0, changed: 0 }

@@ -2563,3 +2563,104 @@ ol.gh {
 .ctg-ft .btn:first-child {
   margin-right: auto;
 }
+
+/* Project icon picker (#80): search, tabs, a grid of icons; flat like the sidebar. */
+.dlg.pip {
+  width: min(380px, calc(100vw - 32px));
+  padding: 0;
+}
+.pip-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--fa);
+}
+.pip-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+}
+.pip-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 10px 0;
+}
+.pip-tabs button {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: calc(6px * var(--rs, 1));
+  background: none;
+  color: var(--fa);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.pip-tabs button.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.pip-sec {
+  padding: 10px 14px 4px;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.pip-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 10px;
+}
+.pip-body {
+  max-height: 330px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.pip-cell {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  border: 0;
+  border-radius: calc(8px * var(--rs, 1));
+  background: none;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.pip-cell:hover,
+.pip-cell:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.pip-cell.on {
+  background: var(--sel);
+}
+.pip-empty {
+  margin: 8px 14px;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.pip-ft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+.pip-ft span {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fa);
+}
+.pj-hd h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

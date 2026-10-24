@@ -29,6 +29,7 @@ import type {
   ChatModel
 } from '@shared/chat'
 import { baseName, slugify } from '@shared/paths'
+import { PROJECT_ICON_ID } from '@shared/project-icons'
 import { defaultConfig } from '@shared/schema'
 import { EMPTY_USAGE, type UsageData } from '@shared/usage'
 import {
@@ -114,6 +115,7 @@ export type Modal =
   | { kind: 'login'; accountId: string }
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
+  | { kind: 'projectIcon'; wsId: string }
 
 export interface NewProjectInput {
   name: string
@@ -256,6 +258,8 @@ export interface AppState {
   /** Creates a project (workspace) from the New project dialog; returns an error to show, or null. */
   createProject(input: NewProjectInput): string | null
   renameWorkspace(id: string, name: string): void
+  /** A project's icon (#80): `set:name`, or '' for the plain folder. */
+  setWorkspaceIcon(id: string, icon: string): void
   /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
   setWorkspaceMachine(id: string, machineId: string | null): void
   /** Adds a machine reached over ssh; returns an error to show, or null. */
@@ -1447,9 +1451,28 @@ export function createAppStore({
         }
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)
+        // Its icon from what's in the folder (#80), unless one was picked meanwhile.
+        if (folder && !machineId) {
+          const suggest = async (tries: number): Promise<void> => {
+            const ids = await api.project.suggestIcons(ws.id)
+            // Main learns of the project once the config is saved: ask again shortly.
+            if (ids === null) {
+              if (tries > 0) setTimeout(() => void suggest(tries - 1), 300)
+              return
+            }
+            const cur = get().config.workspaces.find((w) => w.id === ws.id)
+            if (ids[0] && cur && !cur.icon) get().setWorkspaceIcon(ws.id, ids[0])
+          }
+          void suggest(10)
+        }
         if (input.startChat && folder && accountId)
           get().createPane({ accountId, cwd: folder, args: [], shell: false, slotId: null })
         return null
+      },
+
+      setWorkspaceIcon(id, icon) {
+        if (icon && !PROJECT_ICON_ID.test(icon)) return
+        get().updateConfig((cfg) => withWorkspace(cfg, id, (w) => ({ ...w, icon })))
       },
 
       renameWorkspace(id, name) {

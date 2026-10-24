@@ -551,3 +551,12 @@
   background: var(--sel);
   color: var(--tx);
 }
+
+/* Project icons (#80): in their own colours; the plain folder in the muted text colour. */
+.pj-icon {
+  flex: none;
+  color: var(--fa);
+}
+.ws-row .pj-icon {
+  margin-right: 2px;
+}

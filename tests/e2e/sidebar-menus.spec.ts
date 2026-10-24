@@ -66,7 +66,7 @@ test('right-click edits folders and workspaces; the sidebar collapses smoothly',
 
     const review = side.locator('.ws-row', { hasText: 'review' })
     await review.click({ button: 'right' })
-    await expect(win.getByRole('menuitem', { name: 'Change icon' })).toHaveCount(0)
+    await expect(win.getByRole('menuitem', { name: 'Change icon' })).toHaveCount(1)
     await win.keyboard.press('Escape')
 
     await review.click({ button: 'right' })

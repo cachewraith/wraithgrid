@@ -6,6 +6,7 @@ import { DeleteChatDialog } from '../components/DeleteChatDialog'
 import { SwitchAccountDialog } from '../components/SwitchAccountDialog'
 import { LoginDialog } from '../components/LoginDialog'
 import { BranchPicker } from '../components/BranchPicker'
+import { ProjectIconPicker } from '../components/ProjectIconPicker'
 import { DiffPanel } from '../components/DiffPanel'
 import { NewPaneDialog } from '../components/NewPaneDialog'
 import { PaneGrid } from '../components/PaneGrid'
@@ -175,6 +176,8 @@ function Modals() {
       return <SwitchAccountDialog paneId={modal.paneId} accountId={modal.accountId} />
     case 'branches':
       return <BranchPicker paneId={modal.paneId} at={modal.at} />
+    case 'projectIcon':
+      return <ProjectIconPicker wsId={modal.wsId} />
   }
 }
 
