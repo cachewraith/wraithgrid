@@ -1,4 +1,23 @@
-# What's new in 1.19.5: instant chat scrolling
+# What's new in 1.20.0: one brain per provider, rounded panels and a clearer sidebar
+
+*v1.20.0 · 2026-10-24*
+
+| New | What changed |
+|---|---|
+| One brain per provider | With sharing set to Overall, all Claude accounts share one CLAUDE.md, skills and plugins, and all Codex accounts share one AGENTS.md, skills and prompts, kept in ~/.wraithgrid/shared. Your ~/.claude and ~/.codex are left as they are |
+| Codex reads CLAUDE.md | A project with only a CLAUDE.md is now read by Codex too; AGENTS.md still wins |
+| Sidebar tree | Every project lines up on the left with its chevron; chats sit indented under a thin guide line; an empty project opens to New chat |
+| Rounded panels | Sidebar, chat and Changes panel are rounded panels with a small gap instead of edge lines |
+| Working icons | A running chat's logo, a closed project's icon and the collapsed rail's icon pop gently while they work |
+
+| Fix | What changed |
+|---|---|
+| Chat follow | Clicking beside the messages, a sideways swipe over code or a growing message box no longer stops the chat from following new text |
+| Account search | The account picker's search box no longer shows a square focus ring |
+
+---
+
+## Previously, in 1.19.5: instant chat scrolling
 
 *v1.19.5 · 2026-10-24*
 
