@@ -2,6 +2,8 @@
 
 ## 2026-10-24
 
+- [release] v1.19.4: give the real-Git integration suites a 30s deadline and bounded temporary-directory removal retries so slow Windows runners do not time out at 5s and race cleanup (files: tests/unit/git.test.ts, package.json, docs/{WHATS-NEW,CONTEXT,TODO,DECISIONS}.md)
+
 - [fix] v1.19.3 removes the duplicate provider icon beside the sidebar footer subtitle; keep the single avatar badge (files: src/renderer/components/Sidebar.tsx, package.json, docs/{WHATS-NEW,CONTEXT,TODO}.md)
 
 - [release] v1.19.2: interruptible chat follow and the ChatGPT logo for Codex, with stable picker keyboard/hover behavior (files: package.json, docs/WHATS-NEW.md)

@@ -1,4 +1,18 @@
-# What's new in 1.19.3: one provider icon in the sidebar footer
+# What's new in 1.19.4: chat and sidebar fixes
+
+*v1.19.4 · 2026-10-24*
+
+| Fix | What changed |
+|---|---|
+| Chat auto-scroll | Scrolling up immediately pauses follow while a reply streams. Reach the bottom or click the latest-message button to resume |
+| Account identity | Codex uses the ChatGPT knot; the sidebar footer shows a single provider badge on the avatar |
+| Account picker | Keyboard selection starts on the current account, and hovering rows does not scroll the list |
+
+This patch also stabilizes the Windows release checks.
+
+---
+
+## Previously, in 1.19.3: one provider icon in the sidebar footer
 
 *v1.19.3 · 2026-10-24*
 

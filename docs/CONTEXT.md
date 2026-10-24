@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.19.3.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.19.4.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -100,6 +100,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - Use `bun run <script>`, never bare `bun test` (Bun's runner, not Vitest); one-off tools: `./node_modules/.bin/<tool>`.
 - git runs with `GIT_OPTIONAL_LOCKS=0` so status polling never takes index.lock while claude commits; git errors may start with progress lines, so the `fatal:`/`error:` line is reported.
 - Accounts/folders ignore saved user-picked icons; accounts show an initial with a provider badge (#78). Projects use the offline icon picker and folder suggestions (#80).
+- Real-Git integration suites use 30s (not the 5s unit default); Windows process startup can exceed 5s across clone/commit/fetch/pull. Temp cleanup retries transient locks without suppressing errors.
 - Tests: never pass `os.devNull` to git (Windows `\\.\nul` is refused); use a temp file.
 - Tests under the node tsconfig can't import `.tsx`: keep testable logic in `src/renderer/lib/`.
 - Env `WRAITHGRID_E2E_SHOTS=<dir>` makes `git-palette.spec.ts` and `mods.spec.ts` save screenshots. README images: `bun run build`, then `WRAITHGRID_README_SHOTS=docs/screenshots ./node_modules/.bin/playwright test readme-shots` (skipped without the env); chat shots come from `tests/fixtures/demo-claude-chat.sh` (prompts with "orders"/"ship"), Usage from a seeded `usage.json`.
@@ -141,4 +142,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-v1.19.3 (2026-10-24): #75, #78 and #80 merged on main. Whole-app/sidebar v3.4, provider/account picker and cross-CLI handoff, project icons, compact empty-project rows and one footer count line. Release notes: docs/WHATS-NEW.md; design references: docs/UI-75.md. Scheduled remains disabled until #77 supplies the scheduler. Footer identity uses one provider badge on the avatar, with plain subtitle text. Current fixes: interruptible chat follow, stable account-picker navigation and the ChatGPT mark for Codex. Manual follow-ups remain: real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.
+v1.19.4 (2026-10-24): #75, #78 and #80 merged on main. Whole-app/sidebar v3.4, provider/account picker and cross-CLI handoff, project icons, compact empty-project rows and one footer count line. Release notes: docs/WHATS-NEW.md; design references: docs/UI-75.md. Scheduled remains disabled until #77 supplies the scheduler. Footer identity uses one provider badge on the avatar, with plain subtitle text. Current fixes: interruptible chat follow, stable account-picker navigation and the ChatGPT mark for Codex. Manual follow-ups remain: real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.

@@ -114,7 +114,10 @@ describe('gitDiff', () => {
   })
 })
 
-describe('with a real repository', () => {
+// These suites spawn many Git processes; Windows runners can exceed the unit-test default.
+const REAL_GIT_TIMEOUT = 30_000
+
+describe('with a real repository', { timeout: REAL_GIT_TIMEOUT }, () => {
   let dir: string
   let wt: string
   beforeEach(async () => {
@@ -126,8 +129,8 @@ describe('with a real repository', () => {
     await realGit(['commit', '-qm', 'init'], dir)
   })
   afterEach(async () => {
-    await rm(dir, { recursive: true, force: true })
-    await rm(wt, { recursive: true, force: true })
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    await rm(wt, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
 
   it('reads status and diff, and adds a worktree on a new branch', async () => {
@@ -361,7 +364,7 @@ describe('palette search', () => {
   })
 })
 
-describe('pull and history (real git)', () => {
+describe('pull and history (real git)', { timeout: REAL_GIT_TIMEOUT }, () => {
   let root: string
   const init = async (): Promise<{ dir: string; other: string }> => {
     root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'wg-pull-')))
@@ -378,7 +381,7 @@ describe('pull and history (real git)', () => {
     return { dir, other }
   }
   afterEach(async () => {
-    if (root) await rm(root, { recursive: true, force: true })
+    if (root) await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
 
   it('says up to date, pulls new commits, and reports what git refuses', async () => {
