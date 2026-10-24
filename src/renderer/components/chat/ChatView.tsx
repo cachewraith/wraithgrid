@@ -363,6 +363,8 @@ export function ChatView({ paneId, visible, focused }: Props) {
       }
     })
     ro.observe(col)
+    // The viewport shrinks too (composer grows, approval bar, pane resize).
+    ro.observe(el)
     return () => ro.disconnect()
   }, [])
   const pauseFollow = (): void => {
@@ -472,12 +474,13 @@ export function ChatView({ paneId, visible, focused }: Props) {
         ref={scrollRef}
         onScroll={onScroll}
         onWheelCapture={(e) => {
-          if (e.deltaY < 0) pauseFollow()
+          if (wheelScrollsUp(e.nativeEvent, scrollRef.current)) pauseFollow()
         }}
         onTouchStartCapture={pauseFollow}
         onPointerDown={(e) => {
-          // A press on the scroll container itself includes its scrollbar.
-          if (e.target === e.currentTarget) pauseFollow()
+          // Only a press on the scrollbar; the empty margins beside the column are not input.
+          const el = e.currentTarget
+          if (e.target === el && e.nativeEvent.offsetX >= el.clientWidth) pauseFollow()
         }}
         onKeyDownCapture={(e) => {
           if (['ArrowUp', 'PageUp', 'Home'].includes(e.key) || (e.key === ' ' && e.shiftKey))
@@ -651,4 +654,17 @@ function UserText({ text }: { text: string }) {
       {cmd.rest ? ` ${cmd.rest}` : null}
     </>
   )
+}
+
+/**
+ * True when a wheel event moves the chat itself up: mostly vertical (a sideways swipe over a
+ * code block has small vertical noise), and not taken by an inner box that can still scroll up.
+ */
+function wheelScrollsUp(e: WheelEvent, chat: HTMLElement | null): boolean {
+  if (!chat || e.deltaY >= 0 || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return false
+  for (let n = e.target as HTMLElement | null; n && n !== chat; n = n.parentElement) {
+    const y = getComputedStyle(n).overflowY
+    if ((y === 'auto' || y === 'scroll') && n.scrollTop > 0) return false
+  }
+  return true
 }
