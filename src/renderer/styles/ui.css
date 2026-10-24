@@ -3,7 +3,9 @@
 :root {
   --ease-out: var(--ui-ease);
   --ease-spring: var(--ui-ease);
-  --panel-gap: 0px;
+  /* Sidebar, main and Changes panel are rounded surfaces on the frame, split by a gap (#88). */
+  --panel-gap: 6px;
+  --panel-r: calc(10px * var(--rs, 1));
 }
 body {
   font-size: var(--text-body);
@@ -24,17 +26,17 @@ body {
     color var(--ui-time) var(--ui-ease),
     border-color var(--ui-time) var(--ui-ease);
 }
-/* One window surface per area; no card nested around the whole workspace. */
+/* Each area is a rounded surface on the frame; the gap separates them, not edge lines (#88). */
 .app {
-  background-color: var(--bg2);
+  background-color: var(--frame);
 }
 .row {
-  padding: 0;
+  padding: 0 var(--panel-gap) var(--panel-gap);
 }
 .row > .side,
 .row > .main {
   border: 0;
-  border-radius: 0;
+  border-radius: var(--panel-r);
   box-shadow: none;
 }
 .row > .main {
@@ -45,15 +47,16 @@ body {
   overflow: hidden;
 }
 .row > .side-resize {
-  width: 1px;
-  background: var(--line);
+  width: var(--panel-gap);
+  background: transparent;
 }
 .row > .side-resize::after {
-  inset: 0 -2px;
+  inset: 18px calc(var(--panel-gap) / 2 - 1px);
+  border-radius: 1px;
 }
 .tb {
   height: 36px;
-  background: var(--bg2);
+  background: transparent;
 }
 .tb .tb-ws {
   font-size: var(--text-small);
@@ -627,12 +630,11 @@ input[type='range'] {
 .chat-bar {
   border-radius: calc(8px * var(--rs, 1));
 }
-.dp {
+.row > .dp {
   border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: var(--panel-r);
   box-shadow: none;
-  margin: 0;
+  margin: 0 0 0 var(--panel-gap);
 }
 .dp-hd {
   min-height: 48px;
@@ -697,9 +699,8 @@ input[type='range'] {
   }
 }
 .row > .side.drawer {
-  left: 0;
-  bottom: 0;
-  border-right: 1px solid var(--line);
+  /* Floats over the content, so it keeps a hairline all round. */
+  border: 1px solid var(--line);
 }
 /* Both the OS preference and the app's reduced/off choices turn off ALL UI motion. */
 @media (prefers-reduced-motion: reduce) {

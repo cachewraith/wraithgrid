@@ -2,6 +2,7 @@
 
 ## 2026-10-24
 
+- [ui] Rounded panels (#88): sidebar, main and Changes panel are rounded surfaces (`--panel-r` = 10px × `--rs`) on the theme's `--frame`, split by a 6px gap instead of edge lines; transparent title bar; resizer is a thin accent line in the gap; drawer keeps a hairline (files: src/renderer/styles/ui.css, tests/e2e/ui-design.spec.ts, docs/{CONTEXT,DECISIONS,TODO}.md)
 - [fix] Account picker search (#86): no square focus ring inside the rounded popover; the focused row's divider turns accent (files: src/renderer/styles/polish.css, tests/e2e/chat-handoff.spec.ts, docs/TODO.md)
 - [fix] Chat follow no longer stops by itself: a click on the empty margin beside the column, a sideways swipe over code (vertical noise) or scrolling an inner tool-output box no longer pause it, and the viewport shrinking (composer grows, approval bar) keeps the latest text in view (files: src/renderer/components/chat/ChatView.tsx, tests/e2e/chat.spec.ts)
 - [ui] Sidebar tree (#87): every project keeps its chevron (faint when empty) so projects line up on the left; an open empty project shows "New chat"; chats hang off a 1px guide under the project icon, logo aligned with project names, 12.5px muted text; project names 500 weight; the selected chat is a 50% `--sel` tint (files: src/renderer/components/Sidebar.tsx, src/renderer/styles/{sidebar,ui}.css, tests/e2e/{ui-design,git-palette}.spec.ts, docs/{CONTEXT,TODO}.md)

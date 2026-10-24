@@ -235,6 +235,25 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
           'none'
         )
       }
+      // Rounded panels on the frame, split by a gap instead of edge lines (#88).
+      const panels = await win.evaluate(() => {
+        const box = (s: string): DOMRect => document.querySelector(s)!.getBoundingClientRect()
+        const css = (s: string): CSSStyleDeclaration => getComputedStyle(document.querySelector(s)!)
+        return {
+          gap: box('.main').left - box('.side').right,
+          bottom: window.innerHeight - box('.main').bottom,
+          radius: parseFloat(css('.main').borderTopLeftRadius),
+          sideRadius: parseFloat(css('.side').borderTopRightRadius),
+          sideEdge: css('.side').borderRightWidth,
+          frame: css('.app').backgroundColor !== css('.main').backgroundColor
+        }
+      })
+      expect(panels.gap).toBeGreaterThanOrEqual(5)
+      expect(panels.bottom).toBeGreaterThanOrEqual(5)
+      expect(panels.radius).toBeGreaterThan(4)
+      expect(panels.sideRadius).toBeGreaterThan(4)
+      expect(panels.sideEdge).toBe('0px')
+      expect(panels.frame).toBe(true)
       await shot(win, 'chat')
       // An empty project opens to a "New chat" row (#87).
       const empty = side.locator('.proj-empty').first()
