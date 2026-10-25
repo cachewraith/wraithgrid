@@ -24,12 +24,12 @@ export function peakUse(
 
 /**
  * A turn that failed because the account is out of quota. claude: "Claude AI usage limit
- * reached|…", "You've hit your limit · resets …"; codex: "You've hit your usage limit…",
+ * reached|…", "You've hit your limit · resets …", "You've hit your session limit · resets …"; codex: "You've hit your usage limit…",
  * `usageLimitExceeded`. Rate limits of the API itself (429 "slow down") are not this.
  */
 export function isLimitError(error: string | null): boolean {
   if (!error) return false
-  return /usage limit|hit your (?:usage )?limit|limit reached|usageLimitExceeded|out of (?:credits|quota)/i.test(
+  return /usage limit|hit your (?:usage |session |weekly )?limit|limit reached|usageLimitExceeded|out of (?:credits|quota)/i.test(
     error
   )
 }
