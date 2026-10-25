@@ -45,6 +45,8 @@ export interface ChatCommand {
   aliases: string[]
   /** Part of the CLI itself rather than a plugin, skill or the user's own file. */
   builtin: boolean
+  /** Named in text as `$name` rather than run as `/name` (codex skills). */
+  mention?: boolean
 }
 
 export interface ChatAccountInfo {

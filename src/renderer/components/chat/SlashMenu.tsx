@@ -12,6 +12,7 @@ export function SlashMenu({
   items,
   active,
   query,
+  sigil,
   onPick,
   onHover
 }: {
@@ -19,6 +20,8 @@ export function SlashMenu({
   items: SlashItem[]
   active: number
   query: string
+  /** What opened it: `/`, or `$` for skills only. */
+  sigil: '/' | '$'
   onPick: (item: SlashItem) => void
   onHover: (i: number) => void
 }) {
@@ -39,7 +42,10 @@ export function SlashMenu({
   if (!items.length)
     return (
       <div className="slash" role="status">
-        <p className="slash-none">No command matches “/{query}”.</p>
+        <p className="slash-none">
+          No {sigil === '$' ? 'skill' : 'command'} matches “{sigil}
+          {query}”.
+        </p>
       </div>
     )
 
@@ -67,7 +73,8 @@ export function SlashMenu({
               onClick={() => onPick(it)}
             >
               <span className="slash-nm">
-                /{it.name}
+                {it.sigil}
+                {it.name}
                 {it.argumentHint ? <span className="slash-arg"> {it.argumentHint}</span> : null}
               </span>
               {it.source ? <span className="slash-src">{it.source}</span> : null}

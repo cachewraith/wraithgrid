@@ -4,7 +4,12 @@ import { describe, expect, it } from 'vitest'
 import type { ChatEvent } from '@shared/chat'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { chatAdapterFor } from '../../src/main/chat/adapter'
-import { createCodexAdapter, describeCodexItem, parseCodexModels } from '../../src/main/chat/codex'
+import {
+  createCodexAdapter,
+  describeCodexItem,
+  parseCodexModels,
+  parseCodexSkills
+} from '../../src/main/chat/codex'
 import { EMPTY_THREAD, addUserMessage, applyChatEvent } from '../../src/renderer/lib/chat-thread'
 
 // Real `codex app-server` output (codex-cli 0.163.0; account details replaced): a turn with two
@@ -90,6 +95,7 @@ describe('codex chat adapter (#40)', () => {
       'model/list',
       'account/read',
       'account/rateLimits/read',
+      'skills/list',
       'turn/start',
       'answer 0',
       'answer 1',
@@ -101,14 +107,14 @@ describe('codex chat adapter (#40)', () => {
       approvalPolicy: 'untrusted',
       sandbox: 'workspace-write'
     })
-    expect(sent[6]!.params).toMatchObject({
+    expect(sent[7]!.params).toMatchObject({
       threadId: '01a16411-1120-7012-99ec-710e87e01fa5',
       input: [{ type: 'text', text: 'do it', text_elements: [] }],
       effort: 'low',
       approvalPolicy: 'untrusted'
     })
-    expect(sent[7]).toEqual({ jsonrpc: '2.0', id: 0, result: { decision: 'accept' } })
-    expect(sent[10]!.params).toMatchObject({ turnId: '01a16411-3802-7cc1-89d6-31ba12ef7f39' })
+    expect(sent[8]).toEqual({ jsonrpc: '2.0', id: 0, result: { decision: 'accept' } })
+    expect(sent[11]!.params).toMatchObject({ turnId: '01a16411-3802-7cc1-89d6-31ba12ef7f39' })
   })
 
   it('turns the recording into chat events', () => {
@@ -259,5 +265,69 @@ describe('codex chat adapter (#40)', () => {
         ]
       }).map((m) => m.value)
     ).toEqual(['y'])
+  })
+
+  it('lists codex skills for the $ menu and sends the named ones as skill inputs (#96)', () => {
+    // Shape from codex-cli 0.164.0's `skills/list` schema.
+    const listed = {
+      data: [
+        {
+          cwd: '/p',
+          errors: [],
+          skills: [
+            {
+              name: 'review',
+              path: '/h/skills/review/SKILL.md',
+              description: 'Long text',
+              shortDescription: 'Review the diff',
+              enabled: true,
+              scope: 'user'
+            },
+            {
+              name: 'off',
+              path: '/h/skills/off/SKILL.md',
+              description: '',
+              enabled: false,
+              scope: 'user'
+            },
+            {
+              name: 'review',
+              path: '/p/.codex/skills/review/SKILL.md',
+              description: 'dup',
+              enabled: true,
+              scope: 'repo'
+            }
+          ]
+        }
+      ]
+    }
+    expect(parseCodexSkills(listed)).toEqual([
+      { name: 'review', path: '/h/skills/review/SKILL.md', description: 'Review the diff' }
+    ])
+
+    const a = createCodexAdapter()
+    a.args(base)
+    a.hello()
+    const ready = a.decode({ id: 1, result: {} }).replies as Line[]
+    const list = ready.find((m) => m.method === 'skills/list')!
+    const ev = a.decode({ id: list.id, result: listed }).events
+    expect(ev[0]).toMatchObject({
+      t: 'capabilities',
+      commands: [{ name: 'review', description: 'Review the diff', mention: true }]
+    })
+    const start = ready.find((m) => m.method === 'thread/start')!
+    a.decode({ id: start.id, result: { thread: { id: 't1' } } })
+    expect((a.user('$review the diff, not $5', []) as Line).params).toMatchObject({
+      input: [
+        { type: 'text', text: '$review the diff, not $5' },
+        { type: 'skill', name: 'review', path: '/h/skills/review/SKILL.md' }
+      ]
+    })
+    expect((a.user('no skill here', []) as Line).params).toMatchObject({
+      input: [{ type: 'text' }]
+    })
+    // A skill file changed: ask again, past codex's cache.
+    const again = a.decode({ method: 'skills/changed', params: {} }).replies as Line[]
+    expect(again[0]).toMatchObject({ method: 'skills/list', params: { forceReload: true } })
   })
 })

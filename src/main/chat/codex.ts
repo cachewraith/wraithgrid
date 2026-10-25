@@ -9,6 +9,7 @@ import {
   clip,
   type ApprovalDecision,
   type ChatAccountInfo,
+  type ChatCommand,
   type ChatEvent,
   type ChatMode,
   type ChatModel,
@@ -67,6 +68,41 @@ export function parseCodexModels(result: unknown): ChatModel[] {
         .map((e) => str(e.reasoningEffort))
         .filter((e) => (CHAT_EFFORTS as readonly string[]).includes(e))
     }))
+}
+
+/** A skill codex found (`skills/list`), for the chat box's `$` menu and the turn's input. */
+export interface CodexSkill {
+  name: string
+  path: string
+  description: string
+}
+
+/** `skills/list` → the enabled skills, one per name (the first cwd entry wins). */
+export function parseCodexSkills(result: unknown): CodexSkill[] {
+  const entries = isObj(result) && Array.isArray(result.data) ? result.data.filter(isObj) : []
+  const seen = new Map<string, CodexSkill>()
+  for (const e of entries)
+    for (const s of Array.isArray(e.skills) ? e.skills.filter(isObj) : []) {
+      const name = str(s.name)
+      if (!name || !str(s.path) || s.enabled === false || seen.has(name)) continue
+      const ui = isObj(s.interface) ? s.interface : {}
+      seen.set(name, {
+        name: name.slice(0, 100),
+        path: str(s.path),
+        description: (str(ui.shortDescription) || str(s.shortDescription) || str(s.description))
+          .replace(/\s+/g, ' ')
+          .slice(0, 400)
+      })
+    }
+  return [...seen.values()].slice(0, 300)
+}
+
+/** The skills a message names as `$name`, as codex's `skill` inputs (how its own TUI sends them). */
+export function skillInputs(text: string, skills: readonly CodexSkill[]): Obj[] {
+  const named = new Set([...text.matchAll(/(?:^|\s)\$([A-Za-z0-9_.:-]+)/g)].map((m) => m[1]!))
+  return skills
+    .filter((s) => named.has(s.name))
+    .map((s) => ({ type: 'skill', name: s.name, path: s.path }))
 }
 
 /** codex's rate limits → the usage windows (primary = 5 hours, secondary = a week). */
@@ -224,6 +260,16 @@ export function createCodexAdapter(): ChatAdapter {
   /** What codex offers, kept together: each answer fills in its half. */
   let models: ChatModel[] = []
   let account: ChatAccountInfo | null = null
+  let skills: CodexSkill[] = []
+  const commands = (): ChatCommand[] =>
+    skills.map((s) => ({
+      name: s.name,
+      description: s.description,
+      argumentHint: '',
+      aliases: [],
+      builtin: false,
+      mention: true
+    }))
   /** Tool items seen, so an approval can show what it is about. */
   const items = new Map<string, Obj>()
 
@@ -269,7 +315,7 @@ export function createCodexAdapter(): ChatAdapter {
         } else if (what === 'turn/start') {
           push({ t: 'notice', level: 'error', text })
           push({ t: 'busy', busy: false })
-        } else if (what !== 'account/rateLimits/read' && what !== 'model/list')
+        } else if (!['account/rateLimits/read', 'model/list', 'skills/list'].includes(what))
           push({ t: 'notice', level: 'error', text })
         return out
       }
@@ -283,6 +329,7 @@ export function createCodexAdapter(): ChatAdapter {
           reply(request('model/list', {}))
           reply(request('account/read', {}))
           reply(request('account/rateLimits/read', null))
+          reply(request('skills/list', {}))
           break
         case 'thread/list': {
           const last = isObj(r) && Array.isArray(r.data) ? r.data.filter(isObj)[0] : undefined
@@ -311,7 +358,7 @@ export function createCodexAdapter(): ChatAdapter {
         }
         case 'model/list':
           models = parseCodexModels(r)
-          push({ t: 'capabilities', models, account, commands: [] })
+          push({ t: 'capabilities', models, account, commands: commands() })
           break
         case 'account/read': {
           const a = isObj(r) && isObj(r.account) ? r.account : null
@@ -327,10 +374,14 @@ export function createCodexAdapter(): ChatAdapter {
               plan: str(a.planType) ? `ChatGPT ${str(a.planType)}` : str(a.type) || null
             }
             // The list and the account come in either order: say both each time.
-            push({ t: 'capabilities', models, account, commands: [] })
+            push({ t: 'capabilities', models, account, commands: commands() })
           }
           break
         }
+        case 'skills/list':
+          skills = parseCodexSkills(r)
+          push({ t: 'capabilities', models, account, commands: commands() })
+          break
         case 'account/rateLimits/read': {
           const l = limitsOf(isObj(r) ? r.rateLimits : null)
           if (l) push(l)
@@ -448,6 +499,9 @@ export function createCodexAdapter(): ChatAdapter {
           push({ t: 'notice', level: 'error', text: str(e.message) })
         break
       }
+      case 'skills/changed':
+        reply(request('skills/list', { forceReload: true }))
+        break
       case 'thread/compacted':
         push({ t: 'notice', level: 'info', text: 'Context compacted' })
         break
@@ -507,6 +561,7 @@ export function createCodexAdapter(): ChatAdapter {
     user: (text, images) => {
       const input: Obj[] = [
         ...(text ? [{ type: 'text', text, text_elements: [] }] : []),
+        ...skillInputs(text, skills),
         ...saveChatImages(images).map((path) => ({ type: 'localImage', path }))
       ]
       if (!thread) {

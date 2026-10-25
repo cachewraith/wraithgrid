@@ -2,6 +2,7 @@
 
 ## 2026-10-25
 
+- [codex] Codex chats suggest skills: `$` (anywhere, after a space) opens the menu with codex's skills, `/` lists them too; picking inserts `$name`, and sending adds codex's `skill` input for each named skill; list from app-server `skills/list`, refreshed on `skills/changed` (#96) (files: src/main/chat/codex.ts, src/shared/chat.ts, src/renderer/lib/slash.ts, src/renderer/components/chat/{Composer,SlashMenu}.tsx, tests/unit/{chat-codex,slash}.test.ts, tests/fixtures/fake-codex.mjs, tests/e2e/chat-codex.spec.ts, docs/{CONTEXT,DECISIONS}.md)
 - [themes] Every built-in theme uses the same (medium) corner radius; Midnight, Paper and Clay no longer set their own, so switching themes changes colours, not shape; custom themes still pick small/large (#85) (files: src/shared/themes.ts, tests/unit/themes.test.ts)
 
 ## 2026-10-24

@@ -224,12 +224,36 @@ function appServer() {
           }
         })
         break
+      case 'skills/list':
+        send({
+          id: m.id,
+          result: {
+            data: [
+              {
+                cwd: process.cwd(),
+                errors: [],
+                skills: [
+                  {
+                    name: 'review',
+                    path: path.join(home, 'skills/review/SKILL.md'),
+                    description: 'Review the current diff',
+                    enabled: true,
+                    scope: 'user'
+                  }
+                ]
+              }
+            ]
+          }
+        })
+        break
       case 'turn/interrupt':
         send({ id: m.id, result: {} })
         endTurn('interrupted')
         break
       case 'turn/start': {
-        const text = (p.input ?? []).map((i) => i.text ?? `[${i.type}]`).join(' ')
+        const text = (p.input ?? [])
+          .map((i) => i.text ?? (i.type === 'skill' ? `[skill ${i.name}]` : `[${i.type}]`))
+          .join(' ')
         const file = findRollout(thread)
         if (file) fs.appendFileSync(file, `${JSON.stringify({ user: text })}\n`)
         const id = `turn-${process.pid}-${++n}`
