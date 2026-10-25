@@ -3,7 +3,7 @@
 ## Purpose
 Electron desktop app that runs many official agent CLI sessions side by side, one per pane,
 each with its own account and project folder: `claude`, `gemini`, `agy`, `codex`, `opencode`,
-`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.21.0.
+`cursor-agent`, `copilot` (config-dir variables and sign-in isolation in `src/shared/agent-clis.ts`). Windows, Linux and macOS. v1.22.0.
 
 ## Stack
 Electron 44, electron-vite 5, React 19, TypeScript 6, zustand, zod 4, @xterm/xterm 6, node-pty,
@@ -146,4 +146,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-v1.21.0 (2026-10-25): #85, #96, #89, #79, #100, #103, #77 (scheduled chats + Send later), #107 (PRs #97–#108). Merged after v1.21.0: #109 (scheduled run / Start team folder, PR #111). Merged: #110 chat-only panes (PR #112). #74 web preview merged (PRs #113, #114). Open: #76 Rust host. Manual follow-ups: tray wake-up for scheduled jobs and the one-row header on Windows/macOS; verify gemini/copilot shared-brain paths with real CLIs; real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.
+v1.22.0 (2026-10-25): web preview + Attach to chat (#74, PRs #113–#114), chat-only panes (#110, PR #112), scheduled run/Start team folder (#109, PR #111). Open: #76 Rust host (needs an ADR). Preview untested on Windows/macOS and real Vite/Next/Laravel. Manual follow-ups: tray wake-up for scheduled jobs and the one-row header on Windows/macOS; verify gemini/copilot shared-brain paths with real CLIs; real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.

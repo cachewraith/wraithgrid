@@ -1,4 +1,21 @@
-# What's new in 1.21.0: scheduled chats, project teams and one header row
+# What's new in 1.22.0: web preview, and chats stay chats
+
+*v1.22.0 · 2026-10-25*
+
+| New | What changed |
+|---|---|
+| Web preview | **Preview** in a project's menu (or the command palette) runs the project's dev server and shows the site in a pane beside the chat. The command is found in package.json or Laravel's artisan and saved on the project; back, forward, reload, the address, open in browser and the server log are in its toolbar. Only addresses on this computer load, in the preview's own session; other links open in your browser |
+| Attach to chat | The preview's **Attach to chat** puts a screenshot of the page and its console errors and failed requests into the project's chat, ready to send, so the agent can see what it built |
+| Chats stay chats | Claude, Codex and Antigravity always open as chats: the Chat/Terminal switch and the terminal-only `/` commands are gone. Panes saved as terminals open as chats once; plain shells, other CLIs and remote panes stay terminals |
+| Sign in from a chat | A chat whose account isn't signed in has a **Sign in** button |
+
+| Fix | What changed |
+|---|---|
+| Scheduled chats and teams | A scheduled chat or a team starts in the project's folder (or the folder its chats use) instead of your home folder, so the agent no longer asks which project to work on |
+
+---
+
+## Previously, in 1.21.0: scheduled chats, project teams and one header row
 
 *v1.21.0 · 2026-10-25*
 
