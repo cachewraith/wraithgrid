@@ -21,11 +21,19 @@ import { parseWhatsNew } from '@shared/whats-new'
 import trayIconPath from '../../build/icon.png?asset'
 import { soonestRun } from '@shared/schedule'
 import { IPC } from '@shared/ipc-channels'
-import type { LoginEvent, PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
+import type {
+  LoginEvent,
+  PreviewEventMessage,
+  PtyDataEvent,
+  PtyExitEvent,
+  UpdateProgress
+} from '@shared/ipc-contract'
 import type { ChatEventMessage } from '@shared/chat'
 import { ChatSessions } from './chat/sessions'
 import { forceKillTree, spawnChatChild } from './chat/spawn'
 import { Logins } from './login'
+import { DevServers } from './preview'
+import { isLocalUrl, PREVIEW_PARTITION } from '@shared/preview'
 import type { GitRunner } from './git'
 import { resolveTheme, type CloseMode, type Machine, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
@@ -86,7 +94,14 @@ const envReady: Promise<void> = (async () => {
 
 function send(
   channel: string,
-  payload?: PtyDataEvent | PtyExitEvent | UpdateProgress | ChatEventMessage | LoginEvent | string
+  payload?:
+    | PtyDataEvent
+    | PtyExitEvent
+    | UpdateProgress
+    | ChatEventMessage
+    | LoginEvent
+    | PreviewEventMessage
+    | string
 ): void {
   const wc = mainWindow?.webContents
   if (wc && !wc.isDestroyed()) wc.send(channel, payload)
@@ -112,6 +127,13 @@ const chats = new ChatSessions({
     usage.onChatEvent(paneId, event)
     send(IPC.chatEvent, { paneId, event })
   },
+  forceKill: forceKillTree
+})
+
+// Preview panes' dev servers (#74): over pipes in the project folder; stopped on quit.
+const devServers = new DevServers({
+  spawn: spawnChatChild,
+  emit: (paneId, event) => send(IPC.previewEvent, { paneId, event }),
   forceKill: forceKillTree
 })
 
@@ -256,7 +278,9 @@ function createWindow(hidden = false): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      spellcheck: false
+      spellcheck: false,
+      // Web preview panes (#74); main locks every one down in will-attach-webview.
+      webviewTag: true
     }
   })
   mainWindow = win
@@ -314,7 +338,41 @@ function hardenSessions(): void {
   )
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission))
 
+  // The web preview's own session (#74): it may ask for nothing.
+  const preview = session.fromPartition(PREVIEW_PARTITION)
+  preview.setPermissionRequestHandler((_wc, _permission, cb) => cb(false))
+  preview.setPermissionCheckHandler(() => false)
+
   app.on('web-contents-created', (_e, contents) => {
+    const external = (url: string): void => {
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+    }
+    // A preview moves around its local site; anything else opens in the system browser.
+    if (contents.getType() === 'webview') {
+      const stay = (e: Electron.Event, url: string): void => {
+        if (isLocalUrl(url)) return
+        e.preventDefault()
+        external(url)
+      }
+      contents.on('will-navigate', stay)
+      contents.on('will-redirect', stay)
+      contents.setWindowOpenHandler(({ url }) => {
+        external(url)
+        return { action: 'deny' }
+      })
+      return
+    }
+    // Only a sandboxed page from this computer, in the preview's own session, with no preload.
+    contents.on('will-attach-webview', (e, prefs, params) => {
+      delete prefs.preload
+      prefs.nodeIntegration = false
+      prefs.nodeIntegrationInSubFrames = false
+      prefs.contextIsolation = true
+      prefs.sandbox = true
+      prefs.webSecurity = true
+      if (params.partition !== PREVIEW_PARTITION || !isLocalUrl(params.src ?? ''))
+        e.preventDefault()
+    })
     // The app never navigates; links open in the system browser (http/https only).
     contents.on('will-navigate', (e, url) => {
       if (url !== contents.getURL()) e.preventDefault()
@@ -346,6 +404,7 @@ function cleanup(intent: QuitIntent): Promise<void> {
     intent === 'keep' ? ptys.detach() : ptys.stopAll(),
     chats.stopAll(),
     logins.stopAll(),
+    devServers.stopAll(),
     router.detachRemotes(),
     store.flush(),
     usage.flush()
@@ -701,6 +760,7 @@ void app.whenReady().then(() => {
     notifyPane: showPaneNotice,
     chats,
     logins,
+    devServers,
     chatDir: path.join(app.getPath('userData'), 'chats'),
     usage,
     onConfigChanged: (prev, next) => {

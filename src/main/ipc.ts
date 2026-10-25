@@ -67,6 +67,7 @@ import {
   type ThemeImportResult,
   type ThemeListResult,
   notifyPaneArgs,
+  previewPaneArgs,
   pickPathArgs,
   folderPathArgs,
   shellListArgs,
@@ -180,6 +181,8 @@ import { readPicked } from './chat/attach'
 import { listFolder } from './folders'
 import { copyCodexRollout, copyTranscript } from './chat/transcript'
 import { LOGIN_FLOWS, type Logins } from './login'
+import { detectDevCommand, shellLaunch } from '@shared/preview'
+import { readProjectFiles, type DevServers } from './preview'
 import type { ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
@@ -221,6 +224,8 @@ export interface IpcDeps {
   usage?: Pick<UsageStore, 'get'>
   /** Sign-in dialogs' `claude auth login` runs. */
   logins?: Logins
+  /** Preview panes' dev servers (#74). */
+  devServers?: DevServers
 }
 
 const log = (msg: string): void => console.warn(`[wraithgrid] ${msg}`)
@@ -844,6 +849,50 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     },
     fail('Could not update the shared CLAUDE.md and skills')
   )
+
+  // ---- Web preview (#74): a preview pane's dev server, in its project's folder ------
+
+  /** A preview pane on this computer, with its project. */
+  const previewPane = (paneId: string) => {
+    for (const ws of store.get().workspaces) {
+      const pane = ws.panes.find((p) => p.id === paneId)
+      if (pane) return pane.view === 'preview' && !ws.machineId ? { ws, pane } : null
+    }
+    return null
+  }
+  handle(
+    IPC.previewDetect,
+    previewPaneArgs,
+    async (a): Promise<{ command: string; source: string } | null> => {
+      const found = previewPane(a.paneId)
+      if (!found) return null
+      return detectDevCommand(await readProjectFiles(resolveUserPath(found.pane.cwd, homeDir)))
+    },
+    null
+  )
+  handle(
+    IPC.previewStart,
+    previewPaneArgs,
+    async (a): Promise<SimpleResult> => {
+      const found = previewPane(a.paneId)
+      if (!found) return fail('Not a preview on this computer.')
+      const command = found.ws.preview.command.trim()
+      if (!command) return fail('Set the command that starts the dev server.')
+      if (!deps.devServers) return fail('Previews are not available.')
+      await deps.envReady
+      const env: Record<string, string> = {}
+      for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v
+      // The server is shown here: tools that open a browser tab themselves shouldn't.
+      env.BROWSER = 'none'
+      const { file, args } = shellLaunch(command, process.platform, env)
+      const cwd = resolveUserPath(found.pane.cwd, homeDir)
+      log(`preview ${a.paneId}: ${command} in ${contractHome(cwd, homeDir)}`)
+      deps.devServers.start(a.paneId, { file, args, cwd, env })
+      return { ok: true }
+    },
+    fail('Could not start the dev server')
+  )
+  listen(IPC.previewStop, previewPaneArgs, (a) => deps.devServers?.stop(a.paneId))
 
   // ---- External links --------------------------------------------------------------
 

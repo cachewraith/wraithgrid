@@ -1374,3 +1374,142 @@ input[type='color']::-webkit-color-swatch {
   grid-template-columns: minmax(0, 1fr) 200px auto auto;
   cursor: default;
 }
+
+/* ---- Web preview (#74): toolbar, page, server log, start form ----------------------- */
+.pv-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--bg);
+}
+.pv-host > * {
+  flex: 1;
+  min-width: 0;
+}
+.pv {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pv-tb {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+.pv-fwd svg {
+  transform: scaleX(-1);
+}
+.pv-url {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  margin: 0 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: calc(6px * var(--rs, 1));
+  background: var(--raise);
+  color: var(--mu);
+  font-size: 11.5px;
+  outline: none;
+}
+.pv-url:focus {
+  color: var(--tx);
+}
+.pv-log-btn.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.pv-web {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #fff;
+}
+.pv-web.dim {
+  opacity: 0.35;
+}
+.pv-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.pv-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--err);
+}
+.pv-sp {
+  flex: 1;
+}
+.pv-wait {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: var(--fa);
+  font-size: 12px;
+  padding: 0 20px;
+  text-align: center;
+}
+.pv-log {
+  flex: none;
+  height: 140px;
+  border-top: 1px solid var(--line);
+  background: var(--raise);
+}
+.pv-wait + .pv-log {
+  flex: 1;
+  height: auto;
+}
+.pv-log pre {
+  height: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--mu);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.pv-start {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.pv-start form {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pv-start h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.pv-note {
+  margin: -6px 0 0;
+  color: var(--fa);
+  font-size: 12px;
+}
+.pv-note.warn {
+  margin: 0;
+  color: var(--warn);
+}
+.pv-start .inpt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.pv-acts {
+  display: flex;
+  gap: 8px;
+}

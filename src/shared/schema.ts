@@ -115,6 +115,13 @@ export const workspaceSchema = z.object({
   layout: layoutNodeSchema.nullable(),
   machineId: idSchema.nullable().default(null),
   folder: z.string().max(4096).default(''),
+  preview: z
+    .object({
+      command: z.string().max(1000).default(''),
+      url: z.string().max(2048).default('')
+    })
+    .default({ command: '', url: '' })
+    .catch({ command: '', url: '' }),
   accountId: idSchema.nullable().default(null),
   history: z
     .array(z.object({ pane: paneSchema, closedAt: z.number().int().nonnegative() }))
@@ -306,6 +313,7 @@ export function defaultConfig(): Config {
         layout: null,
         machineId: null,
         folder: '',
+        preview: { command: '', url: '' },
         accountId: null,
         history: [],
         team: []

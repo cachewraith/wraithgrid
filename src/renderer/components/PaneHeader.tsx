@@ -16,6 +16,8 @@ interface Props {
   cli: AgentCli | null
   accountName: string | null
   status: PaneStatus
+  /** A preview's server state (#74), in place of the agent's. */
+  stateWord?: { word: string; tone: string }
   zoomed: boolean
   git: GitStatus | undefined
   /** The grid shows only this pane: the header is the app's top row (#89). */
@@ -59,7 +61,7 @@ function stateWord(s: PaneStatus): { word: string; tone: string } {
  */
 export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
   const zoomLabel = zoomed(p.zoomed)
-  const st = stateWord(p.status)
+  const st = p.stateWord ?? stateWord(p.status)
   const onDoubleClick = useTitleDoubleClick()
   return (
     <div

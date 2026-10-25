@@ -88,5 +88,9 @@ export const IPC = {
   themesCommunityInstall: 'themes:communityInstall',
   themesCommunityRemove: 'themes:communityRemove',
   themesOpenFolder: 'themes:openFolder',
-  usageGet: 'usage:get'
+  usageGet: 'usage:get',
+  previewDetect: 'preview:detect',
+  previewStart: 'preview:start',
+  previewStop: 'preview:stop',
+  previewEvent: 'preview:event'
 } as const

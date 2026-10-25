@@ -26,6 +26,7 @@ import { EdgeResizer } from './EdgeResizer'
 import {
   IconChevron,
   IconClock,
+  IconGlobe,
   IconCompose,
   IconGauge,
   IconMods,
@@ -239,6 +240,15 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
                       }
                 ]
               : []),
+            ...(w.machineId
+              ? []
+              : [
+                  {
+                    label: 'Preview',
+                    icon: <IconGlobe small />,
+                    onSelect: () => void actions.openPreview(w.id)
+                  }
+                ]),
             { label: 'Rename', icon: <IconRename small />, onSelect: () => setRenaming(w.name) },
             {
               label: 'Change icon',
