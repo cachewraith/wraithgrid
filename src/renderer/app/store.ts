@@ -78,7 +78,14 @@ import {
 } from '../layout/tree'
 import { buildHandoff } from '../lib/chat-handoff'
 import { decideSwitch, nextAccount, peakUse } from '../lib/auto-switch'
-import { dueAction, nextRun, withRun, type ScheduledJob, type ScheduleRun } from '@shared/schedule'
+import {
+  dueAction,
+  nextRun,
+  toLocal,
+  withRun,
+  type ScheduledJob,
+  type ScheduleRun
+} from '@shared/schedule'
 import { newId } from '../lib/ids'
 import type { ChatBus } from '../lib/chat-bus'
 import type { PtyBus } from '../lib/pty-bus'
@@ -232,6 +239,8 @@ export interface AppState {
   runJobNow(id: string): void
   /** Checks every job: runs the due ones, records missed and finished runs. */
   tickSchedules(): void
+  /** "Send later" (#77): sends the text in this chat at a time, or when its limit resets. */
+  queueMessage(paneId: string, text: string, when: number | 'reset'): void
   restartPane(paneId: string): void
   /** Notes that a prompt was sent to an agent pane, so a restore can continue it. */
   markConversation(paneId: string): void
@@ -1365,7 +1374,35 @@ export function createAppStore({
         const job = get().config.schedules.find((j) => j.id === id)
         if (!job) return
         const run = startJobRun(job)
+        if (job.oneShot && run.result === 'running') return get().deleteJob(id)
         patchJob(id, (j) => withRun(j, run))
+      },
+
+      queueMessage(paneId, text, when) {
+        const found = findPane(get().config, paneId)
+        if (!found?.pane.accountId || !text.trim()) return
+        const limits = get().usage.limits[found.pane.accountId]
+        // The window that is full (the later reset when both are).
+        const window =
+          (limits?.sevenDay?.utilization ?? 0) > (limits?.fiveHour?.utilization ?? 0)
+            ? 'sevenDay'
+            : 'fiveHour'
+        get().saveJob({
+          id: newId('j'),
+          wsId: found.ws.id,
+          accountId: found.pane.accountId,
+          prompt: text.trim(),
+          model: null,
+          effort: null,
+          chatMode: null,
+          when: when === 'reset' ? { kind: 'reset', window } : { kind: 'once', at: toLocal(when) },
+          target: { kind: 'chat', paneId },
+          atLimit: 'wait',
+          enabled: true,
+          oneShot: true,
+          nextAt: null,
+          runs: []
+        })
       },
 
       tickSchedules() {
@@ -1399,6 +1436,11 @@ export function createAppStore({
               ...(j.runs[0]?.result === 'waiting' ? j : withRun(j, run)),
               nextAt: reset !== null ? reset + 30_000 : t + 10 * 60_000
             }))
+            continue
+          }
+          // A queued message is done once sent (or when its chat is gone).
+          if (cur.oneShot && run.result !== 'skipped') {
+            get().deleteJob(cur.id)
             continue
           }
           patchJob(cur.id, (j) =>

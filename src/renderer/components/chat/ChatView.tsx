@@ -15,7 +15,10 @@ import { accountById, findPane } from '../../app/store'
 import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
 import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
 import { createPortal } from 'react-dom'
-import { IconArrowDown, IconClose, IconRestart, IconTerminal } from '../icons'
+import { IconArrowDown, IconClock, IconClose, IconRestart, IconTerminal } from '../icons'
+import { fmtUntil } from '../../lib/usage-format'
+import { fmtWhen } from '@shared/schedule'
+import { useShallow } from 'zustand/react/shallow'
 import { Composer } from './Composer'
 import { ProviderLogo } from '../ProviderLogo'
 import { cycleModes, type ChatBackgroundTask } from '@shared/chat'
@@ -429,6 +432,23 @@ export function ChatView({ paneId, visible, focused }: Props) {
   }, [accounts, accountInfo, limits, at])
   const branch = useApp((s) => s.git[paneId]?.branch ?? '')
   const currentChoice = choices.find((c) => c.id === account?.id)
+  // "Send later" (#77): this chat's queued messages, and when its account's limit resets.
+  const queued = useApp(
+    useShallow((s) =>
+      s.config.schedules.filter(
+        (j) => j.oneShot && j.target.kind === 'chat' && j.target.paneId === paneId
+      )
+    )
+  )
+  const resetAt = (() => {
+    const l = account ? limits[account.id] : undefined
+    const times = [l?.fiveHour, l?.sevenDay]
+      .map((w) => liveWindow(w ?? null, at))
+      .filter((w) => w && w.utilization > 0)
+      .map((w) => w!.resetsAt)
+      .filter((t) => t > at)
+    return times.length ? Math.min(...times) : null
+  })()
   if (!pane) return null
 
   const cwdAbs = expandHome(pane.cwd, home)
@@ -547,6 +567,27 @@ export function ChatView({ paneId, visible, focused }: Props) {
         </button>
       )}
       <div className="chat-foot">
+        {queued.map((j) => (
+          <div key={j.id} className="cqueue" role="status" aria-label="Queued message">
+            <IconClock small />
+            <span className="cqueue-t" title={j.prompt}>
+              {j.prompt}
+            </span>
+            <span className="cqueue-w">
+              {j.when.kind === 'reset'
+                ? `when ${account?.name ?? 'the'} limit resets${j.nextAt ? ` · ${fmtUntil(j.nextAt, at)}` : ''}`
+                : j.nextAt
+                  ? `at ${fmtWhen(j.nextAt, at)} · ${fmtUntil(j.nextAt, at)}`
+                  : 'queued'}
+            </span>
+            <button className="btn sm gh" onClick={() => actions.deleteJob(j.id)}>
+              Cancel
+            </button>
+            <button className="btn sm" onClick={() => actions.runJobNow(j.id)}>
+              Send now
+            </button>
+          </div>
+        ))}
         {approval?.approval?.questions ? (
           <QuestionCard
             key={approval.approval.reqId}
@@ -647,6 +688,20 @@ export function ChatView({ paneId, visible, focused }: Props) {
           onSend={send}
           onStop={() => actions.chatInterrupt(paneId)}
           onPickFiles={() => api.chat.pickFiles(paneId)}
+          sendLater={
+            account
+              ? {
+                  reset:
+                    resetAt !== null
+                      ? {
+                          label: `When ${account.name}'s limit resets`,
+                          hint: fmtUntil(resetAt, at)
+                        }
+                      : null,
+                  onQueue: (text, when) => actions.queueMessage(paneId, text, when)
+                }
+              : undefined
+          }
           filePath={api.chat.filePath}
         />
       </div>

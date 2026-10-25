@@ -34,7 +34,9 @@ const RESULT_TONE: Record<RunResult, string> = {
 
 export function ScheduledView() {
   const actions = useActions()
-  const jobs = useApp((s) => s.config.schedules)
+  const all = useApp((s) => s.config.schedules)
+  const jobs = all.filter((j) => !j.oneShot)
+  const queued = all.filter((j) => j.oneShot)
   const workspaces = useApp((s) => s.config.workspaces)
   const accounts = useApp((s) => s.config.accounts)
   const now = useNow()
@@ -62,6 +64,42 @@ export function ScheduledView() {
             New job
           </button>
         </header>
+        {queued.length ? (
+          <section className="sch-q" aria-label="Queued messages">
+            <h2 className="pj-h">Queued messages</h2>
+            <div className="sch-list">
+              {queued.map((j) => {
+                const paneId = j.target.kind === 'chat' ? j.target.paneId : ''
+                const ws = workspaces.find((w) => w.id === j.wsId)
+                const title = ws?.panes.find((p) => p.id === paneId)?.title ?? 'a chat'
+                return (
+                  <div key={j.id} className="sch-row sch-qrow">
+                    <div className="sch-main">
+                      <div className="sch-t">{j.prompt.split('\n')[0]}</div>
+                      <div className="sch-where">
+                        <span>{ws?.name ?? 'project missing'}</span>·<span>“{title}”</span>
+                      </div>
+                    </div>
+                    <div className="sch-cell">
+                      <span className="sch-k">Sends</span>
+                      <span className="sch-m">
+                        {j.nextAt === null
+                          ? 'after the reset'
+                          : `${fmtWhen(j.nextAt, now)} · ${j.nextAt > now ? `in ${fmtUntil(j.nextAt, now)}` : 'now'}`}
+                      </span>
+                    </div>
+                    <button className="btn sm gh" onClick={() => actions.deleteJob(j.id)}>
+                      Cancel
+                    </button>
+                    <button className="btn sm" onClick={() => actions.runJobNow(j.id)}>
+                      Send now
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
         {jobs.length === 0 ? (
           <div className="pj-empty">
             <h2>No scheduled chats</h2>
@@ -231,6 +269,7 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
         target: { kind: 'new' },
         atLimit: 'wait',
         enabled: true,
+        oneShot: false,
         nextAt: null,
         runs: []
       }
