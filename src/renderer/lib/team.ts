@@ -51,3 +51,15 @@ export function teamWarnings(
 export function teamPaneIds(team: readonly TeamAgent[], panes: readonly Pane[]): string[] {
   return team.flatMap((a) => panes.filter((p) => p.teamAgentId === a.id).map((p) => p.id))
 }
+
+/** Accounts that two or more agents use: they share its limit (#100). */
+export function sharedAccounts(
+  team: readonly TeamAgent[]
+): { accountId: string; roles: string[] }[] {
+  const by = new Map<string, string[]>()
+  for (const a of team)
+    if (a.accountId) by.set(a.accountId, [...(by.get(a.accountId) ?? []), a.role])
+  return [...by]
+    .filter(([, roles]) => roles.length > 1)
+    .map(([accountId, roles]) => ({ accountId, roles }))
+}

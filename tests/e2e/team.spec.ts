@@ -81,9 +81,12 @@ test('a Claude reviewer and a Codex builder start together, each on its branch',
     await form.getByLabel('Role').fill('Tests')
     await form.getByRole('button', { name: 'Save' }).click()
     await expect(team.locator('.team-row')).toHaveCount(3)
+    // Its default account is the reviewer's: one limit for both (#100).
+    await expect(team.locator('.team-share')).toHaveText('Reviewer and Tests share work: one limit')
     await team.getByRole('button', { name: 'Agent Tests' }).click()
     await win.getByRole('menuitem', { name: 'Remove' }).click()
     await expect(team.locator('.team-row')).toHaveCount(2)
+    await expect(team.locator('.team-share')).toHaveCount(0)
 
     // ---- Start: both open side by side, each in its own worktree, role prompt sent first.
     await team.getByRole('button', { name: 'Start team' }).click()
@@ -102,6 +105,10 @@ test('a Claude reviewer and a Codex builder start together, each on its branch',
     // ---- Again: the open agents are focused, not started twice.
     await side.locator('.ws-row', { hasText: 'project' }).click()
     await expect(team).toContainText('2 of 2 running')
+    // The account's use as the CLI last reported it (#100).
+    await expect(
+      team.locator('.team-row', { hasText: 'Reviewer' }).locator('.team-use')
+    ).toHaveText(/^\d+%$/)
     await team.getByRole('button', { name: 'Agent Builder' }).click()
     await win.getByRole('menuitem', { name: 'Show this agent' }).click()
     await expect(win.locator('section.pane')).toHaveCount(2)

@@ -128,7 +128,7 @@ export function ProjectView() {
           </button>
         </header>
 
-        <TeamSection ws={ws} />
+        <TeamSection ws={ws} now={now} />
 
         {total > 0 ? (
           <label className="pj-search">

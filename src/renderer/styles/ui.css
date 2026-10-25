@@ -1088,3 +1088,23 @@ input[type='color']::-webkit-color-swatch {
   align-items: center;
   gap: 8px;
 }
+.team-an {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-use {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fa);
+  flex: none;
+}
+.team-use.team-warn {
+  color: var(--warn);
+}
+.team-share {
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--fa);
+}

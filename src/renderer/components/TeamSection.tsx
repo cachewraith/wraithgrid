@@ -5,7 +5,10 @@ import { CHAT_EFFORTS, CHAT_MODES, CHAT_MODE_LABEL, CHAT_MODEL_PATTERN } from '@
 import { TEAM_MAX, type TeamAgent, type Workspace } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { newId } from '../lib/ids'
-import { planTeam, teamBranch, teamWarnings } from '../lib/team'
+import { peakUse } from '../lib/auto-switch'
+import { planTeam, sharedAccounts, teamBranch, teamWarnings } from '../lib/team'
+import { fmtUntil } from '../lib/usage-format'
+import { liveWindow, type AccountLimits } from '@shared/usage'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ProviderLogo } from './ProviderLogo'
@@ -32,10 +35,13 @@ function settingsLine(a: TeamAgent): string {
   return parts.filter(Boolean).join(' · ') || 'default'
 }
 
-export function TeamSection({ ws }: { ws: Workspace }) {
+export function TeamSection({ ws, now }: { ws: Workspace; now: number }) {
   const actions = useActions()
   const accounts = useApp((s) => s.config.accounts)
   const runtime = useApp((s) => s.runtime)
+  const limits = useApp((s) => s.usage.limits)
+  const warnAt = useApp((s) => s.config.settings.autoSwitchAt)
+  const shared = sharedAccounts(ws.team)
   const [editing, setEditing] = useState<TeamAgent | null>(null)
   const [menu, setMenu] = useState<{ at: MenuPoint; agent: TeamAgent } | null>(null)
 
@@ -95,7 +101,8 @@ export function TeamSection({ ws }: { ws: Workspace }) {
                   {account ? (
                     <>
                       <ProviderLogo cli={account.cli} fallbackName={account.name} size={13} />
-                      {account.name}
+                      <span className="team-an">{account.name}</span>
+                      <AccountUse limits={limits[account.id]} now={now} warnAt={warnAt} />
                     </>
                   ) : (
                     <span className="team-warn">Account missing</span>
@@ -133,6 +140,12 @@ export function TeamSection({ ws }: { ws: Workspace }) {
             </div>
           )
         })}
+        {shared.map((s) => (
+          <p key={s.accountId} className="team-share">
+            {listRoles(s.roles)} share{' '}
+            {accounts.find((a) => a.id === s.accountId)?.name ?? 'an account'}: one limit
+          </p>
+        ))}
         {editing && !ws.team.some((a) => a.id === editing.id) ? (
           <AgentForm
             agent={editing}
@@ -173,6 +186,41 @@ export function TeamSection({ ws }: { ws: Workspace }) {
         />
       ) : null}
     </section>
+  )
+}
+
+/** "Builder and Tests", "A, B and C". */
+function listRoles(roles: string[]): string {
+  return roles.length < 2
+    ? (roles[0] ?? '')
+    : `${roles.slice(0, -1).join(', ')} and ${roles.at(-1)}`
+}
+
+/** The account's fuller window now, e.g. `42%`; amber from the auto-switch threshold (#100). */
+function AccountUse({
+  limits,
+  now,
+  warnAt
+}: {
+  limits: AccountLimits | undefined
+  now: number
+  warnAt: number
+}) {
+  const peak = peakUse(limits, now)
+  if (!peak || !limits) return null
+  const line = (name: string, w: AccountLimits['fiveHour']): string | null => {
+    const live = liveWindow(w, now)
+    return live
+      ? `${name} ${Math.round(live.utilization * 100)}% · resets in ${fmtUntil(live.resetsAt, now)}`
+      : null
+  }
+  const tip = [line('5-hour', limits.fiveHour), line('Weekly', limits.sevenDay)]
+    .filter(Boolean)
+    .join('\n')
+  return (
+    <span className={`team-use${peak.pct >= warnAt ? ' team-warn' : ''}`} title={tip}>
+      {peak.pct}%
+    </span>
   )
 }
 
