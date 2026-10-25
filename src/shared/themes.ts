@@ -239,7 +239,7 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'midnight',
     builtIn: true,
     name: 'Midnight',
-    style: { font: 'System', radius: 'small', depth: 'flat', density: 'compact', chatTextSize: 14 },
+    style: { font: 'System', depth: 'flat', density: 'compact', chatTextSize: 14 },
     mode: 'dark',
     colors: {
       bg: '#0f1420', sidebar: '#0b0f19', panel: '#151b29', raised: '#1b2333',
@@ -261,7 +261,7 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'clay',
     builtIn: true,
     name: 'Clay',
-    style: { radius: 'large', depth: 'deep', density: 'spacious', chatTextSize: 15, frameGradient: true },
+    style: { depth: 'deep', density: 'spacious', chatTextSize: 15, frameGradient: true },
     mode: 'dark',
     colors: {
       bg: '#1f1b18', sidebar: '#191613', panel: '#26211d', raised: '#2e2823',
@@ -305,7 +305,7 @@ export const BUILT_IN_THEMES: AppTheme[] = [
     id: 'paper',
     builtIn: true,
     name: 'Paper',
-    style: { radius: 'small', border: 'thick', depth: 'flat', monoFont: 'IBM Plex Mono', chatTextSize: 15 },
+    style: { border: 'thick', depth: 'flat', monoFont: 'IBM Plex Mono', chatTextSize: 15 },
     mode: 'light',
     colors: {
       bg: '#fbf8f1', sidebar: '#f3eee3', panel: '#fffdf8', raised: '#ece5d6',
