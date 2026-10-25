@@ -44,14 +44,16 @@ const sample = (): Config => ({
           chatSessionId: null,
           model: null,
           effort: null,
-          chatMode: null
+          chatMode: null,
+          teamAgentId: null
         }
       ],
       layout: { type: 'pane', paneId: 'p1' },
       machineId: null,
       folder: '',
       accountId: null,
-      history: []
+      history: [],
+      team: []
     }
   ],
   machines: [],

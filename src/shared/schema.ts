@@ -5,6 +5,7 @@ import {
   ACCOUNT_COLORS,
   AGENT_CLIS,
   SHORTCUT_IDS,
+  TEAM_MAX,
   CONFIG_VERSION,
   DIFF_WIDTH_DEFAULT,
   DIFF_WIDTH_MAX,
@@ -87,7 +88,19 @@ export const paneSchema = z.object({
   chatSessionId: chatSessionIdSchema.nullable().default(null).catch(null),
   model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
   effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
-  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null)
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
+  teamAgentId: idSchema.nullable().default(null).catch(null)
+})
+
+export const teamAgentSchema = z.object({
+  id: idSchema,
+  role: z.string().trim().min(1).max(40),
+  accountId: idSchema.nullable(),
+  model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
+  prompt: z.string().max(4000).default(''),
+  folder: z.enum(['worktree', 'shared']).default('worktree').catch('worktree')
 })
 
 export const workspaceSchema = z.object({
@@ -104,7 +117,8 @@ export const workspaceSchema = z.object({
     .array(z.object({ pane: paneSchema, closedAt: z.number().int().nonnegative() }))
     .max(200)
     .default([])
-    .catch([])
+    .catch([]),
+  team: z.array(teamAgentSchema).max(TEAM_MAX).default([]).catch([])
 })
 
 /** Never starts with `-` (it would be read as an ssh option) and has no spaces or quotes. */
@@ -228,7 +242,8 @@ export function defaultConfig(): Config {
         machineId: null,
         folder: '',
         accountId: null,
-        history: []
+        history: [],
+        team: []
       }
     ],
     machines: [],

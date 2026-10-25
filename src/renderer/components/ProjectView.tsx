@@ -6,6 +6,7 @@ import { accountById, activeWorkspace } from '../app/store'
 import { ago } from '../lib/time'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { ProjectIcon } from './ProjectIcon'
+import { TeamSection } from './TeamSection'
 import { IconCompose, IconSearch, IconTrash } from './icons'
 
 /** Matches a chat by its title, account or folder; every word must appear. */
@@ -126,6 +127,8 @@ export function ProjectView() {
             New chat
           </button>
         </header>
+
+        <TeamSection ws={ws} />
 
         {total > 0 ? (
           <label className="pj-search">

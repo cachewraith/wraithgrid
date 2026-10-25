@@ -13,6 +13,8 @@ import {
   IconCompose,
   IconDiff,
   IconFolder,
+  IconPlay,
+  IconStop,
   IconKeyboard,
   IconMoon,
   IconSearch,
@@ -86,6 +88,20 @@ function buildItems(s: AppState): Item[] {
           }
         ]
       : []),
+    // A project's team (#79): start it, or stop it while its agents run.
+    ...config.workspaces
+      .filter((w) => w.team.length)
+      .map((w): Item => {
+        const on = w.panes.some((p) => w.team.some((a) => a.id === p.teamAgentId))
+        return {
+          id: `team:${w.id}`,
+          group: 'Commands',
+          label: `${on ? 'Stop' : 'Start'} team: ${w.name}`,
+          sub: w.team.map((a) => a.role).join(' · '),
+          icon: on ? <IconStop /> : <IconPlay />,
+          run: () => (on ? s.stopTeam(w.id) : void s.startTeam(w.id))
+        }
+      }),
     {
       id: 'cmd:new-project',
       group: 'Commands',

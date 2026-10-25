@@ -245,6 +245,7 @@ export const IconTool = make(
 export const IconArrowUp = make(<path d="M8 13V3.5M4 7.5l4-4 4 4" />)
 export const IconArrowDown = make(<path d="M8 3v9.5M4 8.5l4 4 4-4" />)
 export const IconStop = make(<rect x="4.5" y="4.5" width="7" height="7" rx="1.5" />)
+export const IconPlay = make(<path d="M5.5 3.8v8.4L12 8z" />)
 export const IconCopy = make(
   <>
     <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />

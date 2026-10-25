@@ -177,6 +177,25 @@ export interface Pane {
   effort: ChatEffort | null
   /** The chat's permission mode; null: the CLI's default (ask before edits). */
   chatMode: ChatMode | null
+  /** The project team agent it was started as (#79), so Start team focuses it. */
+  teamAgentId: string | null
+}
+
+/** Agents saved on a project and started together (#79). */
+export const TEAM_MAX = 8
+
+/** One agent of a project's team: started as a chat titled with its role. */
+export interface TeamAgent {
+  id: string
+  role: string
+  accountId: string | null
+  model: string | null
+  effort: ChatEffort | null
+  chatMode: ChatMode | null
+  /** Sent as its first message when it starts; '' = none. */
+  prompt: string
+  /** Its own git worktree on `team/<role>`, or the project's folder (shared with the others). */
+  folder: 'worktree' | 'shared'
 }
 
 export type SplitDir = 'row' | 'col'
@@ -204,6 +223,8 @@ export interface Workspace {
   accountId: string | null
   /** Chats closed here, newest first: the project screen's History, reopened from there. */
   history: ArchivedChat[]
+  /** Its team (#79): agents started together; [] = none. */
+  team: TeamAgent[]
 }
 
 /** A closed chat, kept so it can be reopened and carry on (its saved view keeps its id). */
