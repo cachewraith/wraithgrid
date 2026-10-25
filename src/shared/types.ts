@@ -40,7 +40,7 @@ export const SHARED_MODES = ['overall', 'per-account'] as const
 export type SharedMode = (typeof SHARED_MODES)[number]
 
 /** How an agent pane is shown: a chat over the CLI's headless mode, or its own terminal UI. */
-export const PANE_VIEWS = ['chat', 'terminal'] as const
+export const PANE_VIEWS = ['chat', 'terminal', 'preview'] as const
 export type PaneView = (typeof PANE_VIEWS)[number]
 
 /** What closing the window does while agents run: ask, stop them, or keep them running. */
@@ -220,6 +220,8 @@ export interface Workspace {
   machineId: string | null
   /** The project's folder: where its new chats start. '' = none picked. */
   folder: string
+  /** Web preview (#74): its dev server command and fixed address ('' = read from its output). */
+  preview: { command: string; url: string }
   /** Default account for its new chats; null: the app-wide default. */
   accountId: string | null
   /** Chats closed here, newest first: the project screen's History, reopened from there. */

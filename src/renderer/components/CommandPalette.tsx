@@ -14,6 +14,7 @@ import {
   IconDiff,
   IconFolder,
   IconClock,
+  IconGlobe,
   IconPlay,
   IconStop,
   IconKeyboard,
@@ -117,6 +118,20 @@ function buildItems(s: AppState): Item[] {
       icon: <IconClock />,
       run: () => s.setView('scheduled')
     },
+    ...(() => {
+      const ws = config.workspaces.find((w) => w.id === config.activeWorkspace)
+      return ws && !ws.machineId
+        ? [
+            {
+              id: 'cmd:preview',
+              group: 'Commands' as const,
+              label: `Preview: open for ${ws.name}`,
+              icon: <IconGlobe />,
+              run: () => void s.openPreview(ws.id)
+            }
+          ]
+        : []
+    })(),
     {
       id: 'cmd:new-project',
       group: 'Commands',

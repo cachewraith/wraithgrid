@@ -4,6 +4,7 @@ import type {
   CliAction,
   LoginEvent,
   PtyDataEvent,
+  PreviewEventMessage,
   PtyExitEvent,
   UpdateProgress,
   WraithApi
@@ -155,6 +156,12 @@ const api: WraithApi = {
     marketplaces: () => ipcRenderer.invoke(IPC.modsMarketplaces, {}),
     addMarketplace: (source) => ipcRenderer.invoke(IPC.modsMarketplaceAdd, { source }),
     removeMarketplace: (name) => ipcRenderer.invoke(IPC.modsMarketplaceRemove, { name })
+  },
+  preview: {
+    detect: (paneId) => ipcRenderer.invoke(IPC.previewDetect, { paneId }),
+    start: (paneId) => ipcRenderer.invoke(IPC.previewStart, { paneId }),
+    stop: (paneId) => ipcRenderer.send(IPC.previewStop, { paneId }),
+    onEvent: (cb) => subscribe<PreviewEventMessage>(IPC.previewEvent, cb)
   },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),

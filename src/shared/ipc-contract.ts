@@ -18,6 +18,7 @@ import {
 } from './chat'
 import { idSchema, sshHostSchema } from './schema'
 import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
+import type { PreviewEvent } from './preview'
 import type { UsageData } from './usage'
 import type { ReleaseNote } from './whats-new'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
@@ -238,6 +239,13 @@ export const machineTestArgs = z.object({
 })
 export type MachineTestResult =
   { ok: true; appVersion: string; live: number } | { ok: false; error: string }
+
+export const previewPaneArgs = z.object({ paneId: idSchema })
+
+export interface PreviewEventMessage {
+  paneId: string
+  event: PreviewEvent
+}
 
 export const notifyPaneArgs = z.object({
   paneId: idSchema,
@@ -716,6 +724,15 @@ export interface WraithApi {
     addMarketplace(source: string): Promise<ModInstallResult>
     /** Removes a marketplace from every account that has it. */
     removeMarketplace(name: string): Promise<ModInstallResult>
+  }
+  /** Web preview (#74): the dev server of a preview pane, in its project's folder. */
+  preview: {
+    /** The command found in the pane's folder (package.json, lockfile, artisan), or null. */
+    detect(paneId: string): Promise<{ command: string; source: string } | null>
+    /** Runs the project's saved command; output and exit arrive as events. */
+    start(paneId: string): Promise<SimpleResult>
+    stop(paneId: string): void
+    onEvent(cb: (m: PreviewEventMessage) => void): () => void
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

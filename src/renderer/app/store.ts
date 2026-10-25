@@ -59,6 +59,7 @@ import {
   HISTORY_MAX,
   TEAM_MAX
 } from '@shared/types'
+import { isLocalUrl, PREVIEW_LOG_MAX } from '@shared/preview'
 import { SCHEDULES_MAX } from '@shared/schedule'
 
 /** How often scheduled jobs are checked (#77). */
@@ -180,6 +181,8 @@ export interface AppState {
   /** What the last change to CLAUDE.md/skills sharing did, for Settings to show. */
   sharedReport: SharedReportEntry[] | null
   runtime: Record<string, PaneRuntime>
+  /** Preview panes' dev servers (#74), by pane id. */
+  previews: Record<string, PreviewState>
   view: View
   accountsMode: AccountsMode
   modal: Modal | null
@@ -320,6 +323,11 @@ export interface AppState {
   setWorkspaceIcon(id: string, icon: string): void
   /** The project's folder, where its new chats start (#109); '' = none. */
   setWorkspaceFolder(id: string, folder: string): void
+  /** The project's web preview (#74): focuses it, or opens one beside the focused pane. */
+  openPreview(wsId: string): Promise<void>
+  /** Saves the command (and fixed address, '' = from its output), then starts the server. */
+  previewStart(paneId: string, command?: string, url?: string): Promise<void>
+  previewStop(paneId: string): void
   /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
   setWorkspaceMachine(id: string, machineId: string | null): void
   /** Adds a machine reached over ssh; returns an error to show, or null. */
@@ -467,6 +475,7 @@ export function accountById(config: Config, id: string | null): Account | undefi
  */
 export function paneView(config: Config, paneId: string): PaneView {
   const found = findPane(config, paneId)
+  if (found?.pane.view === 'preview') return 'preview'
   if (!found || found.pane.shell || found.pane.view !== 'chat' || found.ws.machineId)
     return 'terminal'
   const cli = accountById(config, found.pane.accountId)?.cli ?? 'claude'
@@ -513,6 +522,20 @@ function uniqueSlug(base: string, taken: Set<string>): string {
   let slug = base || 'account'
   for (let i = 2; taken.has(slug); i++) slug = `${base || 'account'}-${i}`
   return slug
+}
+
+/** A preview pane's dev server, as the view shows it (#74). */
+export interface PreviewState {
+  state: 'idle' | 'starting' | 'running' | 'stopped'
+  /** Where the page loads from: the project's fixed address, or the first one the server printed. */
+  url: string
+  log: string[]
+  exitCode: number | null
+  error: string | null
+}
+
+export function freshPreview(): PreviewState {
+  return { state: 'idle', url: '', log: [], exitCode: null, error: null }
 }
 
 function freshRuntime(extra: Partial<PaneRuntime> = {}): PaneRuntime {
@@ -652,6 +675,8 @@ export function createAppStore({
       const found = findPane(get().config, paneId)
       if (!found) return
       const { pane } = found
+      // A preview runs its dev server from its own view, when there is a command to run.
+      if (pane.view === 'preview') return patchRuntime(paneId, { started: true, status: 'idle' })
       if (paneView(get().config, paneId) === 'chat') return spawnChat(paneId, pane)
       const { cols, rows } = bus.size(paneId)
       // Only a pane's first start after launch resumes; a restart or a new pane starts fresh.
@@ -973,6 +998,11 @@ export function createAppStore({
     const dropPane = (paneId: string, archive = false): void => {
       api.pty.kill(paneId)
       api.chat.stop(paneId, !archive)
+      if (get().previews[paneId]) {
+        api.preview.stop(paneId)
+        const { [paneId]: _gone, ...previews } = get().previews
+        set({ previews })
+      }
       chat.forget(paneId, archive)
       bus.forget(paneId)
       const s = get()
@@ -1114,6 +1144,7 @@ export function createAppStore({
       claude: null,
       sharedReport: null,
       runtime: {},
+      previews: {},
       view: 'grid',
       accountsMode: 'list',
       modal: null,
@@ -1261,6 +1292,16 @@ export function createAppStore({
               spawnError: false
             }
           })
+        })
+        api.preview.onEvent(({ paneId, event }) => {
+          const cur = get().previews[paneId] ?? freshPreview()
+          const next: PreviewState =
+            event.kind === 'log'
+              ? { ...cur, log: [...cur.log, event.line].slice(-PREVIEW_LOG_MAX) }
+              : event.kind === 'url'
+                ? { ...cur, state: 'running', url: cur.url || event.url }
+                : { ...cur, state: 'stopped', exitCode: event.code, error: event.error ?? null }
+          set({ previews: { ...get().previews, [paneId]: next } })
         })
         bus.onLoginDetected((paneId) => {
           const found = findPane(get().config, paneId)
@@ -1963,6 +2004,7 @@ export function createAppStore({
           color: '',
           machineId,
           folder,
+          preview: { command: '', url: '' },
           accountId,
           panes: [],
           layout: null,
@@ -1993,6 +2035,69 @@ export function createAppStore({
       setWorkspaceIcon(id, icon) {
         if (icon && !PROJECT_ICON_ID.test(icon)) return
         get().updateConfig((cfg) => withWorkspace(cfg, id, (w) => ({ ...w, icon })))
+      },
+
+      async openPreview(wsId) {
+        const s = get()
+        const ws = s.config.workspaces.find((w) => w.id === wsId)
+        if (!ws || ws.machineId) return
+        if (s.config.activeWorkspace !== wsId) get().switchWorkspace(wsId)
+        const open = ws.panes.find((p) => p.view === 'preview')
+        if (open) return get().revealPane(open.id)
+        let cwd = projectFolder(ws)
+        if (!cwd) {
+          const picked = await api.dialog.pickFolder(s.config.settings.defaultCwd)
+          if (!picked) return
+          cwd = contractHome(picked, s.info.homeDir)
+          get().setWorkspaceFolder(wsId, cwd)
+        }
+        const id = addPaneToActive({
+          accountId: null,
+          cwd,
+          args: [],
+          shell: true,
+          slotId: null,
+          view: 'preview'
+        })
+        patchPane(id, { title: 'Preview' })
+      },
+
+      async previewStart(paneId, command, url) {
+        const found = findPane(get().config, paneId)
+        if (!found) return
+        if (command !== undefined)
+          get().updateConfig((c) =>
+            withWorkspace(c, found.ws.id, (w) => ({
+              ...w,
+              preview: { command: command.trim().slice(0, 1000), url: (url ?? '').trim() }
+            }))
+          )
+        const fixed = get().config.workspaces.find((w) => w.id === found.ws.id)?.preview.url ?? ''
+        set({
+          previews: {
+            ...get().previews,
+            [paneId]: { ...freshPreview(), state: 'starting', url: isLocalUrl(fixed) ? fixed : '' }
+          }
+        })
+        const r = await api.preview.start(paneId)
+        if (!r.ok) {
+          const cur = get().previews[paneId] ?? freshPreview()
+          set({
+            previews: {
+              ...get().previews,
+              [paneId]: { ...cur, state: 'stopped', exitCode: null, error: r.error }
+            }
+          })
+        }
+      },
+
+      previewStop(paneId) {
+        api.preview.stop(paneId)
+        const cur = get().previews[paneId]
+        if (cur)
+          set({
+            previews: { ...get().previews, [paneId]: { ...cur, state: 'stopped', exitCode: null } }
+          })
       },
 
       setWorkspaceFolder(id, folder) {

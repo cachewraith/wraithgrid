@@ -5,13 +5,22 @@ import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { DENSE_FONT_SIZE, PANE_STATUS_LABEL } from '@shared/types'
 import { useActions, useApp } from '../app/services'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { accountById, activeWorkspace, canChat, findPane, paneView, soloPaneId } from '../app/store'
+import {
+  accountById,
+  activeWorkspace,
+  canChat,
+  findPane,
+  paneView,
+  soloPaneId,
+  type PreviewState
+} from '../app/store'
 import { paneIds } from '../layout/tree'
 import type { Rect } from '../layout/focus'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { ChatView } from './chat/ChatView'
 import { IconBranch, IconCheck, IconClose, IconCompose, IconRestart } from './icons'
 import { PaneHeader } from './PaneHeader'
+import { PreviewView } from './PreviewView'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
 import { utilityItems } from './TopBar'
@@ -54,6 +63,14 @@ class PaneErrorBoundary extends Component<{ children: ReactNode }, { failed: boo
   }
 }
 
+/** A preview's header word (#74): its dev server, not an agent. */
+const PREVIEW_WORD: Record<PreviewState['state'], { word: string; tone: string }> = {
+  idle: { word: 'not started', tone: '' },
+  starting: { word: 'starting', tone: '' },
+  running: { word: 'running', tone: '' },
+  stopped: { word: 'stopped', tone: ' warn' }
+}
+
 export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabled }: Props) {
   const pane = useApp((s) => findPane(s.config, paneId)?.pane)
   const account = useApp((s) => accountById(s.config, pane?.accountId ?? null))
@@ -64,6 +81,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const home = useApp((s) => s.info.homeDir)
   const git = useApp((s) => s.git[paneId])
   const view = useApp((s) => paneView(s.config, paneId))
+  const previewState = useApp((s) => s.previews[paneId]?.state)
   const chatable = useApp((s) => canChat(s.config, paneId))
   const solo = useApp((s) => soloPaneId(s) === paneId)
   const hiddenCount = useApp((s) => {
@@ -100,6 +118,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const canResume = !pane.shell && !!AGENT_CLI_SPECS[cli].resumeArgs
   const cwd = contractHome(expandHome(pane.cwd, home), home)
   const isChat = view === 'chat'
+  const preview = view === 'preview' ? (previewState ?? 'idle') : null
   const loginNeeded = !isChat && !pane.shell && !!account && !account.signedIn && !exited
   const compact = !!rect && rect.width < 460
 
@@ -134,6 +153,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         cli={pane.shell ? null : cli}
         accountName={account?.name ?? null}
         status={status}
+        stateWord={preview ? PREVIEW_WORD[preview] : undefined}
         zoomed={zoomed}
         git={git}
         solo={solo}
@@ -150,7 +170,13 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
         view={chatable ? view : null}
       />
-      {isChat ? (
+      {view === 'preview' ? (
+        <div className="pv-host">
+          <PaneErrorBoundary>
+            <PreviewView paneId={paneId} />
+          </PaneErrorBoundary>
+        </div>
+      ) : isChat ? (
         <div className={`chat-host${zoomed ? ' lg' : ''}`}>
           <PaneErrorBoundary>
             <ChatView paneId={paneId} visible={!!rect} focused={focused} />

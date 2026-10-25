@@ -51,6 +51,7 @@ const sample = (): Config => ({
       layout: { type: 'pane', paneId: 'p1' },
       machineId: null,
       folder: '',
+      preview: { command: '', url: '' },
       accountId: null,
       history: [],
       team: []
