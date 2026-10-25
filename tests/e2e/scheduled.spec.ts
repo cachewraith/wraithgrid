@@ -154,7 +154,8 @@ test('Send later queues a message in the chat; Send now and Cancel', async () =>
     await expect(box).toHaveValue('')
     const strip = win.getByRole('status', { name: 'Queued message' })
     await expect(strip).toContainText('Remember MANGO')
-    await expect(strip).toContainText(/at \d\d:\d\d/)
+    // After 23:00 "in 1 hour" is tomorrow, shown with its day (`at Mon 00:00`).
+    await expect(strip).toContainText(/at (\w{3} )?\d\d:\d\d/)
     await strip.getByRole('button', { name: 'Send now' }).click()
     await expect(strip).toHaveCount(0)
     await expect(win.locator('.cmsg.agent').last()).toContainText('Remember MANGO')
@@ -173,7 +174,8 @@ test('Send later queues a message in the chat; Send now and Cancel', async () =>
     await q.getByRole('button', { name: 'Cancel' }).click()
     await expect(q).toHaveCount(0)
     const saved = () => JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8'))
-    await expect.poll(() => saved().schedules.length).toBe(0)
+    // Until the app has rewritten the file, the fixture has no schedules at all.
+    await expect.poll(() => saved().schedules?.length).toBe(0)
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })
