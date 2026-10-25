@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-25
+
+- [themes] Every built-in theme uses the same (medium) corner radius; Midnight, Paper and Clay no longer set their own, so switching themes changes colours, not shape; custom themes still pick small/large (#85) (files: src/shared/themes.ts, tests/unit/themes.test.ts)
+
 ## 2026-10-24
 
 - [test] shared e2e: wait for every account's links to go after "Each account its own" (accounts unlink one after another), fixing the v1.20.0 main-build failure on Linux CI ; ignore `core.[0-9]*` crash dumps (files: tests/e2e/shared.spec.ts, .gitignore)

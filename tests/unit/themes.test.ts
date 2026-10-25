@@ -280,4 +280,8 @@ describe('theme style (#24)', () => {
       expect(parseThemeFile(file).ok, t.id).toBe(true)
     }
   })
+
+  it('every built-in has the same corner radius, so switching changes colours, not shape (#85)', () => {
+    for (const t of BUILT_IN_THEMES) expect(themeVars(t)['--rs'], t.id).toBe('1.2')
+  })
 })
