@@ -111,13 +111,12 @@ test('app zoom keys, and the layout adapts to a small window', async () => {
     await expect(side).toHaveClass(/\bcol\b/)
     expect(saved().sidebarCollapsed).toBe(false)
 
-    // Pane headers keep the title and close button inside the pane; the account name hides.
+    // Pane headers keep the title and the ⋯ button inside the pane (#89).
     for (const p of await win.locator('section.pane').all()) {
       const box = (await p.boundingBox())!
-      const close = (await p.getByRole('button', { name: /Close pane/ }).boundingBox())!
-      expect(close.x + close.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
+      const more = (await p.locator('.ph-more').boundingBox())!
+      expect(more.x + more.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
       await expect(p.locator('.ph-title')).toBeVisible()
-      await expect(p.locator('.chip-nm')).toBeHidden()
     }
 
     // Settings: tabs on top, one column, nothing wider than the panel.

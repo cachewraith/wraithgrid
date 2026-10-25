@@ -4,7 +4,9 @@ import { contractHome, expandHome } from '@shared/paths'
 import { AGENT_CLI_SPECS } from '@shared/agent-clis'
 import { DENSE_FONT_SIZE, PANE_STATUS_LABEL } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { accountById, canChat, findPane, paneView } from '../app/store'
+import { SHORTCUT_HINT } from '../app/shortcuts'
+import { accountById, activeWorkspace, canChat, findPane, paneView, soloPaneId } from '../app/store'
+import { paneIds } from '../layout/tree'
 import type { Rect } from '../layout/focus'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { ChatView } from './chat/ChatView'
@@ -20,7 +22,7 @@ import {
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
-import { CHAT_MODE_LABEL } from '@shared/chat'
+import { utilityItems } from './TopBar'
 
 interface Props {
   paneId: string
@@ -71,12 +73,17 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const git = useApp((s) => s.git[paneId])
   const view = useApp((s) => paneView(s.config, paneId))
   const chatable = useApp((s) => canChat(s.config, paneId))
+  const solo = useApp((s) => soloPaneId(s) === paneId)
+  const hiddenCount = useApp((s) => {
+    const ws = activeWorkspace(s)
+    return solo ? ws.panes.length - paneIds(ws.layout).length : 0
+  })
   const actions = useActions()
   const [bannerHidden, setBannerHidden] = useState(false)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
 
   const drop = useDroppable({ id: paneId, disabled: dragDisabled })
-  const drag = useDraggable({ id: paneId, disabled: dragDisabled })
+  const drag = useDraggable({ id: paneId, disabled: dragDisabled || solo })
   const sectionRef = useRef<HTMLElement | null>(null)
   const { setNodeRef: setDropRef } = drop
   const { setNodeRef: setDragRef } = drag
@@ -111,6 +118,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
     drop.isOver && !drag.isDragging ? 'drop-target' : '',
     drag.isDragging ? 'dragging' : '',
     compact ? 'compact' : '',
+    solo ? 'solo' : '',
     isChat ? 'is-chat' : ''
   ]
     .filter(Boolean)
@@ -131,16 +139,17 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
     >
       <PaneHeader
         title={pane.title}
-        accountName={account?.name ?? (pane.shell ? null : 'no account')}
-        cwdLabel={pane.shell ? `${cwd} · shell` : cwd}
+        cli={pane.shell ? null : cli}
+        accountName={account?.name ?? null}
         status={status}
         zoomed={zoomed}
         git={git}
+        solo={solo}
+        hiddenCount={hiddenCount}
         setDragHandle={drag.setActivatorNodeRef}
         dragListeners={drag.listeners}
         onFocus={() => actions.focusPane(paneId)}
         onZoom={() => actions.toggleZoom(paneId)}
-        onClose={() => actions.closePane(paneId)}
         onDiff={() => {
           actions.focusPane(paneId)
           actions.toggleDiff(true)
@@ -148,13 +157,7 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         onMenu={(e) => setMenu(menuPoint(e))}
         onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
         view={chatable ? view : null}
-        mode={
-          isChat && pane.chatMode && pane.chatMode !== 'default'
-            ? { id: pane.chatMode, label: CHAT_MODE_LABEL[pane.chatMode] }
-            : null
-        }
         onView={(v) => actions.setPaneView(paneId, v)}
-        onNewChat={() => actions.chatNew(paneId)}
       />
       {isChat ? (
         <div className={`chat-host${zoomed ? ' lg' : ''}`}>
@@ -235,6 +238,11 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
             ...(git?.repo
               ? [
                   {
+                    label: 'Show changes',
+                    kbd: SHORTCUT_HINT.diff,
+                    onSelect: () => actions.toggleDiff(true)
+                  },
+                  {
                     label: 'Switch branch…',
                     icon: <IconBranch small />,
                     onSelect: () => actions.openModal({ kind: 'branches', paneId, at: menu })
@@ -251,7 +259,9 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
               icon: <IconClose small />,
               danger: true,
               onSelect: () => actions.closePane(paneId)
-            }
+            },
+            // Alone, this ⋯ is the app's More menu too (#89).
+            ...(solo ? utilityItems(actions).map((it, i) => ({ ...it, divider: i === 0 })) : [])
           ]}
         />
       ) : null}

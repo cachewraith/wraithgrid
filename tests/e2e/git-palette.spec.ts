@@ -277,7 +277,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     const wtPane = win.locator('section.pane', {
       has: win.locator('.ph-title', { hasText: 'feat-limit' })
     })
-    await expect(wtPane.locator('.gitc')).toContainText('feat/limit')
+    // A chat shows its branch under the chat box, not in the header (#89).
+    await expect(wtPane.locator('.cc-folder')).toContainText('feat/limit')
     const wtDir = path.join(home, '.wraithgrid', 'worktrees', 'api', 'feat-limit')
     expect(git(wtDir, 'branch', '--show-current').trim()).toBe('feat/limit')
 
@@ -295,7 +296,8 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
 
     // Closing the worktree's last pane offers to remove it, naming uncommitted files.
     fs.writeFileSync(path.join(wtDir, 'wip.ts'), 'x\n')
-    await wtPane.getByRole('button', { name: /^Close pane/ }).click()
+    await wtPane.locator('.ph-more').click()
+    await win.getByRole('menuitem', { name: 'Close pane' }).click()
     const ask = win.getByRole('alertdialog', { name: /Remove the worktree/ })
     await expect(ask).toContainText('1 file is not committed')
     await ask.getByRole('button', { name: 'Remove and lose 1 file' }).click()

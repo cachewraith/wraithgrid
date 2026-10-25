@@ -367,6 +367,14 @@ export function findPane(config: Config, paneId: string): { ws: Workspace; pane:
 }
 
 /** The theme being drawn: the user's pick, or the OS setting for `system`. */
+/** The pane the grid shows alone (one chat, not zoomed): its header is the top row (#89). */
+export function soloPaneId(s: Pick<AppState, 'config' | 'view' | 'zoomedPaneId'>): string | null {
+  if (s.view !== 'grid') return null
+  const ws = activeWorkspace(s)
+  if (s.zoomedPaneId && ws.panes.some((p) => p.id === s.zoomedPaneId)) return null
+  return ws.layout?.type === 'pane' ? ws.layout.paneId : null
+}
+
 export function currentTheme(s: Pick<AppState, 'config' | 'systemTheme'>): ThemeName {
   return resolveTheme(s.config.settings.theme, s.systemTheme === 'dark')
 }

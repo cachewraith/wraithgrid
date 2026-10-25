@@ -139,7 +139,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     const bg = pane(win).locator('.chat-bg')
     await expect(bg).toContainText('Running in background')
     await expect(bg).toContainText('Wait two seconds')
-    await expect(pane(win).locator('.st')).toHaveText(/in background/)
+    await expect(pane(win).locator('.st')).toHaveText('background')
     await expect(win.locator('.side-chat .sch-st.working')).toHaveText('background')
     // A working chat's logo pops; collapsed, its project's rail icon does.
     const animation = (sel: string): Promise<string> =>
@@ -182,7 +182,6 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await modeBtn.click()
     await win.getByRole('option', { name: /^Plan/ }).click()
     await expect(modeBtn).toHaveText('Plan')
-    await expect(pane(win).locator('.ph-mode')).toHaveText('Plan')
     await composer(win).fill('which mode')
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
@@ -211,7 +210,6 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await modeBtn.click()
     await win.getByRole('option', { name: /^Ask before edits/ }).click()
     await expect(modeBtn).toHaveText('Ask before edits')
-    await expect(pane(win).locator('.ph-mode')).toHaveCount(0)
 
     // ---- A tool that needs approval: the pane says so, Allow runs it.
     await composer(win).fill('run it')
@@ -219,7 +217,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     const ask = pane(win).getByRole('alertdialog', { name: 'Allow Bash?' })
     await expect(ask).toBeVisible()
     await expect(ask).toContainText('rm -rf build')
-    await expect(pane(win).locator('.st')).toHaveText('needs approval')
+    await expect(pane(win).locator('.st')).toHaveText('approve')
     await ask.getByRole('button', { name: 'Allow', exact: true }).click()
     await expect(ask).toBeHidden()
     await expect(pane(win).locator('.ct.ct-done').last()).toContainText('Remove build')
@@ -371,7 +369,9 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     )
 
     // ---- New conversation empties the view and starts a fresh session.
-    await pane(win).getByRole('button', { name: 'New conversation' }).click()
+    // In the ⋯ menu now (#89); the lone chat's ⋯ is "More".
+    await pane(win).getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'New conversation' }).click()
     await expect(pane(win).locator('.chat-hello')).toBeVisible()
     await composer(win).fill('fresh')
     await composer(win).press('Enter')
@@ -380,9 +380,8 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     // ---- Closing stops its process; the chat goes to the project's History (while a turn
     // runs, closing asks first, as for a terminal).
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
-    await pane(win)
-      .getByRole('button', { name: /Close pane/ })
-      .click()
+    await pane(win).getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Close pane' }).click()
     await expect.poll(() => chatPids()).toHaveLength(0)
     const saved = path.join(userData, 'chats', 'p-chat.json')
     await expect.poll(() => fs.existsSync(saved)).toBe(true)
@@ -400,9 +399,8 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
 
     // ---- Delete asks first: "Keep it" leaves the History entry alone.
     await expect(pane(win).locator('.st')).toHaveText(/idle|done/)
-    await pane(win)
-      .getByRole('button', { name: /Close pane/ })
-      .click()
+    await pane(win).getByRole('button', { name: 'More' }).click()
+    await win.getByRole('menuitem', { name: 'Close pane' }).click()
     await side.locator('.ws-row', { hasText: 'main' }).click()
     await history.getByRole('button', { name: 'Delete fresh' }).click()
     const confirm = win.getByRole('alertdialog', { name: 'Delete “fresh”?' })
