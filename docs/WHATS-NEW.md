@@ -1,4 +1,25 @@
-# What's new in 1.20.0: one brain per provider, rounded panels and a clearer sidebar
+# What's new in 1.21.0: scheduled chats, project teams and one header row
+
+*v1.21.0 · 2026-10-25*
+
+| New | What changed |
+|---|---|
+| Scheduled chats | The Scheduled page starts chats on a schedule: once, daily, on chosen days, every few hours, or when an account's limit resets. Runs missed by over an hour are recorded, not run late; with jobs on, closing the window keeps the tray icon so they still run |
+| Send later | A clock button in the message box queues the message for when your limit resets, in an hour, tomorrow morning or at a time you pick; queued messages show above the box with Cancel and Send now |
+| Project team | Save a team of agents on a project (any providers, each with a role, model and first message, each on its own branch folder) and start them all with one click, laid out side by side; the editor shows each account's use and which agents share a limit |
+| Claude's questions | When Claude asks you something, the chat shows the options to pick (or your own answer) instead of an Allow button |
+| Codex skills | In a Codex chat, typing `$` or `/` suggests its skills |
+| One header row | With one chat open, the window, project and chat bars are a single row; split chats get slim title rows whose buttons show on hover |
+| Same corners in every theme | Switching themes changes colours, not the roundness of corners |
+
+| Fix | What changed |
+|---|---|
+| Stuck "Thinking" | A chat no longer keeps thinking after an error like "You've hit your session limit", and Stop always ends the wait |
+| Session limit | "Session limit" now counts as a usage limit for switching account and for scheduled chats |
+
+---
+
+## Previously, in 1.20.0: one brain per provider, rounded panels and a clearer sidebar
 
 *v1.20.0 · 2026-10-24*
 
