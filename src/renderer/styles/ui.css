@@ -1446,6 +1446,10 @@ input[type='color']::-webkit-color-swatch {
   font-size: 11px;
   color: var(--err);
 }
+.pv-count {
+  font-size: 11px;
+  color: var(--err);
+}
 .pv-sp {
   flex: 1;
 }

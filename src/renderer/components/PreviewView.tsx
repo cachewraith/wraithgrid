@@ -1,10 +1,16 @@
 // Web preview (#74): the project's dev server and its page, in a pane. The page is a sandboxed
 // <webview> in its own session; main only lets it load addresses on this computer.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { isLocalUrl, PREVIEW_PARTITION } from '@shared/preview'
+import {
+  isLocalUrl,
+  PREVIEW_PARTITION,
+  PREVIEW_REPORT_MAX,
+  previewReport,
+  type PreviewRequestFailure
+} from '@shared/preview'
 import { freshPreview } from '../app/store'
 import { useActions, useApp, useServices } from '../app/services'
-import { IconBack, IconExport, IconList, IconRestart } from './icons'
+import { IconBack, IconExport, IconList, IconPaperclip, IconRestart } from './icons'
 
 /** The <webview> methods the toolbar uses. */
 interface WebviewEl extends HTMLElement {
@@ -15,6 +21,7 @@ interface WebviewEl extends HTMLElement {
   reload(): void
   loadURL(url: string): Promise<void>
   getURL(): string
+  getWebContentsId(): number
 }
 
 export function PreviewView({ paneId }: { paneId: string }) {
@@ -77,6 +84,7 @@ export function PreviewView({ paneId }: { paneId: string }) {
       {pv.url ? (
         <Page
           key={pv.url}
+          paneId={paneId}
           url={pv.url}
           dim={stopped}
           showLog={showLog}
@@ -99,14 +107,21 @@ export function PreviewView({ paneId }: { paneId: string }) {
 }
 
 function Page(p: {
+  paneId: string
   url: string
   dim: boolean
   showLog: boolean
   onToggleLog: () => void
   openExternal: (url: string) => void
 }) {
+  const actions = useActions()
+  const { api } = useServices()
   const ref = useRef<WebviewEl>(null)
   const [at, setAt] = useState(p.url)
+  // What "Attach to chat" reports: console errors and failed requests since the page loaded.
+  const [errors, setErrors] = useState<string[]>([])
+  const [failed, setFailed] = useState<Omit<PreviewRequestFailure, 'webContentsId'>[]>([])
+  const [attachError, setAttachError] = useState<string | null>(null)
   const [text, setText] = useState(p.url)
   const [nav, setNav] = useState({ back: false, forward: false })
 
@@ -121,15 +136,66 @@ function Page(p: {
     }
     // History is only final once loading stops, not at did-navigate.
     const history = (): void => setNav({ back: wv.canGoBack(), forward: wv.canGoForward() })
+    // A new page (or a reload) starts a new report.
+    const loading = (e: Event): void => {
+      const d = e as Event & { isMainFrame?: boolean; isInPlace?: boolean }
+      if (d.isMainFrame === false || d.isInPlace) return
+      setErrors([])
+      setFailed([])
+    }
+    // The level is a number (3 = error) on older Electron, a word on newer.
+    const consoled = (e: Event): void => {
+      const d = e as Event & {
+        level?: number | string
+        message?: string
+        sourceId?: string
+        line?: number
+      }
+      if (d.level !== 3 && d.level !== 'error') return
+      const where = d.sourceId ? ` (${d.sourceId.split('/').pop()}:${d.line ?? 0})` : ''
+      setErrors((cur) => [...cur, `${d.message ?? ''}${where}`].slice(-PREVIEW_REPORT_MAX))
+    }
     wv.addEventListener('did-navigate', moved)
     wv.addEventListener('did-navigate-in-page', moved)
     wv.addEventListener('did-stop-loading', history)
+    wv.addEventListener('did-start-navigation', loading)
+    wv.addEventListener('console-message', consoled)
+    const off = api.preview.onRequestFailed((f) => {
+      let id: number
+      try {
+        id = wv.getWebContentsId()
+      } catch {
+        return // Not attached yet.
+      }
+      if (f.webContentsId !== id) return
+      const { method, url, result } = f
+      setFailed((cur) => [...cur, { method, url, result }].slice(-PREVIEW_REPORT_MAX))
+    })
     return () => {
+      off()
       wv.removeEventListener('did-navigate', moved)
       wv.removeEventListener('did-navigate-in-page', moved)
       wv.removeEventListener('did-stop-loading', history)
+      wv.removeEventListener('did-start-navigation', loading)
+      wv.removeEventListener('console-message', consoled)
     }
-  }, [])
+  }, [api])
+
+  const attach = async (): Promise<void> => {
+    const wv = ref.current
+    if (!wv) return
+    setAttachError(null)
+    const shot = await api.preview.capture(wv.getWebContentsId())
+    if (!shot.ok) return setAttachError(shot.error)
+    const report = previewReport({
+      url: at,
+      size: { width: shot.width, height: shot.height },
+      errors,
+      failed
+    })
+    setAttachError(actions.previewAttach(p.paneId, { ...report, images: [shot.image] }))
+  }
+  const problems = errors.length + failed.length
 
   const go = (e: FormEvent): void => {
     e.preventDefault()
@@ -198,7 +264,25 @@ function Page(p: {
         >
           <IconList small /> Log
         </button>
+        <button
+          type="button"
+          className="btn gh"
+          title={attachError ?? 'Screenshot, console errors and failed requests into the chat'}
+          onClick={() => void attach()}
+        >
+          <IconPaperclip small /> Attach to chat
+          {problems ? (
+            <span className="pv-count mono" aria-label={`${problems} problems`}>
+              {problems}
+            </span>
+          ) : null}
+        </button>
       </form>
+      {attachError ? (
+        <div className="pv-bar" role="alert">
+          <span>{attachError}</span>
+        </div>
+      ) : null}
       <webview
         ref={ref as React.Ref<HTMLWebViewElement>}
         className={`pv-web${p.dim ? ' dim' : ''}`}

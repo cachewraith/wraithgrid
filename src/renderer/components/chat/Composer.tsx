@@ -13,12 +13,21 @@ import {
   CHAT_IMAGE_TYPES,
   CHAT_IMAGES_MAX,
   withAttachments,
+  type ChatDrop,
   type ChatImage,
   type ChatImageType,
   type ChatPickResult
 } from '@shared/chat'
 import { baseName } from '@shared/paths'
-import { IconArrowUp, IconClock, IconClose, IconFile, IconPaperclip, IconStop } from '../icons'
+import {
+  IconArrowUp,
+  IconClock,
+  IconClose,
+  IconFile,
+  IconGlobe,
+  IconPaperclip,
+  IconStop
+} from '../icons'
 import { ContextMenu, type MenuPoint } from '../ContextMenu'
 import { toLocal } from '@shared/schedule'
 import { mentionQuery, rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
@@ -48,6 +57,9 @@ interface Props {
   /** A dropped file's path on disk ('' when it has none). */
   filePath?: (file: File) => string
   /** "Send later" (#77): the clock button; `reset` names the account's reset, null if unknown. */
+  /** Something handed to this chat (a preview report, #74): added to the draft, not sent. */
+  drop?: ChatDrop | null
+  onDropTaken?: () => void
   sendLater?: {
     reset: { label: string; hint: string } | null
     onQueue: (text: string, when: number | 'reset') => void
@@ -86,7 +98,9 @@ export function Composer({
   onStop,
   onPickFiles,
   filePath,
-  sendLater
+  sendLater,
+  drop,
+  onDropTaken
 }: Props) {
   const [laterMenu, setLaterMenu] = useState<MenuPoint | null>(null)
   /** "At a time…": the date field in place of the menu. */
@@ -95,6 +109,8 @@ export function Composer({
   const [images, setImages] = useState<ChatImage[]>([])
   /** Attached files sent as paths, listed after the message. */
   const [files, setFiles] = useState<string[]>([])
+  /** Reports handed in (a preview's), sent as text after the message. */
+  const [notes, setNotes] = useState<{ label: string; text: string }[]>([])
   const [dragging, setDragging] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
   const listId = useId().replace(/:/g, '')
@@ -145,13 +161,30 @@ export function Composer({
     if (autoFocus) ref.current?.focus({ preventScroll: true })
   }, [autoFocus])
 
-  const canSend = ready && (text.trim().length > 0 || images.length > 0 || files.length > 0)
+  // Each drop once, by its id: into the draft while rendering, then the store lets it go.
+  const [dropId, setDropId] = useState<number | null>(null)
+  if (drop && drop.id !== dropId) {
+    setDropId(drop.id)
+    setImages([...images, ...drop.images].slice(0, CHAT_IMAGES_MAX))
+    setNotes([...notes, { label: drop.label, text: drop.text }])
+  }
+  useEffect(() => {
+    if (dropId === null) return
+    onDropTaken?.()
+    ref.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropId])
+  const withNotes = (body: string): string =>
+    [body, ...notes.map((n) => n.text)].filter(Boolean).join('\n\n')
+  const canSend =
+    ready && (text.trim().length > 0 || images.length > 0 || files.length > 0 || notes.length > 0)
   const send = (): void => {
     if (!canSend) return
-    onSend(withAttachments(text.trim(), files), images)
+    onSend(withNotes(withAttachments(text.trim(), files)), images)
     setText('')
     setImages([])
     setFiles([])
+    setNotes([])
   }
 
   const attach = (add: ChatPickResult): void => {
@@ -215,6 +248,22 @@ export function Composer({
         }}
         onDrop={onDrop}
       >
+        {notes.length ? (
+          <div className="cc-files" aria-label="Attached reports">
+            {notes.map((n, i) => (
+              <span key={i} className="cc-file" title={n.text}>
+                <IconGlobe small />
+                <span>{n.label}</span>
+                <button
+                  aria-label={`Remove ${n.label}`}
+                  onClick={() => setNotes(notes.filter((_, j) => j !== i))}
+                >
+                  <IconClose small />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         {files.length ? (
           <div className="cc-files" aria-label="Attached files">
             {files.map((f) => (
@@ -363,8 +412,9 @@ export function Composer({
             tomorrow.setDate(tomorrow.getDate() + 1)
             tomorrow.setHours(9, 0, 0, 0)
             const queue = (when: number | 'reset') => () => {
-              sendLater.onQueue(text, when)
+              sendLater.onQueue(withNotes(text), when)
               setText('')
+              setNotes([])
             }
             return [
               ...(sendLater.reset

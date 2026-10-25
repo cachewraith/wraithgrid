@@ -6,7 +6,9 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  session,
   shell,
+  webContents,
   type BrowserWindow,
   type IpcMainEvent,
   type IpcMainInvokeEvent
@@ -67,6 +69,7 @@ import {
   type ThemeImportResult,
   type ThemeListResult,
   notifyPaneArgs,
+  previewCaptureArgs,
   previewPaneArgs,
   pickPathArgs,
   folderPathArgs,
@@ -181,9 +184,9 @@ import { readPicked } from './chat/attach'
 import { listFolder } from './folders'
 import { copyCodexRollout, copyTranscript } from './chat/transcript'
 import { LOGIN_FLOWS, type Logins } from './login'
-import { detectDevCommand, shellLaunch } from '@shared/preview'
+import { detectDevCommand, PREVIEW_PARTITION, shellLaunch } from '@shared/preview'
 import { readProjectFiles, type DevServers } from './preview'
-import type { ChatPickResult } from '@shared/chat'
+import { CHAT_IMAGE_MAX, type ChatImage, type ChatPickResult } from '@shared/chat'
 import type { ChatLaunch, ChatSessions } from './chat/sessions'
 import type { UpdateChecker } from './update-check'
 import type { UpdateInstaller } from './update-install'
@@ -893,6 +896,36 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Could not start the dev server')
   )
   listen(IPC.previewStop, previewPaneArgs, (a) => deps.devServers?.stop(a.paneId))
+  // Attach to chat: only a preview page's own web contents can be captured.
+  handle(
+    IPC.previewCapture,
+    previewCaptureArgs,
+    async (
+      a
+    ): Promise<
+      { ok: true; image: ChatImage; width: number; height: number } | { ok: false; error: string }
+    > => {
+      const wc = webContents.fromId(a.webContentsId)
+      if (
+        !wc ||
+        wc.getType() !== 'webview' ||
+        wc.session !== session.fromPartition(PREVIEW_PARTITION)
+      )
+        return fail('That is not a preview.')
+      let img = await wc.capturePage()
+      if (img.isEmpty()) return fail('The page has nothing to show yet.')
+      // A chat image stays small: at most 1600 px wide, JPEG when a PNG is too big.
+      if (img.getSize().width > 1600) img = img.resize({ width: 1600 })
+      const { width, height } = img.getSize()
+      const png = img.toPNG()
+      const image: ChatImage =
+        png.length * 1.37 < CHAT_IMAGE_MAX
+          ? { mediaType: 'image/png', data: png.toString('base64') }
+          : { mediaType: 'image/jpeg', data: img.toJPEG(80).toString('base64') }
+      return { ok: true, image, width, height }
+    },
+    fail('Could not take the screenshot')
+  )
 
   // ---- External links --------------------------------------------------------------
 

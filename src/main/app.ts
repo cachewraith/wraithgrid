@@ -33,7 +33,7 @@ import { ChatSessions } from './chat/sessions'
 import { forceKillTree, spawnChatChild } from './chat/spawn'
 import { Logins } from './login'
 import { DevServers } from './preview'
-import { isLocalUrl, PREVIEW_PARTITION } from '@shared/preview'
+import { isLocalUrl, PREVIEW_PARTITION, type PreviewRequestFailure } from '@shared/preview'
 import type { GitRunner } from './git'
 import { resolveTheme, type CloseMode, type Machine, type ThemeName } from '@shared/types'
 import { ConfigStore } from './config-store'
@@ -101,6 +101,7 @@ function send(
     | ChatEventMessage
     | LoginEvent
     | PreviewEventMessage
+    | PreviewRequestFailure
     | string
 ): void {
   const wc = mainWindow?.webContents
@@ -342,6 +343,25 @@ function hardenSessions(): void {
   const preview = session.fromPartition(PREVIEW_PARTITION)
   preview.setPermissionRequestHandler((_wc, _permission, cb) => cb(false))
   preview.setPermissionCheckHandler(() => false)
+  // Failed requests for "Attach to chat": HTTP errors and network errors (not cancellations).
+  const failed = (
+    d: { webContentsId?: number; method: string; url: string },
+    result: string
+  ): void => {
+    if (d.webContentsId)
+      send(IPC.previewRequestFailed, {
+        webContentsId: d.webContentsId,
+        method: d.method,
+        url: d.url,
+        result
+      })
+  }
+  preview.webRequest.onCompleted((d) => {
+    if (d.statusCode >= 400) failed(d, String(d.statusCode))
+  })
+  preview.webRequest.onErrorOccurred((d) => {
+    if (d.error !== 'net::ERR_ABORTED') failed(d, d.error)
+  })
 
   app.on('web-contents-created', (_e, contents) => {
     const external = (url: string): void => {

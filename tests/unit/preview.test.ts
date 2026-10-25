@@ -5,6 +5,7 @@ import {
   detectDevCommand,
   findLocalUrl,
   isLocalUrl,
+  previewReport,
   shellLaunch,
   type PreviewEvent
 } from '@shared/preview'
@@ -133,5 +134,33 @@ describe('DevServers', () => {
     expect(forceKill).toHaveBeenCalledWith(42)
     expect(emit).not.toHaveBeenCalled()
     vi.useRealTimers()
+  })
+})
+
+describe('previewReport', () => {
+  it('lists the errors and failed requests, local paths short; the chip counts them', () => {
+    const r = previewReport({
+      url: 'http://localhost:5173/pricing',
+      size: { width: 1280, height: 720 },
+      errors: ['TypeError: x\n   at y (a.tsx:1)'],
+      failed: [
+        { method: 'GET', url: 'http://localhost:5173/img/p.png', result: '404' },
+        { method: 'POST', url: 'https://api.example.com/x', result: 'net::ERR_FAILED' }
+      ]
+    })
+    expect(r.label).toBe('Preview /pricing · 1 console error · 2 failed requests')
+    expect(r.text).toBe(
+      [
+        'Preview of http://localhost:5173/pricing (1280×720)',
+        'Console errors:',
+        '  TypeError: x at y (a.tsx:1)',
+        'Failed requests:',
+        '  GET /img/p.png → 404',
+        '  POST https://api.example.com/x → net::ERR_FAILED'
+      ].join('\n')
+    )
+    expect(
+      previewReport({ url: 'http://localhost/', size: null, errors: [], failed: [] }).text
+    ).toBe('Preview of http://localhost/\nConsole errors: none\nFailed requests: none')
   })
 })

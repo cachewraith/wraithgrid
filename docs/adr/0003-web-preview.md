@@ -34,4 +34,7 @@ preview needs (no full browser), safely.
 
 - A preview does not survive a quit (the server is a child of main); it restarts on launch.
 - Projects on other machines have no preview until the server can be reached through ssh.
-- PR B adds "Attach to chat": screenshot, console errors and failed requests into a chat.
+- "Attach to chat" (part B): main captures only a preview's own web contents (type `webview`
+  in the preview session); failed requests come from that session's `webRequest`, console
+  errors from the webview. The screenshot and a text report go into the project's last
+  focused chat (or a new one) as a draft, never sent by themselves.

@@ -324,6 +324,7 @@ const Item = memo(function Item({
 export function ChatView({ paneId, visible, focused }: Props) {
   const { api, chat, store } = useServices()
   const actions = useActions()
+  const drop = useApp((s) => s.chatDrops[paneId] ?? null)
   const thread = useSyncExternalStore(
     useCallback((cb) => chat.subscribe(paneId, cb), [chat, paneId]),
     () => chat.thread(paneId)
@@ -620,6 +621,8 @@ export function ChatView({ paneId, visible, focused }: Props) {
           </div>
         ) : null}
         <Composer
+          drop={drop}
+          onDropTaken={() => actions.takeChatDrop(paneId)}
           placeholder={`Message ${cliLabel}…`}
           ready={ready}
           busy={thread.busy}

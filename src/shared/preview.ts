@@ -84,3 +84,50 @@ export function shellLaunch(
   if (platform === 'win32') return { file: env.ComSpec || 'cmd.exe', args: `/d /s /c "${command}"` }
   return { file: '/bin/sh', args: ['-c', command] }
 }
+
+/** A request from the preview's page that failed (status ≥ 400 or a network error). */
+export interface PreviewRequestFailure {
+  webContentsId: number
+  method: string
+  url: string
+  /** The HTTP status, or Chromium's error (`net::ERR_CONNECTION_REFUSED`). */
+  result: string
+}
+
+/** Kept per page load, so a noisy page can't grow the report without end. */
+export const PREVIEW_REPORT_MAX = 20
+
+/** What "Attach to chat" tells the agent about the page, as text, and the chip's summary. */
+export function previewReport(p: {
+  url: string
+  size: { width: number; height: number } | null
+  errors: string[]
+  failed: { method: string; url: string; result: string }[]
+}): { label: string; text: string } {
+  let path = p.url
+  try {
+    const u = new URL(p.url)
+    path = u.pathname + u.search
+  } catch {
+    // Not a URL: shown as is.
+  }
+  const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`
+  const lines = [`Preview of ${p.url}${p.size ? ` (${p.size.width}×${p.size.height})` : ''}`]
+  lines.push(p.errors.length ? 'Console errors:' : 'Console errors: none')
+  for (const e of p.errors) lines.push(`  ${e.replace(/\s+/g, ' ').slice(0, 500)}`)
+  lines.push(p.failed.length ? 'Failed requests:' : 'Failed requests: none')
+  for (const f of p.failed) {
+    let at = f.url
+    try {
+      const u = new URL(f.url)
+      if (isLocalUrl(f.url)) at = u.pathname + u.search
+    } catch {
+      // As is.
+    }
+    lines.push(`  ${f.method} ${at} → ${f.result}`)
+  }
+  return {
+    label: `Preview ${path} · ${n(p.errors.length, 'console error')} · ${n(p.failed.length, 'failed request')}`,
+    text: lines.join('\n')
+  }
+}
