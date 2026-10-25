@@ -30,7 +30,7 @@ import type {
   ChatImage,
   ChatModel
 } from '@shared/chat'
-import { baseName, slugify } from '@shared/paths'
+import { baseName, contractHome, slugify } from '@shared/paths'
 import { PROJECT_ICON_ID } from '@shared/project-icons'
 import { defaultConfig } from '@shared/schema'
 import { EMPTY_USAGE, type UsageData } from '@shared/usage'
@@ -63,7 +63,14 @@ import { SCHEDULES_MAX } from '@shared/schedule'
 
 /** How often scheduled jobs are checked (#77). */
 const SCHEDULE_TICK_MS = 15_000
-import { planTeam, teamBranch, teamPaneIds, teamWarnings } from '../lib/team'
+import {
+  isWorktreeCwd,
+  planTeam,
+  projectFolder,
+  teamBranch,
+  teamPaneIds,
+  teamWarnings
+} from '../lib/team'
 import { neighborInDirection, type Direction } from '../layout/focus'
 import { buildPreset, type PresetId } from '../layout/presets'
 import {
@@ -311,6 +318,8 @@ export interface AppState {
   renameWorkspace(id: string, name: string): void
   /** A project's icon (#80): `set:name`, or '' for the plain folder. */
   setWorkspaceIcon(id: string, icon: string): void
+  /** The project's folder, where its new chats start (#109); '' = none. */
+  setWorkspaceFolder(id: string, folder: string): void
   /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
   setWorkspaceMachine(id: string, machineId: string | null): void
   /** Adds a machine reached over ssh; returns an error to show, or null. */
@@ -534,11 +543,6 @@ export function normalizeWorkspaces(config: Config): Config {
       return { ...w, layout }
     })
   }
-}
-
-/** A folder Wraithgrid made with "Work on a new branch" (main saves them home-relative). */
-export function isWorktreeCwd(cwd: string): boolean {
-  return cwd.replace(/\\/g, '/').startsWith('~/.wraithgrid/worktrees/')
 }
 
 const RESTART_MARK = (t: Date): string =>
@@ -899,7 +903,8 @@ export function createAppStore({
         else firstMessages.set(paneId, job.prompt)
         return { at, result: 'running', paneId, note: '' }
       }
-      const cwd = ws.folder || '~'
+      const cwd = projectFolder(ws)
+      if (!cwd) return { at, result: 'failed', paneId: null, note: 'project has no folder' }
       const id = addPaneToActive(
         {
           accountId: account.id,
@@ -1460,6 +1465,14 @@ export function createAppStore({
         const s = get()
         const ws = s.config.workspaces.find((w) => w.id === wsId)
         if (!ws) return
+        let base = projectFolder(ws)
+        if (!base) {
+          // No folder anywhere: ask for one (saved on the project) rather than start in ~.
+          const picked = await api.dialog.pickFolder(s.config.settings.defaultCwd)
+          if (!picked) return
+          base = contractHome(picked, s.info.homeDir)
+          get().setWorkspaceFolder(wsId, base)
+        }
         const team = opts.only ? ws.team.filter((a) => a.id === opts.only) : ws.team
         const steps = planTeam(team, s.config.accounts, ws.panes)
         if (!opts.force && teamWarnings(steps, s.usage.limits, now()).length) {
@@ -1468,7 +1481,6 @@ export function createAppStore({
         }
         set({ modal: null })
         if (s.config.activeWorkspace !== wsId) get().switchWorkspace(wsId)
-        const base = ws.folder || '~'
         for (const step of steps) {
           if (step.kind !== 'start') continue
           const { agent } = step
@@ -1980,6 +1992,11 @@ export function createAppStore({
       setWorkspaceIcon(id, icon) {
         if (icon && !PROJECT_ICON_ID.test(icon)) return
         get().updateConfig((cfg) => withWorkspace(cfg, id, (w) => ({ ...w, icon })))
+      },
+
+      setWorkspaceFolder(id, folder) {
+        const f = folder.trim().slice(0, 4096)
+        get().updateConfig((cfg) => withWorkspace(cfg, id, (w) => ({ ...w, folder: f })))
       },
 
       renameWorkspace(id, name) {
