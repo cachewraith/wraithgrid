@@ -1289,6 +1289,14 @@ input[type='color']::-webkit-color-swatch {
   font-size: 12px;
   white-space: nowrap;
 }
+.job-folder {
+  display: flex;
+  gap: 8px;
+}
+.job-folder .inpt {
+  flex: 1;
+  min-width: 0;
+}
 .job-days {
   display: flex;
   gap: 4px;

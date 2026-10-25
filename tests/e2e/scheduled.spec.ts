@@ -179,3 +179,87 @@ test('Send later queues a message in the chat; Send now and Cancel', async () =>
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })
+
+test('a job on a project without a folder runs in its chats folder; none at all asks (#109)', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wg-sched-'))
+  const home = path.join(tmp, 'home')
+  const data = path.join(tmp, 'data')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(data)
+  const old = { id: 'p-old', accountId: 'work', cwd: '~/proj', view: 'chat', title: 'old chat' }
+  fs.writeFileSync(
+    path.join(data, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: path.join(ROOT, 'tests/fixtures/fake-claude.sh'),
+      accounts: [
+        {
+          id: 'work',
+          name: 'work',
+          cli: 'claude',
+          configDir: '~/.wraithgrid/accounts/work',
+          color: '#7c5cff',
+          signedIn: true
+        }
+      ],
+      workspaces: [
+        {
+          id: 'ws',
+          name: 'project',
+          folder: '',
+          panes: [],
+          layout: null,
+          history: [{ pane: old, closedAt: Date.now() - 3600_000 }]
+        },
+        { id: 'bare', name: 'bare', folder: '', panes: [], layout: null }
+      ],
+      activeWorkspace: 'ws',
+      recentFolders: [],
+      settings: { checkUpdatesOnLaunch: false, newPaneView: 'chat' },
+      schedules: [
+        {
+          id: 'j-due',
+          wsId: 'ws',
+          accountId: 'work',
+          prompt: 'Review PEACH',
+          when: { kind: 'weekly', days: [0, 1, 2, 3, 4, 5, 6], time: '09:00' },
+          nextAt: Date.now() - 60_000
+        }
+      ]
+    })
+  )
+  const app = await electron.launch({
+    args: [path.join(ROOT, 'out/main/index.js')],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: data }
+  })
+  const win = await app.firstWindow()
+  const saved = () => JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8'))
+  try {
+    await win.waitForSelector('.app .tb')
+    // The run opened in the folder the project's chats use, not ~.
+    const chat = win.locator('section.pane')
+    await expect(chat).toHaveCount(1, { timeout: 15_000 })
+    await expect(chat.locator('.cmsg.agent').last()).toContainText('Review PEACH')
+    await expect.poll(() => saved().workspaces[0].panes[0]?.cwd).toBe('~/proj')
+    expect(saved().workspaces[0].folder).toBe('')
+
+    const side = win.getByRole('complementary', { name: 'Sidebar' })
+    await side.getByRole('button', { name: 'Scheduled' }).click()
+    await win.getByRole('button', { name: 'New job' }).click()
+    const dlg = win.getByRole('dialog', { name: 'New scheduled job' })
+    await dlg.getByLabel('Prompt').fill('Check the build')
+    // A project with chats needs no folder; one with none at all can't be saved without one.
+    await expect(dlg.getByLabel('Project folder')).toHaveCount(0)
+    await dlg.getByRole('combobox').first().selectOption('bare')
+    await expect(dlg).toContainText('This project has no folder')
+    const save = dlg.getByRole('button', { name: 'Save job' })
+    await expect(save).toBeDisabled()
+    await dlg.getByLabel('Project folder').fill('~/bare')
+    await save.click()
+    await expect.poll(() => saved().schedules.length).toBe(2)
+    expect(saved().workspaces.find((w: { id: string }) => w.id === 'bare').folder).toBe('~/bare')
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})

@@ -12,8 +12,10 @@ import {
   type ScheduledJob,
   type ScheduleWhen
 } from '@shared/schedule'
-import { useActions, useApp } from '../app/services'
+import { contractHome } from '@shared/paths'
+import { useActions, useApp, useServices } from '../app/services'
 import { newId } from '../lib/ids'
+import { projectFolder } from '../lib/team'
 import { ago } from '../lib/time'
 import { fmtUntil } from '../lib/usage-format'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
@@ -254,7 +256,11 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
   const workspaces = useApp((s) => s.config.workspaces)
   const accounts = useApp((s) => s.config.accounts)
   const activeWs = useApp((s) => s.config.activeWorkspace)
+  const home = useApp((s) => s.info.homeDir)
+  const defaultCwd = useApp((s) => s.config.settings.defaultCwd)
+  const { api } = useServices()
   const [now] = useState(() => Date.now())
+  const [folder, setFolder] = useState('')
   const [job, setJob] = useState<ScheduledJob>(
     () =>
       existing ?? {
@@ -293,6 +299,12 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
   }
   const ws = workspaces.find((w) => w.id === job.wsId)
   const chats = ws ? [...ws.panes, ...ws.history.map((h) => h.pane)].filter((p) => !p.shell) : []
+  // No folder of its own and no chats to take one from (#109): the job asks, rather than ~.
+  const needsFolder = !!ws && !projectFolder(ws)
+  const browse = async (): Promise<void> => {
+    const picked = await api.dialog.pickFolder(folder.trim() || defaultCwd)
+    if (picked) setFolder(contractHome(picked, home))
+  }
   const modelOk = !job.model || CHAT_MODEL_PATTERN.test(job.model)
   const whenOk =
     job.when.kind === 'once'
@@ -300,7 +312,13 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
       : job.when.kind === 'weekly'
         ? job.when.days.length > 0
         : true
-  const ok = !!ws && !!job.accountId && job.prompt.trim() !== '' && modelOk && whenOk
+  const ok =
+    !!ws &&
+    !!job.accountId &&
+    job.prompt.trim() !== '' &&
+    modelOk &&
+    whenOk &&
+    (!needsFolder || folder.trim() !== '')
   const upcoming: number[] = []
   if (job.when.kind !== 'reset') {
     let t: number | null = now
@@ -317,6 +335,7 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!ok) return
+          if (needsFolder && ws) actions.setWorkspaceFolder(ws.id, folder)
           actions.saveJob({ ...job, prompt: job.prompt.trim() })
           actions.closeModal()
         }}
@@ -353,6 +372,27 @@ export function JobDialog({ jobId }: { jobId: string | null }) {
               ))}
             </select>
           </label>
+          {needsFolder ? (
+            <div className="team-f job-wide">
+              <span>Folder</span>
+              <div className="job-folder">
+                <input
+                  className="inpt"
+                  aria-label="Project folder"
+                  value={folder}
+                  placeholder="~/code/my-app"
+                  onChange={(e) => setFolder(e.target.value)}
+                />
+                <button type="button" className="btn gh" onClick={() => void browse()}>
+                  Choose…
+                </button>
+              </div>
+              <p className="job-note team-warn">
+                This project has no folder. Pick one: the job's chats start there, and it's saved on
+                the project.
+              </p>
+            </div>
+          ) : null}
           <label className="team-f job-wide">
             <span>Prompt</span>
             <textarea

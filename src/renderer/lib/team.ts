@@ -1,9 +1,27 @@
 // A project's team (#79): its saved agents, what Start team does with each, and what to warn
 // about first. Pure: the store runs the plan.
 import { slugify } from '@shared/paths'
-import type { Account, Pane, TeamAgent } from '@shared/types'
+import type { Account, Pane, TeamAgent, Workspace } from '@shared/types'
 import type { AccountLimits } from '@shared/usage'
 import { peakUse } from './auto-switch'
+
+/** A folder Wraithgrid made with "Work on a new branch" (main saves them home-relative). */
+export function isWorktreeCwd(cwd: string): boolean {
+  return cwd.replace(/\\/g, '/').startsWith('~/.wraithgrid/worktrees/')
+}
+
+/**
+ * Where a project's work happens (#109): its saved folder, else the folder of its newest open
+ * chat, else of its last closed one; never a branch folder Wraithgrid made. null: none at all.
+ */
+export function projectFolder(ws: Pick<Workspace, 'folder' | 'panes' | 'history'>): string | null {
+  if (ws.folder) return ws.folder
+  const usable = (p: Pane): boolean => !p.shell && !!p.cwd && !isWorktreeCwd(p.cwd)
+  const open = ws.panes.findLast(usable)
+  if (open) return open.cwd
+  const closed = [...ws.history].sort((a, b) => b.closedAt - a.closedAt).find((h) => usable(h.pane))
+  return closed?.pane.cwd ?? null
+}
 
 /** The agent's own branch: `team/<role>` (its worktree folder is `team-<role>`). */
 export function teamBranch(role: string): string {

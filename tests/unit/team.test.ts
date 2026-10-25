@@ -3,6 +3,7 @@ import { teamAgentSchema, workspaceSchema } from '@shared/schema'
 import type { Account, Pane, TeamAgent } from '@shared/types'
 import {
   planTeam,
+  projectFolder,
   sharedAccounts,
   teamBranch,
   teamPaneIds,
@@ -97,5 +98,37 @@ describe('project team (#79)', () => {
     const nine = Array.from({ length: 9 }, (_, i) => agent(`t${i}`, `r${i}`, 'a1'))
     expect(workspaceSchema.parse({ ...ws, team: nine }).team).toEqual([])
     expect(workspaceSchema.parse({ ...ws, team: nine.slice(0, 8) }).team).toHaveLength(8)
+  })
+
+  describe('projectFolder (#109)', () => {
+    const chat = (cwd: string, shell = false) => ({ id: cwd, cwd, shell }) as Pane
+    const closed = (cwd: string, closedAt: number) => ({ pane: chat(cwd), closedAt })
+
+    it("is the project's saved folder first", () => {
+      expect(projectFolder({ folder: '~/proj', panes: [chat('~/other')], history: [] })).toBe(
+        '~/proj'
+      )
+    })
+
+    it('else the newest open chat, skipping shells and branch folders Wraithgrid made', () => {
+      const panes = [
+        chat('~/old'),
+        chat('~/new'),
+        chat('~/.wraithgrid/worktrees/proj/team-reviewer'),
+        chat('~/scratch', true)
+      ]
+      expect(projectFolder({ folder: '', panes, history: [closed('~/hist', 9)] })).toBe('~/new')
+    })
+
+    it('else the last closed chat in History', () => {
+      const history = [closed('~/a', 1), closed('~/b', 5), closed('~/c', 3)]
+      expect(projectFolder({ folder: '', panes: [chat('~', true)], history })).toBe('~/b')
+    })
+
+    it('is null with no folder anywhere', () => {
+      expect(projectFolder({ folder: '', panes: [], history: [] })).toBeNull()
+      const wt = chat('~\\.wraithgrid\\worktrees\\proj\\team-x')
+      expect(projectFolder({ folder: '', panes: [wt], history: [] })).toBeNull()
+    })
   })
 })
