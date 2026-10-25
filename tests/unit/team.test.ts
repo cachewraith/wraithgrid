@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { teamAgentSchema, workspaceSchema } from '@shared/schema'
 import type { Account, Pane, TeamAgent } from '@shared/types'
-import { planTeam, teamBranch, teamPaneIds, teamWarnings } from '../../src/renderer/lib/team'
+import {
+  planTeam,
+  sharedAccounts,
+  teamBranch,
+  teamPaneIds,
+  teamWarnings
+} from '../../src/renderer/lib/team'
 import { autoGrid } from '../../src/renderer/layout/tree'
 
 const agent = (id: string, role: string, accountId: string | null): TeamAgent => ({
@@ -56,6 +62,17 @@ describe('project team (#79)', () => {
     ])
     // Past its reset, the limit no longer counts.
     expect(teamWarnings(steps, limits, 3000)).toHaveLength(1)
+  })
+
+  it('names the accounts two agents share (#100)', () => {
+    const team = [
+      agent('t1', 'Builder', 'a1'),
+      agent('t2', 'Reviewer', 'a2'),
+      agent('t3', 'Tests', 'a1'),
+      agent('t4', 'Docs', null)
+    ]
+    expect(sharedAccounts(team)).toEqual([{ accountId: 'a1', roles: ['Builder', 'Tests'] }])
+    expect(sharedAccounts(team.slice(0, 2))).toEqual([])
   })
 
   it('lays the team out by its size: 2 side by side, 3 columns, 4 as 2×2', () => {
