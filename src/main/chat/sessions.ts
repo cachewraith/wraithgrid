@@ -30,6 +30,8 @@ export interface ChatSessionsDeps {
   /** Ends a process that ignored the polite stop (Windows: the whole tree). */
   forceKill?(pid: number): void
   stopGraceMs?: number
+  /** How long Stop waits for the CLI to end the turn before the chat is marked idle anyway. */
+  interruptWaitMs?: number
 }
 
 interface Session {
@@ -42,6 +44,10 @@ interface Session {
   turns: number
   /** Stop was asked: the next turn end clears the queue too. */
   interrupted: boolean
+  /** The turn ended in an error (a usage limit…): the CLI runs none of the queued ones. */
+  failed: boolean
+  /** Ends a Stop the CLI never answered (no turn was running there). */
+  stopTimer: NodeJS.Timeout | null
   /** Background work was running when last heard of: it dies with the process. */
   background: boolean
 }
@@ -72,6 +78,8 @@ export class ChatSessions {
       stderr: '',
       turns: 0,
       interrupted: false,
+      failed: false,
+      stopTimer: null,
       background: false
     }
     this.sessions.set(paneId, s)
@@ -140,10 +148,16 @@ export class ChatSessions {
         if (s.turns > 0) continue
         s.turns = 1
       }
+      if (e.t === 'turnEnd' && e.error) s.failed = true
       if (e.t === 'busy' && !e.busy) {
-        // An earlier turn ending must not mark the chat idle while a queued one runs.
-        s.turns = s.interrupted ? 0 : Math.max(0, s.turns - 1)
+        // An earlier turn ending must not mark the chat idle while a queued one runs. claude
+        // also folds queued messages into one turn, and a failed turn (a usage limit) ends
+        // them all: either way nothing is left waiting.
+        s.turns = s.interrupted || s.failed ? 0 : Math.max(0, s.turns - 1)
         s.interrupted = false
+        s.failed = false
+        if (s.stopTimer) clearTimeout(s.stopTimer)
+        s.stopTimer = null
         if (s.turns > 0) continue
       }
       this.deps.emit(paneId, e)
@@ -207,6 +221,16 @@ export class ChatSessions {
     s.interrupted = true
     const line = s.adapter.interrupt()
     if (line) this.write(s, line)
+    // claude answers a Stop with the turn's end; with no turn running there it says nothing,
+    // and the chat would wait for ever. Then it is idle: say so.
+    if (s.stopTimer) clearTimeout(s.stopTimer)
+    s.stopTimer = setTimeout(() => {
+      s.stopTimer = null
+      if (this.sessions.get(paneId) !== s || s.turns === 0) return
+      s.turns = 0
+      s.interrupted = false
+      this.deps.emit(paneId, { t: 'busy', busy: false })
+    }, this.deps.interruptWaitMs ?? 3000)
   }
 
   /** Stops the process: closes stdin, then a signal, then a forced kill after the grace time. */
@@ -214,6 +238,7 @@ export class ChatSessions {
     const s = this.sessions.get(paneId)
     if (!s) return Promise.resolve()
     s.stopping = true
+    if (s.stopTimer) clearTimeout(s.stopTimer)
     this.sessions.delete(paneId)
     return new Promise((resolve) => {
       const grace = this.deps.stopGraceMs ?? 2000

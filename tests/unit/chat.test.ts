@@ -665,6 +665,40 @@ describe('chat sessions', () => {
     expect(busy().at(-1)).toBe(false)
   })
 
+  it('a failed turn (usage limit) ends the queued ones too: the chat goes idle', async () => {
+    const { child, events, sessions } = setup()
+    const busy = () =>
+      events.filter((e) => e.t === 'busy').map((e) => (e as { busy: boolean }).busy)
+    sessions.send('p1', 'first', [])
+    sessions.send('p1', 'queued', [])
+    sessions.send('p1', 'another', [])
+    child.stdout.write(
+      `${JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: "You've hit your session limit · resets 4:40pm" })}\n`
+    )
+    await tick()
+    expect(busy().at(-1)).toBe(false)
+    expect(events.find((e) => e.t === 'turnEnd')).toMatchObject({
+      error: "You've hit your session limit · resets 4:40pm"
+    })
+  })
+
+  it('Stop with no turn running in claude still ends the wait', async () => {
+    const child = new FakeChild()
+    const events: ChatEvent[] = []
+    const sessions = new ChatSessions({
+      spawn: () => child as unknown as ChatChild,
+      emit: (_id, e) => events.push(e),
+      interruptWaitMs: 20
+    })
+    sessions.start('p1', { file: 'claude', args: [], cwd: '/', env: {} }, createClaudeAdapter())
+    sessions.send('p1', 'hi', [])
+    sessions.interrupt('p1')
+    // claude says nothing back.
+    await new Promise((r) => setTimeout(r, 40))
+    expect(events.filter((e) => e.t === 'busy').at(-1)).toEqual({ t: 'busy', busy: false })
+    await sessions.stop('p1')
+  })
+
   it('a turn claude starts on its own marks the chat busy once, then idle (#39)', async () => {
     const { child, events, sessions } = setup()
     const busy = () =>

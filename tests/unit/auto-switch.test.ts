@@ -42,6 +42,9 @@ describe('switching account at the limit (#61)', () => {
   it('knows a usage-limit error from claude and codex, not other failures', () => {
     expect(isLimitError('Claude AI usage limit reached|1792771705')).toBe(true)
     expect(isLimitError("You've hit your limit · resets 3pm")).toBe(true)
+    expect(isLimitError("You've hit your session limit · resets 4:40pm (Asia/Phnom_Penh)")).toBe(
+      true
+    )
     expect(isLimitError("You've hit your usage limit. Upgrade to Pro")).toBe(true)
     expect(isLimitError('usageLimitExceeded')).toBe(true)
     expect(isLimitError('The turn failed (error_during_execution).')).toBe(false)
