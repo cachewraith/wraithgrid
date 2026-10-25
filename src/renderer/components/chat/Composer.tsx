@@ -19,7 +19,7 @@ import {
 } from '@shared/chat'
 import { baseName } from '@shared/paths'
 import { IconArrowUp, IconClose, IconFile, IconPaperclip, IconStop } from '../icons'
-import { rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
+import { mentionQuery, rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
 
 interface Props {
@@ -86,12 +86,19 @@ export function Composer({
   const ref = useRef<HTMLTextAreaElement>(null)
   const listId = useId().replace(/:/g, '')
 
-  // The `/` menu: open while the first word starts with `/` and the caret is in it.
+  // The `/` menu: open while the first word starts with `/` and the caret is in it; a
+  // `$word` anywhere opens it with the skills named that way (codex, #96).
   const [caret, setCaret] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
-  const query = commands.length ? slashQuery(text, caret) : null
-  const open = query !== null && dismissed !== text
-  const items = open ? rankSlash(commands, query) : []
+  const slash = commands.length ? slashQuery(text, caret) : null
+  const mentions = commands.filter((c) => c.sigil === '$')
+  const mention = slash === null && mentions.length ? mentionQuery(text, caret) : null
+  const query = slash ?? mention?.query ?? null
+  const ranked =
+    query !== null && dismissed !== text ? rankSlash(mention ? mentions : commands, query) : null
+  // A `$` that names no skill (a price, a shell variable) shows nothing.
+  const open = ranked !== null && (!mention || ranked.length > 0)
+  const items = ranked ?? []
   const [active, setActive] = useState(0)
   const [lastQuery, setLastQuery] = useState(query)
   if (query !== lastQuery) {
@@ -106,15 +113,18 @@ export function Composer({
       onCommand?.(item)
       return
     }
-    const next = `/${item.name} `
+    // A `$` skill replaces the word being typed and keeps the rest; a `/` command is the text.
+    const from = mention?.start ?? 0
+    const head = item.sigil === '$' ? `${text.slice(0, from)}$${item.name} ` : `/${item.name} `
+    const next = item.sigil === '$' ? head + text.slice(caret).trimStart() : head
     setText(next)
-    setCaret(next.length)
+    setCaret(head.length)
     requestAnimationFrame(() => {
       const box = ref.current
       if (!box) return
       box.focus()
       // Only if nothing was typed since: a fast typist's first letters must stay in order.
-      if (box.value === next) box.setSelectionRange(next.length, next.length)
+      if (box.value === next) box.setSelectionRange(head.length, head.length)
     })
   }
 
@@ -174,6 +184,7 @@ export function Composer({
           items={items}
           active={active}
           query={query ?? ''}
+          sigil={mention ? '$' : '/'}
           onPick={pick}
           onHover={setActive}
         />

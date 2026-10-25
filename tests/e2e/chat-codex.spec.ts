@@ -92,6 +92,21 @@ test('codex: sign in from the dialog, then chat with approvals, stop, model and 
     )
     await expect(last(win).locator('strong')).toHaveText('fake')
 
+    // ---- Skills (#96): `$` lists codex's skills; the pick is sent as a skill input too.
+    await composer(win).fill('$rev')
+    const menu = pane(win).getByRole('listbox', { name: 'Commands' })
+    await expect(menu.getByRole('option')).toHaveText([/\$review\s*Review the current diff/])
+    await composer(win).press('Enter')
+    await expect(composer(win)).toHaveValue('$review ')
+    await composer(win).pressSequentially('the diff')
+    await composer(win).press('Enter')
+    await expect(last(win)).toContainText('$review the diff [skill review]')
+    await composer(win).fill('costs $5')
+    await expect(menu).toHaveCount(0)
+    await composer(win).fill('/')
+    await expect(menu.getByRole('option', { name: /\$review/ })).toBeVisible()
+    await composer(win).fill('')
+
     // ---- An approval: Allow runs it.
     await composer(win).fill('run it')
     await composer(win).press('Enter')

@@ -5,6 +5,7 @@ import {
   APP_COMMANDS,
   buildSlashItems,
   leadingCommand,
+  mentionQuery,
   rankSlash,
   slashQuery
 } from '../../src/renderer/lib/slash'
@@ -186,5 +187,21 @@ describe('claude adapter: permission modes', () => {
   it('Shift+Tab steps through ask, accept edits, plan (and auto where the model has it)', () => {
     expect(cycleModes(false)).toEqual(['default', 'acceptEdits', 'plan'])
     expect(cycleModes(true)).toEqual(['default', 'acceptEdits', 'plan', 'auto'])
+  })
+})
+
+describe('codex $ skills (#96)', () => {
+  it('a skill is named with $, in the / menu too', () => {
+    const items = buildSlashItems([cmd('review', { mention: true })], [])
+    expect(items.find((i) => i.name === 'review')).toMatchObject({ group: 'skill', sigil: '$' })
+    expect(items.find((i) => i.name === 'new')!.sigil).toBe('/')
+  })
+
+  it('mentionQuery is the $word the caret ends, at the start or after a space', () => {
+    expect(mentionQuery('$', 1)).toEqual({ start: 0, query: '' })
+    expect(mentionQuery('use $rev', 8)).toEqual({ start: 4, query: 'rev' })
+    expect(mentionQuery('use $rev now', 12)).toBeNull()
+    expect(mentionQuery('a$b', 3)).toBeNull()
+    expect(mentionQuery('plain', 5)).toBeNull()
   })
 })

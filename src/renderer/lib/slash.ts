@@ -1,5 +1,6 @@
 // The `/` menu in the chat box: Wraithgrid's own commands, then the CLI's skills and
-// commands (from its own list), then the ones that only work in the CLI's screen. Pure.
+// commands (from its own list), then the ones that only work in the CLI's screen. codex
+// skills are named as `$name` instead, and also open from a `$` word (#96). Pure.
 import type { ChatCommand } from '@shared/chat'
 
 export type SlashGroup = 'app' | 'skill' | 'builtin' | 'terminal'
@@ -12,6 +13,8 @@ export interface SlashItem {
   group: SlashGroup
   /** The plugin a skill comes from (`postman` of `postman:api-testing`). */
   source: string | null
+  /** What goes before the name in the text: `$` for a codex skill. */
+  sigil: '/' | '$'
 }
 
 export const SLASH_GROUP_LABEL: Record<SlashGroup, string> = {
@@ -30,7 +33,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: ['clear'],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   },
   {
     name: 'model',
@@ -38,7 +42,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: [],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   },
   {
     name: 'effort',
@@ -46,7 +51,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: [],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   },
   {
     name: 'mode',
@@ -54,7 +60,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: ['permissions'],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   },
   {
     name: 'usage',
@@ -62,7 +69,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: [],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   },
   {
     name: 'terminal',
@@ -70,7 +78,8 @@ export const APP_COMMANDS: SlashItem[] = [
     aliases: [],
     argumentHint: '',
     group: 'app',
-    source: null
+    source: null,
+    sigil: '/'
   }
 ]
 
@@ -90,7 +99,8 @@ export function buildSlashItems(commands: ChatCommand[], terminalOnly: string[])
         argumentHint: c.argumentHint,
         aliases: c.aliases,
         group: term.has(c.name) ? 'terminal' : c.builtin ? 'builtin' : 'skill',
-        source
+        source,
+        sigil: c.mention ? '$' : '/'
       }
     })
   return [...APP_COMMANDS, ...theirs].sort(
@@ -107,6 +117,16 @@ export function slashQuery(text: string, caret: number): string | null {
   const head = text.slice(0, caret)
   if (caret < 1 || /\s/.test(head)) return null
   return head.slice(1)
+}
+
+/**
+ * The `$word` the caret ends (start of the text or after a space), for the skills menu:
+ * where it starts and the text after `$`; null when the caret is not in one.
+ */
+export function mentionQuery(text: string, caret: number): { start: number; query: string } | null {
+  const m = /(?:^|\s)\$([A-Za-z0-9_.:-]{0,100})$/.exec(text.slice(0, caret))
+  if (!m) return null
+  return { start: caret - m[1]!.length - 1, query: m[1]! }
 }
 
 function subsequence(q: string, s: string): boolean {
