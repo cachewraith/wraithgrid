@@ -8,15 +8,7 @@ import { ProviderLogo } from './ProviderLogo'
 import { useTitleDoubleClick, WindowControls } from './TitleBar'
 import { HiddenChip, LayoutPresets, ProjectLink } from './TopBar'
 import { UsageButton } from './UsageView'
-import {
-  IconBranch,
-  IconChat,
-  IconMonitor,
-  IconMore,
-  IconTerminal,
-  IconUnzoom,
-  IconZoom
-} from './icons'
+import { IconBranch, IconMonitor, IconMore, IconUnzoom, IconZoom } from './icons'
 
 interface Props {
   title: string
@@ -40,7 +32,6 @@ interface Props {
   onBranches: (e: MouseEvent<HTMLElement>) => void
   /** The Chat/Terminal switch; null when the pane can only be a terminal. */
   view: PaneView | null
-  onView: (view: PaneView) => void
 }
 
 /** The state as one quiet word (#75): `working` sweeps, `approve` is amber; no dots. */
@@ -125,22 +116,6 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
       ) : null}
       <span className="ph-sp" />
       <div className="ph-tools">
-        {p.view ? (
-          <div className="vsw" role="group" aria-label="Show pane as">
-            {(['chat', 'terminal'] as const).map((v) => (
-              <button
-                key={v}
-                className={p.view === v ? 'on' : ''}
-                aria-pressed={p.view === v}
-                aria-label={v === 'chat' ? 'Chat' : 'Terminal'}
-                title={v === 'chat' ? 'Chat view' : "Terminal view (the CLI's own screen)"}
-                onClick={() => p.onView(v)}
-              >
-                {v === 'chat' ? <IconChat small /> : <IconTerminal small />}
-              </button>
-            ))}
-          </div>
-        ) : null}
         {p.solo ? (
           <>
             <LayoutPresets />

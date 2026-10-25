@@ -166,7 +166,7 @@ export interface NewPaneInput {
   args: string[]
   shell: boolean
   slotId: string | null
-  /** Overrides settings.newPaneView (a `wraithgrid new` pane must be a terminal). */
+  /** 'terminal' for a `wraithgrid new` pane; agent panes are chats otherwise (#110). */
   view?: PaneView
   /** A team agent's start (#79): its role as the title, its model/effort/mode, its id. */
   team?: Pick<Pane, 'title' | 'model' | 'effort' | 'chatMode' | 'teamAgentId'>
@@ -569,6 +569,8 @@ export function createAppStore({
   const doneAt = new Map<string, number>()
   /** Panes just switched between chat and terminal: the next start continues the conversation. */
   const switched = new Set<string>()
+  /** Terminals opened to sign in (#110): they turn into chats once the account is signed in. */
+  const signInPanes = new Set<string>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -776,6 +778,9 @@ export function createAppStore({
         (quietIn && s.config.workspaces.find((w) => w.id === quietIn)) || activeWorkspace(s)
       const id = newId('p')
       const account = accountById(s.config, input.shell ? null : input.accountId)
+      // Signing in happens in the CLI's own screen, so a login pane is a terminal.
+      const signIn = !input.shell && (!!runtimeExtra.loginFlow || (!!account && !account.signedIn))
+      if (signIn) signInPanes.add(id)
       const pane: Pane = {
         id,
         accountId: input.shell ? null : input.accountId,
@@ -785,11 +790,7 @@ export function createAppStore({
         title: autoTitle(input),
         resume: true,
         hasConversation: false,
-        // Signing in happens in the CLI's own screen, so a login pane is a terminal.
-        view:
-          runtimeExtra.loginFlow || (account && !account.signedIn)
-            ? 'terminal'
-            : (input.view ?? s.config.settings.newPaneView),
+        view: signIn ? 'terminal' : (input.view ?? 'chat'),
         chatSessionId: null,
         model: s.config.settings.chatModel,
         effort: s.config.settings.chatEffort,
@@ -2244,6 +2245,12 @@ export function createAppStore({
           ...c,
           accounts: c.accounts.map((a) => (a.id === id ? { ...a, signedIn: true } : a))
         }))
+        // Its sign-in terminals become chats (nothing else switches a pane to chat now).
+        for (const paneId of signInPanes) {
+          if (findPane(get().config, paneId)?.pane.accountId !== id) continue
+          signInPanes.delete(paneId)
+          get().setPaneView(paneId, 'chat')
+        }
       },
 
       loginAccount(id) {

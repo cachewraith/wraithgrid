@@ -47,8 +47,8 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
   const [worktree, setWorktree] = useState(false)
   const [branch, setBranch] = useState('')
   const [busy, setBusy] = useState(false)
-  // Opens as a chat: the dialog says so (a shell, or Terminal as the default, is a pane).
-  const chatLike = !shell && settings.newPaneView === 'chat'
+  // Opens as a chat: the dialog says so (a shell is a pane).
+  const chatLike = !shell
   const [error, setError] = useState<string | null>(null)
   const [picking, setPicking] = useState(false)
   const [more, setMore] = useState(accounts.length === 0)

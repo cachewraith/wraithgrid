@@ -1,9 +1,9 @@
 // The `/` menu in the chat box: Wraithgrid's own commands, then the CLI's skills and
-// commands (from its own list), then the ones that only work in the CLI's screen. codex
-// skills are named as `$name` instead, and also open from a `$` word (#96). Pure.
+// commands (from its own list); the ones that only work in the CLI's screen are left out, as
+// chats have no terminal view (#110). codex skills are named as `$name` instead, and also open from a `$` word (#96). Pure.
 import type { ChatCommand } from '@shared/chat'
 
-export type SlashGroup = 'app' | 'skill' | 'builtin' | 'terminal'
+export type SlashGroup = 'app' | 'skill' | 'builtin'
 
 export interface SlashItem {
   name: string
@@ -20,10 +20,9 @@ export interface SlashItem {
 export const SLASH_GROUP_LABEL: Record<SlashGroup, string> = {
   app: 'Wraithgrid',
   skill: 'Skills and commands',
-  builtin: 'Built in',
-  terminal: 'Opens in the terminal'
+  builtin: 'Built in'
 }
-const GROUP_ORDER: SlashGroup[] = ['app', 'skill', 'builtin', 'terminal']
+const GROUP_ORDER: SlashGroup[] = ['app', 'skill', 'builtin']
 
 /** Handled by Wraithgrid itself; the CLI's commands of the same name are hidden. */
 export const APP_COMMANDS: SlashItem[] = [
@@ -71,15 +70,6 @@ export const APP_COMMANDS: SlashItem[] = [
     group: 'app',
     source: null,
     sigil: '/'
-  },
-  {
-    name: 'terminal',
-    description: "Show this chat as the CLI's own terminal screen",
-    aliases: [],
-    argumentHint: '',
-    group: 'app',
-    source: null,
-    sigil: '/'
   }
 ]
 
@@ -89,7 +79,7 @@ const TAKEN = new Set(APP_COMMANDS.flatMap((c) => [c.name, ...c.aliases]))
 export function buildSlashItems(commands: ChatCommand[], terminalOnly: string[]): SlashItem[] {
   const term = new Set(terminalOnly)
   const theirs = commands
-    .filter((c) => !TAKEN.has(c.name))
+    .filter((c) => !TAKEN.has(c.name) && !term.has(c.name))
     .map((c): SlashItem => {
       const source = c.name.includes(':') ? c.name.slice(0, c.name.indexOf(':')) : null
       return {
@@ -98,7 +88,7 @@ export function buildSlashItems(commands: ChatCommand[], terminalOnly: string[])
         description: source ? c.description.replace(/^\([^)]*\)\s*/, '') : c.description,
         argumentHint: c.argumentHint,
         aliases: c.aliases,
-        group: term.has(c.name) ? 'terminal' : c.builtin ? 'builtin' : 'skill',
+        group: c.builtin ? 'builtin' : 'skill',
         source,
         sigil: c.mention ? '$' : '/'
       }

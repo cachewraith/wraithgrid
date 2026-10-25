@@ -80,7 +80,7 @@ test('the wraithgrid command lists, reads, types into, waits on and opens panes'
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: {}
+      settings: { chatOnlyMigrated: true }
     })
   )
   const cli = (...args: string[]) =>

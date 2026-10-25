@@ -92,7 +92,7 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: { checkUpdatesOnLaunch: false }
+      settings: { checkUpdatesOnLaunch: false, chatOnlyMigrated: true }
     })
   )
 
@@ -336,7 +336,7 @@ test('New chat: the built-in folder picker browses, filters, jumps and picks by 
       workspaces: [{ id: 'ws-main', name: 'main', panes: [], layout: null }],
       activeWorkspace: 'ws-main',
       recentFolders: ['~/notes'],
-      settings: { newPaneView: 'terminal', checkUpdatesOnLaunch: false }
+      settings: { checkUpdatesOnLaunch: false }
     })
   )
   const app = await electron.launch({
@@ -347,7 +347,7 @@ test('New chat: the built-in folder picker browses, filters, jumps and picks by 
     const win = await app.firstWindow()
     await win.waitForSelector('.app .tb')
     await win.keyboard.press('Control+Shift+N')
-    const dlg = win.getByRole('dialog', { name: 'New pane' })
+    const dlg = win.getByRole('dialog', { name: 'New chat' })
     // The most recent folder is chosen; launch args and the rest wait under More options.
     await expect(dlg.getByRole('button', { name: /^Folder notes/ })).toBeVisible()
     await expect(dlg.locator('#np-args')).toHaveCount(0)
@@ -395,7 +395,7 @@ test('New chat: the built-in folder picker browses, filters, jumps and picks by 
     const field = dlg.getByRole('button', { name: /^Folder api/ })
     await expect(field).toContainText('~/code')
     await expect(field).toContainText('trunk')
-    await dlg.getByRole('button', { name: 'Create pane' }).click()
+    await dlg.getByRole('button', { name: 'Start chat' }).click()
     await expect(win.locator('section.pane .ph-title')).toHaveText('api')
   } finally {
     await app.close()

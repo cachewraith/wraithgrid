@@ -10,15 +10,7 @@ import { paneIds } from '../layout/tree'
 import type { Rect } from '../layout/focus'
 import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { ChatView } from './chat/ChatView'
-import {
-  IconBranch,
-  IconChat,
-  IconCheck,
-  IconClose,
-  IconCompose,
-  IconRestart,
-  IconTerminal
-} from './icons'
+import { IconBranch, IconCheck, IconClose, IconCompose, IconRestart } from './icons'
 import { PaneHeader } from './PaneHeader'
 import { CloseConfirm, ExitedOverlay, LoginBanner } from './PaneOverlays'
 import { Terminal } from './Terminal'
@@ -157,7 +149,6 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
         onMenu={(e) => setMenu(menuPoint(e))}
         onBranches={(e) => actions.openModal({ kind: 'branches', paneId, at: menuPoint(e) })}
         view={chatable ? view : null}
-        onView={(v) => actions.setPaneView(paneId, v)}
       />
       {isChat ? (
         <div className={`chat-host${zoomed ? ' lg' : ''}`}>
@@ -206,15 +197,6 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
           label={`Pane ${pane.title}`}
           onClose={() => setMenu(null)}
           items={[
-            ...(chatable
-              ? [
-                  {
-                    label: isChat ? 'Show as terminal' : 'Show as chat',
-                    icon: isChat ? <IconTerminal small /> : <IconChat small />,
-                    onSelect: () => actions.setPaneView(paneId, isChat ? 'terminal' : 'chat')
-                  }
-                ]
-              : []),
             ...(isChat
               ? [
                   {

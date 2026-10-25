@@ -72,14 +72,12 @@ body {
   padding: 0;
   font: var(--text-small) var(--font-mono);
 }
-.top .seg,
-.vsw {
+.top .seg {
   border: 0;
   background: transparent;
   box-shadow: none;
 }
-.top .seg-btn.on,
-.vsw button.on {
+.top .seg-btn.on {
   background: var(--sel);
   box-shadow: none;
 }

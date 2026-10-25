@@ -57,13 +57,41 @@ const sample = (): Config => ({
     }
   ],
   machines: [],
-  activeWorkspace: 'ws1'
+  activeWorkspace: 'ws1',
+  settings: { ...defaultConfig().settings, chatOnlyMigrated: true }
 })
 
 describe('config schema', () => {
   it('accepts a valid config unchanged', () => {
     const cfg = sample()
     expect(parseConfig(JSON.parse(JSON.stringify(cfg)))).toEqual({ ok: true, config: cfg })
+  })
+
+  it('turns saved terminal views of chat-capable panes into chats, once (#110)', () => {
+    const raw = JSON.parse(JSON.stringify(sample()))
+    raw.settings = {}
+    raw.accounts.push({ ...raw.accounts[0], id: 'a2', cli: 'copilot', configDir: '~/.cp' })
+    const pane = raw.workspaces[0].panes[0]
+    raw.workspaces[0].panes.push(
+      { ...pane, id: 'p2', accountId: 'a2' },
+      { ...pane, id: 'p3', accountId: null, shell: true }
+    )
+    raw.workspaces[0].history = [{ pane: { ...pane, id: 'p4' }, closedAt: 1 }]
+    raw.workspaces.push({ ...raw.workspaces[0], id: 'ws2', machineId: 'm1', history: [] })
+    raw.machines = [{ id: 'm1', name: 'box', sshHost: 'box' }]
+    const r = parseConfig(raw)
+    if (!r.ok) throw new Error(r.error)
+    const [here, remote] = r.config.workspaces
+    // claude has a chat view; copilot, a shell and another machine's panes stay terminals.
+    expect(here!.panes.map((p) => p.view)).toEqual(['chat', 'terminal', 'terminal'])
+    expect(here!.history[0]!.pane.view).toBe('chat')
+    expect(remote!.panes.map((p) => p.view)).toEqual(['terminal', 'terminal', 'terminal'])
+    expect(r.config.settings.chatOnlyMigrated).toBe(true)
+    // Once: a terminal made later (`wraithgrid new`, a sign-in) stays one.
+    const again = parseConfig(
+      JSON.parse(JSON.stringify({ ...r.config, workspaces: [raw.workspaces[0]] }))
+    )
+    expect(again.ok && again.config.workspaces[0]!.panes[0]!.view).toBe('terminal')
   })
 
   it('drops a folder reference to a folder that does not exist', () => {

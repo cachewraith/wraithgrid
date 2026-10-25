@@ -1105,7 +1105,6 @@
 }
 @container pane (max-width: 330px) {
   .ph .chip,
-  .ph .vsw,
   .ph .gitc,
   .ph .ph-new {
     display: none;

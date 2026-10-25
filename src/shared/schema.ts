@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CHAT_EFFORTS, CHAT_MODES, CHAT_MODEL_PATTERN, chatSessionIdSchema } from './chat'
+import { AGENT_CLI_SPECS } from './agent-clis'
 import { LOCAL_DATETIME_PATTERN, SCHEDULE_RUNS_MAX, SCHEDULES_MAX, TIME_PATTERN } from './schedule'
 import {
   ACCENTS,
@@ -24,7 +25,8 @@ import {
   TERMINAL_FONTS,
   TERMINAL_PALETTES,
   type Config,
-  type LayoutNode
+  type LayoutNode,
+  type Pane
 } from './types'
 
 export const idSchema = z
@@ -187,6 +189,7 @@ export const settingsSchema = z.object({
   onWindowClose: z.enum(CLOSE_MODES).default('ask').catch('ask'),
   cliAccess: z.boolean().default(false),
   newPaneView: z.enum(PANE_VIEWS).default('chat').catch('chat'),
+  chatOnlyMigrated: z.boolean().default(false),
   chatModel: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
   chatEffort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
   chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
@@ -380,14 +383,32 @@ export function sanitizeConfig(cfg: Config): Config {
   )
   const accountIds = new Set(cfg.accounts.map((a) => a.id))
   const machineIds = new Set(cfg.machines.map((m) => m.id))
-  const workspaces = cfg.workspaces.map((w) => ({
-    ...w,
-    machineId: w.machineId && machineIds.has(w.machineId) ? w.machineId : null,
-    accountId: w.accountId && accountIds.has(w.accountId) ? w.accountId : null,
-    panes: w.panes.map((p) =>
-      p.accountId && !accountIds.has(p.accountId) ? { ...p, accountId: null } : p
-    )
-  }))
+  // Chat-capable agent panes here show as chats (#110): a saved terminal turns into one, once;
+  // terminals made later (`wraithgrid new`, a sign-in in the CLI's screen) stay terminals.
+  const cliOf = new Map(cfg.accounts.map((a) => [a.id, a.cli]))
+  const toChat = (p: Pane, remote: boolean): Pane =>
+    !cfg.settings.chatOnlyMigrated &&
+    !remote &&
+    !p.shell &&
+    p.view === 'terminal' &&
+    AGENT_CLI_SPECS[cliOf.get(p.accountId ?? '') ?? 'claude'].chat
+      ? { ...p, view: 'chat' }
+      : p
+  const workspaces = cfg.workspaces.map((w) => {
+    const machineId = w.machineId && machineIds.has(w.machineId) ? w.machineId : null
+    return {
+      ...w,
+      machineId,
+      accountId: w.accountId && accountIds.has(w.accountId) ? w.accountId : null,
+      panes: w.panes.map((p) =>
+        toChat(
+          p.accountId && !accountIds.has(p.accountId) ? { ...p, accountId: null } : p,
+          !!machineId
+        )
+      ),
+      history: w.history.map((h) => ({ ...h, pane: toChat(h.pane, !!machineId) }))
+    }
+  })
   const activeWorkspace = workspaces.some((w) => w.id === cfg.activeWorkspace)
     ? cfg.activeWorkspace
     : workspaces[0]!.id
@@ -400,7 +421,7 @@ export function sanitizeConfig(cfg: Config): Config {
     accounts,
     workspaces,
     activeWorkspace,
-    settings: { ...cfg.settings, defaultAccountId }
+    settings: { ...cfg.settings, defaultAccountId, chatOnlyMigrated: true }
   }
 }
 
