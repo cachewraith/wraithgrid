@@ -1,4 +1,16 @@
-# What's new in 1.22.0: web preview, and chats stay chats
+# What's new in 1.22.1: web preview, and chats stay chats
+
+*v1.22.1 · 2026-10-25*
+
+Everything from 1.22.0 below, now with every download built.
+
+| Fix | What changed |
+|---|---|
+| Linux downloads | 1.22.0's Linux build stopped on a test that failed by timing; with the test fixed, 1.22.1 ships the Linux packages too. Nothing changes in the app |
+
+---
+
+## Previously, in 1.22.0: web preview, and chats stay chats
 
 *v1.22.0 · 2026-10-25*
 

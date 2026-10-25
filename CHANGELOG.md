@@ -2,6 +2,7 @@
 
 ## 2026-10-25
 
+- [release] v1.22.1: v1.22.0 + the Send later e2e fix, so the Linux release build completes (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)
 - [test] Send later e2e: wait for the app to rewrite config.json (the fixture has no `schedules`; reading it early threw and failed the v1.22.0 Linux release build) and accept a day in the queued time after 23:00 (files: tests/e2e/scheduled.spec.ts)
 - [release] v1.22.0: web preview + Attach to chat (#74), chat-capable agents always chats (#110), scheduled runs/Start team in the project's folder (#109) (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)
 - [preview] Attach to chat (#74, part B): the preview's toolbar button (red count = console errors + failed requests since the page loaded) puts a screenshot (main captures only a preview's own web contents; ≤1600 px, JPEG when large) and a report chip (URL, console errors, failed requests) into the project's last focused chat, or a new one, unsent; the report goes after the message (files: src/shared/{preview,chat,ipc-channels,ipc-contract}.ts, src/main/{app,ipc}.ts, src/preload/index.ts, src/renderer/app/store.ts, src/renderer/components/PreviewView.tsx, src/renderer/components/chat/{Composer,ChatView}.tsx, src/renderer/styles/ui.css, tests/unit/preview.test.ts, tests/e2e/preview.spec.ts, tests/fixtures/dev-server.mjs)
