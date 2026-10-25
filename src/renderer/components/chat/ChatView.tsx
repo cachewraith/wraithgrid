@@ -15,7 +15,7 @@ import { accountById, findPane } from '../../app/store'
 import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
 import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
 import { createPortal } from 'react-dom'
-import { IconArrowDown, IconClock, IconClose, IconRestart, IconTerminal } from '../icons'
+import { IconArrowDown, IconClock, IconClose, IconRestart } from '../icons'
 import { fmtUntil } from '../../lib/usage-format'
 import { fmtWhen } from '@shared/schedule'
 import { useShallow } from 'zustand/react/shallow'
@@ -468,18 +468,11 @@ export function ChatView({ paneId, visible, focused }: Props) {
   // switch puts it back), so waiting for the CLI here only made the picker look stuck.
   const mode = pane.chatMode ?? 'default'
   const runCommand = (item: SlashItem): void => {
-    if (item.group === 'terminal') {
-      // The CLI's own screen starts (or comes forward); the command waits there for Enter.
-      actions.setPaneView(paneId, 'terminal')
-      setTimeout(() => actions.typeInPane(paneId, `/${item.name}`), 1500)
-      return
-    }
     if (item.name === 'new') actions.chatNew(paneId)
     else if (item.name === 'model') setModelSignal((n) => n + 1)
     else if (item.name === 'effort') setEffortSignal((n) => n + 1)
     else if (item.name === 'mode') setModeSignal((n) => n + 1)
     else if (item.name === 'usage') actions.setView('usage')
-    else if (item.name === 'terminal') actions.setPaneView(paneId, 'terminal')
   }
 
   const send = (text: string, images: Parameters<typeof actions.chatSend>[2]): void => {
@@ -614,20 +607,15 @@ export function ChatView({ paneId, visible, focused }: Props) {
                 <span className="mono"> {exit.message}</span>
               ) : null}
             </span>
-            <button className="btn gh" onClick={() => actions.setPaneView(paneId, 'terminal')}>
-              <IconTerminal small /> Open as terminal
-            </button>
             <button className="btn" onClick={() => actions.restartPane(paneId)}>
               <IconRestart small /> Restart
             </button>
           </div>
         ) : notSignedIn ? (
           <div className="chat-bar">
-            <span>
-              {account.name} is not signed in. Sign in once in the terminal view, then come back.
-            </span>
-            <button className="btn" onClick={() => actions.setPaneView(paneId, 'terminal')}>
-              <IconTerminal small /> Open as terminal
+            <span>{account.name} is not signed in. Sign in once, then come back.</span>
+            <button className="btn" onClick={() => actions.loginAccount(account.id)}>
+              Sign in
             </button>
           </div>
         ) : null}

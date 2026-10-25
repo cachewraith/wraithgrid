@@ -121,7 +121,7 @@ export function Composer({
   const syncCaret = (): void => setCaret(ref.current?.selectionStart ?? 0)
 
   const pick = (item: SlashItem): void => {
-    if (item.group === 'app' || item.group === 'terminal') {
+    if (item.group === 'app') {
       setText('')
       onCommand?.(item)
       return

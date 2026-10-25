@@ -42,6 +42,12 @@ reports tool calls and results. It asks the host before running a tool (`control
      machine and `wraithgrid new` panes are terminals.
    - Switching stops the old process. The other view continues the conversation: the
      terminal with `--continue`, chat with the saved session id.
+   - Amended 2026-10-25 (#110): no longer a user choice. Chat-capable agent panes here are
+     always chats; the header switch, menu item, `/terminal`, terminal-only `/` commands and
+     `settings.newPaneView` are gone. Saved terminal views were turned into chats once
+     (`settings.chatOnlyMigrated`). Terminals remain for shells, CLIs without a chat adapter,
+     other machines, `wraithgrid new` and signing in (a sign-in terminal becomes a chat once
+     the account is signed in).
 
 ## Consequences
 

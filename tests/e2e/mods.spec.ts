@@ -67,7 +67,11 @@ test('mods: panes load mod folders; the view lists, toggles and installs for eve
       ],
       activeWorkspace: 'ws-a',
       recentFolders: [],
-      settings: { sharedMode: 'per-account', modDirs: ['~/mods/tally', '~/.wraithgrid/mods/meter'] }
+      settings: {
+        sharedMode: 'per-account',
+        modDirs: ['~/mods/tally', '~/.wraithgrid/mods/meter'],
+        chatOnlyMigrated: true
+      }
     })
   )
   // Written after a debounce: tolerate a missing or half-written file.

@@ -78,7 +78,6 @@ export function SlashMenu({
                 {it.argumentHint ? <span className="slash-arg"> {it.argumentHint}</span> : null}
               </span>
               {it.source ? <span className="slash-src">{it.source}</span> : null}
-              {it.group === 'terminal' ? <span className="slash-src">terminal</span> : null}
               <span className="slash-ds">{it.description}</span>
             </div>
           </div>

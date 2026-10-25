@@ -300,8 +300,10 @@ export interface Settings {
   onWindowClose: CloseMode
   /** Let `wraithgrid list|read|send|wait|new|split|stop` reach panes (H6). Off by default. */
   cliAccess: boolean
-  /** How new agent panes open, when their CLI has a chat view (ADR 0002). */
+  /** No longer read: chat-capable agent panes always open as chats (#110). */
   newPaneView: PaneView
+  /** Saved terminal views of chat-capable panes were turned into chats once (#110). */
+  chatOnlyMigrated: boolean
   /** Model and effort new chats start with; null: the CLI's default. */
   chatModel: string | null
   chatEffort: ChatEffort | null

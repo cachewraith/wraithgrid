@@ -28,7 +28,6 @@ import {
   stepZoom,
   type AccentName,
   type CloseMode,
-  type PaneView,
   type SharedMode,
   type ShortcutId
 } from '@shared/types'
@@ -888,52 +887,6 @@ function CloseRow() {
   )
 }
 
-const VIEW_OPTIONS: { id: PaneView; label: string }[] = [
-  { id: 'chat', label: 'Chat' },
-  { id: 'terminal', label: 'Terminal' }
-]
-
-function PaneViewRow() {
-  const actions = useActions()
-  const view = useApp((s) => s.config.settings.newPaneView)
-  return (
-    <div className="srow">
-      <div>
-        <h3 id="view-h">New panes open as</h3>
-        <p className="ex">
-          Chat runs the agent CLI in the background and shows its answers, tool calls and approvals
-          as a conversation. Terminal shows the CLI's own screen. Each pane can switch from its
-          header.
-        </p>
-      </div>
-      <div className="ctl">
-        <div className="recent" role="radiogroup" aria-labelledby="view-h">
-          {VIEW_OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              className={`rchip${view === o.id ? ' on' : ''}`}
-              role="radio"
-              aria-checked={view === o.id}
-              onClick={() => actions.updateSettings({ newPaneView: o.id })}
-              style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <span className="hint">
-          Chat is available for{' '}
-          {AGENT_CLIS.filter((c) => AGENT_CLI_SPECS[c].chat)
-            .map((c) => AGENT_CLI_LABEL[c])
-            .join(', ')}
-          . Other CLIs open as terminals. A pane signs in from the terminal view. Chat agents stop
-          when Wraithgrid quits and carry on the conversation at the next launch.
-        </span>
-      </div>
-    </div>
-  )
-}
-
 function CliRow() {
   const actions = useActions()
   const on = useApp((s) => s.config.settings.cliAccess)
@@ -1749,7 +1702,6 @@ export function SettingsView() {
               </div>
             </div>
 
-            <PaneViewRow />
             <CloseRow />
             <NotifyRow />
           </>

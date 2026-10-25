@@ -106,7 +106,7 @@ test('accounts are isolated, the layout is restored, and no process outlives the
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: {}
+      settings: { chatOnlyMigrated: true }
     })
   )
 

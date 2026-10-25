@@ -202,8 +202,8 @@ curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts
    Enter. **More options** has launch args (`--resume`, `-c`), a plain shell, and **Work on a
    new branch (git worktree)**, which gives the pane its own checkout under
    `~/.wraithgrid/worktrees` so panes in the same repo don't edit each other's files.
-   **Settings → Chat → New panes open as** picks chat or terminal; the Chat / Terminal switch
-   in a pane's header flips one pane.
+   Agents with a chat view always open as chats; a plain shell and CLIs without one are
+   terminals.
 5. **Arrange them.**
    - Drag the dividers to resize.
    - Pick a preset: 1, 2 side by side, 2×2, or 3 columns.

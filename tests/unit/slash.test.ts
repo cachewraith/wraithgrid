@@ -54,15 +54,14 @@ describe('buildSlashItems', () => {
       'model',
       'effort',
       'mode',
-      'usage',
-      'terminal'
+      'usage'
     ])
     expect(
       items.filter((i) => i.name === 'clear' || (i.name === 'model' && i.group !== 'app'))
     ).toEqual([])
   })
 
-  it('groups skills, built-ins and terminal-only commands; the plugin is a badge', () => {
+  it('groups skills and built-ins, leaves out terminal-only commands; the plugin is a badge', () => {
     const by = (n: string) => items.find((i) => i.name === n)!
     expect(by('postman:api-testing')).toMatchObject({
       group: 'skill',
@@ -70,12 +69,11 @@ describe('buildSlashItems', () => {
       description: 'Use when testing an endpoint'
     })
     expect(by('compact').group).toBe('builtin')
-    expect(by('doctor').group).toBe('terminal')
+    // Chats have no terminal view (#110), so a command that only works there isn't offered.
+    expect(items.find((i) => i.name === 'doctor')).toBeUndefined()
     expect(items.map((i) => i.group)).toEqual(
       [...items.map((i) => i.group)].sort(
-        (a, b) =>
-          ['app', 'skill', 'builtin', 'terminal'].indexOf(a) -
-          ['app', 'skill', 'builtin', 'terminal'].indexOf(b)
+        (a, b) => ['app', 'skill', 'builtin'].indexOf(a) - ['app', 'skill', 'builtin'].indexOf(b)
       )
     )
   })

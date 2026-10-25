@@ -74,6 +74,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/lib/{ansi,ids,scheduling}.ts`, `src/renderer/layout/presets.ts`
 
 ## Known gotchas
+- e2e fixtures with claude panes saved as terminals (`view` omitted = terminal) turn into chats on load unless `settings.chatOnlyMigrated: true` (#110); suites driving claude's own screen (background, cli, keys, mods, smoke, git-palette) set it.
 - Panes live in the host, not main: it renames itself `wraithgrid-host` (pgrep for `host.js` finds nothing); socket dir `$XDG_RUNTIME_DIR/wraithgrid-<uid>-<hash of userData>` (or tmpdir), removed on clean exit, kept with `host.log` after a failure. A dev host keeps running old `src/host` code while the protocol matches: stop it (Quit and stop agents, or SIGTERM) after host changes. Unix socket paths max ~104 bytes.
 - Never spawn a long-lived child from main without masking fds (`stdioMasking`): Chromium fds lack CLOEXEC.
 - Playwright: a crashed page object stays dead; read the reloaded page via `app.evaluate(... executeJavaScript)`. Launch crash tests with `cwd` in a temp dir (core dumps). Wait for a fake CLI's last banner line before typing (echo races its output).
@@ -144,4 +145,4 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - CSS: `.cm*` is ContextMenu's prefix; chat markdown uses `.md*`, chat parts `.c*`/`.chat-*`. Never style a bare two-letter class: `.gh` (commit graph) also matched the ghost button `.btn.gh` and broke every Cancel (#36) — scope to the element (`ol.gh`).
 
 ## Current focus
-v1.21.0 (2026-10-25): #85, #96, #89, #79, #100, #103, #77 (scheduled chats + Send later), #107 (PRs #97–#108). In progress: #109 (scheduled run / Start team folder). Open: #110 remove the Chat/Terminal switch, #74 web preview, #76 Rust host. Manual follow-ups: tray wake-up for scheduled jobs and the one-row header on Windows/macOS; verify gemini/copilot shared-brain paths with real CLIs; real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.
+v1.21.0 (2026-10-25): #85, #96, #89, #79, #100, #103, #77 (scheduled chats + Send later), #107 (PRs #97–#108). Merged after v1.21.0: #109 (scheduled run / Start team folder, PR #111). In progress: #110 chat-only panes (no Chat/Terminal switch). Open: #74 web preview, #76 Rust host. Manual follow-ups: tray wake-up for scheduled jobs and the one-row header on Windows/macOS; verify gemini/copilot shared-brain paths with real CLIs; real-account limits/handoffs, Windows/macOS host/CLI behavior, real ssh, 8-pane performance, mods, and package-manager publishing credentials.

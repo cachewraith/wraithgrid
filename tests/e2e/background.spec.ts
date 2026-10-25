@@ -107,7 +107,7 @@ test('agents kept running survive quit and reattach with their screen; stop leav
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: { onWindowClose: 'keep' }
+      settings: { onWindowClose: 'keep', chatOnlyMigrated: true }
     })
   )
 

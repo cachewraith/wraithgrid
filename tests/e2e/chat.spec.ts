@@ -42,7 +42,7 @@ async function launch(
 
 test.skip(process.platform === 'win32', 'POSIX-only fixture')
 
-test('chat pane: streamed answer, approval, view switch, restore, no leftovers', async () => {
+test('chat pane: streamed answer, approval, restore, no leftovers', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-chat-'))
   const home = path.join(tmp, 'home')
   const userData = path.join(tmp, 'userdata')
@@ -313,19 +313,14 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await expect(pane(win).locator('.cnote.error')).toHaveCount(0)
     await expect(pane(win).getByRole('button', { name: 'Stop (Esc)' })).toBeHidden()
 
-    // ---- Terminal view continues the conversation in the CLI's own screen, then back.
-    await pane(win).getByRole('button', { name: 'Terminal', exact: true }).click()
-    await expect
-      .poll(async () => (await pane(win).locator('.xterm-rows').innerText()).replace(/\s+/g, ''))
-      .toContain('ARGS=--continue')
-    await expect.poll(() => chatPids()).toHaveLength(0)
-    await pane(win).getByRole('button', { name: 'Chat', exact: true }).click()
-    await expect(pane(win).locator('.cmsg.user').first()).toHaveText('hi there')
-    await composer(win).fill('again')
-    await composer(win).press('Enter')
-    await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
-      'session resumed-resumed-fake-new'
-    )
+    // ---- No way to the CLI's own screen (#110): no header switch, no menu item.
+    await expect(pane(win).getByRole('group', { name: 'Show pane as' })).toHaveCount(0)
+    await pane(win)
+      .getByRole('button', { name: /^Pane actions|^More$/ })
+      .first()
+      .click()
+    await expect(win.getByRole('menuitem', { name: /Show as terminal/ })).toHaveCount(0)
+    await win.keyboard.press('Escape')
 
     // ---- Attach: main's picker; an image goes as an image, a text file as a path.
     const notes = path.join(home, 'proj', 'notes.md')
@@ -380,7 +375,7 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await composer(win).fill('after restart')
     await composer(win).press('Enter')
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
-      'session resumed-resumed-resumed-fake-new'
+      'session resumed-resumed-fake-new'
     )
 
     // ---- New conversation empties the view and starts a fresh session.

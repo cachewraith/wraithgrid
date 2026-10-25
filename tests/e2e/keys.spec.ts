@@ -49,7 +49,7 @@ test('Shift+Enter reaches claude as ESC CR; Enter stays a bare CR', async () => 
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: {}
+      settings: { chatOnlyMigrated: true }
     })
   )
 
@@ -107,7 +107,7 @@ test('a gemini account runs gemini from PATH with GEMINI_CLI_HOME; Shift+Enter s
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: {}
+      settings: { chatOnlyMigrated: true }
     })
   )
 

@@ -588,7 +588,6 @@ export function Sidebar() {
   const collapsed = narrow ? !drawer : savedCollapsed
   const toggle = narrow ? (): void => setDrawer(!drawer) : actions.toggleSidebar
   const width = useApp((s) => s.config.settings.sidebarWidth)
-  const chatFirst = useApp((s) => s.config.settings.newPaneView === 'chat')
   const sideRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const indRef = useRef<HTMLDivElement>(null)
@@ -624,7 +623,7 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [drawer])
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar'
-  const newLabel = chatFirst ? 'New chat' : 'New pane'
+  const newLabel = 'New chat'
 
   // While the width animates, the content keeps a fixed width (`.moving`) so it is revealed
   // or clipped instead of reflowing. Only then: at rest it must fit beside a scrollbar.

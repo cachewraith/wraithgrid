@@ -355,9 +355,10 @@ for (const theme of ['wraith', 'midnight', 'clay', 'daylight', 'paper', 'communi
         .getByRole('button', { name: /Open.*Review changes|Review changes/ })
         .first()
         .click()
-      await win.getByRole('button', { name: 'Terminal', exact: true }).click()
-      await expect(win.locator('.term-host')).toBeVisible()
-      await shot(win, 'terminal')
+      // A chat stays a chat: no switch to the CLI's own screen (#110).
+      await expect(win.locator('.chat-host')).toBeVisible()
+      await expect(win.getByRole('group', { name: 'Show pane as' })).toHaveCount(0)
+      await shot(win, 'chat-pane')
     } finally {
       await app.close()
       fs.rmSync(tmp, { recursive: true, force: true })

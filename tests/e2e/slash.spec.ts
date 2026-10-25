@@ -100,14 +100,10 @@ test('typing / lists the chat’s commands; picking one inserts or runs it', asy
     await expect(win.getByRole('option', { name: /Sonnet 5\.5/ })).toBeVisible()
     await win.keyboard.press('Escape')
 
-    // ---- A terminal-only command switches the pane to the CLI's own screen.
-    await box.fill('/doc')
-    await expect(menu.getByRole('option').first()).toContainText('terminal')
-    await box.press('Enter')
-    await expect(win.getByRole('button', { name: 'Terminal', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    // ---- Terminal-only commands and /terminal aren't offered: chats have no terminal (#110).
+    await box.fill('/')
+    await expect(menu.getByRole('option').first()).toBeVisible()
+    await expect(menu.getByRole('option', { name: /\/doctor|\/terminal/ })).toHaveCount(0)
   } finally {
     await app.close()
     fs.rmSync(tmp, { recursive: true, force: true })
