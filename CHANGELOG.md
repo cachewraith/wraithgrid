@@ -2,6 +2,7 @@
 
 ## 2026-10-25
 
+- [ui] One header row (#89): one pane open = a single 44px row (project / logo, title, state word, chat/terminal, layouts, usage, focus, ⋯ with pane + app actions, window buttons); split = project row + slim 34px pane rows whose buttons show on hover/focus; account, path, mode and New conversation leave the pane header (composer, ⋯ or `/new`), a terminal keeps its branch chip; on Linux the empty window bar becomes a thin drag strip, Windows/macOS keep their OS strip (files: src/renderer/components/{TitleBar,TopBar,PaneHeader,Pane}.tsx, src/renderer/app/store.ts, src/renderer/styles/ui.css, tests/e2e/{chat,responsive,git-palette}.spec.ts, docs/{CONTEXT,DECISIONS}.md)
 - [codex] Codex chats suggest skills: `$` (anywhere, after a space) opens the menu with codex's skills, `/` lists them too; picking inserts `$name`, and sending adds codex's `skill` input for each named skill; list from app-server `skills/list`, refreshed on `skills/changed` (#96) (files: src/main/chat/codex.ts, src/shared/chat.ts, src/renderer/lib/slash.ts, src/renderer/components/chat/{Composer,SlashMenu}.tsx, tests/unit/{chat-codex,slash}.test.ts, tests/fixtures/fake-codex.mjs, tests/e2e/chat-codex.spec.ts, docs/{CONTEXT,DECISIONS}.md)
 - [themes] Every built-in theme uses the same (medium) corner radius; Midnight, Paper and Clay no longer set their own, so switching themes changes colours, not shape; custom themes still pick small/large (#85) (files: src/shared/themes.ts, tests/unit/themes.test.ts)
 

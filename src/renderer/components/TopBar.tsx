@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from 'react'
 import { useActions, useApp } from '../app/services'
-import { activeWorkspace } from '../app/store'
+import { activeWorkspace, soloPaneId } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { PRESETS, detectPreset, type PresetId } from '../layout/presets'
 import { paneIds } from '../layout/tree'
@@ -17,7 +17,8 @@ import {
   IconUnzoom,
   IconZoom
 } from './icons'
-import { ContextMenu, type MenuPoint } from './ContextMenu'
+import { ContextMenu, type MenuItem, type MenuPoint } from './ContextMenu'
+import { useTitleDoubleClick, WindowControls } from './TitleBar'
 import { UsageButton } from './UsageView'
 
 const PRESET_ICON: Record<PresetId, () => React.JSX.Element> = {
@@ -36,11 +37,15 @@ export function TopBar() {
   const shown = paneIds(ws.layout)
   const hiddenCount = ws.panes.length - shown.length
   const zoomedPane = zoomedId ? ws.panes.find((p) => p.id === zoomedId) : undefined
-  const preset = detectPreset(ws.layout)
+  const solo = useApp((s) => soloPaneId(s) !== null)
+  const onDoubleClick = useTitleDoubleClick()
+
+  // One chat on screen: its own header is the top row (#89).
+  if (solo) return null
 
   if (view === 'project') {
     return (
-      <header className="top">
+      <header className="top" onDoubleClick={onDoubleClick}>
         <span className="top-title">{ws.name}</span>
         <span className="top-sub">Project</span>
         <div className="top-sp" />
@@ -57,7 +62,7 @@ export function TopBar() {
 
   if (view !== 'grid') {
     return (
-      <header className="top">
+      <header className="top" onDoubleClick={onDoubleClick}>
         <button
           className="btn gh"
           onClick={() => actions.setView('grid')}
@@ -87,7 +92,7 @@ export function TopBar() {
     const cols =
       cells.length >= 5 ? 4 : cells.length === 3 ? 3 : Math.max(1, Math.min(cells.length, 2))
     return (
-      <header className="top">
+      <header className="top" onDoubleClick={onDoubleClick}>
         <span className="top-title">{zoomedPane.title}</span>
         <span className="top-sub">zoomed · {ws.name}</span>
         <div className="top-sp" />
@@ -116,59 +121,101 @@ export function TopBar() {
 
   const empty = !ws.layout
   return (
-    <header className="top">
-      <button
-        className="top-link"
-        title="Project overview: open chats and history"
-        onClick={() => actions.openProject(ws.id)}
-      >
-        <IconBack />
-        <span className="top-title">{ws.name}</span>
-      </button>
+    <header className="top" onDoubleClick={onDoubleClick}>
+      <ProjectLink />
       <span className="top-chip">
         {empty ? 'No chats yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'chat' : 'chats'}`}
       </span>
-      {hiddenCount > 0 ? (
-        <button
-          className="hidden-chip"
-          onClick={actions.showAllPanes}
-          title="Show all panes in the grid"
-        >
-          +{hiddenCount} hidden
-        </button>
-      ) : null}
+      {hiddenCount > 0 ? <HiddenChip count={hiddenCount} /> : null}
       <div className="top-sp" />
       {empty ? null : (
-        <>
-          <div className="seg" role="group" aria-label="Layout preset">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                className={`seg-btn${preset === p.id ? ' on' : ''}`}
-                aria-pressed={preset === p.id}
-                aria-label={p.label}
-                title={p.label}
-                onClick={() => actions.applyPreset(p.id)}
-              >
-                {PRESET_ICON[p.id]()}
-              </button>
-            ))}
-            <span className="seg-sep" aria-hidden="true" />
-            <button
-              className="seg-btn"
-              onClick={() => actions.toggleZoom()}
-              disabled={ws.panes.length === 0}
-              aria-label={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
-              title={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
-            >
-              <IconZoom />
-            </button>
-          </div>
-        </>
+        <LayoutPresets>
+          <span className="seg-sep" aria-hidden="true" />
+          <button
+            className="seg-btn"
+            onClick={() => actions.toggleZoom()}
+            disabled={ws.panes.length === 0}
+            aria-label={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
+            title={`Zoom focused pane (${SHORTCUT_HINT.zoom})`}
+          >
+            <IconZoom />
+          </button>
+        </LayoutPresets>
       )}
       <UtilityButtons />
     </header>
   )
+}
+
+/** Back to the project's overview, under its name. */
+export function ProjectLink() {
+  const actions = useActions()
+  const ws = useApp(activeWorkspace)
+  return (
+    <button
+      className="top-link"
+      title="Project overview: open chats and history"
+      onClick={() => actions.openProject(ws.id)}
+    >
+      <IconBack />
+      <span className="top-title">{ws.name}</span>
+    </button>
+  )
+}
+
+/** Panes left out of the layout, one click from coming back. */
+export function HiddenChip({ count }: { count: number }) {
+  const actions = useActions()
+  return (
+    <button
+      className="hidden-chip"
+      onClick={actions.showAllPanes}
+      title="Show all panes in the grid"
+    >
+      +{count} hidden
+    </button>
+  )
+}
+
+/** The layout preset buttons (and whatever follows them in the same group). */
+export function LayoutPresets({ children }: { children?: React.ReactNode }) {
+  const actions = useActions()
+  const preset = useApp((s) => detectPreset(activeWorkspace(s).layout))
+  return (
+    <div className="seg" role="group" aria-label="Layout preset">
+      {PRESETS.map((p) => (
+        <button
+          key={p.id}
+          className={`seg-btn${preset === p.id ? ' on' : ''}`}
+          aria-pressed={preset === p.id}
+          aria-label={p.label}
+          title={p.label}
+          onClick={() => actions.applyPreset(p.id)}
+        >
+          {PRESET_ICON[p.id]()}
+        </button>
+      ))}
+      {children}
+    </div>
+  )
+}
+
+/** Shortcuts, Mods and Settings: the More menu's items (also the lone chat's ⋯, #89). */
+export function utilityItems(actions: ReturnType<typeof useActions>): MenuItem[] {
+  return [
+    {
+      label: 'Keyboard shortcuts',
+      kbd: SHORTCUT_HINT.shortcuts,
+      icon: <IconKeyboard small />,
+      onSelect: () => actions.openModal({ kind: 'shortcuts' })
+    },
+    { label: 'Mods', icon: <IconMods small />, onSelect: () => actions.setView('mods') },
+    {
+      label: 'Settings',
+      icon: <IconSettings small />,
+      onSelect: () => actions.setView('settings')
+    }
+  ]
 }
 
 /** Shortcuts, Mods and Settings behind one button: they are also in the account menu. */
@@ -199,22 +246,10 @@ function UtilityButtons() {
           className="top-menu"
           label="More"
           onClose={() => setMenu(null)}
-          items={[
-            {
-              label: 'Keyboard shortcuts',
-              kbd: SHORTCUT_HINT.shortcuts,
-              icon: <IconKeyboard small />,
-              onSelect: () => actions.openModal({ kind: 'shortcuts' })
-            },
-            { label: 'Mods', icon: <IconMods small />, onSelect: () => actions.setView('mods') },
-            {
-              label: 'Settings',
-              icon: <IconSettings small />,
-              onSelect: () => actions.setView('settings')
-            }
-          ]}
+          items={utilityItems(actions)}
         />
       ) : null}
+      <WindowControls />
     </>
   )
 }

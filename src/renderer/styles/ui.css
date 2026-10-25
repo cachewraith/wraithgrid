@@ -828,3 +828,90 @@ input[type='color']::-webkit-color-swatch {
 .side .acct-sw:focus-visible {
   box-shadow: inset 0 0 0 1px var(--hover-line);
 }
+
+/* ---- One header row (#89): a thin window strip; one chat's header is the top row ------ */
+
+.tb.tb-slim {
+  height: var(--panel-gap);
+  padding: 0;
+  border: 0;
+}
+.top,
+.ph.solo {
+  -webkit-app-region: drag;
+}
+.top :is(button, input, a),
+.ph.solo :is(button, input, a) {
+  -webkit-app-region: no-drag;
+}
+.pane:not(.solo) .ph {
+  height: 34px;
+  gap: 8px;
+}
+.ph.solo {
+  height: 44px;
+  gap: 10px;
+  padding: 0 8px 0 14px;
+  background: var(--bg);
+  cursor: default;
+}
+.pane.focused .ph.solo {
+  background: var(--bg);
+  box-shadow: none;
+}
+.ph.solo .top-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fa);
+}
+.ph-slash {
+  color: var(--fa);
+  margin: 0 -2px;
+}
+.ph.solo .ph-title {
+  max-width: none;
+  flex: 0 1 auto;
+}
+.ph .ph-st {
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.ph .ph-st:not(.working):not(.warn) {
+  color: var(--fa);
+}
+.ph-sp {
+  flex: 1;
+  min-width: 0;
+}
+.ph-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.ph.solo .ph-tools {
+  gap: 6px;
+}
+.ph.solo .seg {
+  background: none;
+  border-color: transparent;
+}
+/* Split panes: the buttons show on hover or keyboard focus, so a pane reads as title + state. */
+.pane:not(.solo) .ph-tools {
+  opacity: 0;
+  transition: opacity var(--ui-time) var(--ui-ease);
+}
+.pane:not(.solo) .ph:hover .ph-tools,
+.pane:not(.solo) .ph:focus-within .ph-tools {
+  opacity: 1;
+}
+.ph .wc {
+  margin-left: 2px;
+}
+.top .wc {
+  margin-left: 4px;
+}
+.ph.solo .top-link {
+  padding-right: 2px;
+}
