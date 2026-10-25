@@ -3,6 +3,8 @@ import { AGENT_CLIS, type AgentCli } from '@shared/agent-clis'
 // so it is tested without a window; ChatBus keeps one per pane and saves it to disk.
 import type {
   ApprovalDecision,
+  ChatAnswers,
+  ChatQuestion,
   ChatAccountInfo,
   ChatBackgroundTask,
   ChatControls,
@@ -19,6 +21,10 @@ export interface ToolApproval {
   canAlways: boolean
   /** null while it waits for the user. */
   decided: ApprovalDecision | null
+  /** AskUserQuestion: the questions, answered in the chat rather than allowed. */
+  questions?: ChatQuestion[]
+  /** What was picked, once answered. */
+  answers?: ChatAnswers
 }
 
 export type ChatItem =
@@ -228,7 +234,12 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
       return addNotice(t, e.ok ? 'info' : 'error', e.text.slice(0, 300))
     }
     case 'approval': {
-      const approval: ToolApproval = { reqId: e.reqId, canAlways: e.canAlways, decided: null }
+      const approval: ToolApproval = {
+        reqId: e.reqId,
+        canAlways: e.canAlways,
+        decided: null,
+        ...(e.questions?.length ? { questions: e.questions } : {})
+      }
       const id = e.toolId ?? `approval-${e.reqId}`
       const updated = updateItem(t.items, id, (it) =>
         it.kind === 'tool' ? { ...it, approval } : it
@@ -257,7 +268,14 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
       const items = t.items.map((it) => {
         if (it.kind !== 'tool' || it.approval?.reqId !== e.reqId) return it
         changed = true
-        return { ...it, approval: { ...it.approval, decided: e.decision } }
+        return {
+          ...it,
+          approval: {
+            ...it.approval,
+            decided: e.decision,
+            ...(e.answers ? { answers: e.answers } : {})
+          }
+        }
       })
       return changed ? { ...t, items } : t
     }

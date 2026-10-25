@@ -485,7 +485,9 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Invalid request')
   )
   listen(IPC.chatSend, chatSendArgs, (a) => chats.send(a.paneId, a.text, a.images))
-  listen(IPC.chatApprove, chatApproveArgs, (a) => chats.approve(a.paneId, a.reqId, a.decision))
+  listen(IPC.chatApprove, chatApproveArgs, (a) =>
+    chats.approve(a.paneId, a.reqId, a.decision, a.answers)
+  )
   listen(IPC.chatInterrupt, chatPaneArgs, (a) => chats.interrupt(a.paneId))
   listen(IPC.chatSetModel, chatSetModelArgs, (a) => chats.setModel(a.paneId, a.model))
   listen(IPC.chatSetMode, chatSetModeArgs, (a) => chats.setMode(a.paneId, a.mode))

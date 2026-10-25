@@ -30,6 +30,7 @@ import { liveWindow } from '@shared/usage'
 import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
 import { paceStep, revealedWords } from '../../lib/stream-pace'
+import { QuestionCard } from './QuestionCard'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
 interface Props {
@@ -546,7 +547,16 @@ export function ChatView({ paneId, visible, focused }: Props) {
         </button>
       )}
       <div className="chat-foot">
-        {approval?.approval ? (
+        {approval?.approval?.questions ? (
+          <QuestionCard
+            key={approval.approval.reqId}
+            questions={approval.approval.questions}
+            onAnswer={(answers) =>
+              actions.chatApprove(paneId, approval.approval!.reqId, 'allow', answers)
+            }
+            onSkip={() => actions.chatApprove(paneId, approval.approval!.reqId, 'deny')}
+          />
+        ) : approval?.approval ? (
           <ApprovalBar
             key={approval.approval.reqId}
             item={approval}

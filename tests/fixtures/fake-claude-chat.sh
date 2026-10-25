@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Stand-in for `claude -p --input-format stream-json --output-format stream-json …` in E2E
 # tests of the chat view: the protocol shapes of tests/fixtures/claude-chat.ndjson, scripted.
-# "run it" asks to run a Bash tool and waits for the approval; "in background" starts a Bash
+# "run it" asks to run a Bash tool and waits for the approval; "ask me" asks two questions
+# (AskUserQuestion) and says what was picked; "in background" starts a Bash
 # job that outlives the turn and reports back 2s later (claude-background.ndjson's shapes);
 # anything else is echoed back.
 sid=fake-new
@@ -74,12 +75,21 @@ while IFS= read -r line; do
     *'"subtype":"interrupt"'*)
       say "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"[Request interrupted by user]\"}]},\"parent_tool_use_id\":null}"
       say "{\"type\":\"result\",\"subtype\":\"error_during_execution\",\"is_error\":true,\"session_id\":\"$sid\"}" ;;
+    # AskUserQuestion (claude reads the picks from updatedInput.answers).
+    *'"behavior":"allow"'*'"answers"'*)
+      color=$(printf '%s' "$line" | grep -o '"Which color?":"[^"]*"' | cut -d'"' -f4)
+      sizes=$(printf '%s' "$line" | grep -o '"Which sizes?":"[^"]*"' | cut -d'"' -f4)
+      say "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_q\",\"content\":\"answered\"}]},\"parent_tool_use_id\":null}"
+      text "You picked: $color; sizes $sizes" && result ;;
     *'"behavior":"allow"'*)
       say '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"build removed"}]},"parent_tool_use_id":null}'
       text "Ran it." && result ;;
     *'"behavior":"deny"'*)
       say '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"denied","is_error":true}]},"parent_tool_use_id":null}'
       text "Skipped it." && result ;;
+    *'"type":"user"'*'ask me'*)
+      say '{"type":"assistant","message":{"id":"mq","content":[{"type":"tool_use","id":"toolu_q","name":"AskUserQuestion","input":{"questions":[{"question":"Which color?","header":"Color","multiSelect":false,"options":[{"label":"Red","description":"Warm"},{"label":"Blue","description":"Cool"}]},{"question":"Which sizes?","header":"Sizes","multiSelect":true,"options":[{"label":"S","description":""},{"label":"M","description":""},{"label":"L","description":""}]}]}}]},"parent_tool_use_id":null}'
+      say '{"type":"control_request","request_id":"req-q","request":{"subtype":"can_use_tool","tool_name":"AskUserQuestion","display_name":"AskUserQuestion","input":{"questions":[{"question":"Which color?","header":"Color","multiSelect":false,"options":[{"label":"Red","description":"Warm"},{"label":"Blue","description":"Cool"}]},{"question":"Which sizes?","header":"Sizes","multiSelect":true,"options":[{"label":"S","description":""},{"label":"M","description":""},{"label":"L","description":""}]}]},"permission_suggestions":[],"tool_use_id":"toolu_q"}}' ;;
     *'"type":"user"'*'run it'*)
       say '{"type":"assistant","message":{"id":"mt","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"rm -rf build","description":"Remove build"}}]},"parent_tool_use_id":null}'
       say '{"type":"control_request","request_id":"req-1","request":{"subtype":"can_use_tool","tool_name":"Bash","display_name":"Bash","input":{"command":"rm -rf build","description":"Remove build"},"permission_suggestions":[],"tool_use_id":"toolu_1"}}' ;;

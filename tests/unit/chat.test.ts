@@ -223,6 +223,43 @@ describe('claude chat adapter', () => {
     expect(a.answer(id, 'deny')).toBeNull()
   })
 
+  it('AskUserQuestion: shows its questions and sends the picks back as `answers`', () => {
+    const a = createClaudeAdapter()
+    const input = {
+      questions: [
+        {
+          question: 'Which color?',
+          header: 'Color',
+          multiSelect: false,
+          options: [
+            { label: 'Red', description: 'Warm' },
+            { label: 'Blue', description: 'Cool' }
+          ]
+        }
+      ]
+    }
+    const out = a.decode({
+      type: 'control_request',
+      request_id: 'rq',
+      request: {
+        subtype: 'can_use_tool',
+        tool_name: 'AskUserQuestion',
+        input,
+        permission_suggestions: [],
+        tool_use_id: 'tq'
+      }
+    })
+    expect(out.events[0]).toMatchObject({ t: 'approval', questions: input.questions })
+    expect(a.answer('rq', 'allow', { 'Which color?': 'Blue' })).toMatchObject({
+      response: {
+        response: {
+          behavior: 'allow',
+          updatedInput: { ...input, answers: { 'Which color?': 'Blue' } }
+        }
+      }
+    })
+  })
+
   it('refuses control requests meant for an SDK host so claude does not wait', () => {
     const out = createClaudeAdapter().decode({
       type: 'control_request',

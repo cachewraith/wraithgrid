@@ -1,6 +1,6 @@
 import type { AgentCli } from '@shared/agent-clis'
 import type { ChatHandoff } from './chat-handoff'
-import type { ApprovalDecision, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
+import type { ApprovalDecision, ChatAnswers, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
 import type { WraithApi } from '@shared/ipc-contract'
 import {
   EMPTY_THREAD,
@@ -183,8 +183,8 @@ export class ChatBus {
     return this.fullImages.get(paneId)?.get(itemId) ?? null
   }
 
-  approve(paneId: string, reqId: string, decision: ApprovalDecision): void {
-    this.api.approve(paneId, reqId, decision)
+  approve(paneId: string, reqId: string, decision: ApprovalDecision, answers?: ChatAnswers): void {
+    this.api.approve(paneId, reqId, decision, answers)
   }
 
   interrupt(paneId: string): void {

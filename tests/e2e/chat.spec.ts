@@ -211,6 +211,21 @@ test('chat pane: streamed answer, approval, view switch, restore, no leftovers',
     await win.getByRole('option', { name: /^Ask before edits/ }).click()
     await expect(modeBtn).toHaveText('Ask before edits')
 
+    // ---- Claude asks (AskUserQuestion): answered in the chat, the picks go back to it.
+    await composer(win).fill('ask me')
+    await composer(win).press('Enter')
+    const asks = pane(win).getByRole('dialog', { name: 'Claude asks' })
+    await expect(asks).toContainText('Which color?')
+    await expect(asks.getByRole('button', { name: 'Answer' })).toBeDisabled()
+    await asks.getByRole('radio', { name: /^Blue/ }).click()
+    await asks.getByRole('checkbox', { name: /^S$/ }).click()
+    await asks.getByLabel('Other answer: Which sizes?').fill('XL')
+    await asks.getByRole('button', { name: 'Answer' }).click()
+    await expect(asks).toBeHidden()
+    await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
+      'You picked: Blue; sizes S, XL'
+    )
+
     // ---- A tool that needs approval: the pane says so, Allow runs it.
     await composer(win).fill('run it')
     await composer(win).press('Enter')

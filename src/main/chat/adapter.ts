@@ -2,7 +2,7 @@
 // lines it is fed, and a decoder from its output to ChatEvents. One file per CLI next to
 // this one; the session runner (sessions.ts) and the UI never branch on the CLI.
 import type { AgentCli } from '@shared/agent-clis'
-import type { ApprovalDecision, ChatEvent, ChatImage, ChatModel } from '@shared/chat'
+import type { ApprovalDecision, ChatAnswers, ChatEvent, ChatImage, ChatModel } from '@shared/chat'
 import { createAgyAdapter } from './agy'
 import { createClaudeAdapter } from './claude'
 import { createCodexAdapter } from './codex'
@@ -37,7 +37,7 @@ export interface ChatAdapter {
   /** The line that switches the permission mode live, or null when it can't. */
   setMode?(mode: ChatMode): unknown | null
   /** The answer to an approval request, or null when it is not pending (any more). */
-  answer(reqId: string, decision: ApprovalDecision): unknown | null
+  answer(reqId: string, decision: ApprovalDecision, answers?: ChatAnswers): unknown | null
   /** One output line, already parsed from JSON. */
   decode(msg: unknown): Decoded
   /**

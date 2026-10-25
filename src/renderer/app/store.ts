@@ -23,6 +23,7 @@ import {
 } from '@shared/agent-clis'
 import type {
   ApprovalDecision,
+  ChatAnswers,
   ChatAccountInfo,
   ChatEffort,
   ChatMode,
@@ -224,7 +225,12 @@ export interface AppState {
   /** Chat or terminal (ADR 0002): stops the pane's process and starts it in the other view. */
   setPaneView(paneId: string, view: PaneView): void
   chatSend(paneId: string, text: string, images: ChatImage[]): void
-  chatApprove(paneId: string, reqId: string, decision: ApprovalDecision): void
+  chatApprove(
+    paneId: string,
+    reqId: string,
+    decision: ApprovalDecision,
+    answers?: ChatAnswers
+  ): void
   chatInterrupt(paneId: string): void
   /** Starts a new conversation in a chat pane; the old one stays in the CLI's history. */
   chatNew(paneId: string): void
@@ -1470,8 +1476,8 @@ export function createAppStore({
         patchPane(paneId, { title: title.trim().slice(0, 128) || autoTitle(pane) })
       },
 
-      chatApprove(paneId, reqId, decision) {
-        chat.approve(paneId, reqId, decision)
+      chatApprove(paneId, reqId, decision, answers) {
+        chat.approve(paneId, reqId, decision, answers)
       },
 
       chatInterrupt(paneId) {
