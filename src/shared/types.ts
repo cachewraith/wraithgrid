@@ -1,5 +1,6 @@
 import type { AgentCli } from './agent-clis'
 import type { ChatEffort, ChatMode } from './chat'
+import type { ScheduledJob } from './schedule'
 
 // Domain model shared by main, preload and renderer. Persisted shape lives in schema.ts.
 
@@ -321,6 +322,8 @@ export interface Config {
   activeWorkspace: string
   recentFolders: string[]
   settings: Settings
+  /** Scheduled chats (#77). */
+  schedules: ScheduledJob[]
 }
 
 /**

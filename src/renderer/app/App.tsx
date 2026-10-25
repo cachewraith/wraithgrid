@@ -17,6 +17,7 @@ import { ShortcutsSheet } from '../components/ShortcutsSheet'
 import { UsageView } from '../components/UsageView'
 import { Sidebar } from '../components/Sidebar'
 import { StatusBar } from '../components/StatusBar'
+import { JobDialog, ScheduledView } from '../components/ScheduledView'
 import { StartTeamDialog, StopTeamDialog } from '../components/TeamSection'
 import { TitleBar } from '../components/TitleBar'
 import { TopBar } from '../components/TopBar'
@@ -183,6 +184,8 @@ function Modals() {
       return <StartTeamDialog wsId={modal.wsId} only={modal.only} />
     case 'stopTeam':
       return <StopTeamDialog wsId={modal.wsId} />
+    case 'job':
+      return <JobDialog jobId={modal.jobId} />
   }
 }
 
@@ -209,6 +212,7 @@ export function App() {
               {view === 'accounts' ? <AccountsView /> : null}
               {view === 'mods' ? <ModsView /> : null}
               {view === 'usage' ? <UsageView /> : null}
+              {view === 'scheduled' ? <ScheduledView /> : null}
               {view === 'settings' ? <SettingsView /> : null}
             </div>
           </div>

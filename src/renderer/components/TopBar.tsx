@@ -79,7 +79,9 @@ export function TopBar() {
               ? 'Mods'
               : view === 'usage'
                 ? 'Usage'
-                : 'Settings'}
+                : view === 'scheduled'
+                  ? 'Scheduled'
+                  : 'Settings'}
         </span>
         <div className="top-sp" />
         <UtilityButtons />
