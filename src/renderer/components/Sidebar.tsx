@@ -37,7 +37,9 @@ import {
   IconSidebar,
   IconTrash,
   IconUserPlus,
-  IconUsers
+  IconUsers,
+  IconPlay,
+  IconStop
 } from './icons'
 import { ago } from '../lib/time'
 import { panesOpen, panesPerAccount } from '../lib/usage-format'
@@ -90,6 +92,7 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
   const key = index < 9 ? index + 1 : null
   const canDelete = config.workspaces.length > 1
   const panes = w.panes.length
+  const teamOn = w.panes.some((p) => w.team.some((a) => a.id === p.teamAgentId))
   const history = w.history.length
   const count = panes
     ? `${panes} ${panes === 1 ? 'chat' : 'chats'}`
@@ -221,6 +224,21 @@ function WorkspaceRow({ w, index }: { w: Workspace; index: number }) {
           onClose={() => setMenu(null)}
           items={[
             { label: 'New chat', icon: <IconCompose small />, onSelect: newChat },
+            ...(w.team.length
+              ? [
+                  teamOn
+                    ? {
+                        label: 'Stop team',
+                        icon: <IconStop small />,
+                        onSelect: () => actions.stopTeam(w.id)
+                      }
+                    : {
+                        label: 'Start team',
+                        icon: <IconPlay small />,
+                        onSelect: () => void actions.startTeam(w.id)
+                      }
+                ]
+              : []),
             { label: 'Rename', icon: <IconRename small />, onSelect: () => setRenaming(w.name) },
             {
               label: 'Change icon',

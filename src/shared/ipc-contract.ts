@@ -145,7 +145,9 @@ export const gitLogArgs = z.object({ paneId: idSchema, skip: z.number().int().mi
 export const gitShowArgs = z.object({ paneId: idSchema, sha: z.string().regex(/^[0-9a-f]{7,40}$/) })
 export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
-  branch: z.string().min(1).max(100)
+  branch: z.string().min(1).max(100),
+  /** A team agent's branch (#79): use its folder or branch again if it is already there. */
+  reuse: z.boolean().default(false)
 })
 export const gitCommitArgs = z.object({
   paneId: idSchema,
@@ -627,7 +629,7 @@ export interface WraithApi {
     status(paneId: string): Promise<GitStatus>
     diff(paneId: string): Promise<GitDiffResult>
     /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
-    addWorktree(cwd: string, branch: string): Promise<GitWorktreeResult>
+    addWorktree(cwd: string, branch: string, reuse?: boolean): Promise<GitWorktreeResult>
     /** Local and remote branches of the pane's folder. */
     branches(paneId: string): Promise<GitBranchesResult>
     /** Checks out a branch in the pane's folder (every pane on that folder sees it). */

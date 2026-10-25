@@ -102,7 +102,8 @@ const api: WraithApi = {
   git: {
     status: (paneId) => ipcRenderer.invoke(IPC.gitStatus, { paneId }),
     diff: (paneId) => ipcRenderer.invoke(IPC.gitDiff, { paneId }),
-    addWorktree: (cwd, branch) => ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch }),
+    addWorktree: (cwd, branch, reuse = false) =>
+      ipcRenderer.invoke(IPC.gitWorktreeAdd, { cwd, branch, reuse }),
     branches: (paneId) => ipcRenderer.invoke(IPC.gitBranches, { paneId }),
     switchBranch: (paneId, kind, name) => ipcRenderer.invoke(IPC.gitSwitch, { paneId, kind, name }),
     commit: (paneId, message) => ipcRenderer.invoke(IPC.gitCommit, { paneId, message }),

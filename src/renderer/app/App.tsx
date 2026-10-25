@@ -17,6 +17,7 @@ import { ShortcutsSheet } from '../components/ShortcutsSheet'
 import { UsageView } from '../components/UsageView'
 import { Sidebar } from '../components/Sidebar'
 import { StatusBar } from '../components/StatusBar'
+import { StartTeamDialog, StopTeamDialog } from '../components/TeamSection'
 import { TitleBar } from '../components/TitleBar'
 import { TopBar } from '../components/TopBar'
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher'
@@ -178,6 +179,10 @@ function Modals() {
       return <BranchPicker paneId={modal.paneId} at={modal.at} />
     case 'projectIcon':
       return <ProjectIconPicker wsId={modal.wsId} />
+    case 'startTeam':
+      return <StartTeamDialog wsId={modal.wsId} only={modal.only} />
+    case 'stopTeam':
+      return <StopTeamDialog wsId={modal.wsId} />
   }
 }
 

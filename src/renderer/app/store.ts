@@ -48,14 +48,17 @@ import {
   type LayoutNode,
   type Pane,
   type PaneStatus,
+  type TeamAgent,
   type PaneView,
   resolveTheme,
   type Settings,
   type SharedMode,
   type ThemeName,
   type Workspace,
-  HISTORY_MAX
+  HISTORY_MAX,
+  TEAM_MAX
 } from '@shared/types'
+import { planTeam, teamBranch, teamPaneIds, teamWarnings } from '../lib/team'
 import { neighborInDirection, type Direction } from '../layout/focus'
 import { buildPreset, type PresetId } from '../layout/presets'
 import {
@@ -118,6 +121,10 @@ export type Modal =
   /** `at`: where it was opened (a right-click); null: centred (the palette). */
   | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
   | { kind: 'projectIcon'; wsId: string }
+  /** Before Start team (#79) when an agent's account is missing or at its limit. */
+  | { kind: 'startTeam'; wsId: string; only: string | null }
+  /** Before Stop team when an agent is working. */
+  | { kind: 'stopTeam'; wsId: string }
 
 export interface NewProjectInput {
   name: string
@@ -139,6 +146,8 @@ export interface NewPaneInput {
   slotId: string | null
   /** Overrides settings.newPaneView (a `wraithgrid new` pane must be a terminal). */
   view?: PaneView
+  /** A team agent's start (#79): its role as the title, its model/effort/mode, its id. */
+  team?: Pick<Pane, 'title' | 'model' | 'effort' | 'chatMode' | 'teamAgentId'>
 }
 
 export interface AppState {
@@ -197,6 +206,16 @@ export interface AppState {
   createPane(input: NewPaneInput): string
   closePane(paneId: string, force?: boolean): void
   cancelClose(): void
+  /** Adds or replaces an agent of a project's team (#79); it applies from its next start. */
+  saveTeamAgent(wsId: string, agent: TeamAgent): void
+  removeTeamAgent(wsId: string, agentId: string): void
+  /**
+   * Opens the team's agents as chats (`only`: one of them), focusing the open ones; asks first
+   * when an account is missing or at its limit, unless `force`.
+   */
+  startTeam(wsId: string, opts?: { only?: string | null; force?: boolean }): Promise<void>
+  /** Closes the team's panes (their chats go to History); asks first if one is working. */
+  stopTeam(wsId: string, force?: boolean): void
   restartPane(paneId: string): void
   /** Notes that a prompt was sent to an agent pane, so a restore can continue it. */
   markConversation(paneId: string): void
@@ -510,6 +529,8 @@ export function createAppStore({
   const runningSince = new Map<string, number>()
   /** Panes started at least once since launch (created here, or restored and started). */
   const spawned = new Set<string>()
+  /** Team agents' role prompts, sent when their chat has started. */
+  const firstMessages = new Map<string, string>()
   /** When each pane's last unseen run ended (its "done" status). */
   const doneAt = new Map<string, number>()
   /** Panes just switched between chat and terminal: the next start continues the conversation. */
@@ -573,6 +594,12 @@ export function createAppStore({
         ) {
           chat.sendPreparedHandoff(paneId)
           get().markConversation(paneId)
+        }
+        // A team agent's role prompt goes once its chat runs (#79).
+        const first = firstMessages.get(paneId)
+        if (first) {
+          firstMessages.delete(paneId)
+          get().chatSend(paneId, first, [])
         }
       } else {
         chat.notice(paneId, 'error', res.error)
@@ -729,7 +756,9 @@ export function createAppStore({
         chatSessionId: null,
         model: s.config.settings.chatModel,
         effort: s.config.settings.chatEffort,
-        chatMode: s.config.settings.chatMode
+        chatMode: s.config.settings.chatMode,
+        teamAgentId: null,
+        ...input.team
       }
       spawned.add(id)
       const layout = placePane(ws, id, input.slotId)
@@ -1116,6 +1145,95 @@ export function createAppStore({
 
       cancelClose() {
         set({ closingPaneId: null })
+      },
+
+      saveTeamAgent(wsId, agent) {
+        get().updateConfig((c) =>
+          withWorkspace(c, wsId, (w) => {
+            const at = w.team.findIndex((a) => a.id === agent.id)
+            if (at < 0 && w.team.length >= TEAM_MAX) return w
+            const team = at < 0 ? [...w.team, agent] : w.team.map((a, i) => (i === at ? agent : a))
+            return { ...w, team }
+          })
+        )
+      },
+
+      removeTeamAgent(wsId, agentId) {
+        get().updateConfig((c) =>
+          withWorkspace(c, wsId, (w) => ({ ...w, team: w.team.filter((a) => a.id !== agentId) }))
+        )
+      },
+
+      async startTeam(wsId, opts = {}) {
+        const s = get()
+        const ws = s.config.workspaces.find((w) => w.id === wsId)
+        if (!ws) return
+        const team = opts.only ? ws.team.filter((a) => a.id === opts.only) : ws.team
+        const steps = planTeam(team, s.config.accounts, ws.panes)
+        if (!opts.force && teamWarnings(steps, s.usage.limits, now()).length) {
+          set({ modal: { kind: 'startTeam', wsId, only: opts.only ?? null } })
+          return
+        }
+        set({ modal: null })
+        if (s.config.activeWorkspace !== wsId) get().switchWorkspace(wsId)
+        const base = ws.folder || '~'
+        for (const step of steps) {
+          if (step.kind !== 'start') continue
+          const { agent } = step
+          let cwd = base
+          let note: string | null = null
+          if (agent.folder === 'worktree') {
+            const r = await api.git.addWorktree(base, teamBranch(agent.role), true)
+            if (r.ok) cwd = r.dir
+            else note = `No branch folder (${r.error}); this agent runs in the project folder.`
+          }
+          const id = addPaneToActive({
+            accountId: agent.accountId,
+            cwd,
+            args: [],
+            shell: false,
+            slotId: null,
+            view: 'chat',
+            team: {
+              title: agent.role,
+              model: agent.model,
+              effort: agent.effort,
+              chatMode: agent.chatMode,
+              teamAgentId: agent.id
+            }
+          })
+          if (note) chat.notice(id, 'info', note)
+          if (agent.prompt.trim()) firstMessages.set(id, agent.prompt.trim())
+        }
+        // The whole team: laid out by its size (2 side by side, 3 columns, 4 = 2×2).
+        const cur = activeWorkspace(get())
+        const ids = teamPaneIds(cur.team, cur.panes)
+        if (!opts.only && ids.length) updateActiveLayout(() => autoGrid(ids))
+        const first = opts.only
+          ? ids.find((id) => cur.panes.some((p) => p.id === id && p.teamAgentId === opts.only))
+          : ids[0]
+        set({ view: 'grid', zoomedPaneId: null, focusedPaneId: first ?? get().focusedPaneId })
+      },
+
+      stopTeam(wsId, force = false) {
+        const ws = get().config.workspaces.find((w) => w.id === wsId)
+        if (!ws) return
+        const ids = teamPaneIds(ws.team, ws.panes)
+        const busy = (id: string): boolean => {
+          const st = get().runtime[id]?.status
+          return st === 'running' || st === 'approval' || st === 'background'
+        }
+        if (!force && ids.some(busy)) {
+          set({ modal: { kind: 'stopTeam', wsId } })
+          return
+        }
+        set({ modal: null })
+        // Like closing each, without offering to remove every agent's branch folder.
+        for (const id of ids) {
+          const pane = findPane(get().config, id)?.pane
+          firstMessages.delete(id)
+          dropPane(id, !!pane?.hasConversation)
+        }
       },
 
       restartPane(paneId) {
@@ -1543,7 +1661,8 @@ export function createAppStore({
           accountId,
           panes: [],
           layout: null,
-          history: []
+          history: [],
+          team: []
         }
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)

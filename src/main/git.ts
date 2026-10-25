@@ -3,6 +3,7 @@
 // pull and a pull-request link; and the commit history (a page at a time) with each commit's diff.
 // git runs through an injected runner (execFile, never a shell), so parsing and argument
 // building stay unit-testable.
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type {
   GitActionResult,
@@ -93,7 +94,9 @@ export async function addWorktree(
   run: GitRunner,
   cwd: string,
   branch: string,
-  worktreesRoot: string
+  worktreesRoot: string,
+  /** Use the folder if it is there, or check out the branch if only it exists (team, #79). */
+  reuse = false
 ): Promise<GitWorktreeResult> {
   if (!BRANCH_PATTERN.test(branch)) return { ok: false, error: 'Not a valid branch name.' }
   let root: string
@@ -104,10 +107,16 @@ export async function addWorktree(
     return { ok: false, error: firstLine(err) }
   }
   const dir = worktreeDir(worktreesRoot, root, branch)
+  if (reuse && existsSync(path.join(dir, '.git'))) return { ok: true, dir }
   try {
     await run(['worktree', 'add', '-b', branch, dir], root)
   } catch (err) {
-    return { ok: false, error: firstLine(err) }
+    if (!reuse) return { ok: false, error: firstLine(err) }
+    try {
+      await run(['worktree', 'add', dir, branch], root)
+    } catch {
+      return { ok: false, error: firstLine(err) }
+    }
   }
   return { ok: true, dir }
 }

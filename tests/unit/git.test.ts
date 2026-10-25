@@ -156,6 +156,11 @@ describe('with a real repository', { timeout: REAL_GIT_TIMEOUT }, () => {
     const again = await addWorktree(realGit, dir, 'feat/x', wt)
     expect(again.ok).toBe(false)
     expect(!again.ok && again.error).toMatch(/already exists/)
+    // A team agent (#79) takes the same folder again, or its branch once the folder is gone.
+    expect(await addWorktree(realGit, dir, 'feat/x', wt, true)).toEqual(r)
+    await rm(path.join(wt, path.basename(dir), 'feat-x'), { recursive: true, force: true })
+    await realGit(['worktree', 'prune'], dir)
+    expect(await addWorktree(realGit, dir, 'feat/x', wt, true)).toEqual(r)
   })
 
   it('commits everything, then pushes the branch with an upstream on the first push', async () => {
