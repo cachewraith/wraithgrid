@@ -24,6 +24,17 @@ export type ToolPreview =
 
 export type ApprovalDecision = 'allow' | 'always' | 'deny'
 
+/** One question of claude's AskUserQuestion tool, answered in the chat instead of allowed. */
+export interface ChatQuestion {
+  question: string
+  header: string
+  multiSelect: boolean
+  options: { label: string; description: string }[]
+}
+
+/** The picked answers by question text; several picks joined with ", " (as claude reads them). */
+export type ChatAnswers = Record<string, string>
+
 /** A model the CLI offers, as its own list names it. */
 export interface ChatModel {
   /** What is passed back to choose it (an alias like `sonnet`). */
@@ -179,8 +190,10 @@ export type ChatEvent =
       subtitle: string
       preview: ToolPreview | null
       canAlways: boolean
+      /** AskUserQuestion: what to ask; the answer goes back with the approval. */
+      questions?: ChatQuestion[]
     }
-  | { t: 'approvalDone'; reqId: string; decision: ApprovalDecision }
+  | { t: 'approvalDone'; reqId: string; decision: ApprovalDecision; answers?: ChatAnswers }
   | {
       t: 'turnEnd'
       costUsd: number | null

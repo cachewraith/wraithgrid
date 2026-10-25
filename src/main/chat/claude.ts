@@ -5,6 +5,8 @@ import {
   clip,
   type ApprovalDecision,
   CHAT_MODES,
+  type ChatAnswers,
+  type ChatQuestion,
   type ChatBackgroundTask,
   type ChatCommand,
   type ChatMode,
@@ -21,6 +23,28 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 const firstLine = (s: string): string => s.split('\n', 1)[0] ?? ''
 
 /** How a claude tool call looks in the chat: its kind, one line, and a preview. */
+/** AskUserQuestion's questions (claude 2.1: up to 4, each with 2–4 options). */
+export function questionsOf(input: unknown): ChatQuestion[] {
+  const list = isObj(input) && Array.isArray(input.questions) ? input.questions : []
+  return list
+    .filter(isObj)
+    .slice(0, 4)
+    .map((q) => ({
+      question: str(q.question).slice(0, 2000),
+      header: str(q.header).slice(0, 40),
+      multiSelect: q.multiSelect === true,
+      options: (Array.isArray(q.options) ? q.options : [])
+        .filter(isObj)
+        .slice(0, 8)
+        .map((o) => ({
+          label: str(o.label).slice(0, 200),
+          description: str(o.description).slice(0, 600)
+        }))
+        .filter((o) => o.label)
+    }))
+    .filter((q) => q.question)
+}
+
 export function describeClaudeTool(
   name: string,
   input: unknown
@@ -378,6 +402,7 @@ export function createClaudeAdapter(): ChatAdapter {
             : []
           pending.set(id, { input: r.input, suggestions })
           const d = describeClaudeTool(name, r.input)
+          const questions = name === 'AskUserQuestion' ? questionsOf(r.input) : []
           push({
             t: 'approval',
             reqId: id,
@@ -385,7 +410,8 @@ export function createClaudeAdapter(): ChatAdapter {
             name: str(r.display_name) || name,
             subtitle: d.subtitle,
             preview: d.preview,
-            canAlways: suggestions.length > 0
+            canAlways: suggestions.length > 0,
+            ...(questions.length ? { questions } : {})
           })
         } else {
           // Hooks or MCP calls meant for an SDK host: say no, or claude waits for ever.
@@ -456,7 +482,7 @@ export function createClaudeAdapter(): ChatAdapter {
       request_id: reqId(),
       request: { subtype: 'interrupt' }
     }),
-    answer: (id, decision: ApprovalDecision) => {
+    answer: (id, decision: ApprovalDecision, answers?: ChatAnswers) => {
       const req = pending.get(id)
       if (!req) return null
       pending.delete(id)
@@ -465,7 +491,8 @@ export function createClaudeAdapter(): ChatAdapter {
           ? { behavior: 'deny', message: 'The user denied this in Wraithgrid.' }
           : {
               behavior: 'allow',
-              updatedInput: req.input,
+              // AskUserQuestion reads the picks from its input's `answers`.
+              updatedInput: answers && isObj(req.input) ? { ...req.input, answers } : req.input,
               ...(decision === 'always' ? { updatedPermissions: req.suggestions } : {})
             }
       return {

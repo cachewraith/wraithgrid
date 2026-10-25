@@ -10,6 +10,7 @@ import {
   CHAT_TEXT_MAX,
   chatSessionIdSchema,
   type ApprovalDecision,
+  type ChatAnswers,
   type ChatMode,
   type ChatEventMessage,
   type ChatImage,
@@ -86,7 +87,8 @@ export const chatSendArgs = z.object({
 export const chatApproveArgs = z.object({
   paneId: idSchema,
   reqId: z.string().min(1).max(200),
-  decision: z.enum(['allow', 'always', 'deny'])
+  decision: z.enum(['allow', 'always', 'deny']),
+  answers: z.record(z.string().max(2000), z.string().max(4000)).optional()
 })
 export const chatPaneArgs = z.object({ paneId: idSchema })
 export const chatSetModelArgs = z.object({
@@ -539,7 +541,7 @@ export interface WraithApi {
     /** Copies the conversation to another claude account's dir (the chat must be stopped). */
     moveAccount(paneId: string, toAccountId: string, sessionId: string): Promise<SimpleResult>
     send(paneId: string, text: string, images: ChatImage[]): void
-    approve(paneId: string, reqId: string, decision: ApprovalDecision): void
+    approve(paneId: string, reqId: string, decision: ApprovalDecision, answers?: ChatAnswers): void
     interrupt(paneId: string): void
     /** Switches the running chat's model at once (the next turn uses it). */
     setModel(paneId: string, model: string): void

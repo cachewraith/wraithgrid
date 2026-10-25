@@ -3,7 +3,7 @@
 // They live in main, not the pty host, so they stop when Wraithgrid quits; the next start
 // resumes the conversation by its session id.
 import type { Readable, Writable } from 'node:stream'
-import type { ApprovalDecision, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
+import type { ApprovalDecision, ChatAnswers, ChatEvent, ChatImage, ChatMode } from '@shared/chat'
 import type { ChatAdapter } from './adapter'
 
 export interface ChatChild {
@@ -164,12 +164,17 @@ export class ChatSessions {
     return true
   }
 
-  approve(paneId: string, reqId: string, decision: ApprovalDecision): boolean {
+  approve(
+    paneId: string,
+    reqId: string,
+    decision: ApprovalDecision,
+    answers?: ChatAnswers
+  ): boolean {
     const s = this.sessions.get(paneId)
-    const line = s?.adapter.answer(reqId, decision)
+    const line = s?.adapter.answer(reqId, decision, answers)
     if (!s || !line) return false
     this.write(s, line)
-    this.deps.emit(paneId, { t: 'approvalDone', reqId, decision })
+    this.deps.emit(paneId, { t: 'approvalDone', reqId, decision, ...(answers ? { answers } : {}) })
     return true
   }
 

@@ -32,8 +32,8 @@ const api: WraithApi = {
     moveAccount: (paneId, toAccountId, sessionId) =>
       ipcRenderer.invoke(IPC.chatMoveAccount, { paneId, toAccountId, sessionId }),
     send: (paneId, text, images) => ipcRenderer.send(IPC.chatSend, { paneId, text, images }),
-    approve: (paneId, reqId, decision) =>
-      ipcRenderer.send(IPC.chatApprove, { paneId, reqId, decision }),
+    approve: (paneId, reqId, decision, answers) =>
+      ipcRenderer.send(IPC.chatApprove, { paneId, reqId, decision, answers }),
     interrupt: (paneId) => ipcRenderer.send(IPC.chatInterrupt, { paneId }),
     setModel: (paneId, model) => ipcRenderer.send(IPC.chatSetModel, { paneId, model }),
     setMode: (paneId, mode) => ipcRenderer.send(IPC.chatSetMode, { paneId, mode }),
