@@ -92,5 +92,7 @@ export const IPC = {
   previewDetect: 'preview:detect',
   previewStart: 'preview:start',
   previewStop: 'preview:stop',
-  previewEvent: 'preview:event'
+  previewEvent: 'preview:event',
+  previewCapture: 'preview:capture',
+  previewRequestFailed: 'preview:requestFailed'
 } as const

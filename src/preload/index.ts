@@ -10,6 +10,7 @@ import type {
   WraithApi
 } from '@shared/ipc-contract'
 import type { ChatEventMessage } from '@shared/chat'
+import type { PreviewRequestFailure } from '@shared/preview'
 import type { CloseMode } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -161,7 +162,9 @@ const api: WraithApi = {
     detect: (paneId) => ipcRenderer.invoke(IPC.previewDetect, { paneId }),
     start: (paneId) => ipcRenderer.invoke(IPC.previewStart, { paneId }),
     stop: (paneId) => ipcRenderer.send(IPC.previewStop, { paneId }),
-    onEvent: (cb) => subscribe<PreviewEventMessage>(IPC.previewEvent, cb)
+    onEvent: (cb) => subscribe<PreviewEventMessage>(IPC.previewEvent, cb),
+    capture: (webContentsId) => ipcRenderer.invoke(IPC.previewCapture, { webContentsId }),
+    onRequestFailed: (cb) => subscribe<PreviewRequestFailure>(IPC.previewRequestFailed, cb)
   },
   notify: {
     pane: (paneId, title, body) => ipcRenderer.send(IPC.notifyPane, { paneId, title, body }),

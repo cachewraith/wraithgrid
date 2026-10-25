@@ -233,6 +233,16 @@ export interface ChatImage {
   data: string
 }
 
+/** Handed to a chat's box from elsewhere (a preview report, #74): added to the draft, not sent. */
+export interface ChatDrop {
+  id: number
+  /** The chip's text. */
+  label: string
+  /** Sent after the message. */
+  text: string
+  images: ChatImage[]
+}
+
 /** Image files attached from disk, by extension; anything else is sent as a path. */
 export const CHAT_IMAGE_EXT: Record<string, ChatImageType> = {
   '.png': 'image/png',

@@ -18,7 +18,7 @@ import {
 } from './chat'
 import { idSchema, sshHostSchema } from './schema'
 import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
-import type { PreviewEvent } from './preview'
+import type { PreviewEvent, PreviewRequestFailure } from './preview'
 import type { UsageData } from './usage'
 import type { ReleaseNote } from './whats-new'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
@@ -241,6 +241,7 @@ export type MachineTestResult =
   { ok: true; appVersion: string; live: number } | { ok: false; error: string }
 
 export const previewPaneArgs = z.object({ paneId: idSchema })
+export const previewCaptureArgs = z.object({ webContentsId: z.number().int().positive() })
 
 export interface PreviewEventMessage {
   paneId: string
@@ -733,6 +734,14 @@ export interface WraithApi {
     start(paneId: string): Promise<SimpleResult>
     stop(paneId: string): void
     onEvent(cb: (m: PreviewEventMessage) => void): () => void
+    /** A screenshot of a preview's page (by its webview's web contents id). */
+    capture(
+      webContentsId: number
+    ): Promise<
+      { ok: true; image: ChatImage; width: number; height: number } | { ok: false; error: string }
+    >
+    /** Requests from any preview page that failed; each view keeps its own by id. */
+    onRequestFailed(cb: (f: PreviewRequestFailure) => void): () => void
   }
   notify: {
     /** An OS notification about a pane; clicking it brings the window back to that pane. */

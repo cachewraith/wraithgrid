@@ -22,9 +22,20 @@ test('a preview runs the dev server, shows its page and stops with the pane', as
     path.join(data, 'config.json'),
     JSON.stringify({
       version: 1,
-      claudePath: '',
-      accounts: [],
-      workspaces: [{ id: 'ws', name: 'site', folder: '~/site', panes: [], layout: null }],
+      claudePath: path.join(ROOT, 'tests/fixtures/fake-claude.sh'),
+      accounts: [
+        {
+          id: 'work',
+          name: 'work',
+          cli: 'claude',
+          configDir: '~/.wraithgrid/accounts/work',
+          color: '#7c5cff',
+          signedIn: true
+        }
+      ],
+      workspaces: [
+        { id: 'ws', name: 'site', folder: '~/site', accountId: 'work', panes: [], layout: null }
+      ],
       activeWorkspace: 'ws',
       recentFolders: [],
       settings: { checkUpdatesOnLaunch: false }
@@ -49,7 +60,8 @@ test('a preview runs the dev server, shows its page and stops with the pane', as
     await win.getByRole('option', { name: /Preview: open for site/ }).click()
 
     // First open: the command found in package.json, editable; Start saves it on the project.
-    const pane = win.locator('section.pane')
+    // The preview pane (a chat opens beside it later).
+    const pane = win.locator('section.pane:not(.is-chat)')
     const command = pane.getByLabel('Command')
     await expect(command).toHaveValue('npm run dev')
     await expect(pane).toContainText('from package.json "dev"')
@@ -63,6 +75,25 @@ test('a preview runs the dev server, shows its page and stops with the pane', as
     await expect.poll(pageText, { timeout: 15_000 }).toContain('PREVIEW OK')
     await expect.poll(() => saved().workspaces[0].preview?.command).toBe(`node "${SERVER}"`)
     const url = await address.inputValue()
+
+    // Attach to chat: a screenshot and the page's console errors and failed requests go into
+    // the project's chat (a new one here), unsent; sending them gives the agent the report.
+    const attach = pane.getByRole('button', { name: /Attach to chat/ })
+    await expect(attach).toContainText('2', { timeout: 10_000 })
+    await attach.click()
+    const chat = win.locator('section.pane.is-chat')
+    const reports = chat.locator('[aria-label="Attached reports"]')
+    await expect(reports).toContainText('Preview / · 1 console error · 1 failed request')
+    await expect(chat.locator('.cc-img img')).toHaveCount(1)
+    const box = chat.getByLabel('Message', { exact: true })
+    await box.fill('Fix these')
+    await box.press('Enter')
+    // The message sent: the user's words, then the report.
+    const sent = chat.locator('.cmsg.user').last()
+    await expect(sent).toContainText('Fix these', { timeout: 15_000 })
+    await expect(sent).toContainText('BOOM in app')
+    await expect(sent).toContainText('GET /missing.png → 404')
+    await expect(chat.locator('[aria-label="Attached reports"]')).toHaveCount(0)
 
     // Moving around the local site works; the address follows.
     await app.evaluate(({ webContents }) => {

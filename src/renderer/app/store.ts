@@ -25,6 +25,7 @@ import type {
   ApprovalDecision,
   ChatAnswers,
   ChatAccountInfo,
+  ChatDrop,
   ChatEffort,
   ChatMode,
   ChatImage,
@@ -183,6 +184,8 @@ export interface AppState {
   runtime: Record<string, PaneRuntime>
   /** Preview panes' dev servers (#74), by pane id. */
   previews: Record<string, PreviewState>
+  /** Reports handed to a chat's box (a preview's), by chat pane id, until the box takes them. */
+  chatDrops: Record<string, ChatDrop>
   view: View
   accountsMode: AccountsMode
   modal: Modal | null
@@ -328,6 +331,12 @@ export interface AppState {
   /** Saves the command (and fixed address, '' = from its output), then starts the server. */
   previewStart(paneId: string, command?: string, url?: string): Promise<void>
   previewStop(paneId: string): void
+  /**
+   * Hands a preview's screenshot and report to the project's last-used chat (a new one when it
+   * has none), unsent; returns an error to show, or null.
+   */
+  previewAttach(paneId: string, drop: Omit<ChatDrop, 'id'>): string | null
+  takeChatDrop(paneId: string): void
   /** Runs a workspace's panes on a machine (H5), or here with null; only while it has none. */
   setWorkspaceMachine(id: string, machineId: string | null): void
   /** Adds a machine reached over ssh; returns an error to show, or null. */
@@ -594,6 +603,8 @@ export function createAppStore({
   const switched = new Set<string>()
   /** Terminals opened to sign in (#110): they turn into chats once the account is signed in. */
   const signInPanes = new Set<string>()
+  /** Each project's last focused chat: where a preview's report goes (#74). */
+  const lastChat = new Map<string, string>()
 
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
@@ -1145,6 +1156,7 @@ export function createAppStore({
       sharedReport: null,
       runtime: {},
       previews: {},
+      chatDrops: {},
       view: 'grid',
       accountsMode: 'list',
       modal: null,
@@ -1845,6 +1857,10 @@ export function createAppStore({
 
       focusPane(paneId) {
         if (get().focusedPaneId !== paneId) set({ focusedPaneId: paneId })
+        if (paneId && paneView(get().config, paneId) === 'chat') {
+          const ws = findPane(get().config, paneId)?.ws
+          if (ws) lastChat.set(ws.id, paneId)
+        }
       },
 
       focusDirection(dir) {
@@ -2089,6 +2105,38 @@ export function createAppStore({
             }
           })
         }
+      },
+
+      previewAttach(paneId, drop) {
+        const s = get()
+        const ws = findPane(s.config, paneId)?.ws
+        if (!ws) return 'That preview is gone.'
+        const chats = ws.panes.filter((p) => paneView(s.config, p.id) === 'chat')
+        const last = lastChat.get(ws.id)
+        let target = chats.find((p) => p.id === last)?.id ?? chats[chats.length - 1]?.id ?? null
+        if (!target) {
+          const account =
+            accountById(s.config, ws.accountId) ??
+            accountById(s.config, s.config.settings.defaultAccountId) ??
+            s.config.accounts.find((a) => AGENT_CLI_SPECS[a.cli].chat && a.signedIn)
+          if (!account) return 'Add an account to chat with first.'
+          target = addPaneToActive({
+            accountId: account.id,
+            cwd: projectFolder(ws) ?? findPane(s.config, paneId)!.pane.cwd,
+            args: [],
+            shell: false,
+            slotId: null
+          })
+        }
+        set({ chatDrops: { ...get().chatDrops, [target]: { ...drop, id: now() } } })
+        get().revealPane(target)
+        return null
+      },
+
+      takeChatDrop(paneId) {
+        if (!get().chatDrops[paneId]) return
+        const { [paneId]: _taken, ...chatDrops } = get().chatDrops
+        set({ chatDrops })
       },
 
       previewStop(paneId) {
