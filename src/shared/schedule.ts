@@ -43,6 +43,8 @@ export interface ScheduledJob {
   /** At the limit: wait for the reset, or let "Switch account at limit" carry it. */
   atLimit: 'wait' | 'switch'
   enabled: boolean
+  /** "Send later" (#77): one message for one chat, removed once it is sent. */
+  oneShot: boolean
   /** When it runs next (ms); null: not known yet (a reset not reported) or never again. */
   nextAt: number | null
   runs: ScheduleRun[]

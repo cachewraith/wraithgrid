@@ -1321,3 +1321,50 @@ input[type='color']::-webkit-color-swatch {
   min-height: 70px;
   padding: 8px 10px;
 }
+
+/* Send later (#77): queued messages above the chat box, and the time field. */
+.cqueue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 6px 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+  color: var(--fa);
+}
+.cqueue-t {
+  flex: 1;
+  min-width: 0;
+  color: var(--mu);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cqueue-w {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.cc-btn.later.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.cc-later {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fa);
+}
+.cc-later input {
+  min-height: 30px;
+}
+.sch-q {
+  margin-bottom: 24px;
+}
+.sch-qrow {
+  grid-template-columns: minmax(0, 1fr) 200px auto auto;
+  cursor: default;
+}

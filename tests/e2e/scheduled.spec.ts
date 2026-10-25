@@ -97,3 +97,85 @@ test('a due job starts its chat, a late one is missed, a new one is saved', asyn
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })
+
+test('Send later queues a message in the chat; Send now and Cancel', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wg-later-'))
+  const home = path.join(tmp, 'home')
+  const data = path.join(tmp, 'data')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(data)
+  fs.writeFileSync(
+    path.join(data, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: path.join(ROOT, 'tests/fixtures/fake-claude.sh'),
+      accounts: [
+        {
+          id: 'work',
+          name: 'work',
+          cli: 'claude',
+          configDir: '~/.wraithgrid/accounts/work',
+          color: '#7c5cff',
+          signedIn: true
+        }
+      ],
+      workspaces: [
+        {
+          id: 'ws',
+          name: 'project',
+          folder: '~/proj',
+          panes: [{ id: 'p1', accountId: 'work', cwd: '~/proj', title: 'main chat', view: 'chat' }],
+          layout: { type: 'pane', paneId: 'p1' }
+        }
+      ],
+      activeWorkspace: 'ws',
+      recentFolders: [],
+      settings: { checkUpdatesOnLaunch: false }
+    })
+  )
+  const app = await electron.launch({
+    args: [path.join(ROOT, 'out/main/index.js')],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: data }
+  })
+  const win = await app.firstWindow()
+  try {
+    const box = win.getByLabel('Message', { exact: true })
+    // A first turn: the fake reports the account's limits, so its reset is known.
+    await box.fill('hello')
+    await box.press('Enter')
+    await expect(win.locator('.cmsg.agent').last()).toContainText('hello')
+    const later = win.getByRole('button', { name: 'Send later' })
+    await expect(later).toBeDisabled()
+
+    // In 1 hour: queued above the box, the box empties; Send now sends it.
+    await box.fill('Remember MANGO')
+    await later.click()
+    await win.getByRole('menuitem', { name: /^In 1 hour/ }).click()
+    await expect(box).toHaveValue('')
+    const strip = win.getByRole('status', { name: 'Queued message' })
+    await expect(strip).toContainText('Remember MANGO')
+    await expect(strip).toContainText(/at \d\d:\d\d/)
+    await strip.getByRole('button', { name: 'Send now' }).click()
+    await expect(strip).toHaveCount(0)
+    await expect(win.locator('.cmsg.agent').last()).toContainText('Remember MANGO')
+
+    // When the limit resets: listed on the Scheduled page too; Cancel drops it.
+    await box.fill('Carry on PAPAYA')
+    await later.click()
+    await win.getByRole('menuitem', { name: /^When work's limit resets/ }).click()
+    await expect(strip).toContainText('when work limit resets')
+    await win
+      .getByRole('complementary', { name: 'Sidebar' })
+      .getByRole('button', { name: 'Scheduled' })
+      .click()
+    const q = win.getByRole('region', { name: 'Queued messages' })
+    await expect(q).toContainText('Carry on PAPAYA')
+    await q.getByRole('button', { name: 'Cancel' }).click()
+    await expect(q).toHaveCount(0)
+    const saved = () => JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8'))
+    await expect.poll(() => saved().schedules.length).toBe(0)
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})

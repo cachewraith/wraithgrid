@@ -18,7 +18,9 @@ import {
   type ChatPickResult
 } from '@shared/chat'
 import { baseName } from '@shared/paths'
-import { IconArrowUp, IconClose, IconFile, IconPaperclip, IconStop } from '../icons'
+import { IconArrowUp, IconClock, IconClose, IconFile, IconPaperclip, IconStop } from '../icons'
+import { ContextMenu, type MenuPoint } from '../ContextMenu'
+import { toLocal } from '@shared/schedule'
 import { mentionQuery, rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
 
@@ -45,7 +47,14 @@ interface Props {
   onPickFiles?: () => Promise<ChatPickResult | null>
   /** A dropped file's path on disk ('' when it has none). */
   filePath?: (file: File) => string
+  /** "Send later" (#77): the clock button; `reset` names the account's reset, null if unknown. */
+  sendLater?: {
+    reset: { label: string; hint: string } | null
+    onQueue: (text: string, when: number | 'reset') => void
+  }
 }
+
+const hm = (ms: number): string => toLocal(ms).slice(11)
 
 /** Reads a pasted image as base64, or null when it is too big or not a kind agents take. */
 function readImage(file: File): Promise<ChatImage | null> {
@@ -76,8 +85,12 @@ export function Composer({
   onSend,
   onStop,
   onPickFiles,
-  filePath
+  filePath,
+  sendLater
 }: Props) {
+  const [laterMenu, setLaterMenu] = useState<MenuPoint | null>(null)
+  /** "At a time…": the date field in place of the menu. */
+  const [laterAt, setLaterAt] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [images, setImages] = useState<ChatImage[]>([])
   /** Attached files sent as paths, listed after the message. */
@@ -310,6 +323,21 @@ export function Composer({
               <IconStop small />
             </button>
           ) : null}
+          {sendLater ? (
+            <button
+              className={`cc-btn later${laterMenu || laterAt !== null ? ' on' : ''}`}
+              aria-label="Send later"
+              title="Send later"
+              aria-haspopup="menu"
+              disabled={!text.trim()}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect()
+                setLaterMenu({ x: r.right - 280, y: r.top - 6 })
+              }}
+            >
+              <IconClock small />
+            </button>
+          ) : null}
           <button
             className="cc-btn send"
             aria-label="Send (Enter)"
@@ -321,6 +349,74 @@ export function Composer({
           </button>
         </div>
       </div>
+      {laterMenu && sendLater ? (
+        <ContextMenu
+          at={laterMenu}
+          above
+          width={280}
+          label="Send later"
+          onClose={() => setLaterMenu(null)}
+          items={(() => {
+            // eslint-disable-next-line react-hooks/purity -- picked times are relative to the click
+            const now = Date.now()
+            const tomorrow = new Date(now)
+            tomorrow.setDate(tomorrow.getDate() + 1)
+            tomorrow.setHours(9, 0, 0, 0)
+            const queue = (when: number | 'reset') => () => {
+              sendLater.onQueue(text, when)
+              setText('')
+            }
+            return [
+              ...(sendLater.reset
+                ? [
+                    {
+                      label: sendLater.reset.label,
+                      kbd: sendLater.reset.hint,
+                      onSelect: queue('reset')
+                    }
+                  ]
+                : []),
+              {
+                label: 'In 1 hour',
+                kbd: hm(now + 3600_000),
+                divider: !!sendLater.reset,
+                onSelect: queue(now + 3600_000)
+              },
+              { label: 'Tomorrow morning', kbd: '09:00', onSelect: queue(tomorrow.getTime()) },
+              { label: 'At a time…', onSelect: () => setLaterAt(toLocal(now + 3600_000)) }
+            ]
+          })()}
+        />
+      ) : null}
+      {laterAt !== null && sendLater ? (
+        <form
+          className="cc-later"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const t = new Date(laterAt).getTime()
+            if (!Number.isFinite(t) || !text.trim()) return
+            sendLater.onQueue(text, t)
+            setText('')
+            setLaterAt(null)
+          }}
+        >
+          <span>Send at</span>
+          <input
+            type="datetime-local"
+            className="inpt sans"
+            aria-label="Send at"
+            value={laterAt}
+            autoFocus
+            onChange={(e) => setLaterAt(e.target.value)}
+          />
+          <button type="button" className="btn gh" onClick={() => setLaterAt(null)}>
+            Cancel
+          </button>
+          <button type="submit" className="btn" disabled={!text.trim()}>
+            Queue
+          </button>
+        </form>
+      ) : null}
       <div className="cc-folder">
         {meta.filter(Boolean).map((m) => (
           <span key={m} title={m}>

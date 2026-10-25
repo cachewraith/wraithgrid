@@ -242,6 +242,7 @@ export const scheduledJobSchema = z.object({
     .catch({ kind: 'new' }),
   atLimit: z.enum(['wait', 'switch']).default('wait').catch('wait'),
   enabled: z.boolean().default(true),
+  oneShot: z.boolean().default(false),
   nextAt: z.number().int().nonnegative().nullable().default(null).catch(null),
   runs: z
     .array(
