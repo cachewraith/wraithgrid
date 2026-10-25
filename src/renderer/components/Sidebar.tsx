@@ -747,7 +747,12 @@ export function Sidebar() {
                 <span>Search</span>
                 <kbd>{SHORTCUT_HINT.palette}</kbd>
               </button>
-              <button className="nav-row" disabled title="Scheduled chats are not available yet">
+              <button
+                className={`nav-row${view === 'scheduled' ? ' on' : ''}`}
+                aria-current={view === 'scheduled' ? 'page' : undefined}
+                onClick={() => actions.setView('scheduled')}
+                title="Scheduled chats"
+              >
                 <IconClock />
                 <span>Scheduled</span>
               </button>

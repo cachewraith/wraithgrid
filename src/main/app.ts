@@ -19,6 +19,7 @@ import { autoUpdater, type ProgressInfo } from 'electron-updater'
 import whatsNewMd from '../../docs/WHATS-NEW.md?raw'
 import { parseWhatsNew } from '@shared/whats-new'
 import trayIconPath from '../../build/icon.png?asset'
+import { soonestRun } from '@shared/schedule'
 import { IPC } from '@shared/ipc-channels'
 import type { LoginEvent, PtyDataEvent, PtyExitEvent, UpdateProgress } from '@shared/ipc-contract'
 import type { ChatEventMessage } from '@shared/chat'
@@ -231,7 +232,8 @@ const router = new PaneRouter({
 const currentTheme = (): ThemeName =>
   resolveTheme(store.get().settings.theme, nativeTheme.shouldUseDarkColors)
 
-function createWindow(): void {
+/** `hidden`: a scheduled job is due while the window was closed to the tray (#77). */
+function createWindow(hidden = false): void {
   const theme = currentTheme()
   const min = minimumWindowSize(desktop.chrome)
   const win = new BrowserWindow({
@@ -259,7 +261,9 @@ function createWindow(): void {
   })
   mainWindow = win
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => {
+    if (!hidden) win.show()
+  })
 
   // A crashed renderer only loses its screens: the panes live in the host, and the reloaded
   // window reattaches them with their screens.
@@ -354,7 +358,8 @@ function cleanup(intent: QuitIntent): Promise<void> {
 /** Asks what to do with running agents, unless there are none or the choice is saved. */
 async function chooseOnClose(): Promise<QuitIntent | 'cancel'> {
   const live = await ptys.liveCount()
-  if (live === 0) return 'stop'
+  // No agents, but scheduled jobs: the tray icon stays so they still run (#77).
+  if (live === 0) return store.get().schedules.some((j) => j.enabled) ? 'keep' : 'stop'
   const mode = closeMode()
   if (mode !== 'ask') return mode
   const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
@@ -407,7 +412,11 @@ function keepInTray(win: BrowserWindow): void {
 async function refreshTray(): Promise<void> {
   if (!tray) return
   const live = await ptys.liveCount()
-  if (live === 0 && !mainWindow) {
+  const jobs = store.get().schedules
+  // A scheduled job due soon: wake a window (hidden) to run it (#77).
+  const soonest = soonestRun(jobs)
+  if (!mainWindow && soonest !== null && soonest <= Date.now() + 10_000) createWindow(true)
+  if (live === 0 && !mainWindow && !jobs.some((j) => j.enabled)) {
     // Nothing left to keep running: leave quietly.
     quitIntent = 'stop'
     app.quit()
@@ -443,6 +452,7 @@ function reopenWindow(): void {
   tray = null
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
     mainWindow.focus()
   } else createWindow()
 }
@@ -495,6 +505,7 @@ function showPaneNotice(paneId: string, title: string, body: string): void {
   n.on('click', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return
     if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
     mainWindow.focus()
     send(IPC.paneReveal, paneId)
   })

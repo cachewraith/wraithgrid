@@ -1199,3 +1199,125 @@ input[type='color']::-webkit-color-swatch {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ---- Scheduled chats (#77): flat job rows, mono times ------------------------------- */
+
+.sch-list {
+  border-top: 1px solid var(--line);
+}
+.sch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 170px 170px 34px 28px;
+  gap: 14px;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 4px 8px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.sch-row:hover {
+  background: var(--hover);
+}
+.sch-row.off .sch-t,
+.sch-row.off .sch-where {
+  color: var(--fa);
+}
+.sch-t {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sch-where {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--mu);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sch-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sch-k {
+  font-size: 11px;
+  color: var(--fa);
+}
+.sch-m {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--mu);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sch-r.ok {
+  color: var(--ok);
+}
+.sch-r.bad {
+  color: var(--err);
+}
+.sch-r.warn {
+  color: var(--warn);
+}
+.sch-r.working {
+  color: var(--ok);
+}
+.job-dlg {
+  width: min(640px, calc(100vw - 32px));
+}
+.job-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.job-wide {
+  grid-column: 1 / -1;
+}
+.job-seg {
+  display: flex;
+}
+.job-seg .seg-btn {
+  flex: 1;
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.job-days {
+  display: flex;
+  gap: 4px;
+}
+.job-days button {
+  width: 34px;
+  height: 30px;
+  border: 0;
+  border-radius: calc(6px * var(--rs, 1));
+  background: var(--bg);
+  color: var(--fa);
+  font: inherit;
+  font-size: 12px;
+}
+.job-days button.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.job-note {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fa);
+}
+.job-note.team-warn {
+  color: var(--warn);
+}
+.job-grid textarea {
+  resize: vertical;
+  min-height: 70px;
+  padding: 8px 10px;
+}

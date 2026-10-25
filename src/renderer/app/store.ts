@@ -59,6 +59,10 @@ import {
   HISTORY_MAX,
   TEAM_MAX
 } from '@shared/types'
+import { SCHEDULES_MAX } from '@shared/schedule'
+
+/** How often scheduled jobs are checked (#77). */
+const SCHEDULE_TICK_MS = 15_000
 import { planTeam, teamBranch, teamPaneIds, teamWarnings } from '../lib/team'
 import { neighborInDirection, type Direction } from '../layout/focus'
 import { buildPreset, type PresetId } from '../layout/presets'
@@ -73,7 +77,8 @@ import {
   type Path
 } from '../layout/tree'
 import { buildHandoff } from '../lib/chat-handoff'
-import { decideSwitch } from '../lib/auto-switch'
+import { decideSwitch, nextAccount, peakUse } from '../lib/auto-switch'
+import { dueAction, nextRun, withRun, type ScheduledJob, type ScheduleRun } from '@shared/schedule'
 import { newId } from '../lib/ids'
 import type { ChatBus } from '../lib/chat-bus'
 import type { PtyBus } from '../lib/pty-bus'
@@ -106,7 +111,7 @@ export interface PaneRuntime {
 }
 
 /** `project`: the active workspace's chats and history (the sidebar's project click). */
-export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings' | 'usage'
+export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings' | 'usage' | 'scheduled'
 export type AccountsMode = 'list' | 'add' | 'import'
 export type Modal =
   | { kind: 'newPane'; slotId: string | null }
@@ -126,6 +131,8 @@ export type Modal =
   | { kind: 'startTeam'; wsId: string; only: string | null }
   /** Before Stop team when an agent is working. */
   | { kind: 'stopTeam'; wsId: string }
+  /** New or edit a scheduled job (#77); null: new. */
+  | { kind: 'job'; jobId: string | null }
 
 export interface NewProjectInput {
   name: string
@@ -217,6 +224,14 @@ export interface AppState {
   startTeam(wsId: string, opts?: { only?: string | null; force?: boolean }): Promise<void>
   /** Closes the team's panes (their chats go to History); asks first if one is working. */
   stopTeam(wsId: string, force?: boolean): void
+  /** Adds or replaces a scheduled job (#77) and works out its next run. */
+  saveJob(job: ScheduledJob): void
+  deleteJob(id: string): void
+  setJobEnabled(id: string, enabled: boolean): void
+  /** Runs a job now, off its schedule (its next run stays). */
+  runJobNow(id: string): void
+  /** Checks every job: runs the due ones, records missed and finished runs. */
+  tickSchedules(): void
   restartPane(paneId: string): void
   /** Notes that a prompt was sent to an agent pane, so a restore can continue it. */
   markConversation(paneId: string): void
@@ -739,10 +754,13 @@ export function createAppStore({
 
     const addPaneToActive = (
       input: NewPaneInput,
-      runtimeExtra: Partial<PaneRuntime> = {}
+      runtimeExtra: Partial<PaneRuntime> = {},
+      /** A scheduled run (#77): into that project, without taking the focus or the view. */
+      quietIn: string | null = null
     ): string => {
       const s = get()
-      const ws = activeWorkspace(s)
+      const ws =
+        (quietIn && s.config.workspaces.find((w) => w.id === quietIn)) || activeWorkspace(s)
       const id = newId('p')
       const account = accountById(s.config, input.shell ? null : input.accountId)
       const pane: Pane = {
@@ -778,12 +796,162 @@ export function createAppStore({
           recentFolders: recent
         },
         runtime: { ...s.runtime, [id]: freshRuntime(runtimeExtra) },
-        focusedPaneId: id,
-        zoomedPaneId: null,
-        view: 'grid',
-        modal: null
+        ...(quietIn
+          ? { activated: { ...s.activated, [ws.id]: true as const } }
+          : { focusedPaneId: id, zoomedPaneId: null, view: 'grid' as const, modal: null })
       })
       return id
+    }
+
+    /** A History chat back into its project, without switching to it (a scheduled run). */
+    const reopenQuiet = (wsId: string, paneId: string): boolean => {
+      const s = get()
+      const ws = s.config.workspaces.find((w) => w.id === wsId)
+      const entry = ws?.history.find((h) => h.pane.id === paneId)
+      if (!ws || !entry || findPane(s.config, paneId)) return false
+      spawned.delete(paneId)
+      set({
+        config: withWorkspace(s.config, wsId, (w) => ({
+          ...w,
+          panes: [...w.panes, { ...entry.pane, resume: true }],
+          layout: placePane(w, paneId, null),
+          history: w.history.filter((h) => h.pane.id !== paneId)
+        })),
+        runtime: { ...s.runtime, [paneId]: freshRuntime() },
+        activated: { ...s.activated, [wsId]: true }
+      })
+      return true
+    }
+
+    // ---- Scheduled chats (#77) ---------------------------------------------------------
+    const patchJob = (id: string, fn: (j: ScheduledJob) => ScheduledJob): void =>
+      get().updateConfig((c) => ({
+        ...c,
+        schedules: c.schedules.map((j) => (j.id === id ? fn(j) : j))
+      }))
+    /** The account window's reset, for `reset` jobs and for waiting at a limit. */
+    const resetOf = (job: ScheduledJob): number | null => {
+      const l = get().usage.limits[job.accountId]
+      if (!l) return null
+      if (job.when.kind === 'reset') return l[job.when.window]?.resetsAt ?? null
+      const times = [l.fiveHour?.resetsAt, l.sevenDay?.resetsAt].filter(
+        (t): t is number => typeof t === 'number' && t > now()
+      )
+      return times.length ? Math.max(...times) : null
+    }
+    /** When it runs next after `after`: a reset job waits a little past the reset. */
+    const nextOf = (job: ScheduledJob, after: number): number | null => {
+      if (job.when.kind !== 'reset') return nextRun(job.when, after)
+      const r = resetOf(job)
+      return r !== null && r + 30_000 > after ? r + 30_000 : null
+    }
+    const RUN_BUSY: PaneStatus[] = ['running', 'starting', 'approval', 'background']
+    const finishedNotified = new Set<string>()
+
+    /** Starts one run of a job; returns the run to record. */
+    const startJobRun = (job: ScheduledJob): ScheduleRun => {
+      const s = get()
+      const at = now()
+      const ws = s.config.workspaces.find((w) => w.id === job.wsId)
+      let account = accountById(s.config, job.accountId)
+      if (!ws || !account)
+        return {
+          at,
+          result: 'failed',
+          paneId: null,
+          note: ws ? 'account missing' : 'project missing'
+        }
+      const last = job.runs[0]
+      if (last?.result === 'running' && last.paneId) {
+        const st = s.runtime[last.paneId]?.status
+        if (st && RUN_BUSY.includes(st))
+          return { at, result: 'skipped', paneId: last.paneId, note: 'previous run still going' }
+      }
+      if ((peakUse(s.usage.limits[account.id], at)?.pct ?? 0) >= 100) {
+        const other =
+          job.atLimit === 'switch' && s.config.settings.autoSwitchAtLimit
+            ? nextAccount(
+                s.config.accounts,
+                account,
+                s.usage.limits,
+                at,
+                s.config.settings.autoSwitchAt
+              )
+            : null
+        if (!other)
+          return { at, result: 'waiting', paneId: null, note: `${account.name} is at its limit` }
+        account = other
+      }
+      if (job.target.kind === 'chat') {
+        const paneId = job.target.paneId
+        if (!findPane(s.config, paneId) && !reopenQuiet(job.wsId, paneId))
+          return { at, result: 'failed', paneId: null, note: 'that chat is gone' }
+        if (get().runtime[paneId]?.started) get().chatSend(paneId, job.prompt, [])
+        else firstMessages.set(paneId, job.prompt)
+        return { at, result: 'running', paneId, note: '' }
+      }
+      const cwd = ws.folder || '~'
+      const id = addPaneToActive(
+        {
+          accountId: account.id,
+          cwd,
+          args: [],
+          shell: false,
+          slotId: null,
+          view: 'chat',
+          team: {
+            title: autoTitle({ shell: false, cwd }),
+            model: job.model,
+            effort: job.effort,
+            chatMode: job.chatMode,
+            teamAgentId: null
+          }
+        },
+        {},
+        ws.id
+      )
+      firstMessages.set(id, job.prompt)
+      return {
+        at,
+        result: 'running',
+        paneId: id,
+        note: account.id === job.accountId ? '' : `as ${account.name}`
+      }
+    }
+
+    /** A running run whose chat went quiet is done (or failed when its chat is gone). */
+    const settleRun = (job: ScheduledJob): void => {
+      const run = job.runs[0]
+      if (run?.result !== 'running' || !run.paneId) return
+      const s = get()
+      const found = findPane(s.config, run.paneId)
+      const st = s.runtime[run.paneId]?.status
+      const thread = chat.thread(run.paneId)
+      let result: ScheduleRun['result'] | null = null
+      if (!found)
+        result = s.config.workspaces.some((w) => w.history.some((h) => h.pane.id === run.paneId))
+          ? 'done'
+          : 'failed'
+      else if (st === 'exited') result = 'failed'
+      else if (
+        now() - run.at > 10_000 &&
+        !firstMessages.has(run.paneId) &&
+        found.pane.hasConversation &&
+        (st === 'idle' || st === 'done') &&
+        !thread.busy &&
+        !thread.background.length
+      )
+        result = 'done'
+      if (!result) return
+      patchJob(job.id, (j) => ({ ...j, runs: [{ ...run, result }, ...j.runs.slice(1)] }))
+      if (result === 'done' && found && !finishedNotified.has(`${job.id}:${run.at}`)) {
+        finishedNotified.add(`${job.id}:${run.at}`)
+        api.notify.pane(
+          run.paneId,
+          `Scheduled run done · ${found.ws.name}`.slice(0, 120),
+          job.prompt.slice(0, 200)
+        )
+      }
     }
 
     /** Removes a pane; `archive` keeps it (and its saved chat view) in the project's History. */
@@ -1091,6 +1259,7 @@ export function createAppStore({
         api.window.onCloseMode((onWindowClose) => get().updateSettings({ onWindowClose }))
         api.cli.onAction((id, action) => api.cli.reply(id, runCliAction(action)))
         setInterval(() => void get().refreshGit(), GIT_POLL_MS)
+        setInterval(() => get().tickSchedules(), SCHEDULE_TICK_MS)
         set({
           config,
           info,
@@ -1099,6 +1268,8 @@ export function createAppStore({
           focusedPaneId: paneIds(ws.layout)[0] ?? null
         })
         void get().detectClaude()
+        // Runs due while the app was closed: run (under an hour late) or record as missed.
+        setTimeout(() => get().tickSchedules(), 1500)
         void get().loadThemes()
         void get().loadUsage()
         void get().refreshGit()
@@ -1168,6 +1339,79 @@ export function createAppStore({
         get().updateConfig((c) =>
           withWorkspace(c, wsId, (w) => ({ ...w, team: w.team.filter((a) => a.id !== agentId) }))
         )
+      },
+
+      saveJob(job) {
+        const t = now()
+        const next = { ...job, nextAt: job.enabled ? nextOf(job, t) : null }
+        get().updateConfig((c) => {
+          const at = c.schedules.findIndex((j) => j.id === job.id)
+          if (at < 0 && c.schedules.length >= SCHEDULES_MAX) return c
+          const schedules =
+            at < 0 ? [...c.schedules, next] : c.schedules.map((j, i) => (i === at ? next : j))
+          return { ...c, schedules }
+        })
+      },
+
+      deleteJob(id) {
+        get().updateConfig((c) => ({ ...c, schedules: c.schedules.filter((j) => j.id !== id) }))
+      },
+
+      setJobEnabled(id, enabled) {
+        patchJob(id, (j) => ({ ...j, enabled, nextAt: enabled ? nextOf(j, now()) : null }))
+      },
+
+      runJobNow(id) {
+        const job = get().config.schedules.find((j) => j.id === id)
+        if (!job) return
+        const run = startJobRun(job)
+        patchJob(id, (j) => withRun(j, run))
+      },
+
+      tickSchedules() {
+        const t = now()
+        for (const job of get().config.schedules) {
+          settleRun(job)
+          const cur = get().config.schedules.find((j) => j.id === job.id)
+          if (!cur?.enabled) continue
+          // A reset job learns its time once the CLI has said; a waiting one its reset.
+          if (cur.nextAt === null) {
+            const n = nextOf(cur, t)
+            if (n !== null) patchJob(cur.id, (j) => ({ ...j, nextAt: n }))
+            continue
+          }
+          const act = dueAction(cur, t)
+          if (!act) continue
+          if (act === 'missed') {
+            patchJob(cur.id, (j) =>
+              withRun(
+                { ...j, nextAt: nextOf(j, t), enabled: j.when.kind !== 'once' },
+                { at: t, result: 'missed', paneId: null, note: 'Wraithgrid was not running' }
+              )
+            )
+            continue
+          }
+          const run = startJobRun(cur)
+          if (run.result === 'waiting') {
+            const reset = resetOf(cur)
+            // Record the wait once; try again just after the reset.
+            patchJob(cur.id, (j) => ({
+              ...(j.runs[0]?.result === 'waiting' ? j : withRun(j, run)),
+              nextAt: reset !== null ? reset + 30_000 : t + 10 * 60_000
+            }))
+            continue
+          }
+          patchJob(cur.id, (j) =>
+            withRun(
+              {
+                ...j,
+                nextAt: j.when.kind === 'once' ? null : nextOf(j, t),
+                enabled: j.when.kind !== 'once' && j.enabled
+              },
+              run
+            )
+          )
+        }
       },
 
       async startTeam(wsId, opts = {}) {

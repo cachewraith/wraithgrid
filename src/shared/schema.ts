@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CHAT_EFFORTS, CHAT_MODES, CHAT_MODEL_PATTERN, chatSessionIdSchema } from './chat'
+import { LOCAL_DATETIME_PATTERN, SCHEDULE_RUNS_MAX, SCHEDULES_MAX, TIME_PATTERN } from './schedule'
 import {
   ACCENTS,
   ACCOUNT_COLORS,
@@ -208,6 +209,54 @@ export const settingsSchema = z.object({
     .catch({})
 })
 
+const scheduleWhenSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('once'), at: z.string().regex(LOCAL_DATETIME_PATTERN) }),
+  z.object({
+    kind: z.literal('weekly'),
+    days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+    time: z.string().regex(TIME_PATTERN)
+  }),
+  z.object({
+    kind: z.literal('hours'),
+    every: z.number().int().min(1).max(24),
+    from: z.string().regex(TIME_PATTERN)
+  }),
+  z.object({ kind: z.literal('reset'), window: z.enum(['fiveHour', 'sevenDay']) })
+])
+
+export const scheduledJobSchema = z.object({
+  id: idSchema,
+  wsId: idSchema,
+  accountId: idSchema,
+  prompt: z.string().trim().min(1).max(8000),
+  model: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),
+  effort: z.enum(CHAT_EFFORTS).nullable().default(null).catch(null),
+  chatMode: z.enum(CHAT_MODES).nullable().default(null).catch(null),
+  when: scheduleWhenSchema,
+  target: z
+    .discriminatedUnion('kind', [
+      z.object({ kind: z.literal('new') }),
+      z.object({ kind: z.literal('chat'), paneId: idSchema })
+    ])
+    .default({ kind: 'new' })
+    .catch({ kind: 'new' }),
+  atLimit: z.enum(['wait', 'switch']).default('wait').catch('wait'),
+  enabled: z.boolean().default(true),
+  nextAt: z.number().int().nonnegative().nullable().default(null).catch(null),
+  runs: z
+    .array(
+      z.object({
+        at: z.number().int().nonnegative(),
+        result: z.enum(['running', 'done', 'failed', 'missed', 'skipped', 'waiting']),
+        paneId: idSchema.nullable(),
+        note: z.string().max(300).default('')
+      })
+    )
+    .max(SCHEDULE_RUNS_MAX)
+    .default([])
+    .catch([])
+})
+
 export const configSchema = z.object({
   version: z.literal(CONFIG_VERSION),
   claudePath: z.string().max(4096).default(''),
@@ -217,7 +266,19 @@ export const configSchema = z.object({
   machines: z.array(machineSchema).max(32).default([]),
   activeWorkspace: idSchema,
   recentFolders: z.array(pathSchema).max(20).default([]),
-  settings: settingsSchema.default(() => settingsSchema.parse({}))
+  settings: settingsSchema.default(() => settingsSchema.parse({})),
+  // A bad job drops alone, not the whole list or the config.
+  schedules: z
+    .array(z.unknown())
+    .max(SCHEDULES_MAX)
+    .default([])
+    .catch([])
+    .transform((list) =>
+      list.flatMap((j) => {
+        const r = scheduledJobSchema.safeParse(j)
+        return r.success ? [r.data] : []
+      })
+    )
 })
 
 // Compile-time check that the zod schema and the hand-written Config type agree.
@@ -249,7 +310,8 @@ export function defaultConfig(): Config {
     machines: [],
     activeWorkspace: 'ws-default',
     recentFolders: [],
-    settings: settingsSchema.parse({})
+    settings: settingsSchema.parse({}),
+    schedules: []
   }
 }
 

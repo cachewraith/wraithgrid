@@ -13,6 +13,7 @@ import {
   IconCompose,
   IconDiff,
   IconFolder,
+  IconClock,
   IconPlay,
   IconStop,
   IconKeyboard,
@@ -102,6 +103,20 @@ function buildItems(s: AppState): Item[] {
           run: () => (on ? s.stopTeam(w.id) : void s.startTeam(w.id))
         }
       }),
+    {
+      id: 'cmd:new-job',
+      group: 'Commands',
+      label: 'New scheduled job…',
+      icon: <IconClock />,
+      run: () => s.openModal({ kind: 'job', jobId: null })
+    },
+    {
+      id: 'cmd:scheduled',
+      group: 'Commands',
+      label: 'Scheduled',
+      icon: <IconClock />,
+      run: () => s.setView('scheduled')
+    },
     {
       id: 'cmd:new-project',
       group: 'Commands',
