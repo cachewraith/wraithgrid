@@ -137,6 +137,39 @@ export function withRun<J extends Pick<ScheduledJob, 'runs'>>(job: J, run: Sched
   return { ...job, runs: [run, ...job.runs].slice(0, SCHEDULE_RUNS_MAX) }
 }
 
+/** What the renderer sees of a running run's chat when it checks whether the run is over. */
+export interface RunView {
+  /** Started by this launch (a run left `running` by an earlier one is stale, #117). */
+  live: boolean
+  pane: 'open' | 'history' | 'gone'
+  exited: boolean
+  /** Its message was sent and the chat is idle again (not busy, no background work). */
+  quiet: boolean
+  now: number
+}
+
+/**
+ * How a `running` run ends, or null while it goes on. Only a run this launch started can say
+ * "done" out loud: a stale one is settled quietly, so later chat activity never finishes it.
+ */
+export function settleOf(
+  run: ScheduleRun,
+  v: RunView
+): { result: RunResult; note: string; notify: boolean } | null {
+  if (run.result !== 'running' || !run.paneId) return null
+  if (v.pane === 'gone') return { result: 'failed', note: 'that chat is gone', notify: false }
+  if (v.pane === 'history') return { result: 'done', note: run.note, notify: false }
+  if (!v.live)
+    return {
+      result: 'failed',
+      note: 'interrupted: Wraithgrid closed during the run',
+      notify: false
+    }
+  if (v.exited) return { result: 'failed', note: run.note, notify: false }
+  if (v.quiet && v.now - run.at > 10_000) return { result: 'done', note: run.note, notify: true }
+  return null
+}
+
 /** The soonest run of any enabled job, for main to wake a closed window in time. */
 export function soonestRun(
   jobs: readonly Pick<ScheduledJob, 'enabled' | 'nextAt'>[]

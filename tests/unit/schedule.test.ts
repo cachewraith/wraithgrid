@@ -8,6 +8,7 @@ import {
   parseLocal,
   soonestRun,
   SCHEDULE_RUNS_MAX,
+  settleOf,
   toLocal,
   withRun
 } from '@shared/schedule'
@@ -101,5 +102,36 @@ describe('scheduled chats (#77)', () => {
     expect(describeWhen({ kind: 'reset', window: 'fiveHour' }, 'work')).toBe(
       'work 5-hour limit resets'
     )
+  })
+
+  it('only a run this launch started says "done"; a stale one settles quietly (#117)', () => {
+    const run = { at: 1_000, result: 'running' as const, paneId: 'p1', note: '' }
+    const view = { live: true, pane: 'open' as const, exited: false, quiet: true, now: 60_000 }
+    // Its own turn ended: done, with the notification.
+    expect(settleOf(run, view)).toEqual({ result: 'done', note: '', notify: true })
+    // Still going, or quiet within 10 s of the send: not yet.
+    expect(settleOf(run, { ...view, quiet: false })).toBeNull()
+    expect(settleOf(run, { ...view, now: 5_000 })).toBeNull()
+    // Left running by an earlier launch: an unrelated later turn in that chat never notifies.
+    expect(settleOf(run, { ...view, live: false })).toEqual({
+      result: 'failed',
+      note: 'interrupted: Wraithgrid closed during the run',
+      notify: false
+    })
+    expect(settleOf(run, { ...view, live: false, quiet: false })?.notify).toBe(false)
+    // Closed to History (it ran), or gone: settled, never notified.
+    expect(settleOf(run, { ...view, live: false, pane: 'history' })).toEqual({
+      result: 'done',
+      note: '',
+      notify: false
+    })
+    expect(settleOf(run, { ...view, pane: 'gone' })?.result).toBe('failed')
+    expect(settleOf(run, { ...view, exited: true, quiet: false })).toMatchObject({
+      result: 'failed',
+      notify: false
+    })
+    // Only running runs with a chat are settled.
+    expect(settleOf({ ...run, result: 'done' }, view)).toBeNull()
+    expect(settleOf({ ...run, paneId: null }, view)).toBeNull()
   })
 })

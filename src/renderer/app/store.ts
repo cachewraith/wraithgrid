@@ -90,6 +90,7 @@ import { decideSwitch, nextAccount, peakUse } from '../lib/auto-switch'
 import {
   dueAction,
   nextRun,
+  settleOf,
   toLocal,
   withRun,
   type ScheduledJob,
@@ -896,7 +897,8 @@ export function createAppStore({
       return r !== null && r + 30_000 > after ? r + 30_000 : null
     }
     const RUN_BUSY: PaneStatus[] = ['running', 'starting', 'approval', 'background']
-    const finishedNotified = new Set<string>()
+    /** Runs this launch started (`jobId:at`); only these may notify "done" (#117). */
+    const liveRuns = new Set<string>()
 
     /** Starts one run of a job; returns the run to record. */
     const startJobRun = (job: ScheduledJob): ScheduleRun => {
@@ -938,6 +940,7 @@ export function createAppStore({
           return { at, result: 'failed', paneId: null, note: 'that chat is gone' }
         if (get().runtime[paneId]?.started) get().chatSend(paneId, job.prompt, [])
         else firstMessages.set(paneId, job.prompt)
+        liveRuns.add(`${job.id}:${at}`)
         return { at, result: 'running', paneId, note: '' }
       }
       const cwd = projectFolder(ws)
@@ -962,6 +965,7 @@ export function createAppStore({
         ws.id
       )
       firstMessages.set(id, job.prompt)
+      liveRuns.add(`${job.id}:${at}`)
       return {
         at,
         result: 'running',
@@ -978,31 +982,34 @@ export function createAppStore({
       const found = findPane(s.config, run.paneId)
       const st = s.runtime[run.paneId]?.status
       const thread = chat.thread(run.paneId)
-      let result: ScheduleRun['result'] | null = null
-      if (!found)
-        result = s.config.workspaces.some((w) => w.history.some((h) => h.pane.id === run.paneId))
-          ? 'done'
-          : 'failed'
-      else if (st === 'exited') result = 'failed'
-      else if (
-        now() - run.at > 10_000 &&
-        !firstMessages.has(run.paneId) &&
-        found.pane.hasConversation &&
-        (st === 'idle' || st === 'done') &&
-        !thread.busy &&
-        !thread.background.length
-      )
-        result = 'done'
-      if (!result) return
-      patchJob(job.id, (j) => ({ ...j, runs: [{ ...run, result }, ...j.runs.slice(1)] }))
-      if (result === 'done' && found && !finishedNotified.has(`${job.id}:${run.at}`)) {
-        finishedNotified.add(`${job.id}:${run.at}`)
+      const end = settleOf(run, {
+        live: liveRuns.has(`${job.id}:${run.at}`),
+        pane: found
+          ? 'open'
+          : s.config.workspaces.some((w) => w.history.some((h) => h.pane.id === run.paneId))
+            ? 'history'
+            : 'gone',
+        exited: st === 'exited',
+        quiet:
+          !firstMessages.has(run.paneId) &&
+          !!found?.pane.hasConversation &&
+          (st === 'idle' || st === 'done') &&
+          !thread.busy &&
+          !thread.background.length,
+        now: now()
+      })
+      if (!end) return
+      liveRuns.delete(`${job.id}:${run.at}`)
+      patchJob(job.id, (j) => ({
+        ...j,
+        runs: [{ ...run, result: end.result, note: end.note }, ...j.runs.slice(1)]
+      }))
+      if (end.notify && found)
         api.notify.pane(
           run.paneId,
           `Scheduled run done · ${found.ws.name}`.slice(0, 120),
           job.prompt.slice(0, 200)
         )
-      }
     }
 
     /** Removes a pane; `archive` keeps it (and its saved chat view) in the project's History. */
