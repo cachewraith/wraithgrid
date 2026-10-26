@@ -543,11 +543,11 @@ export function ChatView({ paneId, visible, focused }: Props) {
           )}
           {thread.busy && !approval && !streamingId ? (
             <div className="chat-working" aria-live="polite">
-              <span className="cw-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
+              {account ? (
+                <span className="cw-logo" aria-hidden="true">
+                  <ProviderLogo cli={account.cli} size={15} fallbackName={account.name} />
+                </span>
+              ) : null}
               <span className="cw-label">{last?.kind === 'tool' ? 'Working' : 'Thinking'}</span>
               {elapsed >= 2000 ? <span className="cw-time">{formatDuration(elapsed)}</span> : null}
             </div>

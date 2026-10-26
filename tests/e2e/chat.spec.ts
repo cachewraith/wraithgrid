@@ -108,15 +108,20 @@ test('chat pane: streamed answer, approval, restore, no leftovers', async () => 
     await expect(answer.locator('strong')).toHaveText('fake')
     await expect(answer).toContainText(`config ${home}/.wraithgrid/accounts/work`)
     await expect(answer).not.toContainText('(full copy)')
-    // While streaming, the end of the text shows a small round dot, not a block cursor (#62).
-    const dot = await answer.evaluate((el) => {
+    // While streaming, nothing trails the end of the text: no dot, no cursor (#62, #120).
+    const tail = await answer.evaluate((el) => {
       el.classList.add('streaming')
-      const cs = getComputedStyle(el.querySelector('.md > :last-child')!, '::after')
-      const r = { w: parseFloat(cs.width), h: parseFloat(cs.height), round: cs.borderRadius }
+      const content = getComputedStyle(el.querySelector('.md > :last-child')!, '::after').content
+      // A streamed word comes in from a slight blur.
+      const w = document.createElement('span')
+      w.className = 'md-w'
+      el.querySelector('.md')!.append(w)
+      const word = getComputedStyle(w).animationName
+      w.remove()
       el.classList.remove('streaming')
-      return r
+      return { content, word }
     })
-    expect(dot).toEqual({ w: 6, h: 6, round: '50%' })
+    expect(tail).toEqual({ content: 'none', word: 'md-word' })
     await expect(pane(win).locator('.cturn')).toContainText('1s')
     // The account's models, from the CLI's own list; Default reads as the model it means.
     await expect(pane(win).getByRole('button', { name: /^Model:/ })).toHaveText(/Opus 5\.5/)
