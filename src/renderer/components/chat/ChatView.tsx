@@ -204,6 +204,9 @@ const motionReduced = (): boolean =>
  * bursts it arrives in. Once
  * the stream ends (turn over, Stop, or a tool call next) all of it shows at once.
  */
+/** How long text must stop growing before the working line shows under it again (#129). */
+const TEXT_QUIET_MS = 1200
+
 function usePacedText(text: string, streaming: boolean): string {
   const [paced] = useState(() => streaming && !motionReduced())
   // A long answer already there when the view opened (back to the pane) isn't replayed.
@@ -452,6 +455,17 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
       .filter((t) => t > at)
     return times.length ? Math.min(...times) : null
   })()
+  // Text that stopped growing (#129): the turn goes on unseen (e.g. Claude writing a big tool
+  // call), so after a short quiet the working line comes back under it.
+  const tail = thread.items[thread.items.length - 1]
+  const textKey =
+    thread.busy && tail?.kind === 'assistant' ? `${tail.id}:${tail.text.length}` : null
+  const [quietKey, setQuietKey] = useState<string | null>(null)
+  useEffect(() => {
+    if (!textKey) return
+    const t = setTimeout(() => setQuietKey(textKey), TEXT_QUIET_MS)
+    return () => clearTimeout(t)
+  }, [textKey])
   if (!pane) return null
 
   const cwdAbs = expandHome(pane.cwd, home)
@@ -544,14 +558,16 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
               )
             })
           )}
-          {thread.busy && !approval && !streamingId ? (
+          {thread.busy && !approval && (!streamingId || quietKey === textKey) ? (
             <div className="chat-working" aria-live="polite">
               {account ? (
                 <span className="cw-logo" aria-hidden="true">
                   <ProviderLogo cli={account.cli} size={15} fallbackName={account.name} />
                 </span>
               ) : null}
-              <span className="cw-label">{last?.kind === 'tool' ? 'Working' : 'Thinking'}</span>
+              <span className="cw-label">
+                {last?.kind === 'tool' || last?.kind === 'assistant' ? 'Working' : 'Thinking'}
+              </span>
               {elapsed >= 2000 ? <span className="cw-time">{formatDuration(elapsed)}</span> : null}
             </div>
           ) : null}
