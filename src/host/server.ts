@@ -9,6 +9,7 @@ import { ECHO_WINDOW_MS, RUNNING_WINDOW_MS } from '@shared/activity'
 import {
   FrameReader,
   PROTOCOL_VERSION,
+  chunkReplay,
   clientFrame,
   encodeFrame,
   type ClientFrame,
@@ -313,7 +314,9 @@ export class HostServer {
         if (exit && client.role === 'gui') this.drop(f.paneId)
         else if (!exit) client.attached.add(f.paneId)
         // In stream order: the screen, then what arrived while it was taken, then the reply.
-        if (snapshot) client.send({ t: 'data', paneId: f.paneId, data: snapshot, replay: true })
+        // In pieces, so a big screen never exceeds a client's MAX_FRAME (#134).
+        for (const part of chunkReplay(snapshot))
+          client.send({ t: 'data', paneId: f.paneId, data: part, replay: true })
         for (const data of held) client.send({ t: 'data', paneId: f.paneId, data })
         return { ok: true, pid: entry.pid, attached: true, exit }
       }

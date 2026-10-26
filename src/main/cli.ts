@@ -370,10 +370,15 @@ function attach(c: HostConnection, paneId: string, tty: Tty): Promise<number> {
       tty.write(`${TTY_RESET}\r\n[${note}]\r\n`)
       resolve(code)
     }
-    // The screen comes first as a replay frame, then live output, both in stream order.
+    // The screen comes first as replay frames (one or several, #134), then live output, both
+    // in stream order: clear once, before the first piece.
+    let cleared = false
     c.onData = (id, data, replay) => {
       if (id !== paneId) return
-      tty.write(replay ? `\x1b[H\x1b[2J${data}` : data)
+      if (replay && !cleared) {
+        cleared = true
+        tty.write(`\x1b[H\x1b[2J${data}`)
+      } else tty.write(data)
     }
     c.onExit = (id, exitCode) => {
       if (id === paneId) finish(0, `pane exited with code ${exitCode}`)

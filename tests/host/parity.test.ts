@@ -309,6 +309,54 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
     }, 60_000)
   })
 
+  // #134: a screen far over MAX_FRAME as one frame arrives in pieces every client can read.
+  it('big screen: restored in frames under the 4 MB limit, drawn the same', async () => {
+    const file = path.join(FIXTURES, 'big.txt')
+    const row = (i: number): string =>
+      Array.from(
+        { length: 60 },
+        (_, k) => `${ESC}[48;5;${(i + k) % 256}m${ESC}[38;5;${(k * 7) % 256}mab`
+      ).join('') + `${ESC}[0m`
+    fs.writeFileSync(file, lines(5000, row))
+    const size = { cols: 200, rows: 50 }
+    for (const kind of KINDS) {
+      const live = await Client.open(host(kind))
+      const paneId = `big${kind}`
+      await live.request(shPane(paneId, `stty -onlcr; cat ${JSON.stringify(file)}; sleep 30`, size))
+      let last = -1
+      await until(
+        async () => {
+          const n = live.output.get(paneId)?.length ?? 0
+          const done = n > 0 && n === last
+          last = n
+          await sleep(300)
+          return done
+        },
+        30_000,
+        'big output to settle'
+      )
+      const other = await Client.open(host(kind))
+      await other.request({ t: 'attach', paneId, ...size }, 30_000)
+      const parts = other.frames.filter((f) => f.t === 'data' && f.paneId === paneId && f.replay)
+      const replay = parts.map((f) => String(f.data)).join('')
+      expect(
+        JSON.stringify(replay).length,
+        `${kind} would have been one oversized frame`
+      ).toBeGreaterThan(4 * 1024 * 1024)
+      expect(parts.length, `${kind} pieces`).toBeGreaterThan(1)
+      expect(other.maxLine, `${kind} largest frame`).toBeLessThan(4 * 1024 * 1024)
+      const [truth, restored] = await Promise.all([
+        draw(live.output.get(paneId)!, size.cols, size.rows),
+        draw(replay, size.cols, size.rows)
+      ])
+      expect(restored.lines, `${kind} cells`).toEqual(truth.lines)
+      expect(restored.cursor).toEqual(truth.cursor)
+      live.send({ t: 'kill', paneId })
+      live.close()
+      other.close()
+    }
+  }, 120_000)
+
   // ADR 0004, known differences: vt100 keeps only the active buffer, so the normal buffer under
   // a full-screen program is not restored by the Rust host. Pinned so a change is noticed.
   it('alternate screen: leaving it after a restore shows the normal buffer (Node) or a blank (Rust)', async () => {

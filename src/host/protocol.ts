@@ -125,11 +125,34 @@ export const encodeFrame = (frame: ClientFrame | HostFrame): string => JSON.stri
 export const MAX_FRAME = 4 * 1024 * 1024
 
 /**
+ * A reattached screen goes out in pieces this long (#134): JSON escaping can make one
+ * character six (`\u001b`), so a piece stays near 3 MB, under MAX_FRAME, however dense.
+ */
+export const REPLAY_CHUNK = 512 * 1024
+
+/** Splits a replay into consecutive pieces, never cutting a surrogate pair in two. */
+export function chunkReplay(text: string, max = REPLAY_CHUNK): string[] {
+  const out: string[] = []
+  for (let i = 0; i < text.length;) {
+    let end = Math.min(text.length, i + max)
+    const last = text.charCodeAt(end - 1)
+    if (end < text.length && last >= 0xd800 && last <= 0xdbff && end - 1 > i) end--
+    out.push(text.slice(i, end))
+    i = end
+  }
+  return out
+}
+
+/**
  * Splits a byte stream into JSON frames. A line that is not JSON, or one over MAX_FRAME,
- * reports an error and the stream is dropped by the caller (no resync on garbage).
+ * reports an error and the stream is dropped by the caller (no resync on garbage). Only each
+ * new chunk is searched and a frame is joined once, so a large frame arriving in many chunks
+ * stays linear (#134).
  */
 export class FrameReader {
-  private buf = ''
+  /** The start of a frame whose newline hasn't arrived yet. */
+  private parts: string[] = []
+  private size = 0
 
   constructor(
     private readonly onFrame: (frame: unknown) => void,
@@ -137,11 +160,13 @@ export class FrameReader {
   ) {}
 
   push(chunk: string): void {
-    this.buf += chunk
-    let nl: number
-    while ((nl = this.buf.indexOf('\n')) !== -1) {
-      const line = this.buf.slice(0, nl)
-      this.buf = this.buf.slice(nl + 1)
+    let from = 0
+    for (let nl = chunk.indexOf('\n'); nl !== -1; nl = chunk.indexOf('\n', from)) {
+      const piece = chunk.slice(from, nl)
+      const line = this.parts.length ? this.parts.join('') + piece : piece
+      this.parts = []
+      this.size = 0
+      from = nl + 1
       if (!line) continue
       let frame: unknown
       try {
@@ -152,8 +177,13 @@ export class FrameReader {
       }
       this.onFrame(frame)
     }
-    if (this.buf.length > MAX_FRAME) {
-      this.buf = ''
+    if (from < chunk.length) {
+      this.parts.push(from ? chunk.slice(from) : chunk)
+      this.size += chunk.length - from
+    }
+    if (this.size > MAX_FRAME) {
+      this.parts = []
+      this.size = 0
       this.onError('frame too large')
     }
   }

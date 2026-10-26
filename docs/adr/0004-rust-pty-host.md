@@ -37,8 +37,10 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
    UTF-8 across reads; the kill policy is node-pty's: SIGHUP to the group, SIGKILL after 2 s,
    then a sweep of the group.
 4. **The reattach screen uses the `vt100` crate** (5000 lines of scrollback, like
-   `HOST_SCROLLBACK`). A snapshot is every row of the active buffer, scrollback included, as
-   text with SGR codes and line breaks, then the cursor position, the pen and the input modes
+   `HOST_SCROLLBACK`). A snapshot is every row of the active buffer, scrollback included, each
+   written from a reset pen and reset before its line break (a line break that scrolls fills
+   the new row with the current background in xterm), then the cursor position, the pen and
+   the input modes. Like the Node host's, it goes out in pieces under `MAX_FRAME` (#134)
    (application keys, bracketed paste, mouse). It does not have to match `@xterm/addon-serialize`
    byte for byte; it has to draw the same screen in xterm.js, which the parity tests check.
    `vt100` is the first choice because it already formats rows and keeps scrollback; if parity

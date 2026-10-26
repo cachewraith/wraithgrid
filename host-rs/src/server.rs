@@ -520,8 +520,9 @@ impl Host {
                     }
                 }
                 if let Some(c) = s.clients.get_mut(&client) {
-                    if !snapshot.is_empty() {
-                        c.send(&protocol::data(&pane_id, &snapshot, true));
+                    // In pieces, so a big screen never exceeds a client's MAX_FRAME (#134).
+                    for part in protocol::chunk_replay(&snapshot, protocol::REPLAY_CHUNK) {
+                        c.send(&protocol::data(&pane_id, part, true));
                     }
                     let exit = exit.map(|(code, sig)| json!({ "exitCode": code, "signal": sig }));
                     c.send(&protocol::reply(
