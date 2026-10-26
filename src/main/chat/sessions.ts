@@ -69,7 +69,16 @@ export class ChatSessions {
     return this.sessions.size
   }
 
+  /** Chats mid-turn or with background work: what a quit would cut short (#137). */
+  get busyCount(): number {
+    let n = 0
+    for (const s of this.sessions.values()) if (s.turns > 0 || s.background) n++
+    return n
+  }
+
   start(paneId: string, launch: ChatLaunch, adapter: ChatAdapter): { pid: number | null } {
+    // A start that raced another one (#135): the older process must not run on unseen.
+    if (this.sessions.has(paneId)) void this.stop(paneId)
     const child = this.deps.spawn(launch)
     const s: Session = {
       child,
@@ -132,6 +141,8 @@ export class ChatSessions {
   }
 
   private handleLine(paneId: string, s: Session, line: string): void {
+    // A stopped or replaced process still talks until it exits: not into the pane.
+    if (this.sessions.get(paneId) !== s) return
     let msg: unknown
     try {
       msg = JSON.parse(line)

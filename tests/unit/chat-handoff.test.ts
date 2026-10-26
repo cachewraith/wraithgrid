@@ -146,3 +146,39 @@ it('ignores late source events after archiving and accepts events after reopenin
     vi.useRealTimers()
   }
 })
+
+// Streamed text schedules no save; quit and reload flush it (#136).
+it('flush saves streamed text and pending views at once, and only those', async () => {
+  type ChatApi = WraithApi['chat']
+  type Envelope = Parameters<Parameters<ChatApi['onEvent']>[0]>[0]
+  let emit: (e: Envelope) => void = () => {}
+  const save = vi.fn()
+  const bus = new ChatBus({
+    onEvent: (cb: (e: Envelope) => void) => {
+      emit = cb
+      return () => {}
+    },
+    load: async () => null,
+    save,
+    send: vi.fn()
+  } as unknown as ChatApi)
+  vi.useFakeTimers()
+  try {
+    bus.start()
+    await bus.load('a')
+    await bus.load('b')
+    await bus.load('c')
+    emit({ paneId: 'a', event: { t: 'text', id: 'x', delta: 'half an answer' } })
+    emit({ paneId: 'b', event: { t: 'busy', busy: false } })
+    bus.flush()
+    expect(save.mock.calls.map((c) => c[0]).sort()).toEqual(['a', 'b'])
+    expect(save.mock.calls.find((c) => c[0] === 'a')![1]).toContain('half an answer')
+    // Nothing left: the debounce that was pending does not save again.
+    await vi.advanceTimersByTimeAsync(1000)
+    bus.flush()
+    expect(save).toHaveBeenCalledTimes(2)
+    bus.stop()
+  } finally {
+    vi.useRealTimers()
+  }
+})

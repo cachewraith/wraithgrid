@@ -355,7 +355,11 @@ function createWindow(hidden = false): void {
     e.preventDefault()
     void chooseOnClose().then((choice) => {
       if (choice === 'cancel') return
-      if (choice === 'keep') keepInTray(win)
+      // The window goes without unloading: its chat views are saved first (#136).
+      if (choice === 'keep')
+        void (ipcHandle?.flushChats() ?? Promise.resolve()).then(() => {
+          if (!win.isDestroyed()) keepInTray(win)
+        })
       else {
         quitIntent = 'stop'
         app.quit()
@@ -472,6 +476,7 @@ const silentIntent = (): QuitIntent => (closeMode() === 'keep' ? 'keep' : 'stop'
 
 function cleanup(intent: QuitIntent): Promise<void> {
   cleaning ??= Promise.allSettled([
+    ipcHandle?.flushChats(),
     intent === 'keep' ? ptys.detach() : ptys.stopAll(),
     chats.stopAll(),
     logins.stopAll(),
@@ -485,9 +490,12 @@ function cleanup(intent: QuitIntent): Promise<void> {
   return cleaning
 }
 
+/** Terminal panes still running, plus chats mid-turn (they run in this process, #137). */
+const runningAgents = async (): Promise<number> => (await ptys.liveCount()) + chats.busyCount
+
 /** Asks what to do with running agents, unless there are none or the choice is saved. */
 async function chooseOnClose(): Promise<QuitIntent | 'cancel'> {
-  const live = await ptys.liveCount()
+  const live = await runningAgents()
   // No agents, but scheduled jobs: the tray icon stays so they still run (#77).
   if (live === 0) return store.get().schedules.some((j) => j.enabled) ? 'keep' : 'stop'
   const mode = closeMode()
@@ -541,7 +549,7 @@ function keepInTray(win: BrowserWindow): void {
 
 async function refreshTray(): Promise<void> {
   if (!tray) return
-  const live = await ptys.liveCount()
+  const live = await runningAgents()
   const jobs = store.get().schedules
   // A scheduled job due soon: wake a window (hidden) to run it (#77).
   const soonest = soonestRun(jobs)
@@ -760,7 +768,9 @@ function createInstaller(): UpdateInstaller {
         if (response === 1) return 'Update cancelled; agents are still running.'
       }
       quitIntent = 'stop'
-      await ptys.stopAll()
+      // Linux installs here and reports a cancelled or failed install without quitting: the
+      // panes must still be running then (#138); a good install quits, and quitting stops them.
+      if (process.platform !== 'linux') await ptys.stopAll()
       let failed: string | null = null
       const onError = (e: Error): void => {
         failed = e.message

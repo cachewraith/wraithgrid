@@ -25,6 +25,8 @@ export class ChatBus {
   private readonly listeners = new Map<string, Set<() => void>>()
   private readonly loaded = new Map<string, Promise<void>>()
   private readonly saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** Panes with streamed text since their last save: no timer runs for deltas (#136). */
+  private readonly unsaved = new Set<string>()
   private readonly sessionListeners = new Set<(paneId: string, id: string) => void>()
   private readonly capabilityListeners = new Set<
     (paneId: string, e: Extract<ChatEvent, { t: 'capabilities' }>) => void
@@ -67,6 +69,16 @@ export class ChatBus {
     if (e.t === 'limits' || e.t === 'turnEnd') this.usageListeners.forEach((cb) => cb(paneId, e))
     // Streaming text is saved once the turn settles, not on every delta.
     if (e.t !== 'text' && e.t !== 'thinking') this.scheduleSave(paneId)
+    else this.unsaved.add(paneId)
+  }
+
+  /** Saves every view with changes not saved yet, now: the window is going away (#136). */
+  flush(): void {
+    for (const paneId of new Set([...this.saveTimers.keys(), ...this.unsaved])) {
+      const timer = this.saveTimers.get(paneId)
+      if (timer) clearTimeout(timer)
+      this.saveNow(paneId)
+    }
   }
 
   thread(paneId: string): ChatThread {
@@ -218,6 +230,7 @@ export class ChatBus {
     if (keep && this.threads.has(paneId))
       this.api.save(paneId, serializeThread(this.thread(paneId)))
     this.saveTimers.delete(paneId)
+    this.unsaved.delete(paneId)
     this.threads.delete(paneId)
     this.fullImages.delete(paneId)
     this.loaded.delete(paneId)
@@ -234,10 +247,13 @@ export class ChatBus {
     if (prev) clearTimeout(prev)
     this.saveTimers.set(
       paneId,
-      setTimeout(() => {
-        this.saveTimers.delete(paneId)
-        if (this.threads.has(paneId)) this.api.save(paneId, serializeThread(this.thread(paneId)))
-      }, SAVE_DEBOUNCE_MS)
+      setTimeout(() => this.saveNow(paneId), SAVE_DEBOUNCE_MS)
     )
+  }
+
+  private saveNow(paneId: string): void {
+    this.saveTimers.delete(paneId)
+    this.unsaved.delete(paneId)
+    if (this.threads.has(paneId)) this.api.save(paneId, serializeThread(this.thread(paneId)))
   }
 }

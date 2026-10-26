@@ -248,6 +248,8 @@ const fileExists = (f: string): Promise<boolean> =>
 export interface IpcHandle {
   /** Carries out a `wraithgrid new|split` command in the window (relayed by the host). */
   runCliAction(action: Record<string, unknown>): Promise<CliActionResult>
+  /** Has the window save its chat views and waits for them on disk (quit, #136). */
+  flushChats(): Promise<void>
 }
 
 export function registerIpc(deps: IpcDeps): IpcHandle {
@@ -432,12 +434,21 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     fail('Could not switch the account')
   )
 
+  // Bumped by every chat start and stop of a pane: a start still waiting on PATH or the
+  // shared brain when a newer start or a stop came in spawns nothing (#135).
+  const chatGen = new Map<string, number>()
+  const bumpChat = (paneId: string): number => {
+    const gen = (chatGen.get(paneId) ?? 0) + 1
+    chatGen.set(paneId, gen)
+    return gen
+  }
   handle(
     IPC.chatStart,
     chatStartArgs,
     async (a): Promise<ChatStartResult> => {
       // The window reloaded (renderer crash): its process kept running.
       if (chats.has(a.paneId)) return { ok: true, pid: null, attached: true }
+      const gen = bumpChat(a.paneId)
       const cfg = store.get()
       if (machineOfPane(cfg, a.paneId))
         return fail('Chat runs on this computer only. Switch this pane to Terminal.')
@@ -481,6 +492,8 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
         }
       )
       if (!resolved.ok) return fail(resolved.error)
+      // Superseded: the newer start answers for the pane, a stop wanted none.
+      if (chatGen.get(a.paneId) !== gen) return { ok: true, pid: null, attached: true }
       const { file, args, cwd, env } = resolved.req
       const { pid } = chats.start(a.paneId, { file, args, cwd, env }, adapter)
       const list = adapter.listModels
@@ -503,6 +516,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   listen(IPC.chatSetMode, chatSetModeArgs, (a) => chats.setMode(a.paneId, a.mode))
   const chatFile = (paneId: string): string => path.join(deps.chatDir, `${paneId}.json`)
   listen(IPC.chatStop, chatStopArgs, (a) => {
+    bumpChat(a.paneId)
     void chats.stop(a.paneId)
     if (a.forget) void rm(chatFile(a.paneId), { force: true }).catch(() => {})
   })
@@ -512,10 +526,17 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
     (a) => readFile(chatFile(a.paneId), 'utf8').catch(() => null),
     null
   )
+  const chatWrites = new Set<Promise<void>>()
   listen(IPC.chatSave, chatSaveArgs, (a) => {
-    void mkdir(deps.chatDir, { recursive: true, mode: 0o700 })
+    const w = mkdir(deps.chatDir, { recursive: true, mode: 0o700 })
       .then(() => writeFileAtomic(chatFile(a.paneId), a.data))
       .catch((err: Error) => log(`could not save chat ${a.paneId}: ${err.message}`))
+      .finally(() => chatWrites.delete(w))
+    chatWrites.add(w)
+  })
+  let chatFlushed: (() => void) | null = null
+  ipcMain.on(IPC.chatFlushed, (e) => {
+    if (trusted(e)) chatFlushed?.()
   })
 
   listen(IPC.ptyWrite, ptyWriteArgs, (a) => ptys.write(a.paneId, a.data))
@@ -1706,6 +1727,23 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
   })
 
   return {
+    async flushChats() {
+      const win = deps.getWindow()
+      if (win && !win.isDestroyed()) {
+        // Its saves arrive before its answer: one channel order per sender.
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(done, 1500)
+          function done(): void {
+            clearTimeout(timer)
+            chatFlushed = null
+            resolve()
+          }
+          chatFlushed = done
+          win.webContents.send(IPC.chatFlush)
+        })
+      }
+      await Promise.allSettled([...chatWrites])
+    },
     async runCliAction(raw) {
       const parsed = cliActionSchema.safeParse(raw)
       if (!parsed.success) return fail('Invalid command')
