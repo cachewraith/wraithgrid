@@ -718,6 +718,34 @@ describe('chat sessions', () => {
     })
   })
 
+  it('a second start for the pane stops the first; the old one says nothing more (#135)', async () => {
+    const children = [new FakeChild(), new FakeChild()]
+    const events: ChatEvent[] = []
+    const launch = { file: 'claude', args: [], cwd: '/', env: {} }
+    let n = 0
+    const sessions = new ChatSessions({
+      spawn: () => children[n++] as unknown as ChatChild,
+      emit: (_id, e) => events.push(e),
+      stopGraceMs: 50
+    })
+    sessions.start('p1', launch, createClaudeAdapter())
+    sessions.start('p1', launch, createClaudeAdapter())
+    expect(children[0]!.signals).toEqual(['SIGTERM'])
+    expect(sessions.count).toBe(1)
+    const result = `${JSON.stringify({ type: 'result', subtype: 'success', is_error: false })}\n`
+    sessions.send('p1', 'hi', [])
+    children[0]!.stdout.write(result)
+    await tick()
+    // The old process's turn end and exit don't reach the pane: the new one is still busy.
+    expect(events).toEqual([{ t: 'busy', busy: true }])
+    expect(sessions.busyCount).toBe(1)
+    children[1]!.stdout.write(result)
+    await tick()
+    expect(events.filter((e) => e.t === 'busy').at(-1)).toEqual({ t: 'busy', busy: false })
+    expect(sessions.busyCount).toBe(0)
+    await sessions.stopAll()
+  })
+
   it('interrupt goes over the pipe, not a signal', async () => {
     const { child, sessions } = setup()
     sessions.interrupt('p1')

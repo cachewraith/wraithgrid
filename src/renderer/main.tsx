@@ -26,6 +26,12 @@ const bus = new PtyBus(api.pty)
 const rects = new RectRegistry()
 const chat = new ChatBus(api.chat, undefined, makeThumbs)
 const store = createAppStore({ api, bus, chat, rects })
+// Quit and reload must not lose the last answer: views are saved on a debounce (#136).
+api.chat.onFlush(() => {
+  chat.flush()
+  api.chat.flushed()
+})
+window.addEventListener('pagehide', () => chat.flush())
 const services: Services = { api, bus, chat, rects, store }
 
 // xterm measures glyphs when it opens, so the bundled fonts must be ready first.

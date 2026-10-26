@@ -564,6 +564,9 @@ export interface WraithApi {
     /** The conversation view saved for this pane, as `save` got it. */
     load(paneId: string): Promise<string | null>
     save(paneId: string, data: string): void
+    /** Main is quitting: save every view now, then answer with `flushed` (#136). */
+    onFlush(cb: () => void): () => void
+    flushed(): void
     /** The native file picker in the pane's folder; null when cancelled. */
     pickFiles(paneId: string): Promise<ChatPickResult | null>
     /** A dropped file's path on disk ('' when it has none). */

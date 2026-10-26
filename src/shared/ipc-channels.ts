@@ -18,6 +18,8 @@ export const IPC = {
   chatEvent: 'chat:event',
   chatLoad: 'chat:load',
   chatSave: 'chat:save',
+  chatFlush: 'chat:flush',
+  chatFlushed: 'chat:flushed',
   configGet: 'config:get',
   configSet: 'config:set',
   dialogPickFolder: 'dialog:pickFolder',
