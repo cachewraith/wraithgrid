@@ -46,25 +46,48 @@ export function parseStatus(out: string): Omit<GitStatus, 'repo'> {
   return { branch, ahead, behind, changed: lines.length }
 }
 
+/** The output git gave before it outran the runner's buffer, or null for any other failure. */
+function overflowed(err: unknown): string | null {
+  const e = err as { code?: unknown; message?: unknown; stdout?: unknown }
+  const over =
+    e?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' || /maxBuffer/.test(String(e?.message))
+  return over && typeof e.stdout === 'string' ? e.stdout : null
+}
+
 export async function gitStatus(run: GitRunner, cwd: string): Promise<GitStatus> {
   try {
     const out = await run(['status', '--porcelain=1', '--branch', '--untracked-files=normal'], cwd)
     return { repo: true, ...parseStatus(out) }
-  } catch {
+  } catch (err) {
+    // Too many changed files to list is still a repo: count what was listed (#140).
+    const part = overflowed(err)
+    if (part !== null)
+      return { repo: true, ...parseStatus(part.slice(0, part.lastIndexOf('\n') + 1)) }
     return { repo: false, branch: null, ahead: 0, behind: 0, changed: 0 }
   }
 }
 
 export async function gitDiff(run: GitRunner, cwd: string): Promise<GitDiffResult> {
   let patch: string
+  let over = false
   try {
     patch = await run(['diff', 'HEAD', '--no-color', '--no-ext-diff'], cwd)
-  } catch {
-    // No commits yet: there is no HEAD to compare against.
-    try {
-      patch = await run(['diff', '--no-color', '--no-ext-diff'], cwd)
-    } catch (err) {
-      return { ok: false, error: firstLine(err) }
+  } catch (err) {
+    const part = overflowed(err)
+    if (part !== null) {
+      // Bigger than the buffer: what came first, marked cut (#140), not the unstaged-only diff.
+      patch = part
+      over = true
+    } else {
+      // No commits yet: there is no HEAD to compare against.
+      try {
+        patch = await run(['diff', '--no-color', '--no-ext-diff'], cwd)
+      } catch (err2) {
+        const part2 = overflowed(err2)
+        if (part2 === null) return { ok: false, error: firstLine(err2) }
+        patch = part2
+        over = true
+      }
     }
   }
   let untracked: string[] = []
@@ -76,7 +99,7 @@ export async function gitDiff(run: GitRunner, cwd: string): Promise<GitDiffResul
   } catch {
     // Listing untracked files is a nicety; the diff still stands.
   }
-  const truncated = patch.length > DIFF_MAX_BYTES
+  const truncated = over || patch.length > DIFF_MAX_BYTES
   return {
     ok: true,
     patch: truncated ? patch.slice(0, DIFF_MAX_BYTES) : patch,

@@ -95,6 +95,17 @@ export function dayKey(ms: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/**
+ * The local day `n` calendar days before `now`'s. By the calendar, not n × 24 h: across a
+ * clock change that skips or repeats a day (#140). From noon, which every day has.
+ */
+export function dayKeyBefore(now: number, n: number): string {
+  const d = new Date(now)
+  d.setHours(12, 0, 0, 0)
+  d.setDate(d.getDate() - n)
+  return dayKey(d.getTime())
+}
+
 /** Adds one turn to its day/account/project/chat bucket. */
 export function addTurn(
   data: UsageData,
@@ -151,7 +162,7 @@ export function addTurn(
 
 /** Drops days older than USAGE_DAYS. */
 export function pruneUsage(data: UsageData, now: number): UsageData {
-  const oldest = dayKey(now - (USAGE_DAYS - 1) * 86_400_000)
+  const oldest = dayKeyBefore(now, USAGE_DAYS - 1)
   return { ...data, buckets: data.buckets.filter((b) => b.day >= oldest) }
 }
 
@@ -194,9 +205,7 @@ const tokensOf = (b: UsageBucket): number => b.input + b.output + b.cacheRead + 
 export function summarizeUsage(data: UsageData, range: UsageRange, now: number): UsageSummary {
   const days = RANGE_DAYS[range]
   const seriesDays = Math.max(days, 7)
-  const series = Array.from({ length: seriesDays }, (_, i) =>
-    dayKey(now - (seriesDays - 1 - i) * 86_400_000)
-  )
+  const series = Array.from({ length: seriesDays }, (_, i) => dayKeyBefore(now, seriesDays - 1 - i))
   const from = series[seriesDays - days]!
   const dayIndex = new Map(series.map((day, i) => [day, i]))
   const total: UsageTotals = { costUsd: 0, tokens: 0, turns: 0, unpriced: 0 }

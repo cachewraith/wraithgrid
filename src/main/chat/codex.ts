@@ -313,6 +313,8 @@ export function createCodexAdapter(): ChatAdapter {
           })
           reply(request('thread/start', threadParams()))
         } else if (what === 'turn/start') {
+          // A Stop asked for this turn ends with it: the next turn must not be cut short (#140).
+          stopAsked = false
           push({ t: 'notice', level: 'error', text })
           push({ t: 'busy', busy: false })
         } else if (!['account/rateLimits/read', 'model/list', 'skills/list'].includes(what))
@@ -478,7 +480,10 @@ export function createCodexAdapter(): ChatAdapter {
       case 'serverRequest/resolved': {
         // Answered elsewhere, or no longer wanted: the bar must go.
         for (const [reqId, q] of pending)
-          if (String(q.id) === String(p.requestId)) pending.delete(reqId)
+          if (String(q.id) === String(p.requestId)) {
+            pending.delete(reqId)
+            push({ t: 'approvalDone', reqId, decision: 'deny' })
+          }
         break
       }
       case 'thread/tokenUsage/updated': {

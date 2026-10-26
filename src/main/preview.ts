@@ -20,6 +20,9 @@ export interface DevServersDeps {
   stopGraceMs?: number
 }
 
+/** How much of an unfinished output line is held back waiting for its end. */
+const LINE_REST_MAX = 64 * 1024
+
 interface Run {
   child: ChatChild
   urlSeen: boolean
@@ -42,8 +45,8 @@ export class DevServers {
     }
     const run: Run = { child, urlSeen: false, lines: 0 }
     this.runs.set(paneId, run)
-    const onData = (buf: string): void => {
-      for (const raw of buf.split('\n')) {
+    const onLines = (lines: string[]): void => {
+      for (const raw of lines) {
         const line = plainLine(raw)
         if (!line.trim()) continue
         // A server stuck printing forever still leaves the app responsive.
@@ -56,10 +59,29 @@ export class DevServers {
         }
       }
     }
+    // Line by line, per stream: a URL cut across two chunks (`:51` | `73/`) is read whole (#140).
+    const ends: (() => void)[] = []
     for (const s of [child.stdout, child.stderr]) {
+      let rest = ''
       s.setEncoding('utf8')
-      s.on('data', onData)
+      s.on('data', (chunk: string) => {
+        const lines = (rest + chunk).split('\n')
+        rest = lines.pop()!
+        // A line that never ends (a progress bar redrawn with \r) still shows, in pieces.
+        if (rest.length > LINE_REST_MAX) {
+          lines.push(rest)
+          rest = ''
+        }
+        onLines(lines)
+      })
+      ends.push(() => {
+        if (rest) onLines([rest])
+        rest = ''
+      })
     }
+    child.once('exit', () => {
+      if (this.runs.get(paneId) === run) ends.forEach((f) => f())
+    })
     child.once('error', (err) => {
       if (this.runs.get(paneId) !== run) return
       this.runs.delete(paneId)

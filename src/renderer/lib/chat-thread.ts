@@ -135,6 +135,17 @@ function updateItem(
   return null
 }
 
+/** Marks undecided approvals denied; the same array when there were none. */
+function settleApprovals(items: ChatItem[]): ChatItem[] {
+  if (!items.some((it) => it.kind === 'tool' && it.approval && it.approval.decided === null))
+    return items
+  return items.map((it) =>
+    it.kind === 'tool' && it.approval && it.approval.decided === null
+      ? { ...it, approval: { ...it.approval, decided: 'deny' } }
+      : it
+  )
+}
+
 const nextId = (t: ChatThread, prefix: string): [string, number] => [
   `${prefix}-${t.seq + 1}`,
   t.seq + 1
@@ -198,6 +209,8 @@ export function applyChatEvent(t: ChatThread, e: ChatEvent, now: number): ChatTh
     case 'busy':
       return {
         ...t,
+        // Nothing waits on a question once its turn is over (Stop, #140): not asked again.
+        items: e.busy ? t.items : settleApprovals(t.items),
         busy: e.busy,
         turnStartedAt: e.busy ? (t.turnStartedAt ?? now) : null
       }

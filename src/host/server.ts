@@ -63,6 +63,8 @@ interface Waiter {
   /** When the pane was first seen idle in a row (for `quietMs`). */
   idleSince: number | null
   done: (reply: HostReply) => void
+  /** Who waits: gone, the wait is dropped rather than polled to its timeout (#140). */
+  client: Client
 }
 
 /** Typed input with no answer yet: the CLI is about to work (a `wait --until idle` right after `send`). */
@@ -160,6 +162,7 @@ export class HostServer {
     stream.on('close', () => {
       clearTimeout(helloTimer)
       this.clients.delete(client)
+      for (const w of this.waiters) if (w.client === client) this.waiters.delete(w)
       // A terminal attach resized its panes; give them back the window's size.
       if (client.role === 'cli') {
         for (const paneId of client.attached) {
@@ -348,7 +351,8 @@ export class HostServer {
             quietMs: f.quietMs,
             deadline: this.now() + f.timeoutMs,
             idleSince: null,
-            done
+            done,
+            client
           })
           this.tickWaits()
         })
@@ -386,8 +390,11 @@ export class HostServer {
     const now = this.now()
     if (now - entry.lastInputAt > ECHO_WINDOW_MS) entry.lastOutputAt = now
     for (const c of this.clients) {
-      if (c.attached.has(paneId)) c.send({ t: 'data', paneId, data })
-      else c.catchUp.get(paneId)?.push(data)
+      // Held while this client's snapshot is taken, even when it was attached already (the
+      // window reattaching after a reload): sent now, it could also be in the snapshot (#140).
+      const held = c.catchUp.get(paneId)
+      if (held) held.push(data)
+      else if (c.attached.has(paneId)) c.send({ t: 'data', paneId, data })
     }
   }
 
@@ -441,6 +448,7 @@ export class HostServer {
 
   private async checkWaits(): Promise<void> {
     for (const w of [...this.waiters]) {
+      if (!this.waiters.has(w)) continue // Its client left during an earlier await.
       const entry = this.panes.get(w.paneId)
       if (!entry) {
         this.waiters.delete(w)

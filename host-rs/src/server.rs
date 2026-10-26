@@ -90,6 +90,8 @@ struct Waiter {
     deadline: Instant,
     idle_since: Option<Instant>,
     done: Option<oneshot::Sender<Value>>,
+    /// Who waits: once it is gone the wait is dropped, not polled to its timeout (#140).
+    client: u64,
 }
 
 struct Relay {
@@ -275,6 +277,7 @@ impl Host {
                 }
             }
         }
+        s.waiters.retain(|_, w| w.client != id);
         let gone: Vec<u64> = s
             .relays
             .iter()
@@ -578,6 +581,7 @@ impl Host {
                             deadline: Instant::now() + Duration::from_millis(timeout_ms),
                             idle_since: None,
                             done: Some(tx),
+                            client,
                         },
                     );
                     wid
