@@ -2,8 +2,9 @@
 
 ## Now
 - #76 Rust host: phase 3 (macOS + Windows) and 4 (default on, drop node-pty) left; phase 5 arm64 binary never run on real arm64; old `~/.wraithgrid/bin/wraithgrid-host-*` versions on remote machines are never removed
-- Audit (2026-10-26) bugs: #139 stale Changes diff; #140 smaller bugs (checklist). #135–#138 fixed on fix/audit-bugs-20261026 (#138 needs a real cancelled pkexec prompt to see live)
-- Audit (2026-10-26) perf: #141 (chat-thread per-token copy, markdown re-parse, FrameReader, UsageView, git polling, ssh backpressure)
+- CI: chat.spec.ts:299 (scroll follow after a sideways wheel) fails intermittently on the Linux runner, also on main
+- Audit (2026-10-26) bugs: #139 stale Changes diff; #140 smaller bugs (checklist). #135–#138 fixed (PR #148; #138 needs a real cancelled pkexec prompt to see live)
+- Audit (2026-10-26) perf: #141 done on perf/audit-141-20261026; not measured live yet (a DevTools profile of a long streaming chat before/after would confirm)
 - #41 (2026-10-22): agy in the chat UI (`src/main/chat/agy.ts`, `chat: true`); agy 1.4.4 has `-p --input-format/--output-format stream-json`, `--model/--effort/--mode`, `--continue/--conversation`; also set its `resumeArgs`
 - #40 (2026-10-22): Codex CLI in the chat UI (`src/main/chat/codex.ts` adapter, `chat: true`; `codex exec --json` vs `app-server` to decide) + codex sign-in dialog (`codex login --device-auth`/`status`; login.ts per-CLI)
 - #39 (2026-10-22): chat looks stopped while claude runs background work (release, push, `run_in_background` Bash/Agent); `result` in chat/claude.ts sets busy false. Track background tool_use ids → a separate "Running in background" state in chat + pane/sidebar; capture real stream-json fixture first

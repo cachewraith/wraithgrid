@@ -13,6 +13,7 @@ import {
   EMPTY_THREAD,
   addUserMessage,
   applyChatEvent,
+  capItems,
   chatStatus,
   parseThread,
   pendingApproval,
@@ -582,6 +583,23 @@ class FakeChild extends EventEmitter {
 }
 
 const tick = (): Promise<void> => new Promise((r) => setImmediate(r))
+
+describe('live item cap (#141)', () => {
+  it('a long chat drops its oldest items in one step, keeping the restored count right', () => {
+    const items = Array.from({ length: 1001 }, (_, i) => ({
+      kind: 'notice' as const,
+      id: `n${i}`,
+      level: 'info' as const,
+      text: String(i)
+    }))
+    const capped = capItems({ ...EMPTY_THREAD, items, restored: 300 })
+    expect(capped.items).toHaveLength(800)
+    expect(capped.items[0]!.id).toBe('n201')
+    expect(capped.restored).toBe(99)
+    const small = { ...EMPTY_THREAD, items: items.slice(0, 1000) }
+    expect(capItems(small)).toBe(small)
+  })
+})
 
 describe('chat sessions', () => {
   const setup = () => {

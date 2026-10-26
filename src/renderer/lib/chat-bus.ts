@@ -7,6 +7,7 @@ import {
   addNotice,
   addUserMessage,
   applyChatEvent,
+  capItems,
   chatStatus,
   parseThread,
   serializeThread,
@@ -15,6 +16,8 @@ import {
 } from './chat-thread'
 
 const SAVE_DEBOUNCE_MS = 800
+/** Messages per pane whose sent images stay at full size; older ones show their thumbs (#141). */
+const FULL_IMAGE_MESSAGES = 6
 
 /**
  * Chat panes' conversations (ADR 0002), outside React state like PtyBus: streamed text
@@ -162,6 +165,8 @@ export class ChatBus {
       id,
       images.map((img) => `data:${img.mediaType};base64,${img.data}`)
     )
+    // A Map keeps insertion order: the first key is the oldest message.
+    if (full.size > FULL_IMAGE_MESSAGES) full.delete(full.keys().next().value!)
     void this.makeThumbs(images).then((thumbs) => {
       if (!thumbs.length || !this.threads.has(paneId)) return
       this.set(paneId, setUserThumbs(this.thread(paneId), id, thumbs))
@@ -238,7 +243,7 @@ export class ChatBus {
   }
 
   private set(paneId: string, t: ChatThread): void {
-    this.threads.set(paneId, t)
+    this.threads.set(paneId, capItems(t))
     this.listeners.get(paneId)?.forEach((cb) => cb())
   }
 

@@ -109,6 +109,16 @@ export const EMPTY_THREAD: ChatThread = {
 
 /** The saved view keeps this many items; older ones are dropped from the view only. */
 const KEEP_ITEMS = 400
+/** A live view grows to LIVE_MAX items, then drops its oldest down to LIVE_KEEP (#141). */
+const LIVE_MAX = 1000
+const LIVE_KEEP = 800
+
+/** Keeps a long-running chat's memory and per-render work bounded. */
+export function capItems(t: ChatThread): ChatThread {
+  if (t.items.length <= LIVE_MAX) return t
+  const drop = t.items.length - LIVE_KEEP
+  return { ...t, items: t.items.slice(drop), restored: Math.max(0, t.restored - drop) }
+}
 
 /** Replaces the newest item with `id` (searching from the end: updates hit recent items). */
 function updateItem(

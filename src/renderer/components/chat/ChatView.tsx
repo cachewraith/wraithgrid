@@ -12,7 +12,7 @@ import { AGENT_CLI_LABEL, AGENT_PROVIDER_LABEL } from '@shared/agent-clis'
 import { baseName, contractHome, expandHome } from '@shared/paths'
 import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
-import { pendingApproval, type ChatItem } from '../../lib/chat-thread'
+import { pendingApproval, type ChatItem, type ChatThread } from '../../lib/chat-thread'
 import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
 import { createPortal } from 'react-dom'
 import { IconArrowDown, IconClock, IconClose, IconRestart } from '../icons'
@@ -208,7 +208,7 @@ const motionReduced = (): boolean =>
 /** How long text must stop growing before the working line shows under it again (#129). */
 const TEXT_QUIET_MS = 1200
 
-function usePacedText(text: string, streaming: boolean): string {
+function usePacedText(text: string, streaming: boolean, visible: boolean): string {
   const [paced] = useState(() => streaming && !motionReduced())
   // A long answer already there when the view opened (back to the pane) isn't replayed.
   const [shown, setShown] = useState(() => (paced && text.length < 200 ? 0 : text.length))
@@ -218,7 +218,8 @@ function usePacedText(text: string, streaming: boolean): string {
   })
   const on = paced && streaming
   useEffect(() => {
-    if (!on) return
+    // A hidden pane draws nothing: no frame loop (#141); back in view it catches up in 0.5 s.
+    if (!on || !visible) return
     let raf = 0
     let last = performance.now()
     const tick = (now: number): void => {
@@ -230,12 +231,20 @@ function usePacedText(text: string, streaming: boolean): string {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [on])
+  }, [on, visible])
   return on ? revealedWords(text, shown) : text
 }
 
-function AgentMessage({ text, streaming }: { text: string; streaming: boolean }) {
-  const shown = usePacedText(text, streaming)
+function AgentMessage({
+  text,
+  streaming,
+  visible
+}: {
+  text: string
+  streaming: boolean
+  visible: boolean
+}) {
+  const shown = usePacedText(text, streaming, visible)
   return (
     <div className={`cmsg agent${streaming ? ' streaming' : ''}`}>
       <Markdown text={shown} streaming={streaming} />
@@ -253,12 +262,14 @@ const Item = memo(function Item({
   item,
   live,
   streaming,
+  visible,
   cwd
 }: {
   paneId: string
   item: ChatItem
   live: boolean
   streaming: boolean
+  visible: boolean
   cwd: string
 }) {
   switch (item.kind) {
@@ -272,7 +283,7 @@ const Item = memo(function Item({
         </div>
       )
     case 'assistant':
-      return <AgentMessage text={item.text} streaming={streaming} />
+      return <AgentMessage text={item.text} streaming={streaming} visible={visible} />
 
     case 'handoff':
       return (
@@ -328,9 +339,8 @@ const Item = memo(function Item({
  * knows which CLI that is; main's adapter turned the CLI's output into ChatEvents.
  */
 function ChatViewBody({ paneId, visible, focused }: Props) {
-  const { api, chat, store } = useServices()
+  const { chat, store } = useServices()
   const actions = useActions()
-  const drop = useApp((s) => s.chatDrops[paneId] ?? null)
   const thread = useSyncExternalStore(
     useCallback((cb) => chat.subscribe(paneId, cb), [chat, paneId]),
     () => chat.thread(paneId)
@@ -410,54 +420,13 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
   const still = Math.max(opened, thread.restored)
 
   const elapsed = useElapsed(thread.busy ? thread.turnStartedAt : null)
-  // The `/` menu: the CLI's commands for this chat.
-  const [modelSignal, setModelSignal] = useState(0)
-  const [effortSignal, setEffortSignal] = useState(0)
-  const [modeSignal, setModeSignal] = useState(0)
-  const slashItems = useMemo(
-    () => buildSlashItems(thread.commands, thread.terminalOnly),
-    [thread.commands, thread.terminalOnly]
+  // ↑/↓ in the box step through this chat's sent prompts (#132). Only user messages and a
+  // loaded view change it, and both bump `seq`: not every streamed token (#141).
+  const history = useMemo(
+    () => promptHistory(thread.items),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [thread.seq, thread.restored]
   )
-  // All accounts: same-CLI continuation or a cross-CLI handoff (#78).
-  const accounts = useApp((s) => s.config.accounts)
-  const accountInfo = useApp((s) => s.accountInfo)
-  const limits = useApp((s) => s.usage.limits)
-  // A limit past its reset reads 0%.
-  const at = useTicker(60_000)
-  // ↑/↓ in the box step through this chat's sent prompts (#132).
-  const history = useMemo(() => promptHistory(thread.items), [thread.items])
-  const choices = useMemo((): AccountChoice[] => {
-    return accounts.map((a) => {
-      const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
-      return {
-        id: a.id,
-        cli: a.cli,
-        name: a.name,
-        plan: accountInfo[a.id]?.info?.plan ?? null,
-        sessionPct: five ? Math.round(five.utilization * 100) : null,
-        signedIn: a.signedIn
-      }
-    })
-  }, [accounts, accountInfo, limits, at])
-  const branch = useApp((s) => s.git[paneId]?.branch ?? '')
-  const currentChoice = choices.find((c) => c.id === account?.id)
-  // "Send later" (#77): this chat's queued messages, and when its account's limit resets.
-  const queued = useApp(
-    useShallow((s) =>
-      s.config.schedules.filter(
-        (j) => j.oneShot && j.target.kind === 'chat' && j.target.paneId === paneId
-      )
-    )
-  )
-  const resetAt = (() => {
-    const l = account ? limits[account.id] : undefined
-    const times = [l?.fiveHour, l?.sevenDay]
-      .map((w) => liveWindow(w ?? null, at))
-      .filter((w) => w && w.utilization > 0)
-      .map((w) => w!.resetsAt)
-      .filter((t) => t > at)
-    return times.length ? Math.min(...times) : null
-  })()
   // Text that stopped growing (#129): the turn goes on unseen (e.g. Claude writing a big tool
   // call), so after a short quiet the working line comes back under it.
   const tail = thread.items[thread.items.length - 1]
@@ -469,38 +438,23 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
     const t = setTimeout(() => setQuietKey(textKey), TEXT_QUIET_MS)
     return () => clearTimeout(t)
   }, [textKey])
+  const send = useCallback(
+    (text: string, images: Parameters<typeof actions.chatSend>[2]): void => {
+      stick.current = true
+      setAtBottom(true)
+      actions.chatSend(paneId, text, images)
+    },
+    [actions, paneId]
+  )
   if (!pane) return null
 
   const cwdAbs = expandHome(pane.cwd, home)
   const cwdLabel = contractHome(cwdAbs, home)
   const cliLabel = account ? AGENT_CLI_LABEL[account.cli] : 'agent'
   const approval = thread.busy ? pendingApproval(thread) : null
-  const asking = !!approval?.approval?.questions
   const last = thread.items[thread.items.length - 1]
   const streamingId = thread.busy && last?.kind === 'assistant' ? last.id : null
   const ready = started && !exit
-  const notSignedIn = !!account && !account.signedIn
-
-  // What the `/` menu's own commands do.
-  const chosenModel =
-    thread.models.find((m) => m.value === (pane.model ?? 'default')) ?? thread.models[0]
-  const autoMode = chosenModel?.autoMode === true
-  // The pick shows at once; `pane.chatMode` also follows what the CLI reports (and a refused
-  // switch puts it back), so waiting for the CLI here only made the picker look stuck.
-  const mode = pane.chatMode ?? 'default'
-  const runCommand = (item: SlashItem): void => {
-    if (item.name === 'new') actions.chatNew(paneId)
-    else if (item.name === 'model') setModelSignal((n) => n + 1)
-    else if (item.name === 'effort') setEffortSignal((n) => n + 1)
-    else if (item.name === 'mode') setModeSignal((n) => n + 1)
-    else if (item.name === 'usage') actions.setView('usage')
-  }
-
-  const send = (text: string, images: Parameters<typeof actions.chatSend>[2]): void => {
-    stick.current = true
-    setAtBottom(true)
-    actions.chatSend(paneId, text, images)
-  }
 
   return (
     <div className="chat">
@@ -555,6 +509,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
                     item={it}
                     live={thread.busy}
                     streaming={it.id === streamingId}
+                    visible={visible}
                     cwd={cwdAbs}
                   />
                 </div>
@@ -582,150 +537,276 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
           <IconArrowDown small />
         </button>
       )}
-      <div className="chat-foot">
-        {queued.map((j) => (
-          <div key={j.id} className="cqueue" role="status" aria-label="Queued message">
-            <IconClock small />
-            <span className="cqueue-t" title={j.prompt}>
-              {j.prompt}
-            </span>
-            <span className="cqueue-w">
-              {j.when.kind === 'reset'
-                ? `when ${account?.name ?? 'the'} limit resets${j.nextAt ? ` · ${fmtUntil(j.nextAt, at)}` : ''}`
-                : j.nextAt
-                  ? `at ${fmtWhen(j.nextAt, at)} · ${fmtUntil(j.nextAt, at)}`
-                  : 'queued'}
-            </span>
-            <button className="btn sm gh" onClick={() => actions.deleteJob(j.id)}>
-              Cancel
-            </button>
-            <button className="btn sm" onClick={() => actions.runJobNow(j.id)}>
-              Send now
-            </button>
-          </div>
-        ))}
-        {approval?.approval?.questions ? (
-          <QuestionCard
-            key={approval.approval.reqId}
-            questions={approval.approval.questions}
-            cli={account?.cli ?? null}
-            onAnswer={(answers) =>
-              actions.chatApprove(paneId, approval.approval!.reqId, 'allow', answers)
-            }
-            onSkip={() => actions.chatApprove(paneId, approval.approval!.reqId, 'deny')}
-          />
-        ) : approval?.approval ? (
-          <ApprovalBar
-            key={approval.approval.reqId}
-            item={approval}
-            onDecide={(d) => actions.chatApprove(paneId, approval.approval!.reqId, d)}
-          />
-        ) : null}
-        {exit ? (
-          <div className="chat-bar err">
-            <span>
-              {exit.spawnError
-                ? (exit.message ?? 'The agent could not start.')
-                : 'The agent stopped.'}
-              {!exit.spawnError && exit.message ? (
-                <span className="mono"> {exit.message}</span>
-              ) : null}
-            </span>
-            <button className="btn" onClick={() => actions.restartPane(paneId)}>
-              <IconRestart small /> Restart
-            </button>
-          </div>
-        ) : notSignedIn ? (
-          <div className="chat-bar">
-            <span>{account.name} is not signed in. Sign in once, then come back.</span>
-            <button className="btn" onClick={() => actions.loginAccount(account.id)}>
-              Sign in
-            </button>
-          </div>
-        ) : null}
-        <Composer
-          drop={drop}
-          onDropTaken={() => actions.takeChatDrop(paneId)}
-          placeholder={
-            asking ? 'Answer the questions above, or Skip to type instead…' : `Message ${cliLabel}…`
-          }
-          ready={ready}
-          busy={thread.busy}
-          waiting={asking}
-          history={history}
-          autoFocus={focused && visible && canTakeFocus}
-          meta={[cwdLabel, branch]}
-          model={
-            // Any CLI whose adapter reports models gets the controls.
-            currentChoice || thread.models.length || pane.model ? (
-              <>
-                {currentChoice ? (
-                  <AccountPicker
-                    current={currentChoice}
-                    accounts={choices}
-                    busy={thread.busy}
-                    onPick={(id) =>
-                      actions.openModal({ kind: 'switchChatAccount', paneId, accountId: id })
-                    }
-                    onSignIn={(id) => actions.loginAccount(id)}
-                  />
-                ) : null}
-                <ModelPicker
-                  models={thread.models}
-                  model={pane.model}
-                  running={thread.model}
-                  openSignal={modelSignal}
-                  onModel={(m) => actions.chatSetModel(paneId, m)}
-                />
-                <EffortPicker
-                  efforts={chosenModel?.efforts ?? []}
-                  effort={pane.effort}
-                  busy={thread.busy}
-                  openSignal={effortSignal}
-                  onEffort={(e) => actions.chatSetEffort(paneId, e)}
-                />
-                <ModePicker
-                  mode={mode}
-                  autoMode={autoMode}
-                  modes={thread.controls?.modes}
-                  asks={thread.controls?.approvals ?? true}
-                  openSignal={modeSignal}
-                  onMode={(m) => actions.chatSetMode(paneId, m)}
-                />
-              </>
-            ) : null
-          }
-          onCycleMode={() => {
-            const list = cycleModes(autoMode).filter(
-              (m) => !thread.controls || thread.controls.modes.includes(m)
-            )
-            actions.chatSetMode(paneId, list[(list.indexOf(mode) + 1) % list.length]!)
-          }}
-          commands={slashItems}
-          onCommand={runCommand}
-          onSend={send}
-          onStop={() => actions.chatInterrupt(paneId)}
-          onPickFiles={() => api.chat.pickFiles(paneId)}
-          sendLater={
-            account
-              ? {
-                  reset:
-                    resetAt !== null
-                      ? {
-                          label: `When ${account.name}'s limit resets`,
-                          hint: fmtUntil(resetAt, at)
-                        }
-                      : null,
-                  onQueue: (text, when) => actions.queueMessage(paneId, text, when)
-                }
-              : undefined
-          }
-          filePath={api.chat.filePath}
-        />
-      </div>
+      <ChatFoot
+        paneId={paneId}
+        cliLabel={cliLabel}
+        cwdLabel={cwdLabel}
+        ready={ready}
+        busy={thread.busy}
+        approval={approval}
+        history={history}
+        models={thread.models}
+        running={thread.model}
+        controls={thread.controls}
+        commands={thread.commands}
+        terminalOnly={thread.terminalOnly}
+        autoFocus={focused && visible && canTakeFocus}
+        onSend={send}
+      />
     </div>
   )
 }
+
+interface FootProps {
+  paneId: string
+  cliLabel: string
+  cwdLabel: string
+  ready: boolean
+  busy: boolean
+  approval: Extract<ChatItem, { kind: 'tool' }> | null
+  history: string[]
+  models: ChatThread['models']
+  running: string | null
+  controls: ChatThread['controls']
+  commands: ChatThread['commands']
+  terminalOnly: string[]
+  autoFocus: boolean
+  onSend: (text: string, images: Parameters<ReturnType<typeof useActions>['chatSend']>[2]) => void
+}
+
+/**
+ * Everything under the thread: queued messages, the approval or question card, the stopped
+ * and sign-in bars, the message box and its pickers. Memoized, so a streamed token, which
+ * changes none of its props, doesn't re-render it (#141).
+ */
+const ChatFoot = memo(function ChatFoot({
+  paneId,
+  cliLabel,
+  cwdLabel,
+  ready,
+  busy,
+  approval,
+  history,
+  models,
+  running,
+  controls,
+  commands,
+  terminalOnly,
+  autoFocus,
+  onSend
+}: FootProps) {
+  const { api } = useServices()
+  const actions = useActions()
+  const drop = useApp((s) => s.chatDrops[paneId] ?? null)
+  const pane = useApp((s) => findPane(s.config, paneId)?.pane)
+  const account = useApp((s) => accountById(s.config, pane?.accountId ?? null))
+  const exit = useApp((s) => s.runtime[paneId]?.exit ?? null)
+  // The `/` menu: the CLI's commands for this chat.
+  const [modelSignal, setModelSignal] = useState(0)
+  const [effortSignal, setEffortSignal] = useState(0)
+  const [modeSignal, setModeSignal] = useState(0)
+  const slashItems = useMemo(
+    () => buildSlashItems(commands, terminalOnly),
+    [commands, terminalOnly]
+  )
+  // All accounts: same-CLI continuation or a cross-CLI handoff (#78).
+  const accounts = useApp((s) => s.config.accounts)
+  const accountInfo = useApp((s) => s.accountInfo)
+  const limits = useApp((s) => s.usage.limits)
+  // A limit past its reset reads 0%.
+  const at = useTicker(60_000)
+  const choices = useMemo((): AccountChoice[] => {
+    return accounts.map((a) => {
+      const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
+      return {
+        id: a.id,
+        cli: a.cli,
+        name: a.name,
+        plan: accountInfo[a.id]?.info?.plan ?? null,
+        sessionPct: five ? Math.round(five.utilization * 100) : null,
+        signedIn: a.signedIn
+      }
+    })
+  }, [accounts, accountInfo, limits, at])
+  const branch = useApp((s) => s.git[paneId]?.branch ?? '')
+  const currentChoice = choices.find((c) => c.id === account?.id)
+  // "Send later" (#77): this chat's queued messages, and when its account's limit resets.
+  const queued = useApp(
+    useShallow((s) =>
+      s.config.schedules.filter(
+        (j) => j.oneShot && j.target.kind === 'chat' && j.target.paneId === paneId
+      )
+    )
+  )
+  const resetAt = (() => {
+    const l = account ? limits[account.id] : undefined
+    const times = [l?.fiveHour, l?.sevenDay]
+      .map((w) => liveWindow(w ?? null, at))
+      .filter((w) => w && w.utilization > 0)
+      .map((w) => w!.resetsAt)
+      .filter((t) => t > at)
+    return times.length ? Math.min(...times) : null
+  })()
+  if (!pane) return null
+
+  const asking = !!approval?.approval?.questions
+  const notSignedIn = !!account && !account.signedIn
+  // What the `/` menu's own commands do.
+  const chosenModel = models.find((m) => m.value === (pane.model ?? 'default')) ?? models[0]
+  const autoMode = chosenModel?.autoMode === true
+  // The pick shows at once; `pane.chatMode` also follows what the CLI reports (and a refused
+  // switch puts it back), so waiting for the CLI here only made the picker look stuck.
+  const mode = pane.chatMode ?? 'default'
+  const runCommand = (item: SlashItem): void => {
+    if (item.name === 'new') actions.chatNew(paneId)
+    else if (item.name === 'model') setModelSignal((n) => n + 1)
+    else if (item.name === 'effort') setEffortSignal((n) => n + 1)
+    else if (item.name === 'mode') setModeSignal((n) => n + 1)
+    else if (item.name === 'usage') actions.setView('usage')
+  }
+
+  return (
+    <div className="chat-foot">
+      {queued.map((j) => (
+        <div key={j.id} className="cqueue" role="status" aria-label="Queued message">
+          <IconClock small />
+          <span className="cqueue-t" title={j.prompt}>
+            {j.prompt}
+          </span>
+          <span className="cqueue-w">
+            {j.when.kind === 'reset'
+              ? `when ${account?.name ?? 'the'} limit resets${j.nextAt ? ` · ${fmtUntil(j.nextAt, at)}` : ''}`
+              : j.nextAt
+                ? `at ${fmtWhen(j.nextAt, at)} · ${fmtUntil(j.nextAt, at)}`
+                : 'queued'}
+          </span>
+          <button className="btn sm gh" onClick={() => actions.deleteJob(j.id)}>
+            Cancel
+          </button>
+          <button className="btn sm" onClick={() => actions.runJobNow(j.id)}>
+            Send now
+          </button>
+        </div>
+      ))}
+      {approval?.approval?.questions ? (
+        <QuestionCard
+          key={approval.approval.reqId}
+          questions={approval.approval.questions}
+          cli={account?.cli ?? null}
+          onAnswer={(answers) =>
+            actions.chatApprove(paneId, approval.approval!.reqId, 'allow', answers)
+          }
+          onSkip={() => actions.chatApprove(paneId, approval.approval!.reqId, 'deny')}
+        />
+      ) : approval?.approval ? (
+        <ApprovalBar
+          key={approval.approval.reqId}
+          item={approval}
+          onDecide={(d) => actions.chatApprove(paneId, approval.approval!.reqId, d)}
+        />
+      ) : null}
+      {exit ? (
+        <div className="chat-bar err">
+          <span>
+            {exit.spawnError
+              ? (exit.message ?? 'The agent could not start.')
+              : 'The agent stopped.'}
+            {!exit.spawnError && exit.message ? (
+              <span className="mono"> {exit.message}</span>
+            ) : null}
+          </span>
+          <button className="btn" onClick={() => actions.restartPane(paneId)}>
+            <IconRestart small /> Restart
+          </button>
+        </div>
+      ) : notSignedIn ? (
+        <div className="chat-bar">
+          <span>{account.name} is not signed in. Sign in once, then come back.</span>
+          <button className="btn" onClick={() => actions.loginAccount(account.id)}>
+            Sign in
+          </button>
+        </div>
+      ) : null}
+      <Composer
+        drop={drop}
+        onDropTaken={() => actions.takeChatDrop(paneId)}
+        placeholder={
+          asking ? 'Answer the questions above, or Skip to type instead…' : `Message ${cliLabel}…`
+        }
+        ready={ready}
+        busy={busy}
+        waiting={asking}
+        history={history}
+        autoFocus={autoFocus}
+        meta={[cwdLabel, branch]}
+        model={
+          // Any CLI whose adapter reports models gets the controls.
+          currentChoice || models.length || pane.model ? (
+            <>
+              {currentChoice ? (
+                <AccountPicker
+                  current={currentChoice}
+                  accounts={choices}
+                  busy={busy}
+                  onPick={(id) =>
+                    actions.openModal({ kind: 'switchChatAccount', paneId, accountId: id })
+                  }
+                  onSignIn={(id) => actions.loginAccount(id)}
+                />
+              ) : null}
+              <ModelPicker
+                models={models}
+                model={pane.model}
+                running={running}
+                openSignal={modelSignal}
+                onModel={(m) => actions.chatSetModel(paneId, m)}
+              />
+              <EffortPicker
+                efforts={chosenModel?.efforts ?? []}
+                effort={pane.effort}
+                busy={busy}
+                openSignal={effortSignal}
+                onEffort={(e) => actions.chatSetEffort(paneId, e)}
+              />
+              <ModePicker
+                mode={mode}
+                autoMode={autoMode}
+                modes={controls?.modes}
+                asks={controls?.approvals ?? true}
+                openSignal={modeSignal}
+                onMode={(m) => actions.chatSetMode(paneId, m)}
+              />
+            </>
+          ) : null
+        }
+        onCycleMode={() => {
+          const list = cycleModes(autoMode).filter((m) => !controls || controls.modes.includes(m))
+          actions.chatSetMode(paneId, list[(list.indexOf(mode) + 1) % list.length]!)
+        }}
+        commands={slashItems}
+        onCommand={runCommand}
+        onSend={onSend}
+        onStop={() => actions.chatInterrupt(paneId)}
+        onPickFiles={() => api.chat.pickFiles(paneId)}
+        sendLater={
+          account
+            ? {
+                reset:
+                  resetAt !== null
+                    ? {
+                        label: `When ${account.name}'s limit resets`,
+                        hint: fmtUntil(resetAt, at)
+                      }
+                    : null,
+                onQueue: (text, when) => actions.queueMessage(paneId, text, when)
+              }
+            : undefined
+        }
+        filePath={api.chat.filePath}
+      />
+    </div>
+  )
+})
 
 /** A message that starts with `/command` shows the command as a chip. */
 function UserText({ text }: { text: string }) {
