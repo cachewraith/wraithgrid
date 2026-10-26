@@ -302,6 +302,8 @@ export interface Settings {
   onWindowClose: CloseMode
   /** Let `wraithgrid list|read|send|wait|new|split|stop` reach panes (H6). Off by default. */
   cliAccess: boolean
+  /** The Rust background host (ADR 0004 phase 2, Linux): used the next time a host starts. */
+  rustHost: boolean
   /** No longer read: chat-capable agent panes always open as chats (#110). */
   newPaneView: PaneView
   /** Saved terminal views of chat-capable panes were turned into chats once (#110). */

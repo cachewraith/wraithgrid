@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -173,14 +174,32 @@ const hostFiles = hostPaths({
   userName: os.userInfo().username
 })
 
-/** Starts the host detached, with this same Electron binary running as plain Node. */
+/**
+ * The Rust host binary of this build (ADR 0004 phase 2, Linux only): in the app's resources
+ * when packaged, the cargo release build next to `out/` in development; null when there is none.
+ */
+const rustHostBin = ((): string | null => {
+  if (process.platform !== 'linux') return null
+  const bin = app.isPackaged
+    ? path.join(process.resourcesPath, 'wraithgrid-host')
+    : path.join(__dirname, '../../host-rs/target/release/wraithgrid-host')
+  return existsSync(bin) ? bin : null
+})()
+
+/**
+ * Starts the host detached: this same Electron binary running as plain Node, or the Rust host
+ * when Settings → Advanced asks for it (WRAITHGRID_RUST_HOST=1 in tests) and this build has it.
+ */
 async function startHost(): Promise<void> {
   await envReady
+  const wantRust = store.get().settings.rustHost || process.env.WRAITHGRID_RUST_HOST === '1'
+  if (wantRust && !rustHostBin) console.warn('[wraithgrid] no Rust host in this build; using Node')
   await startHostProcess({
     paths: hostFiles,
     appVersion: app.getVersion(),
     execPath: process.execPath,
     outDir: __dirname,
+    rustBin: wantRust ? rustHostBin : null,
     cwd: homeDir,
     env: process.env,
     uid
@@ -766,6 +785,7 @@ void app.whenReady().then(() => {
     ptys: router,
     homeDir,
     desktop,
+    rustHostBin,
     envReady,
     updates,
     community: new CommunityCatalog((url, init) => net.fetch(url, init)),

@@ -631,6 +631,42 @@ function CliRow() {
   )
 }
 
+/** The Rust background host (ADR 0004 phase 2): off by default, Linux builds that have it. */
+function RustHostRow() {
+  const actions = useActions()
+  const on = useApp((s) => s.config.settings.rustHost)
+  const available = useApp((s) => s.info.rustHost)
+  const linux = useApp((s) => s.info.platform === 'linux')
+  if (!linux) return null
+  return (
+    <div className="srow">
+      <div>
+        <h3>Rust background host</h3>
+        <p className="ex">
+          Experimental. Runs terminal panes in the new background host written in Rust: about 5 MB
+          of memory while idle instead of about 110 MB. Chat panes are not affected. It is used the
+          next time the background host starts: quit with <em>Quit and stop agents</em>, then open
+          Wraithgrid again.
+        </p>
+      </div>
+      <div className="ctl">
+        <div className="swrow">
+          <button
+            className={`sw${on ? ' on' : ''}`}
+            role="switch"
+            aria-checked={on}
+            aria-labelledby="set-rust-host"
+            disabled={!available}
+            onClick={() => actions.updateSettings({ rustHost: !on })}
+          />
+          <span id="set-rust-host">Use the Rust host</span>
+        </div>
+        {available ? null : <span className="hint">Not included in this build.</span>}
+      </div>
+    </div>
+  )
+}
+
 function MachinesRow() {
   const actions = useActions()
   const { api } = useServices()
@@ -1517,6 +1553,7 @@ export function SettingsView() {
         {tab === 'advanced' ? (
           <>
             <CliRow />
+            <RustHostRow />
             <MachinesRow />
           </>
         ) : null}

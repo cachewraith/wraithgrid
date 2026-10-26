@@ -16,6 +16,8 @@ export interface HostStart {
   execPath: string
   /** Folder holding the built `host.js`. */
   outDir: string
+  /** The Rust host binary to start instead (ADR 0004 phase 2); same settings and socket. */
+  rustBin?: string | null
   cwd: string
   env: NodeJS.ProcessEnv
   uid: number
@@ -35,14 +37,17 @@ export async function startHostProcess(s: HostStart): Promise<void> {
   // Every fd this process has open would leak into the long-lived host: mask them (fds.ts).
   const maskUpTo = posix ? highestOpenFd(process.platform) : 2
   try {
-    spawn(s.execPath, [path.join(s.outDir, 'host.js')], {
+    const [file, args] = s.rustBin
+      ? [s.rustBin, []]
+      : [s.execPath, [path.join(s.outDir, 'host.js')]]
+    spawn(file, args, {
       detached: true,
       stdio: posix ? stdioMasking(out, nullFd, maskUpTo) : ['ignore', out, out],
       windowsHide: true,
       cwd: s.cwd,
       env: {
         ...s.env,
-        ELECTRON_RUN_AS_NODE: '1',
+        ...(s.rustBin ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
         WRAITHGRID_HOST: JSON.stringify({
           paths: s.paths,
           appVersion: s.appVersion,

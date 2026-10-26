@@ -11,6 +11,7 @@ BUN_VERSION="$(node -p "require('./package.json').packageManager.split('@')[1]")
 mkdir -p dist
 
 tar --exclude=./node_modules --exclude=./dist --exclude=./out --exclude=./.git \
+  --exclude=./host-rs/target \
   --exclude=./test-results --exclude=./playwright-report -czf - . |
   docker run --rm -i -v "$PWD/dist:/out" \
     -e NODE_VERSION="$NODE_VERSION" -e BUN_VERSION="$BUN_VERSION" \
@@ -23,7 +24,9 @@ tar --exclude=./node_modules --exclude=./dist --exclude=./out --exclude=./.git \
       curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" |
         tar -xJ -C /usr/local --strip-components=1
       curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" >/dev/null
-      export PATH="$HOME/.bun/bin:$PATH"
+      # The Rust background host (ADR 0004) is built here too, against the same glibc.
+      curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal >/dev/null
+      export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
       mkdir /src && cd /src && tar -xzf -
       bun install --frozen-lockfile
       bun run dist:linux
