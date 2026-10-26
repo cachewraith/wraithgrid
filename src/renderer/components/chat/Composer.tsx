@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ClipboardEvent,
@@ -142,6 +143,18 @@ export function Composer({
     setActive(0)
   }
   const syncCaret = (): void => setCaret(ref.current?.selectionStart ?? 0)
+  // Where the caret goes once a recalled or picked text is in the box: right after React put
+  // it there, in the same task as the key. A frame later could land between someone's select
+  // all and their typing, and collapse the selection so the text is added, not replaced.
+  const placeCaret = useRef<{ text: string; at: number; focus?: boolean } | null>(null)
+  useLayoutEffect(() => {
+    const p = placeCaret.current
+    const box = ref.current
+    placeCaret.current = null
+    if (!p || !box || box.value !== p.text) return
+    if (p.focus) box.focus()
+    box.setSelectionRange(p.at, p.at)
+  })
   // ↑/↓ through sent prompts (#132); typing or sending ends browsing.
   const nav = useRef<HistoryNav>(NOT_BROWSING)
   const recall = (dir: -1 | 1, box: HTMLTextAreaElement): boolean => {
@@ -153,10 +166,7 @@ export function Composer({
     setCaret(step.text.length)
     // A recalled `/command` doesn't open the menu: ↑/↓ keep going through history.
     setDismissed(step.text)
-    requestAnimationFrame(() => {
-      if (ref.current?.value === step.text)
-        ref.current.setSelectionRange(step.text.length, step.text.length)
-    })
+    placeCaret.current = { text: step.text, at: step.text.length }
     return true
   }
 
@@ -172,13 +182,7 @@ export function Composer({
     const next = item.sigil === '$' ? head + text.slice(caret).trimStart() : head
     setText(next)
     setCaret(head.length)
-    requestAnimationFrame(() => {
-      const box = ref.current
-      if (!box) return
-      box.focus()
-      // Only if nothing was typed since: a fast typist's first letters must stay in order.
-      if (box.value === next) box.setSelectionRange(head.length, head.length)
-    })
+    placeCaret.current = { text: next, at: head.length, focus: true }
   }
 
   useEffect(() => {
