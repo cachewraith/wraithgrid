@@ -4,6 +4,7 @@ node_modules/
 # Build output
 out/
 dist/
+host-rs/target/
 squashfs-root/
 *.tsbuildinfo
 

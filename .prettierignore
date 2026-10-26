@@ -5,3 +5,4 @@ bun.lock
 docs
 test-results
 playwright-report
+host-rs/target

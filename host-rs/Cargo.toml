@@ -1,0 +1,24 @@
+[package]
+name = "wraithgrid-host"
+version = "0.1.0"
+edition = "2021"
+description = "Wraithgrid's background pty host (ADR 0004): same socket and frames as src/host"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "wraithgrid-host"
+path = "src/main.rs"
+
+[dependencies]
+libc = "0.2"
+portable-pty = "0.9.0"
+regex = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "signal"] }
+vt100 = "0.18.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
