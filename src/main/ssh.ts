@@ -18,8 +18,14 @@ export function sshConfigHosts(text: string): string[] {
   return [...hosts]
 }
 
-/** `--` ends ssh's options, so a host can never be read as one (the schema refuses `-` too). */
-export const sshArgs = (sshHost: string): string[] => [
+/**
+ * `--` ends ssh's options, so a host can never be read as one (the schema refuses `-` too).
+ * `command` runs there; the Rust host's bridge when it was copied over (remote-bin.ts).
+ */
+export const sshArgs = (
+  sshHost: string,
+  command: string[] = ['wraithgrid', 'host-stdio']
+): string[] => [
   '-T',
   '-o',
   'BatchMode=yes',
@@ -29,8 +35,7 @@ export const sshArgs = (sshHost: string): string[] => [
   'ServerAliveCountMax=3',
   '--',
   sshHost,
-  'wraithgrid',
-  'host-stdio'
+  ...command
 ]
 
 export interface SshLink {
@@ -53,5 +58,26 @@ export function openSshLink(program: string, args: string[]): Promise<SshLink> {
       child.once('close', () => stream.destroy())
       resolve({ stream, stderr: () => tail.trim().split('\n').pop() ?? '' })
     })
+  })
+}
+
+export interface SshRun {
+  code: number | null
+  stdout: string
+  stderr: string
+}
+
+/** Runs one command over ssh to its end, `input` on its stdin. */
+export function runSsh(program: string, args: string[], input?: Buffer): Promise<SshRun> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(program, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stderr.on('data', (d: Buffer) => (stderr = (stderr + d.toString()).slice(-600)))
+    child.stdin.on('error', () => {}) // ssh may exit before reading it all; its code says why
+    child.once('error', reject)
+    child.once('close', (code) => resolve({ code, stdout, stderr: stderr.trim() }))
+    child.stdin.end(input)
   })
 }

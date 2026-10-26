@@ -30,6 +30,7 @@ describe('ssh config hosts', () => {
   it('ends ssh options before the host', () => {
     const args = sshArgs('build')
     expect(args.slice(args.indexOf('--'))).toEqual(['--', 'build', 'wraithgrid', 'host-stdio'])
+    expect(sshArgs('build', ['x', 'stdio']).slice(-3)).toEqual(['build', 'x', 'stdio'])
     expect(args).toContain('BatchMode=yes')
   })
 })

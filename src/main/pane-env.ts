@@ -87,6 +87,68 @@ export interface PaneEnvInput {
 }
 
 /**
+ * A pane's environment as rules, without the machine's own environment: what to drop, what
+ * to set and the locale to add when none is set. Local panes apply it to this process's env;
+ * a remote machine's Rust host applies it to its own (ADR 0004 phase 5), so both follow one
+ * set of rules. `set` values starting with `~/` mean the home of the machine applying it.
+ */
+export interface PaneEnvPlan {
+  /** Exact names (upper case) to leave out. */
+  drop: string[]
+  /** Name prefixes (upper case) to leave out. */
+  dropPrefixes: string[]
+  set: Record<string, string>
+  /** Set as LANG when none of LC_ALL, LC_CTYPE, LANG is; null on Windows. */
+  lang: string | null
+}
+
+/** The rules of a pane's environment (requirements §13: one function decides them). */
+export function paneEnvPlan({
+  shell,
+  cli = 'claude',
+  configDir,
+  platform = process.platform
+}: Omit<PaneEnvInput, 'baseEnv' | 'homeDir' | 'modDirs'>): PaneEnvPlan {
+  const set: Record<string, string> = {
+    // What xterm.js is: every shell (bash, zsh, fish, nu, PowerShell…) and claude read these.
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor'
+  }
+  const dirVar = AGENT_CLI_SPECS[cli].configDirVar
+  if (!shell && configDir && dirVar) set[dirVar] = configDir
+  return {
+    // An agent pane sees only its own account's config dir, never one Wraithgrid inherited.
+    drop: [...TERMINAL_VARS, ...(shell ? [] : CONFIG_DIR_VARS)],
+    // Electron's own switches must not leak into child tools (e.g. ELECTRON_RUN_AS_NODE).
+    dropPrefixes: ['ELECTRON_', ...TERMINAL_PREFIXES],
+    set,
+    // macOS apps opened from the Dock get no locale; older macOS has no C.UTF-8.
+    lang: platform === 'win32' ? null : platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
+  }
+}
+
+/** Applies a plan to an environment; `~` in a set value is `homeDir`, made absolute. */
+export function applyEnvPlan(
+  baseEnv: NodeJS.ProcessEnv,
+  plan: PaneEnvPlan,
+  homeDir: string
+): Record<string, string> {
+  const drop = new Set(plan.drop)
+  const env: Record<string, string> = {}
+  for (const [key, value] of Object.entries(baseEnv)) {
+    const k = key.toUpperCase()
+    if (value === undefined || drop.has(k) || plan.dropPrefixes.some((p) => k.startsWith(p)))
+      continue
+    env[key] = value
+  }
+  for (const [key, value] of Object.entries(plan.set))
+    env[key] =
+      value === '~' || value.startsWith('~/') ? path.resolve(expandHome(value, homeDir)) : value
+  if (plan.lang && !hasLocale(env)) env.LANG = plan.lang
+  return env
+}
+
+/**
  * The one place that decides a pane's environment, including the CLI's config-dir variable
  * (requirements §13: isolate it so a CLI change touches one function).
  */
@@ -99,24 +161,12 @@ export function buildPaneEnv({
   modDirs = [],
   platform = process.platform
 }: PaneEnvInput): Record<string, string> {
-  const env: Record<string, string> = {}
-  for (const [key, value] of Object.entries(baseEnv)) {
-    // Electron's own switches must not leak into child tools (e.g. ELECTRON_RUN_AS_NODE).
-    if (value === undefined || key.startsWith('ELECTRON_') || isTerminalVar(key)) continue
-    env[key] = value
-  }
-  // What xterm.js is: every shell (bash, zsh, fish, nu, PowerShell…) and claude read these.
-  env.TERM = 'xterm-256color'
-  env.COLORTERM = 'truecolor'
-  // macOS apps opened from the Dock get no locale; older macOS has no C.UTF-8.
-  if (platform !== 'win32' && !hasLocale(env))
-    env.LANG = platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
-  // An agent pane sees only its own account's config dir, never one Wraithgrid inherited.
-  if (!shell) for (const v of CONFIG_DIR_VARS) delete env[v]
+  const plan = paneEnvPlan({ shell, cli, configDir, platform })
+  // A config dir that isn't under `~` is still made absolute here.
   const dirVar = AGENT_CLI_SPECS[cli].configDirVar
-  if (!shell && configDir && dirVar) {
-    env[dirVar] = path.resolve(expandHome(configDir, homeDir))
-  }
+  if (dirVar && plan.set[dirVar])
+    plan.set[dirVar] = path.resolve(expandHome(plan.set[dirVar], homeDir))
+  const env = applyEnvPlan(baseEnv, plan, homeDir)
   if (!shell && cli === 'claude') {
     const dirs = pluginDirsValue(env[PLUGIN_DIRS_VAR], modDirs, homeDir, platform)
     if (dirs) env[PLUGIN_DIRS_VAR] = dirs

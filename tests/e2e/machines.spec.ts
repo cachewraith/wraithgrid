@@ -158,6 +158,14 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
       squash(`CLAUDE_CONFIG_DIR=${remoteHome}/.wraithgrid/accounts/personal`)
     )
     await expect(win.locator('.ws-mach', { hasText: 'lab' })).toBeVisible()
+    // With the Rust host on, the lab runs the binary copied there, not `wraithgrid host-stdio`.
+    if (process.env.WRAITHGRID_RUST_HOST === '1') {
+      // Named after app.getVersion(), which is Electron's own when run unpackaged like here.
+      const binDir = path.join(remoteHome, '.wraithgrid/bin')
+      const [bin] = fs.readdirSync(binDir).filter((f) => f.startsWith('wraithgrid-host-'))
+      expect(bin).toBeTruthy()
+      expect(pids(`^\\.wraithgrid/bin/${bin} stdio`)).not.toEqual([])
+    }
     await expect.poll(() => paneText(win, 'gamma')).toContain('COLORTERM=truecolor')
     await pane(win, 'gamma').locator('.xterm').click()
     await win.keyboard.type('over ssh')

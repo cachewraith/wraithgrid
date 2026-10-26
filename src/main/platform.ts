@@ -346,6 +346,46 @@ export function loginProbeArgs(shell: string): string[] {
   }
 }
 
+/** The login-shell PATH probe as data, for a remote Rust host to run (ADR 0004 phase 5). */
+export interface PathProbePlan {
+  /** The output between two of these is the PATH. */
+  mark: string
+  /** Arguments for $SHELL by its kind (`shellKind`). */
+  byKind: Record<string, string[]>
+  /** Arguments for a shell of any other kind. */
+  otherwise: string[]
+  /** Asked when $SHELL gives nothing. */
+  fallback: { file: string; args: string[] }
+  /** Added after the probed PATH and the inherited one, `~` for the machine's home. */
+  extraDirs: string[]
+}
+
+const PROBE_KINDS = [
+  'bash',
+  'zsh',
+  'sh',
+  'dash',
+  'ash',
+  'ksh',
+  'mksh',
+  'oksh',
+  'yash',
+  'fish',
+  'xonsh',
+  'nu',
+  'pwsh'
+]
+
+export function pathProbePlan(): PathProbePlan {
+  return {
+    mark: ENV_MARK,
+    byKind: Object.fromEntries(PROBE_KINDS.map((k) => [k, loginProbeArgs(`/bin/${k}`)])),
+    otherwise: loginProbeArgs('/bin/unknown-shell'),
+    fallback: { file: '/bin/sh', args: ['-l', '-c', PROBE] },
+    extraDirs: extraBinDirs('linux', '~', {})
+  }
+}
+
 /**
  * Apps started from a launcher (a Hyprland `exec`, a .desktop file) do not get the PATH
  * a login shell sets up, so `claude` in ~/.local/bin or an nvm prefix goes missing.

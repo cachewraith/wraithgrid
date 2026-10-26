@@ -78,7 +78,14 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
   with cargo first; the Docker build installs a minimal Rust toolchain). The app starts it
   instead of `host.js` when `settings.rustHost` is on (`WRAITHGRID_RUST_HOST=1` in tests) and
   the binary exists; otherwise the Node host, as before. The switch takes effect when a host
-  next starts. Remote machines (`host-stdio`) keep the Node host until phase 5.
+  next starts.
+- Phase 5: with the setting on, a Linux machine reached over ssh gets this version's static
+  musl binary (x64; arm64 built in CI, not yet run on hardware) in `~/.wraithgrid/bin`, copied
+  once and checked with `--version`; `wraithgrid-host stdio <version>` there joins (or starts)
+  a host under `~/.wraithgrid/remote`. The window sends a `plan` (`src/main/remote-plan.ts`):
+  the same pane rules as local panes, as data; the bridge only finds PATH (login shell),
+  binary, folder and `~` on that machine. Any other machine, or a failed copy, keeps
+  `wraithgrid host-stdio`.
 
 ## Rollout
 
@@ -87,7 +94,8 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
    Linux bundle; dogfood.
 3. **macOS + Windows**: ConPTY, named pipe, signing/notarization; x64 + arm64 builds.
 4. **Default on**, then remove the Node host and `node-pty`.
-5. **Remote**: the static binary on ssh machines for `host-stdio`.
+5. **Remote** (done behind the setting): the static binary on Linux ssh machines, so they
+   need no Wraithgrid installed.
 
 ## Alternatives considered
 

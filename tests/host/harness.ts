@@ -3,6 +3,7 @@
 // parity suite can run the same session against both (ADR 0004 §6).
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -10,7 +11,9 @@ import { Terminal } from '@xterm/headless'
 
 export const ROOT = path.resolve(__dirname, '../..')
 export const RUST_BIN = path.join(ROOT, 'host-rs/target/release/wraithgrid-host')
-const ELECTRON = path.join(ROOT, 'node_modules/electron/dist/electron')
+// Through the package, which downloads the binary on first use (Electron 44 has no
+// postinstall): a fresh CI checkout has no node_modules/electron/dist yet.
+const ELECTRON = createRequire(__filename)('electron') as string
 const NODE_HOST = path.join(ROOT, 'out/main/host.js')
 export const APP_VERSION = '9.9.9-parity'
 

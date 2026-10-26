@@ -44,6 +44,8 @@ export const clientFrame = z.discriminatedUnion('t', [
    * into a `create` there. A host reached directly refuses it.
    */
   z.object({ t: z.literal('spawn'), id, spec: z.record(z.string(), z.unknown()) }),
+  /** The same for the Rust host's bridge (`wraithgrid-host stdio`): a remote-plan.ts plan. */
+  z.object({ t: z.literal('plan'), id, plan: z.record(z.string(), z.unknown()) }),
   z.object({ t: z.literal('attach'), id, paneId, cols: dim, rows: dim }),
   z.object({ t: z.literal('list'), id }),
   z.object({ t: z.literal('write'), paneId, data: z.string().max(1_000_000) }),

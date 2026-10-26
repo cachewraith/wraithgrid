@@ -14,6 +14,7 @@ import {
   type PaneSummary
 } from '../host/protocol'
 import type { SpawnRequest, SpawnResult } from '../host/pty-manager'
+import type { SpawnSpec } from './spawn-resolve'
 
 type Request = ClientFrame extends infer F
   ? F extends { id: number }
@@ -159,6 +160,11 @@ export interface PaneHostDeps {
    * process may still run there, so the exit is marked `disconnected`.
    */
   lostMessage?: string
+  /**
+   * A remote pane's plan when the link is the Rust host's bridge (ADR 0004 phase 5); null
+   * sends the spec for `wraithgrid host-stdio` to resolve.
+   */
+  plan?: (spec: SpawnSpec) => Record<string, unknown> | null
   /** How long the host may take to answer the hello (longer over ssh). */
   helloTimeoutMs?: number
   sleep?: (ms: number) => Promise<void>
@@ -209,14 +215,15 @@ export class PaneHost {
   }
 
   /** Starts a pane the host's own machine resolves (a remote machine's, through host-stdio). */
-  async spawn(spec: Record<string, unknown> & { paneId: string }): Promise<SpawnResult> {
+  async spawn(spec: SpawnSpec): Promise<SpawnResult> {
     let conn: HostConnection
     try {
       conn = await this.connection()
     } catch (err) {
       return { ok: false, error: (err as Error).message }
     }
-    const r = await conn.request({ t: 'spawn', spec })
+    const plan = this.deps.plan?.(spec)
+    const r = await conn.request(plan ? { t: 'plan', plan } : { t: 'spawn', spec })
     if (!r.ok) return { ok: false, error: r.error }
     this.mine.add(spec.paneId)
     return { ok: true, pid: 'pid' in r ? r.pid : 0 }
