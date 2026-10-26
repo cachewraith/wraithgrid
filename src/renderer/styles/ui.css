@@ -1600,3 +1600,411 @@ input[type='color']::-webkit-color-swatch {
   display: flex;
   gap: 8px;
 }
+
+/* ---- About (#124): Updates card with install steps, What's new as versions + cards ---- */
+
+.set-page .set.set-about {
+  max-width: 1080px;
+}
+.set-page .set.set-about > * {
+  max-width: none;
+}
+.ab-upd {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 26px 18px;
+  border-radius: calc(12px * var(--rs, 1));
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+}
+.ab-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+.ab-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ab-k {
+  font-size: 13px;
+  color: var(--fa);
+}
+.ab-ver {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--tx);
+  white-space: nowrap;
+}
+.ab-ar {
+  color: var(--fa);
+}
+.ab-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-top: 8px;
+  font-size: 14.5px;
+  color: var(--mu);
+}
+.ab-ok,
+.ab-warn,
+.ab-new {
+  display: flex;
+}
+.ab-ok {
+  color: var(--ok);
+}
+.ab-warn {
+  color: var(--warn);
+}
+.ab-new {
+  color: var(--acct);
+}
+.ab-ok svg path {
+  stroke-dasharray: 16;
+  animation: ab-draw 450ms ease-out both;
+}
+@keyframes ab-draw {
+  from {
+    stroke-dashoffset: 16;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* The sidebar's "working" sweep, on a status word (chat-shimmer is in chat.css). */
+.ab-sweep {
+  color: transparent;
+  background: linear-gradient(
+      90deg,
+      var(--fa) 0%,
+      var(--fa) 40%,
+      var(--tx) 50%,
+      var(--fa) 60%,
+      var(--fa) 100%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: chat-shimmer 2s linear infinite;
+}
+.ab-act {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+.ab-in {
+  animation: ab-in 350ms var(--ui-ease) both;
+}
+@keyframes ab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.ab-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ab-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ab-sw {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  font-size: 13.5px;
+  color: color-mix(in srgb, var(--fa) 55%, transparent);
+}
+.ab-step.on .ab-sw,
+.ab-step.did .ab-sw {
+  color: var(--tx);
+}
+.ab-step.did .ab-sw svg {
+  color: var(--ok);
+}
+.ab-step.did .ab-sw svg path {
+  stroke-dasharray: 16;
+  animation: ab-draw 450ms ease-out both;
+}
+.ab-ln {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.ab-ln > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: inherit;
+  background: var(--tx);
+  transition: width 0.2s var(--ease-out);
+}
+.ab-step.did .ab-ln > span {
+  background: var(--ok);
+}
+.ab-sd {
+  min-height: 16px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fa);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ab-upd[data-state='installing'] .ab-top {
+  opacity: 0.45;
+  transition: opacity 0.4s;
+}
+.ab-in-ver {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.ab-in-ver ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 24px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tx);
+}
+.ab-ft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--mu);
+}
+.ab-m {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fa);
+  white-space: nowrap;
+}
+.ab-wn {
+  margin-top: 44px;
+}
+.ab-wn > h2 {
+  margin: 0 0 18px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ab-split {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 36px;
+}
+.ab-vl {
+  position: sticky;
+  top: 56px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ab-vr,
+.ab-all {
+  border: 0;
+  background: none;
+}
+.ab-vr {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 12px;
+  border-radius: calc(8px * var(--rs, 1));
+  text-align: left;
+  transition: background 0.15s;
+}
+.ab-vr:hover {
+  background: var(--hover);
+}
+.ab-vr.on {
+  background: var(--sel, var(--hover));
+}
+.ab-v {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--tx);
+}
+.ab-tag {
+  font-size: 11px;
+  color: var(--fa);
+}
+.ab-tag.installed {
+  color: var(--ok);
+}
+.ab-tag.new {
+  color: var(--acct);
+}
+.ab-t {
+  font-size: 12.5px;
+  color: var(--fa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ab-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--fa);
+}
+.ab-all:hover {
+  color: var(--tx);
+}
+.ab-notes {
+  min-width: 0;
+  animation: ab-in 250ms var(--ui-ease) both;
+}
+.ab-vh {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.ab-vh h3 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+}
+.ab-note.sub .ab-vh h3 {
+  font-size: 18px;
+}
+.ab-vsub {
+  margin: 6px 0 0;
+  font-size: 15.5px;
+  color: var(--mu);
+}
+.ab-intro {
+  margin-top: 14px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--mu);
+}
+.ab-grp {
+  margin: 26px 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ab-grp.new {
+  color: var(--acct);
+}
+.ab-grp.fix {
+  color: var(--ok);
+}
+.ab-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ab-card {
+  min-width: 0;
+  padding: 16px 20px 18px;
+  border-radius: calc(12px * var(--rs, 1));
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+}
+.ab-card h5 {
+  margin: 0 0 6px;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.ab-card .md,
+.ab-fixes .md {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--mu);
+}
+.ab-card .md p,
+.ab-fixes .md p {
+  margin: 0;
+}
+.ab-fixes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ab-fixes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ab-fixes li:last-child {
+  border-bottom: 0;
+}
+.ab-fixes li b {
+  font-size: 14.5px;
+  line-height: 1.6;
+  font-weight: 500;
+  color: var(--tx);
+}
+.ab-fixes li .md {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.ab-base {
+  margin-top: 30px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+@container main (max-width: 760px) {
+  .ab-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .ab-vl {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ab-vr .ab-t {
+    display: none;
+  }
+  .ab-cards,
+  .ab-in-ver ul {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ab-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

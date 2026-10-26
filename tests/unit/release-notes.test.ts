@@ -7,6 +7,7 @@ import { parseRelease } from '../../src/main/update-check'
 import {
   NOTES_FOOTER_MARKER,
   cleanReleaseBody,
+  noteParts,
   parseWhatsNew,
   releasePageUrl,
   type ReleaseNote
@@ -157,5 +158,60 @@ describe('ReleaseNotesStore', () => {
     const broken = store(file, '9.0.0', [note('9.0.0')])
     await broken.start()
     expect(broken.view()).toMatchObject({ installed: { version: '9.0.0' }, earlier: [] })
+  })
+})
+
+describe('notes split for About (#124)', () => {
+  it('turns New/Fix tables into items and keeps the rest as intro', () => {
+    const md = [
+      '## What’s new in 1.22.0: web preview',
+      '',
+      'Everything from 1.21.0, plus:',
+      '',
+      '| New | What changed |',
+      '|---|---|',
+      '| Web preview | **Preview** runs the dev server; `a | b` stays one cell |',
+      '| Sign in | A **Sign in** button |',
+      '',
+      '| Fix | What changed |',
+      '|:---|---|',
+      '| Linux downloads | 1.22.1 ships them |',
+      '',
+      '---',
+      '',
+      '| Shortcut | Keys |',
+      '|---|---|',
+      '| Palette | Ctrl+Shift+P |'
+    ].join('\n')
+    const p = noteParts(md)
+    expect(p.title).toBe('web preview')
+    expect(p.added).toEqual([
+      { name: 'Web preview', text: '**Preview** runs the dev server; `a | b` stays one cell' },
+      { name: 'Sign in', text: 'A **Sign in** button' }
+    ])
+    expect(p.fixed).toEqual([{ name: 'Linux downloads', text: '1.22.1 ships them' }])
+    // Other tables and text stay markdown; rules are dropped.
+    expect(p.intro).toBe(
+      'Everything from 1.21.0, plus:\n\n| Shortcut | Keys |\n|---|---|\n| Palette | Ctrl+Shift+P |'
+    )
+  })
+
+  it('reads the bundled WHATS-NEW.md: every version has items, none keeps a New/Fix table', () => {
+    const md = fs.readFileSync(path.join(__dirname, '../../docs/WHATS-NEW.md'), 'utf8')
+    for (const n of parseWhatsNew(md)) {
+      const p = noteParts(n.notes)
+      expect(p.added.length + p.fixed.length, n.version).toBeGreaterThan(0)
+      expect(p.intro, n.version).not.toMatch(/^\|\s*(New|Fix|Feature)\s*\|/m)
+      for (const it of [...p.added, ...p.fixed]) expect(it.name, n.version).not.toBe('')
+    }
+  })
+
+  it('plain notes (no tables) are all intro', () => {
+    expect(noteParts('Saved **from GitHub**.')).toEqual({
+      title: null,
+      intro: 'Saved **from GitHub**.',
+      added: [],
+      fixed: []
+    })
   })
 })
