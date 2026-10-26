@@ -38,6 +38,8 @@ interface Props {
   /** The process is up; before that (and after it ended) nothing can be sent. */
   ready: boolean
   busy: boolean
+  /** Claude's questions are open above (#127): the box dims; it still works. */
+  waiting?: boolean
   /** Take keyboard focus (the pane was focused). */
   autoFocus: boolean
   /** Shown under the box: the folder, and so on. */
@@ -88,6 +90,7 @@ export function Composer({
   placeholder,
   ready,
   busy,
+  waiting = false,
   autoFocus,
   meta,
   model,
@@ -223,7 +226,7 @@ export function Composer({
   }
 
   return (
-    <div className={`cc${busy ? ' busy' : ''}${dragging ? ' drop' : ''}`}>
+    <div className={`cc${busy ? ' busy' : ''}${dragging ? ' drop' : ''}${waiting ? ' wait' : ''}`}>
       {open ? (
         <SlashMenu
           id={listId}

@@ -458,6 +458,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
   const cwdLabel = contractHome(cwdAbs, home)
   const cliLabel = account ? AGENT_CLI_LABEL[account.cli] : 'agent'
   const approval = thread.busy ? pendingApproval(thread) : null
+  const asking = !!approval?.approval?.questions
   const last = thread.items[thread.items.length - 1]
   const streamingId = thread.busy && last?.kind === 'assistant' ? last.id : null
   const ready = started && !exit
@@ -588,6 +589,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
           <QuestionCard
             key={approval.approval.reqId}
             questions={approval.approval.questions}
+            cli={account?.cli ?? null}
             onAnswer={(answers) =>
               actions.chatApprove(paneId, approval.approval!.reqId, 'allow', answers)
             }
@@ -625,9 +627,12 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
         <Composer
           drop={drop}
           onDropTaken={() => actions.takeChatDrop(paneId)}
-          placeholder={`Message ${cliLabel}…`}
+          placeholder={
+            asking ? 'Answer the questions above, or Skip to type instead…' : `Message ${cliLabel}…`
+          }
           ready={ready}
           busy={thread.busy}
+          waiting={asking}
           autoFocus={focused && visible && canTakeFocus}
           meta={[cwdLabel, branch]}
           model={
