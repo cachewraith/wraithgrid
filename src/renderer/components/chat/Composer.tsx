@@ -32,12 +32,15 @@ import { ContextMenu, type MenuPoint } from '../ContextMenu'
 import { toLocal } from '@shared/schedule'
 import { mentionQuery, rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
+import { NOT_BROWSING, atEdge, historyStep, type HistoryNav } from '../../lib/prompt-history'
 
 interface Props {
   placeholder: string
   /** The process is up; before that (and after it ended) nothing can be sent. */
   ready: boolean
   busy: boolean
+  /** Prompts sent in this chat, oldest first: ↑/↓ step through them (#132). */
+  history?: readonly string[]
   /** Claude's questions are open above (#127): the box dims; it still works. */
   waiting?: boolean
   /** Take keyboard focus (the pane was focused). */
@@ -91,6 +94,7 @@ export function Composer({
   ready,
   busy,
   waiting = false,
+  history = [],
   autoFocus,
   meta,
   model,
@@ -138,6 +142,23 @@ export function Composer({
     setActive(0)
   }
   const syncCaret = (): void => setCaret(ref.current?.selectionStart ?? 0)
+  // ↑/↓ through sent prompts (#132); typing or sending ends browsing.
+  const nav = useRef<HistoryNav>(NOT_BROWSING)
+  const recall = (dir: -1 | 1, box: HTMLTextAreaElement): boolean => {
+    if (!atEdge(text, box.selectionStart, box.selectionEnd, dir)) return false
+    const step = historyStep(history, nav.current, dir, text)
+    if (!step) return false
+    nav.current = step.nav
+    setText(step.text)
+    setCaret(step.text.length)
+    // A recalled `/command` doesn't open the menu: ↑/↓ keep going through history.
+    setDismissed(step.text)
+    requestAnimationFrame(() => {
+      if (ref.current?.value === step.text)
+        ref.current.setSelectionRange(step.text.length, step.text.length)
+    })
+    return true
+  }
 
   const pick = (item: SlashItem): void => {
     if (item.group === 'app') {
@@ -184,6 +205,7 @@ export function Composer({
   const send = (): void => {
     if (!canSend) return
     onSend(withNotes(withAttachments(text.trim(), files)), images)
+    nav.current = NOT_BROWSING
     setText('')
     setImages([])
     setFiles([])
@@ -314,6 +336,7 @@ export function Composer({
           aria-autocomplete={commands.length ? 'list' : undefined}
           aria-activedescendant={open && items.length ? slashOptionId(listId, active) : undefined}
           onChange={(e) => {
+            nav.current = NOT_BROWSING
             setText(e.target.value)
             setCaret(e.target.selectionStart)
           }}
@@ -332,6 +355,19 @@ export function Composer({
                 pick(items[active]!)
                 return
               }
+            }
+            if (
+              (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+              !open &&
+              !e.shiftKey &&
+              !e.altKey &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.nativeEvent.isComposing &&
+              recall(e.key === 'ArrowUp' ? -1 : 1, e.currentTarget)
+            ) {
+              e.preventDefault()
+              return
             }
             if (e.key === 'Tab' && e.shiftKey && onCycleMode && !open) {
               e.preventDefault()

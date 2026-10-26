@@ -34,6 +34,7 @@ import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
 import { paceStep, revealedWords } from '../../lib/stream-pace'
 import { panelDragging } from '../../lib/panel-drag'
+import { promptHistory } from '../../lib/prompt-history'
 import { QuestionCard } from './QuestionCard'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
@@ -423,6 +424,8 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
   const limits = useApp((s) => s.usage.limits)
   // A limit past its reset reads 0%.
   const at = useTicker(60_000)
+  // ↑/↓ in the box step through this chat's sent prompts (#132).
+  const history = useMemo(() => promptHistory(thread.items), [thread.items])
   const choices = useMemo((): AccountChoice[] => {
     return accounts.map((a) => {
       const five = liveWindow(limits[a.id]?.fiveHour ?? null, at)
@@ -649,6 +652,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
           ready={ready}
           busy={thread.busy}
           waiting={asking}
+          history={history}
           autoFocus={focused && visible && canTakeFocus}
           meta={[cwdLabel, branch]}
           model={
