@@ -308,6 +308,8 @@ export function createClaudeAdapter(): ChatAdapter {
       }
 
       case 'result': {
+        // A turn's messages are all in: their ids are not needed again (#141).
+        streamed.clear()
         const failed = msg.is_error === true && !interrupted
         interrupted = false
         const cost = typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null

@@ -198,6 +198,7 @@ export function summarizeUsage(data: UsageData, range: UsageRange, now: number):
     dayKey(now - (seriesDays - 1 - i) * 86_400_000)
   )
   const from = series[seriesDays - days]!
+  const dayIndex = new Map(series.map((day, i) => [day, i]))
   const total: UsageTotals = { costUsd: 0, tokens: 0, turns: 0, unpriced: 0 }
   const accounts: UsageSummary['accounts'] = {}
   const projects = new Map<string | null, UsageTotals>()
@@ -212,8 +213,8 @@ export function summarizeUsage(data: UsageData, range: UsageRange, now: number):
       unpriced: 0,
       daily: series.map((day) => ({ day, costUsd: 0 }))
     })
-    const point = a.daily.find((p) => p.day === b.day)
-    if (point) point.costUsd += b.costUsd
+    const i = dayIndex.get(b.day)
+    if (i !== undefined) a.daily[i]!.costUsd += b.costUsd
     if (b.day < from) continue
     a.costUsd += b.costUsd
     a.tokens += tokensOf(b)

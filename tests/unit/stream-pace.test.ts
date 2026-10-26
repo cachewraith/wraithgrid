@@ -6,7 +6,12 @@ import {
   revealed,
   revealedWords
 } from '../../src/renderer/lib/stream-pace'
-import { parseMarkdown, settledLength } from '../../src/renderer/lib/markdown'
+import {
+  parseInline,
+  parseMarkdown,
+  scanSettled,
+  settledLength
+} from '../../src/renderer/lib/markdown'
 
 describe('stream pacing (#52)', () => {
   it('reveals a little at a time at the base rate when little is waiting', () => {
@@ -73,6 +78,47 @@ describe('settled part of a growing answer (#52)', () => {
         )
       }
     }
+  })
+})
+
+describe('settled scan carried on as text grows (#141)', () => {
+  const t =
+    '# Title\n\nSome **bold** text.\n\n- a\n- b\n\n```js\nlet x\n\nx = 1\n```\n\n> quote\n\ntail\n\n\nend'
+
+  it('a resumed scan finds the same cuts as a fresh one, and each piece parses alone', () => {
+    let scan = scanSettled('')
+    for (let n = 1; n <= t.length; n++) {
+      const s = t.slice(0, n)
+      scan = scanSettled(s, scan)
+      expect(scan.cuts).toEqual(scanSettled(s).cuts)
+      const ends = [0, ...scan.cuts, s.length]
+      const pieces = ends.slice(1).flatMap((end, i) => parseMarkdown(s.slice(ends[i], end)))
+      expect(pieces).toEqual(parseMarkdown(s))
+    }
+  })
+
+  it('starts over when the text was replaced, not grown', () => {
+    const a = scanSettled('one\n\ntwo\n\n')
+    expect(scanSettled('other\nthing', a).cuts).toEqual([])
+  })
+})
+
+describe('emphasis stays linear (#141)', () => {
+  it('snake_case and unmatched marks parse fast and stay plain', () => {
+    const snake = 'a_b_c '.repeat(20_000)
+    const stars = '*a '.repeat(20_000)
+    const t0 = performance.now()
+    expect(parseInline(snake)).toEqual([{ t: 'text', v: snake }])
+    expect(parseInline(stars)).toEqual([{ t: 'text', v: stars }])
+    expect(performance.now() - t0).toBeLessThan(1000)
+    expect(parseInline('some *it* and _x_ and **b**')).toEqual([
+      { t: 'text', v: 'some ' },
+      { t: 'i', c: [{ t: 'text', v: 'it' }] },
+      { t: 'text', v: ' and ' },
+      { t: 'i', c: [{ t: 'text', v: 'x' }] },
+      { t: 'text', v: ' and ' },
+      { t: 'b', c: [{ t: 'text', v: 'b' }] }
+    ])
   })
 })
 

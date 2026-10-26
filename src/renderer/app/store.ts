@@ -1334,7 +1334,15 @@ export function createAppStore({
         api.notify.onReveal((paneId) => get().revealPane(paneId))
         api.window.onCloseMode((onWindowClose) => get().updateSettings({ onWindowClose }))
         api.cli.onAction((id, action) => api.cli.reply(id, runCliAction(action)))
-        setInterval(() => void get().refreshGit(), GIT_POLL_MS)
+        // git can take up to its 15 s timeout on a slow repo: polls must not stack (#141).
+        let gitPolling = false
+        setInterval(() => {
+          if (gitPolling) return
+          gitPolling = true
+          void get()
+            .refreshGit()
+            .finally(() => (gitPolling = false))
+        }, GIT_POLL_MS)
         setInterval(() => get().tickSchedules(), SCHEDULE_TICK_MS)
         set({
           config,

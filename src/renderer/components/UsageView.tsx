@@ -220,7 +220,8 @@ export function UsageView() {
   const defaultId = useApp((s) => s.config.settings.defaultAccountId)
   const [range, setRange] = useState<UsageRange>('7d')
   const now = useTicker(30_000)
-  const sum = summarizeUsage(usage, range, now)
+  // Up to 50k buckets: only when they, the range or the 30 s tick change (#141).
+  const sum = useMemo(() => summarizeUsage(usage, range, now), [usage, range, now])
   const r = RANGES.find((x) => x.id === range)!
   type ProjCol = 'name' | 'turns' | 'tokens' | 'cost'
   type ChatCol = 'title' | 'project' | 'cost'

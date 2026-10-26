@@ -44,8 +44,18 @@ export async function runBridge(d: BridgeDeps): Promise<void> {
   const token = await d.readToken()
   host.on('error', () => {})
   // Frame by frame, so a reply the bridge writes itself never lands inside a host frame.
+  // A slow ssh link pauses the host socket rather than buffering without end (#141).
+  let paused = false
   const fromHost = new FrameReader(
-    (frame) => d.output.write(JSON.stringify(frame) + '\n'),
+    (frame) => {
+      if (d.output.write(JSON.stringify(frame) + '\n') || paused) return
+      paused = true
+      host.pause()
+      d.output.once('drain', () => {
+        paused = false
+        host.resume()
+      })
+    },
     () => host.destroy()
   )
   host.setEncoding?.('utf8')

@@ -458,8 +458,10 @@ export function createCodexAdapter(): ChatAdapter {
         const item = isObj(p.item) ? p.item : {}
         const id = str(item.id)
         if (item.type === 'agentMessage') {
-          if (method === 'item/completed' && !streamed.has(id) && str(item.text))
-            push({ t: 'text', id, delta: str(item.text) })
+          if (method === 'item/completed') {
+            if (!streamed.delete(id) && str(item.text))
+              push({ t: 'text', id, delta: str(item.text) })
+          }
           break
         }
         const tool = describeCodexItem(item)

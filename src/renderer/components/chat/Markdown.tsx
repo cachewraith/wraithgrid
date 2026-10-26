@@ -12,7 +12,7 @@ import { useServices } from '../../app/services'
 import {
   isDiagram,
   parseMarkdown,
-  settledLength,
+  SettleTracker,
   type Block,
   type Inline
 } from '../../lib/markdown'
@@ -229,7 +229,8 @@ function FreshBlock({ b }: { b: Block }): ReactNode {
 
 /**
  * Agent text as markdown. While it grows, only the part after its last finished block is
- * parsed and drawn again (#52); the finished part stays as it was.
+ * parsed and drawn again (#52); the finished part stays as it was, in pieces split at blank
+ * lines, so a block that settles parses alone rather than with all before it (#141).
  */
 export const Markdown = memo(function Markdown({
   text,
@@ -238,10 +239,20 @@ export const Markdown = memo(function Markdown({
   text: string
   streaming?: boolean
 }) {
-  const cut = settledLength(text)
+  // The last scan, carried on from while the text only grows: not one full pass per frame.
+  const [tracker] = useState(() => new SettleTracker())
+  const scan = tracker.scan(text)
+  const cut = scan.cuts.at(-1) ?? 0
+  const pieces: ReactNode[] = []
+  for (let i = 0, from = 0; i < scan.cuts.length; i++) {
+    const to = scan.cuts[i]!
+    if (text.slice(from, to).trim())
+      pieces.push(<Blocks key={`done${from}`} text={text.slice(from, to)} />)
+    from = to
+  }
   return (
     <div className="md">
-      <Blocks key="done" text={text.slice(0, cut)} />
+      {pieces}
       {/* Keyed by where it starts, so a new block's words are new spans that fade in. */}
       <Blocks key={`tail${cut}`} text={text.slice(cut)} fresh={streaming} />
     </div>

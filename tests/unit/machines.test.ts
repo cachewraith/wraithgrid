@@ -1,4 +1,4 @@
-import { PassThrough } from 'node:stream'
+import { PassThrough, Writable } from 'node:stream'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { IPty } from 'node-pty'
 import type { PtyExitEvent } from '@shared/ipc-contract'
@@ -241,5 +241,33 @@ describe('pane router', () => {
         disconnected: true
       }
     ])
+  })
+})
+
+describe('host-stdio bridge backpressure (#141)', () => {
+  it('pauses the host socket while ssh output is full, resumes on drain', async () => {
+    const [host, far] = pipePair()
+    const held: (() => void)[] = []
+    const output = new Writable({
+      highWaterMark: 64,
+      write(_chunk, _enc, cb) {
+        held.push(cb)
+      }
+    })
+    void runBridge({
+      input: new PassThrough(),
+      output,
+      connectHost: async () => host,
+      startHost: async () => {},
+      readToken: async () => 't',
+      resolve: async () => ({ ok: false, error: 'unused' })
+    })
+    await tick(1)
+    far.write(`${JSON.stringify({ t: 'data', paneId: 'p', data: 'x'.repeat(200) })}\n`)
+    await tick(1)
+    expect(host.isPaused()).toBe(true)
+    while (held.length) held.shift()!()
+    await tick(1)
+    expect(host.isPaused()).toBe(false)
   })
 })
