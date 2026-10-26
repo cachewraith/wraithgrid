@@ -78,6 +78,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 
 ## Known gotchas
 - e2e fixtures with claude panes saved as terminals (`view` omitted = terminal) turn into chats on load unless `settings.chatOnlyMigrated: true` (#110); suites driving claude's own screen (background, cli, keys, mods, smoke, git-palette) set it.
+- A reattached screen goes out as several `replay` data frames (`chunkReplay`, 512K chars each, #134), never one over `MAX_FRAME` (4 MB, a client drops the link); clients must treat consecutive replay frames as one screen (`wraithgrid attach` clears only before the first).
 - Panes live in the host, not main: it renames itself `wraithgrid-host` (pgrep for `host.js` finds nothing); socket dir `$XDG_RUNTIME_DIR/wraithgrid-<uid>-<hash of userData>` (or tmpdir), removed on clean exit, kept with `host.log` after a failure. A dev host keeps running old `src/host` code while the protocol matches: stop it (Quit and stop agents, or SIGTERM) after host changes. Unix socket paths max ~104 bytes.
 - Never spawn a long-lived child from main without masking fds (`stdioMasking`): Chromium fds lack CLOEXEC.
 - Playwright: a crashed page object stays dead; read the reloaded page via `app.evaluate(... executeJavaScript)`. Launch crash tests with `cwd` in a temp dir (core dumps). Wait for a fake CLI's last banner line before typing (echo races its output).

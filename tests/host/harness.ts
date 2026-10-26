@@ -101,6 +101,8 @@ export async function startHost(kind: Kind): Promise<HostProcess> {
 export class Client {
   readonly frames: Frame[] = []
   readonly output = new Map<string, string>()
+  /** The longest line (frame) received, in characters: clients drop frames over MAX_FRAME. */
+  maxLine = 0
   closed = false
   private buf = ''
   private nextId = 1
@@ -115,6 +117,7 @@ export class Client {
         const line = this.buf.slice(0, nl)
         this.buf = this.buf.slice(nl + 1)
         if (!line) continue
+        this.maxLine = Math.max(this.maxLine, line.length)
         const f = JSON.parse(line) as Frame
         this.frames.push(f)
         if (f.t === 'data') {
@@ -206,6 +209,12 @@ export interface Drawn {
   modes: Record<string, unknown>
 }
 
+/** xterm's colour modes: palette 0–15 drawn as `38;5;N` look the same as the 16-colour codes. */
+const P16 = 16777216
+const P256 = 33554432
+const colour = (mode: number, value: number): [number, number] =>
+  mode === P256 && value < 16 ? [P16, value] : [mode, value]
+
 export function draw(data: string, cols: number, rows: number): Promise<Drawn> {
   const term = new Terminal({ cols, rows, scrollback: 5000, allowProposedApi: true })
   return new Promise((resolve) => {
@@ -222,10 +231,8 @@ export function draw(data: string, cols: number, rows: number): Promise<Drawn> {
           const c = line.getCell(x)
           if (!c) continue
           const style = [
-            c.getFgColorMode(),
-            c.getFgColor(),
-            c.getBgColorMode(),
-            c.getBgColor(),
+            ...colour(c.getFgColorMode(), c.getFgColor()),
+            ...colour(c.getBgColorMode(), c.getBgColor()),
             c.isBold(),
             c.isDim(),
             c.isItalic(),

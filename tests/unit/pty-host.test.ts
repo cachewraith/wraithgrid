@@ -7,7 +7,14 @@ import type { IPty } from 'node-pty'
 import { FakePty, pipePair, tick } from './host-fixtures'
 import type { PtyExitEvent } from '@shared/ipc-contract'
 import { ensureHostDir, hostPaths } from '../../src/host/paths'
-import { FrameReader, PROTOCOL_VERSION, encodeFrame } from '../../src/host/protocol'
+import {
+  FrameReader,
+  MAX_FRAME,
+  PROTOCOL_VERSION,
+  REPLAY_CHUNK,
+  chunkReplay,
+  encodeFrame
+} from '../../src/host/protocol'
 import type { KillPolicy, SpawnFn } from '../../src/host/pty-manager'
 import { HostServer } from '../../src/host/server'
 import { OlderHostKept, PaneHost } from '../../src/main/pane-host'
@@ -124,6 +131,49 @@ describe('pty host', () => {
     ptys[0]!.emit('live')
     await tick()
     expect(ev.data.slice(1)).toEqual([['p1', 'live', false]])
+  })
+
+  it('sends a screen over 4 MB in pieces the window can read (#134)', async () => {
+    // Densely coloured: every ESC becomes six characters in JSON, so one frame would be ~7 MB.
+    const big = '\x1b[41mx'.repeat(600_000)
+    expect(encodeFrame({ t: 'data', paneId: 'p1', data: big }).length).toBeGreaterThan(MAX_FRAME)
+    server = new HostServer({
+      spawn: () => {
+        const p = new FakePty()
+        ptys.push(p)
+        return p as unknown as IPty
+      },
+      token: 'secret',
+      appVersion: '9.9.9',
+      pid: 42,
+      idleMs: 40,
+      onIdle: () => idle++,
+      onShutdown: () => shutdowns++,
+      killPolicy,
+      flushMs: 1,
+      screen: () => ({
+        write: () => {},
+        resize: () => {},
+        serialize: async () => big,
+        text: async () => '',
+        dispose: () => {}
+      })
+    })
+    const first = client(events())
+    await first.create(req('p1'))
+    await first.detach()
+
+    const ev = events()
+    const second = client(ev)
+    expect(await second.attach('p1', 80, 24)).toEqual({ pid: ptys[0]!.pid, exit: null })
+    const parts = ev.data.filter(([, , replay]) => replay)
+    expect(parts.length).toBeGreaterThan(1)
+    expect(parts.map(([, data]) => data).join('')).toBe(big)
+    expect(ev.exits).toEqual([])
+    // Still connected: live output follows.
+    ptys[0]!.emit('live')
+    await tick()
+    expect(ev.data.at(-1)).toEqual(['p1', 'live', false])
   })
 
   it('keeps a pane that ended while nobody watched, until it is attached', async () => {
@@ -349,5 +399,37 @@ describe('host paths', () => {
       await expect(ensureHostDir(dir, process.platform, uid)).rejects.toThrow(/open to other users/)
       await expect(ensureHostDir(dir, process.platform, uid + 1)).rejects.toThrow(/another user/)
     })
+  })
+})
+
+describe('host frames (#134)', () => {
+  it('splits a replay into pieces under the frame limit, never inside a surrogate pair', () => {
+    expect(chunkReplay('')).toEqual([])
+    expect(chunkReplay('abcdefghij', 4)).toEqual(['abcd', 'efgh', 'ij'])
+    const emoji = String.fromCodePoint(0x1f600)
+    expect(chunkReplay(`ab${emoji}cd`, 3)).toEqual(['ab', `${emoji}c`, 'd'])
+    const dense = '\x1b'.repeat(REPLAY_CHUNK * 2)
+    for (const part of chunkReplay(dense))
+      expect(encodeFrame({ t: 'data', paneId: 'p', data: part, replay: true }).length).toBeLessThan(
+        MAX_FRAME
+      )
+  })
+
+  it('reads a large frame arriving in small chunks, once per byte', () => {
+    const frames: unknown[] = []
+    const reader = new FrameReader(
+      (f) => frames.push(f),
+      (e) => {
+        throw new Error(e)
+      }
+    )
+    const line = encodeFrame({ t: 'data', paneId: 'p', data: 'y'.repeat(3_000_000) })
+    const started = performance.now()
+    for (let i = 0; i < line.length; i += 1024) reader.push(line.slice(i, i + 1024))
+    expect(frames).toHaveLength(1)
+    // Rescanning a growing string took ~1.5 s here; one pass over the chunks is milliseconds.
+    expect(performance.now() - started).toBeLessThan(500)
+    reader.push('{"t":"a"}\n{"t":"b"}\n')
+    expect(frames).toHaveLength(3)
   })
 })

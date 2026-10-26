@@ -390,6 +390,30 @@ pub fn mend_surrogates(line: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+/// A reattached screen goes out in pieces of this many UTF-16 units (#134), as the Node host
+/// does: escaping can make one character six bytes, so a piece stays under `MAX_FRAME`.
+pub const REPLAY_CHUNK: usize = 512 * 1024;
+
+/// Splits a replay into consecutive pieces of at most `max` UTF-16 units (whole characters).
+pub fn chunk_replay(text: &str, max: usize) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    let mut units = 0;
+    for (i, c) in text.char_indices() {
+        let n = c.len_utf16();
+        if units + n > max && i > start {
+            out.push(&text[start..i]);
+            start = i;
+            units = 0;
+        }
+        units += n;
+    }
+    if start < text.len() {
+        out.push(&text[start..]);
+    }
+    out
+}
+
 pub fn encode(frame: &Value) -> String {
     let mut s = frame.to_string();
     s.push('\n');
@@ -480,6 +504,18 @@ mod tests {
             Some(ClientFrame::Create { req, .. }) => assert!(matches!(req.args, Args::Line(_))),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn a_replay_is_split_into_whole_characters() {
+        assert!(chunk_replay("", 4).is_empty());
+        assert_eq!(chunk_replay("abcdefghij", 4), ["abcd", "efgh", "ij"]);
+        // An emoji is two UTF-16 units and is never split.
+        assert_eq!(chunk_replay("ab😀cd", 3), ["ab", "😀c", "d"]);
+        let big = "x".repeat(REPLAY_CHUNK * 2 + 5);
+        let parts = chunk_replay(&big, REPLAY_CHUNK);
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts.concat(), big);
     }
 
     #[test]
