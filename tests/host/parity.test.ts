@@ -255,6 +255,8 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
     'scroll region': `top\r\n${ESC}[3;6r${ESC}[3;1H${lines(9, (i) => `region ${i}`)}${ESC}[r${ESC}[10;1Hbelow`,
     scrollback: lines(300, (i) => `scroll line ${i}`),
     'past the scrollback cap': lines(5100, (i) => `cap ${i}`),
+    'cleared after scrollback': `${lines(60, (i) => `old ${i}`)}${ESC}[2J${ESC}[Htop line\r\nsecond`,
+    'cursor above blank rows': `${lines(40, (i) => `log ${i}`)}\r\n\r\n\r\n${ESC}[3Aprompt> `,
     'modes and hidden cursor': `modes${ESC}[?2004h${ESC}[?1h${ESC}=${ESC}[?25l${ESC}[5;7H`,
     'alternate screen': `under${ESC}[?1049h${ESC}[2;3Halt screen text${ESC}[5;1H${ESC}[1mbold alt${ESC}[0m`
   }
@@ -307,6 +309,78 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
         expect(restored.lines, `${kind} cells`).toEqual(truth.lines)
       }
     }, 60_000)
+  })
+
+  // xterm reflows the normal buffer on resize; the Rust host must keep the same text and
+  // cursor through a window resizing a pane (background.spec found the gap).
+  const RESIZES: Record<string, [number, number][]> = {
+    'narrower then back': [
+      [20, 12],
+      [40, 12]
+    ],
+    'much narrower then wider': [
+      [7, 6],
+      [60, 15]
+    ],
+    'fewer rows then more': [
+      [40, 4],
+      [40, 20]
+    ],
+    'collapsed to 1x1 then back': [
+      [1, 1],
+      [40, 12]
+    ],
+    'wider then narrower': [
+      [90, 12],
+      [25, 12]
+    ]
+  }
+  describe.each(Object.keys(RESIZES))('resize: %s', (name) => {
+    it('keeps the same text, cells and cursor as the Node host', async () => {
+      const file = path.join(FIXTURES, 'resize.txt')
+      fs.writeFileSync(
+        file,
+        `short\r\n${ESC}[1mbold${ESC}[0m line\r\n${'long wrapped text '.repeat(6)}\r\n` +
+          `${ESC}[32mgreen${ESC}[0m and more\r\n$ prompt`
+      )
+      const steps = RESIZES[name]!
+      const result: Record<string, { text: string; drawn: Awaited<ReturnType<typeof draw>> }> = {}
+      for (const kind of KINDS) {
+        const c = await Client.open(host(kind))
+        const paneId = `rz${kind}${Math.random().toString(36).slice(2, 6)}`
+        await c.request(shPane(paneId, `stty -onlcr; cat ${JSON.stringify(file)}; sleep 30`))
+        await until(() => c.output.get(paneId)?.includes('prompt'), 5000, 'output')
+        await sleep(200)
+        for (const [cols, rows] of steps) {
+          c.send({ t: 'resize', paneId, cols, rows })
+          await sleep(100)
+        }
+        const [cols, rows] = steps[steps.length - 1]!
+        const text = (await c.request({ t: 'read', paneId, lines: 200 })) as { text: string }
+        const other = await Client.open(host(kind))
+        await other.request({ t: 'attach', paneId, cols, rows })
+        const replay = other.frames
+          .filter((f) => f.t === 'data' && f.paneId === paneId && f.replay)
+          .map((f) => String(f.data))
+          .join('')
+        result[kind] = { text: text.text, drawn: await draw(replay, cols, rows) }
+        c.send({ t: 'kill', paneId })
+        c.close()
+        other.close()
+      }
+      const node = result.node!
+      const rust = result.rust!
+      const nodeLines = node.text.split('\n')
+      const rustLines = rust.text.split('\n')
+      // Every line but the cursor's is the same, row for row and cell for cell.
+      expect(rustLines.slice(0, -1)).toEqual(nodeLines.slice(0, -1))
+      expect(rust.drawn.lines.slice(0, -1)).toEqual(node.drawn.lines.slice(0, -1))
+      expect(rust.drawn.cursor[1]).toBe(node.drawn.cursor[1])
+      // ADR 0004, known differences: xterm cuts the cursor's line when it reflows a much
+      // narrower width; the Rust host keeps the whole line, with the cursor after its text.
+      expect(rustLines.at(-1)!.startsWith(nodeLines.at(-1)!)).toBe(true)
+      expect(rust.drawn.cursor[0]).toBe(rustLines.at(-1)!.length)
+    })
   })
 
   // #134: a screen far over MAX_FRAME as one frame arrives in pieces every client can read.

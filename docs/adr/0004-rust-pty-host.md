@@ -1,7 +1,7 @@
 # ADR 0004: A Rust pty host
 
-- Status: **Proposed** (2026-10-26), issue #76. Phase 1 (this change) adds the Rust host next
-  to the Node one; nothing uses it yet.
+- Status: **Proposed** (2026-10-26), issue #76. Phase 1 added the Rust host next to the Node
+  one; phase 2 (Settings → Advanced, Linux bundle) lets a user turn it on. Off by default.
 
 ## Context
 
@@ -62,6 +62,11 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
   (vim, htop) is open a snapshot restores the alternate screen but not the normal buffer under
   it, which the Node host does restore. Agent CLIs draw in the normal buffer, so their panes
   are unaffected. The parity suite pins this case.
+- **Resize.** `vt100` cuts rows at a new width; the host instead reflows the normal buffer
+  itself (re-feeds its logical lines into a parser of the new size), so a pane made narrow and
+  wide again keeps its text as xterm does. xterm also cuts the cursor's line when it reflows a
+  much narrower width; the Rust host keeps that line whole. The parity suite pins both. The
+  host's screen keeps at least 2 rows (vt100 marks no wraps on a 1-row screen).
 - **Error texts** for a failed spawn come from the OS through `portable-pty`, not node-pty.
 
 ## Consequences
@@ -69,7 +74,11 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
 - A second toolchain in the repo and in CI (cargo; cross targets from phase 3).
 - Until phase 4 both hosts exist and the parity suite must keep passing on every protocol
   change.
-- Phase 1 changes nothing for users: the binary is not bundled and nothing starts it.
+- Phase 2: Linux packages carry the binary in their resources (`bun run dist:linux` builds it
+  with cargo first; the Docker build installs a minimal Rust toolchain). The app starts it
+  instead of `host.js` when `settings.rustHost` is on (`WRAITHGRID_RUST_HOST=1` in tests) and
+  the binary exists; otherwise the Node host, as before. The switch takes effect when a host
+  next starts. Remote machines (`host-stdio`) keep the Node host until phase 5.
 
 ## Rollout
 

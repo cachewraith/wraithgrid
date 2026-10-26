@@ -26,6 +26,11 @@ linux:
   synopsis: Many claude CLI sessions side by side
   description: Run several claude CLI sessions in one window, each with its own account (CLAUDE_CONFIG_DIR) and project folder.
   artifactName: ${name}-${version}-${arch}.${ext}
+  # The Rust background host (ADR 0004 phase 2), off unless Settings → Advanced turns it on;
+  # `bun run dist:linux` builds it first.
+  extraResources:
+    - from: host-rs/target/release/wraithgrid-host
+      to: wraithgrid-host
 # Dependencies mirror the shared libraries the Electron binary links against
 # (objdump -p … | grep NEEDED). Old Debian names also resolve on Ubuntu 24.04's t64 packages.
 deb:
