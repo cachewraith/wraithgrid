@@ -1,5 +1,6 @@
 // Splits `git diff` output into files and typed lines for the diff panel. Pure, so the
 // panel only renders; a diff it can't make sense of still shows as plain context lines.
+import type { GitDiffResult } from '@shared/ipc-contract'
 
 export type DiffLineKind = 'add' | 'del' | 'ctx' | 'hunk' | 'meta'
 
@@ -82,4 +83,15 @@ export function parsePatch(patch: string): DiffFile[] {
     if (last?.kind === 'ctx' && last.text === '') f.lines.pop()
   }
   return files
+}
+
+/** Two fetches of a folder's changes say the same: the panel keeps what it shows (#139). */
+export function sameDiff(a: GitDiffResult, b: GitDiffResult): boolean {
+  if (!a.ok || !b.ok) return !a.ok && !b.ok && a.error === b.error
+  return (
+    a.patch === b.patch &&
+    a.truncated === b.truncated &&
+    a.untracked.length === b.untracked.length &&
+    a.untracked.every((f, i) => f === b.untracked[i])
+  )
 }

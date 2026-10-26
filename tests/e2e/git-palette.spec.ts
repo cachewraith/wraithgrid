@@ -179,6 +179,13 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     await expect(panel.locator('.dl-add')).toHaveCount(2)
     await expect(panel.locator('.dl-del')).toHaveCount(1)
     if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'diff-dark.png') })
+    // More edits to the same file keep git's status as it was; the open panel still shows
+    // them without a Refresh (#139).
+    fs.writeFileSync(
+      path.join(repo, 'auth.ts'),
+      'export const a = 2\nexport const b = 3\nexport const c = 4\n'
+    )
+    await expect(panel.locator('.dl-add')).toHaveCount(3, { timeout: 12_000 })
 
     // Commit everything from the panel, then push after confirming.
     const bare = path.join(tmp, 'remote.git')
