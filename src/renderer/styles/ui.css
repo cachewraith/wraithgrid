@@ -1198,30 +1198,70 @@ input[type='color']::-webkit-color-swatch {
   gap: 8px;
 }
 
-/* ---- Scheduled chats (#77): flat job rows, mono times ------------------------------- */
+/* ---- Scheduled chats (#77, cards #118): flat borderless cards, mono times ---------- */
 
 .sch-list {
-  border-top: 1px solid var(--line);
-}
-.sch-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 170px 170px 34px 28px;
-  gap: 14px;
-  align-items: center;
-  min-height: 56px;
-  padding: 8px 4px 8px 10px;
-  border-bottom: 1px solid var(--line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@container main (max-width: 760px) {
+  .sch-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sch-list .sch-p {
+    min-height: 0;
+  }
+}
+.sch-card,
+.sch-qcard {
+  min-width: 0;
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+  border-radius: calc(10px * var(--rs, 1));
+}
+.sch-card {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 12px 10px 16px;
   cursor: pointer;
 }
-.sch-row:hover {
-  background: var(--hover);
+.sch-card:hover {
+  background: color-mix(in srgb, var(--tx) 7%, transparent);
 }
-.sch-row.off .sch-t,
-.sch-row.off .sch-where {
+.sch-card.off .sch-p,
+.sch-card.off .sch-where,
+.sch-card.off .sch-m {
   color: var(--fa);
 }
-.sch-t {
+.sch-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.sch-top .sw {
+  margin-left: auto;
+  flex: none;
+}
+.sch-main {
+  flex: 1;
+  min-width: 0;
+}
+/* the sidebar owns .sch-t; page text uses .sch-p / .sch-qt */
+.sch-p {
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.4;
+  min-height: calc(2 * 1.4em);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.sch-qt {
+  font-weight: 500;
+  color: var(--tx);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1230,11 +1270,31 @@ input[type='color']::-webkit-color-swatch {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-top: 2px;
+  min-width: 0;
   font-size: 12px;
   color: var(--mu);
   white-space: nowrap;
   overflow: hidden;
+}
+.sch-tgt {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sch-tgt .sch-m {
+  color: var(--fa);
+}
+.sch-ft {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
 }
 .sch-cell {
   display: flex;
@@ -1246,13 +1306,18 @@ input[type='color']::-webkit-color-swatch {
   font-size: 11px;
   color: var(--fa);
 }
-.sch-m {
+.sch-m,
+.sch-n {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--mu);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.sch-n {
+  margin-left: 4px;
+  color: var(--fa);
 }
 .sch-r.ok {
   color: var(--ok);
@@ -1263,8 +1328,21 @@ input[type='color']::-webkit-color-swatch {
 .sch-r.warn {
   color: var(--warn);
 }
+/* running: the sidebar's sweep on the word (sidebar.css @keyframes sch-sweep), no dot */
 .sch-r.working {
-  color: var(--ok);
+  color: transparent;
+  background: linear-gradient(
+      90deg,
+      var(--ok) 0%,
+      var(--ok) 35%,
+      color-mix(in srgb, var(--ok) 35%, #fff) 50%,
+      var(--ok) 65%,
+      var(--ok) 100%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: sch-sweep 1.8s linear infinite;
 }
 .job-dlg {
   width: min(640px, calc(100vw - 32px));
@@ -1367,12 +1445,20 @@ input[type='color']::-webkit-color-swatch {
 .cc-later input {
   min-height: 30px;
 }
-.sch-q {
-  margin-bottom: 24px;
+.sch-qlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.sch-qrow {
-  grid-template-columns: minmax(0, 1fr) 200px auto auto;
-  cursor: default;
+.sch-qcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  color: var(--fa);
+}
+.sch-qcard .sch-where {
+  margin-top: 2px;
 }
 
 /* ---- Web preview (#74): toolbar, page, server log, start form ----------------------- */
