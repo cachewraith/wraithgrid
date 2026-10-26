@@ -19,6 +19,27 @@ permissions:
   contents: read
 
 jobs:
+  # The Rust pty host (ADR 0004, phase 1): its own checks, then the parity suite against the
+  # Node host. Linux only until phase 3; the runner's preinstalled Rust toolchain.
+  rust-host:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - name: cargo fmt, clippy, test
+        working-directory: host-rs
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked
+      - run: bun run test:host
+
   build:
     strategy:
       fail-fast: false
