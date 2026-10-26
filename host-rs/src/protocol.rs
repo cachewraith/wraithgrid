@@ -275,6 +275,11 @@ pub fn parse_client_frame(v: &Value) -> Option<ClientFrame> {
             record(o, "spec")?;
             ClientFrame::Spawn { id: id(o)? }
         }
+        // A plan is the bridge's to resolve (bridge.rs); a host reached directly refuses it.
+        "plan" => {
+            record(o, "plan")?;
+            ClientFrame::Spawn { id: id(o)? }
+        }
         "attach" => ClientFrame::Attach {
             id: id(o)?,
             pane_id: pane_id(o, "paneId")?,

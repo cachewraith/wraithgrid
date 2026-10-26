@@ -1,7 +1,10 @@
 //! Wraithgrid's background pty host in Rust (ADR 0004), a drop-in for `out/main/host.js`
 //! (ADR 0001): started detached by the GUI with its settings as JSON in `WRAITHGRID_HOST`,
 //! it takes the same lock, writes the same token and serves the same frames on the same socket.
+//! `wraithgrid-host stdio <appVersion>` is the ssh end of a remote machine instead (bridge.rs).
 
+mod bridge;
+mod plan;
 mod protocol;
 mod pty;
 mod screen;
@@ -90,7 +93,7 @@ fn take_lock(file: &PathBuf) -> std::io::Result<bool> {
 
 /// The host dir is user-only: one that already exists must be ours, a real directory and
 /// closed to group/other (in a shared /tmp another user could have made it first).
-fn ensure_dir(dir: &PathBuf) -> Result<(), String> {
+pub(crate) fn ensure_dir(dir: &PathBuf) -> Result<(), String> {
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let st = fs::symlink_metadata(dir).map_err(|e| e.to_string())?;
     if !st.is_dir() {
@@ -156,6 +159,14 @@ fn settings() -> Option<(Paths, String, i32)> {
 }
 
 fn main() {
+    let argv: Vec<String> = std::env::args().collect();
+    if argv.get(1).map(String::as_str) == Some("--version") {
+        println!("wraithgrid-host {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if argv.get(1).map(String::as_str) == Some("stdio") {
+        std::process::exit(bridge::main(argv.get(2).cloned().unwrap_or_default()));
+    }
     let Some((paths, app_version, masked)) = settings() else {
         eprintln!("wraithgrid-host: started without settings");
         std::process::exit(2);

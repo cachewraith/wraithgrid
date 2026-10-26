@@ -64,6 +64,13 @@ const fileExists = (f: string): Promise<boolean> =>
     () => false
   )
 
+/** An agent pane's arguments: the account's, plus resume and project-doc flags of its CLI. */
+export function agentArgs(spec: SpawnSpec): string[] {
+  let args = spec.args
+  if (spec.resume) args = withResumeArgs(spec.cli, args)
+  return spec.cli === 'claude' ? args : withProjectDocArgs(spec.cli, args)
+}
+
 export async function resolveSpawn(spec: SpawnSpec, ctx: ResolveContext): Promise<ResolveResult> {
   const fail = (error: string): ResolveResult => ({ ok: false, error })
   const { homeDir } = ctx
@@ -76,7 +83,7 @@ export async function resolveSpawn(spec: SpawnSpec, ctx: ResolveContext): Promis
 
   const { cli } = spec
   let file: string
-  let args = spec.args
+  let args: string[]
   if (spec.shell) {
     const picked = await resolvePaneShell(
       ctx.platform,
@@ -107,8 +114,7 @@ export async function resolveSpawn(spec: SpawnSpec, ctx: ResolveContext): Promis
       if (!found) return fail(`${bin} (${AGENT_CLI_LABEL[cli]}) was not found on PATH.`)
       file = found
     }
-    if (spec.resume) args = withResumeArgs(cli, args)
-    args = withProjectDocArgs(cli, args)
+    args = agentArgs(spec)
   } else {
     const resolved = await resolveClaudePath(ctx.claudePath, homeDir)
     if (!resolved.path) return fail('claude was not found on PATH. Set its path in Settings.')
@@ -118,7 +124,7 @@ export async function resolveSpawn(spec: SpawnSpec, ctx: ResolveContext): Promis
       return fail(`claude binary not found: ${resolved.path}`)
     }
     file = resolved.path
-    if (spec.resume) args = withResumeArgs(cli, args)
+    args = agentArgs(spec)
   }
 
   const cmd = spawnCommandFor(ctx.platform, file, args, ctx.env.ComSpec)

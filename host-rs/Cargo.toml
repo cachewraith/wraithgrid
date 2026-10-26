@@ -15,7 +15,8 @@ libc = "0.2"
 portable-pty = "0.9.0"
 regex = "1"
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "signal"] }
+sha2 = "0.11.1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "signal", "io-std"] }
 vt100 = "0.18.1"
 
 [profile.release]

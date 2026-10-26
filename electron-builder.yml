@@ -31,6 +31,9 @@ linux:
   extraResources:
     - from: host-rs/target/release/wraithgrid-host
       to: wraithgrid-host
+    # Static hosts copied to Linux machines over ssh (scripts/build-remote-hosts.sh).
+    - from: host-rs/target/remote
+      to: remote
 # Dependencies mirror the shared libraries the Electron binary links against
 # (objdump -p … | grep NEEDED). Old Debian names also resolve on Ubuntu 24.04's t64 packages.
 deb:

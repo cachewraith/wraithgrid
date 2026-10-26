@@ -269,6 +269,7 @@ export class HostServer {
   ): Promise<HostReply | null> {
     switch (f.t) {
       case 'spawn':
+      case 'plan':
         return { ok: false, error: 'Remote panes are started through wraithgrid host-stdio.' }
       case 'create': {
         if (this.stopping) return { ok: false, error: 'The background host is stopping.' }

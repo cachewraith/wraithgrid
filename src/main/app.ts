@@ -40,7 +40,9 @@ import { resolveTheme, type CloseMode, type Machine, type ThemeName } from '@sha
 import { ConfigStore } from './config-store'
 import { machineOfPane, registerIpc, type IpcHandle } from './ipc'
 import { PaneRouter } from './pane-router'
-import { openSshLink, sshArgs, type SshLink } from './ssh'
+import { prepareRemote } from './remote-bin'
+import { remotePlan } from './remote-plan'
+import { openSshLink, runSsh, sshArgs, type SshLink } from './ssh'
 import { configFilePath, userDataDir } from './paths'
 import { UsageStore } from './usage-store'
 import {
@@ -186,13 +188,26 @@ const rustHostBin = ((): string | null => {
   return existsSync(bin) ? bin : null
 })()
 
+/** Settings → Advanced → "Use the Rust host" (WRAITHGRID_RUST_HOST=1 in tests). */
+const wantRustHost = (): boolean =>
+  store.get().settings.rustHost || process.env.WRAITHGRID_RUST_HOST === '1'
+
+/** A static Rust host this build can copy to a Linux machine (scripts/build-remote-hosts.sh). */
+async function remoteHostBinary(target: string): Promise<Buffer | null> {
+  const name = `wraithgrid-host-${target}`
+  const file = app.isPackaged
+    ? path.join(process.resourcesPath, 'remote', name)
+    : path.join(__dirname, '../../host-rs/target/remote', name)
+  return readFile(file).catch(() => null)
+}
+
 /**
  * Starts the host detached: this same Electron binary running as plain Node, or the Rust host
- * when Settings → Advanced asks for it (WRAITHGRID_RUST_HOST=1 in tests) and this build has it.
+ * when Settings → Advanced asks for it and this build has it.
  */
 async function startHost(): Promise<void> {
   await envReady
-  const wantRust = store.get().settings.rustHost || process.env.WRAITHGRID_RUST_HOST === '1'
+  const wantRust = wantRustHost()
   if (wantRust && !rustHostBin) console.warn('[wraithgrid] no Rust host in this build; using Node')
   await startHostProcess({
     paths: hostFiles,
@@ -235,20 +250,37 @@ const ptys = new PaneHost({
   log: (msg) => console.warn(`[wraithgrid] host: ${msg}`)
 })
 
-/** A machine's host, over `ssh … wraithgrid host-stdio` (H5). WRAITHGRID_SSH: tests' stand-in. */
+/**
+ * A machine's host, over `ssh … wraithgrid host-stdio` (H5), or over the Rust host's bridge
+ * copied there when the Rust host is on (ADR 0004 phase 5). WRAITHGRID_SSH: tests' stand-in.
+ */
 function remoteHost(m: Machine): PaneHost {
   let link: SshLink | null = null
+  /** The Rust bridge's ssh command, once the machine has it. */
+  let bridge: string[] | null = null
+  const log = (msg: string): void => console.warn(`[wraithgrid] ${m.name}: ${msg}`)
   return new PaneHost({
     connect: async () => {
-      link = await openSshLink(process.env.WRAITHGRID_SSH || 'ssh', sshArgs(m.sshHost))
+      const ssh = process.env.WRAITHGRID_SSH || 'ssh'
+      if (!wantRustHost()) bridge = null
+      else if (!bridge) {
+        bridge = await prepareRemote({
+          version: app.getVersion(),
+          run: (command, input) => runSsh(ssh, sshArgs(m.sshHost, [command]), input),
+          binary: remoteHostBinary,
+          log
+        }).catch((err: Error) => (log(`preparing the Rust host: ${err.message}`), null))
+      }
+      link = await openSshLink(ssh, sshArgs(m.sshHost, bridge ?? undefined))
       return link.stream
     },
+    plan: (spec) => (bridge ? { ...remotePlan(spec) } : null),
     // Nothing to start from here: the remote end starts its own host.
     start: () => {
       const why = link?.stderr()
       return Promise.reject(
         new Error(
-          `Could not reach ${m.name} (${m.sshHost})${why ? `: ${why}` : ''}. It needs ssh with a key or agent, and Wraithgrid installed there with wraithgrid on PATH.`
+          `Could not reach ${m.name} (${m.sshHost})${why ? `: ${why}` : ''}. It needs ssh with a key or agent${bridge ? '' : ', and Wraithgrid installed there with wraithgrid on PATH'}.`
         )
       )
     },
@@ -259,7 +291,7 @@ function remoteHost(m: Machine): PaneHost {
     onMismatch: askMismatch,
     lostMessage: `Disconnected from ${m.name}. Restart to reconnect; the agent may still be running there.`,
     helloTimeoutMs: 30_000,
-    log: (msg) => console.warn(`[wraithgrid] ${m.name}: ${msg}`)
+    log
   })
 }
 

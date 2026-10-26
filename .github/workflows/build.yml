@@ -38,6 +38,9 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets --locked -- -D warnings
           cargo test --locked
+      # The static x64 and arm64 hosts copied to remote machines (ADR 0004 phase 5).
+      - run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - run: bash scripts/build-remote-hosts.sh
       - run: bun run test:host
 
   build:
@@ -80,7 +83,7 @@ jobs:
           node-version: 24
       - name: Linux packaging tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools xvfb
+        run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools xvfb gcc-aarch64-linux-gnu
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run lint
