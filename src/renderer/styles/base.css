@@ -1769,39 +1769,6 @@ kbd,
   font-size: 12px;
   padding: 0 2px 2px;
 }
-.relnotes {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-height: 220px;
-  overflow: auto;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: calc(8px * var(--rs, 1));
-  background: var(--bg2);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--mu);
-  overflow-wrap: anywhere;
-}
-.relnotes b {
-  color: var(--tx);
-  font-weight: 600;
-  margin-top: 4px;
-}
-.relnotes b:first-child {
-  margin-top: 0;
-}
-.relnotes .li {
-  padding-left: 14px;
-  position: relative;
-}
-.relnotes .li::before {
-  content: '•';
-  position: absolute;
-  left: 3px;
-  color: var(--fa);
-}
 .swrow {
   display: flex;
   align-items: center;

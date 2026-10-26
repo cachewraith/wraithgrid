@@ -6,7 +6,7 @@ import { _electron as electron, expect, test } from '@playwright/test'
 const ROOT = path.resolve(__dirname, '../..')
 const MAIN = path.join(ROOT, 'out/main/index.js')
 
-test('after an update: "Updated to" once, What’s new in About, earlier versions kept', async () => {
+test('after an update: "Updated to" once, What’s new in About, earlier versions kept (#124)', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-about-'))
   const home = path.join(tmp, 'home')
   const userData = path.join(tmp, 'userdata')
@@ -61,20 +61,29 @@ test('after an update: "Updated to" once, What’s new in About, earlier version
     await expect(updates).toHaveAttribute('data-state', 'unchecked')
     await expect(updates.getByRole('status')).toHaveText('Not checked yet.')
     const wn = win.locator('#whats-new')
-    await expect(wn.getByRole('heading', { name: `What’s new in ${version}` })).toBeVisible()
-    await expect(wn).toContainText('No notes for this version.')
+    await expect(wn.getByRole('heading', { name: 'What’s new' })).toBeVisible()
+    // The installed version is selected first and says when it has no notes.
+    const versions = wn.getByRole('navigation', { name: 'Versions' })
+    const pick = (v: string) =>
+      versions.getByRole('button', { name: new RegExp(`^${v.replace(/\./g, '\\.')}\\b`) })
+    await expect(pick(version)).toHaveAttribute('aria-current', 'true')
+    await expect(pick(version)).toContainText('installed')
+    await expect(wn.getByRole('article', { name: `Release notes for ${version}` })).toContainText(
+      'No notes for this version.'
+    )
 
-    // Earlier versions: collapsed, as markdown (the bundled WHATS-NEW has tables), and the
-    // notes saved from GitHub.
-    const earlier = wn.getByLabel('Earlier versions')
-    const bundled = earlier
-      .locator('details')
-      .filter({ has: win.getByText(appVersion, { exact: true }) })
-    await expect(bundled).not.toHaveAttribute('open')
-    await bundled.locator('summary').click()
-    await expect(bundled.getByRole('table').first()).toBeVisible()
-    const old = earlier.locator('details', { hasText: savedVersion })
-    await old.locator('summary').click()
+    // A bundled version (#124): New as cards and Fixed as a list, never as tables.
+    await pick(appVersion).click()
+    const bundled = wn.getByRole('article', { name: `Release notes for ${appVersion}` })
+    await expect(bundled).toBeVisible()
+    await expect(wn.locator('.ab-card, .ab-fixes li').first()).toBeVisible()
+    await expect(wn.getByRole('table')).toHaveCount(0)
+    // Names keep their own line: a card title is never broken mid-word.
+    const title = wn.locator('.ab-card h5, .ab-fixes li b').first()
+    expect(await title.evaluate((n) => n.scrollWidth <= n.clientWidth + 1)).toBe(true)
+    // Notes saved from GitHub render as markdown.
+    await pick(savedVersion).click()
+    const old = wn.getByRole('article', { name: `Release notes for ${savedVersion}` })
     await expect(old.locator('strong')).toHaveText('from GitHub')
 
     await expect.poll(() => JSON.parse(fs.readFileSync(notesFile, 'utf8')).lastRun).toBe(version)
