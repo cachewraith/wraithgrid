@@ -1,6 +1,6 @@
 // Web preview (#74): the project's dev server and its page, in a pane. The page is a sandboxed
 // <webview> in its own session; main only lets it load addresses on this computer.
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { memo, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   isLocalUrl,
   PREVIEW_PARTITION,
@@ -24,7 +24,7 @@ interface WebviewEl extends HTMLElement {
   getWebContentsId(): number
 }
 
-export function PreviewView({ paneId }: { paneId: string }) {
+function PreviewViewBody({ paneId }: { paneId: string }) {
   const actions = useActions()
   const { api } = useServices()
   // The project itself (a stable reference); findPane would build a new object each time.
@@ -385,3 +385,7 @@ function StartForm(p: {
     </div>
   )
 }
+
+/** Memoized: a pane re-renders on every frame its box moves (a panel drag, #126); its body
+ *  only needs to when its own props change. */
+export const PreviewView = memo(PreviewViewBody)

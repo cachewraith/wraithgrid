@@ -33,6 +33,7 @@ import { liveWindow } from '@shared/usage'
 import { useTicker } from '../UsageView'
 import { CopyButton, Markdown } from './Markdown'
 import { paceStep, revealedWords } from '../../lib/stream-pace'
+import { panelDragging } from '../../lib/panel-drag'
 import { QuestionCard } from './QuestionCard'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
@@ -219,7 +220,8 @@ function usePacedText(text: string, streaming: boolean): string {
     const tick = (now: number): void => {
       const dt = now - last
       last = now
-      setShown((n) => paceStep(n, target.current, dt))
+      // A panel drag gets the frames; the reveal catches up after the release (#126).
+      if (!panelDragging()) setShown((n) => paceStep(n, target.current, dt))
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -321,7 +323,7 @@ const Item = memo(function Item({
  * A chat pane (ADR 0002): the conversation with the pane's CLI running headless. It never
  * knows which CLI that is; main's adapter turned the CLI's output into ChatEvents.
  */
-export function ChatView({ paneId, visible, focused }: Props) {
+function ChatViewBody({ paneId, visible, focused }: Props) {
   const { api, chat, store } = useServices()
   const actions = useActions()
   const drop = useApp((s) => s.chatDrops[paneId] ?? null)
@@ -724,3 +726,7 @@ function wheelScrollsUp(e: WheelEvent, chat: HTMLElement | null): boolean {
   }
   return true
 }
+
+/** Memoized: a pane re-renders on every frame its box moves (a panel drag, #126); its body
+ *  only needs to when its own props change. */
+export const ChatView = memo(ChatViewBody)
