@@ -4,6 +4,7 @@
 // clearing it before React renders the saved width would snap the panel back and animate it
 // forward again, moving the handle away from the pointer.
 import { useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
+import { setPanelDragging } from '../lib/panel-drag'
 
 interface Props {
   target: RefObject<HTMLElement | null>
@@ -45,6 +46,7 @@ export function EdgeResizer({
     const clamp = (w: number): number => Math.round(Math.min(max, Math.max(min, w)))
     let width = clamp(startW)
     setDragging(true)
+    setPanelDragging(true)
     const move = (ev: PointerEvent): void => {
       width = clamp(startW + sign * (ev.clientX - startX))
       el.style.setProperty(cssVar, `${width}px`)
@@ -54,6 +56,7 @@ export function EdgeResizer({
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', end)
       setDragging(false)
+      setPanelDragging(false)
       onCommit(width)
     }
     // The release point decides the saved width: a busy renderer can drop or coalesce the

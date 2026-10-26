@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
@@ -10,6 +10,7 @@ import { useApp, useServices } from '../app/services'
 import { drawnTheme } from '../app/store'
 import { Osc99Reader, osc52Text, osc777Notice, osc9Notice, type TermNotice } from '../lib/term-osc'
 import { terminalFontStack, terminalTheme } from '../lib/term-theme'
+import { onPanelDragEnd, panelDragging } from '../lib/panel-drag'
 
 interface Props {
   paneId: string
@@ -25,7 +26,7 @@ const RESIZE_DEBOUNCE_MS = 50
  * One xterm instance bound to one pane process. It stays mounted while hidden (zoom,
  * other workspace, other view) so scrollback is never lost.
  */
-export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Props) {
+function TerminalBody({ paneId, visible, focused, fontFamily, fontSize }: Props) {
   const { bus, api, store } = useServices()
   const hostRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
@@ -168,17 +169,24 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
     store.getState().requestStart(paneId)
 
     let timer: ReturnType<typeof setTimeout> | null = null
+    // While a panel edge is dragged the pty keeps its size: each resize makes a TUI redraw
+    // its whole screen. The release fits once (#126).
     const ro = new ResizeObserver(() => {
+      if (panelDragging()) return
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         if (fitNow()) bus.resize(paneId, term.cols, term.rows)
       }, RESIZE_DEBOUNCE_MS)
     })
     ro.observe(host)
+    const offDragEnd = onPanelDragEnd(() => {
+      if (fitNow()) bus.resize(paneId, term.cols, term.rows)
+    })
 
     return () => {
       if (timer) clearTimeout(timer)
       ro.disconnect()
+      offDragEnd()
       detach()
       onInput.dispose()
       term.dispose()
@@ -253,3 +261,7 @@ export function Terminal({ paneId, visible, focused, fontFamily, fontSize }: Pro
 
   return <div className="term-inner" ref={hostRef} />
 }
+
+/** Memoized: a pane re-renders on every frame its box moves (a panel drag, #126); its body
+ *  only needs to when its own props change. */
+export const Terminal = memo(TerminalBody)

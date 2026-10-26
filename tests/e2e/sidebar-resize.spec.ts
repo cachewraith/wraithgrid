@@ -114,3 +114,63 @@ test('dragging the Changes panel edge resizes it, saves the width, and double-cl
     await app.close()
   }
 })
+
+test('a terminal keeps its size while the sidebar is dragged and fits once on release (#126)', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-resize-term-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: '',
+      accounts: [],
+      workspaces: [
+        {
+          id: 'ws',
+          name: 'main',
+          panes: [
+            { id: 'p-sh', accountId: null, cwd: '~/proj', args: [], shell: true, title: 'sh' }
+          ],
+          layout: null
+        }
+      ],
+      activeWorkspace: 'ws',
+      recentFolders: [],
+      settings: {
+        checkUpdatesOnLaunch: false,
+        shellPath: path.join(ROOT, 'tests/fixtures/fake-shell.sh')
+      }
+    })
+  )
+  const app = await electron.launch({
+    args: [MAIN],
+    env: { ...process.env, HOME: home, WRAITHGRID_USER_DATA_DIR: userData }
+  })
+  try {
+    const win = await app.firstWindow()
+    await expect(win.locator('section.pane .xterm-rows')).toContainText('SHELL-ARGS=')
+    // xterm sizes its screen to whole columns: it only changes width when the terminal fits.
+    const screen = win.locator('section.pane .xterm-screen')
+    const cols = async () => (await screen.boundingBox())!.width
+    await win.waitForTimeout(300)
+    const before = await cols()
+
+    const handle = win.getByRole('separator', { name: 'Resize sidebar' })
+    const box = (await handle.boundingBox())!
+    const y = box.y + 200
+    await win.mouse.move(box.x, y)
+    await win.mouse.down()
+    await win.mouse.move(box.x + 150, y, { steps: 10 })
+    // Held well past the 50 ms resize debounce: no fit (and no pty resize) mid-drag.
+    await win.waitForTimeout(400)
+    expect(await cols()).toBe(before)
+    await win.mouse.up()
+    await expect.poll(cols).toBeLessThan(before - 100)
+  } finally {
+    await app.close()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
