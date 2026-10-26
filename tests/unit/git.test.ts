@@ -26,7 +26,7 @@ import {
   worktreeDir,
   type GitRunner
 } from '../../src/main/git'
-import { parsePatch } from '../../src/renderer/lib/diff'
+import { parsePatch, sameDiff } from '../../src/renderer/lib/diff'
 import { matches } from '../../src/renderer/lib/search'
 
 // An empty global git config, so the user's own config can't change results. Not
@@ -449,5 +449,17 @@ describe('pull and history (real git)', { timeout: REAL_GIT_TIMEOUT }, () => {
     const shown = await gitShow(realGit, dir, feature.sha)
     expect(shown.ok && parsePatch(shown.patch).map((f) => f.path)).toEqual(['f.txt'])
     expect(await gitShow(realGit, dir, '--all')).toEqual({ ok: false, error: 'Not a commit id.' })
+  })
+})
+
+describe('same diff (#139)', () => {
+  const ok = (patch: string, untracked: string[] = []) =>
+    ({ ok: true, patch, truncated: false, untracked }) as const
+  it('tells a changed patch or untracked list apart, and errors by message', () => {
+    expect(sameDiff(ok('a'), ok('a', []))).toBe(true)
+    expect(sameDiff(ok('a'), ok('a2'))).toBe(false)
+    expect(sameDiff(ok('a', ['x']), ok('a', ['y']))).toBe(false)
+    expect(sameDiff({ ok: false, error: 'e' }, { ok: false, error: 'e' })).toBe(true)
+    expect(sameDiff({ ok: false, error: 'e' }, ok(''))).toBe(false)
   })
 })

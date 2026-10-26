@@ -9,7 +9,7 @@ import type { GitCommit, GitDiffResult, GitShowResult } from '@shared/ipc-contra
 import { useActions, useApp, useServices } from '../app/services'
 import { findPane } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
-import { parsePatch, type DiffFile } from '../lib/diff'
+import { parsePatch, sameDiff, type DiffFile } from '../lib/diff'
 import { layoutGraph, refLabels, type GraphRow } from '../lib/commit-graph'
 import { ago } from '../lib/time'
 import { EdgeResizer } from './EdgeResizer'
@@ -360,6 +360,9 @@ function History({ paneId, reload }: { paneId: string; reload: string }) {
   )
 }
 
+/** How often an open Changes panel looks for new edits; the same pace as the git poll. */
+const DIFF_POLL_MS = 5000
+
 export function DiffPanel() {
   const { api } = useServices()
   const actions = useActions()
@@ -385,6 +388,23 @@ export function DiffPanel() {
     return () => {
       live = false
     }
+  }, [api, paneId, stamp])
+  // More edits to a file already changed leave git's status as it was (#139): while the panel
+  // is open the diff is fetched again each poll, and replaces the shown one only if it differs.
+  useEffect(() => {
+    if (!paneId) return
+    let busy = false
+    const t = setInterval(() => {
+      if (busy || document.hidden) return
+      busy = true
+      void api.git.diff(paneId).then((result) => {
+        busy = false
+        setLoaded((cur) =>
+          cur?.stamp === stamp && !sameDiff(cur.result, result) ? { stamp, result } : cur
+        )
+      })
+    }, DIFF_POLL_MS)
+    return () => clearInterval(t)
   }, [api, paneId, stamp])
   const result = loaded?.result ?? null
 
