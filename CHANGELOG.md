@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-27
+
+- [chat] A sideways swipe over the chat no longer pauses follow (the cause of the intermittent `chat.spec.ts:299` CI failure): Chromium sometimes scrolls the chat by the swipe's few px of vertical noise, and that upward move read as the reader going back; for 150 ms after a mostly sideways wheel the chat's own upward scroll is ignored (files: src/renderer/components/chat/ChatView.tsx)
+
 ## 2026-10-26
 
 - [git] The Changes panel follows more edits to a file that is already changed (#139): git's status line stays ` M a.ts`, so the open panel now fetches the diff again every 5 s (not while the window is hidden, never two at once) and swaps it in only when patch or untracked list differ (`sameDiff`) (files: src/renderer/components/DiffPanel.tsx, src/renderer/lib/diff.ts, tests/unit/git.test.ts, tests/e2e/git-palette.spec.ts)

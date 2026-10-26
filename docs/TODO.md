@@ -2,7 +2,7 @@
 
 ## Now
 - #76 Rust host: phase 3 (macOS + Windows) and 4 (default on, drop node-pty) left; phase 5 arm64 binary never run on real arm64; old `~/.wraithgrid/bin/wraithgrid-host-*` versions on remote machines are never removed
-- CI: chat.spec.ts:299 (scroll follow after a sideways wheel) fails intermittently on the Linux runner, also on main
+- CI: chat-history.spec.ts:94 (`/` menu not shown after fill('/')) failed once on main (run 40367324797) and 2 of 15 locally under load, then 0 of 100+; cause not found. chat.spec.ts:299 fixed (sideways-wheel noise paused follow)
 - Audit (2026-10-26) bugs: #140 smaller bugs (checklist). #139 fixed on fix/stale-diff-20261026. #135–#138 fixed (PR #148; #138 needs a real cancelled pkexec prompt to see live)
 - Audit (2026-10-26) perf: #141 done (PR #149); not measured live yet (a DevTools profile of a long streaming chat before/after would confirm)
 - #41 (2026-10-22): agy in the chat UI (`src/main/chat/agy.ts`, `chat: true`); agy 1.4.4 has `-p --input-format/--output-format stream-json`, `--model/--effort/--mode`, `--continue/--conversation`; also set its `resumeArgs`
