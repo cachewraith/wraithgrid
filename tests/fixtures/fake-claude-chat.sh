@@ -119,6 +119,14 @@ while IFS= read -r line; do
       parts=()
       for i in $(seq 1 120); do parts+=("Paragraph $i of the live answer. Reading earlier output must stay possible.\n\n"); done
       text "${parts[@]}" && result ;;
+    # #129: text, then a long silence while the next tool call is generated, then the tool.
+    *'"type":"user"'*'template file'*)
+      keep
+      text "Now the HTML template (self-contained, no external dependencies):"
+      sleep 3
+      say '{"type":"assistant","message":{"id":"mw","content":[{"type":"tool_use","id":"toolu_w","name":"Write","input":{"file_path":"report.html","content":"<html></html>"}}]},"parent_tool_use_id":null}'
+      say '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_w","content":"File created"}]},"parent_tool_use_id":null}'
+      text "Wrote report.html." && result ;;
     *'"type":"user"'*'slow'*)
       text "Working" "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." "." ;;
     *'"type":"user"'*)
