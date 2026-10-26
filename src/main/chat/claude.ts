@@ -394,6 +394,13 @@ export function createClaudeAdapter(): ChatAdapter {
         break
       }
 
+      case 'control_cancel_request': {
+        // claude no longer wants the answer (the turn was stopped): the bar goes (#140).
+        const id = str(msg.request_id)
+        if (pending.delete(id)) push({ t: 'approvalDone', reqId: id, decision: 'deny' })
+        break
+      }
+
       case 'control_request': {
         const id = str(msg.request_id)
         const r = isObj(msg.request) ? msg.request : {}

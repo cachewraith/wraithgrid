@@ -4,6 +4,7 @@
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { StringDecoder } from 'node:string_decoder'
 import { parseConfig } from '@shared/schema'
 import { hostPaths } from '../host/paths'
 import { HOST_STDIO, runCli, type Tty } from './cli'
@@ -91,7 +92,12 @@ const tty: Tty | undefined =
           else process.stdin.pause()
         },
         onInput: (cb) => {
-          const listener = (chunk: Buffer): void => cb(chunk.toString('utf8'))
+          // One decoder for the stream: a character cut across two chunks stays whole (#140).
+          const utf8 = new StringDecoder('utf8')
+          const listener = (chunk: Buffer): void => {
+            const text = utf8.write(chunk)
+            if (text) cb(text)
+          }
           process.stdin.on('data', listener)
           return () => process.stdin.off('data', listener)
         },

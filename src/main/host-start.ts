@@ -40,7 +40,7 @@ export async function startHostProcess(s: HostStart): Promise<void> {
     const [file, args] = s.rustBin
       ? [s.rustBin, []]
       : [s.execPath, [path.join(s.outDir, 'host.js')]]
-    spawn(file, args, {
+    const child = spawn(file, args, {
       detached: true,
       stdio: posix ? stdioMasking(out, nullFd, maskUpTo) : ['ignore', out, out],
       windowsHide: true,
@@ -54,7 +54,11 @@ export async function startHostProcess(s: HostStart): Promise<void> {
           maskedFds: maskUpTo
         })
       }
-    }).unref()
+    })
+    // A spawn that fails later (ENOENT, EACCES on the Rust binary) must not throw in main: the
+    // connect that follows finds no host and says it did not start (#140).
+    child.once('error', (err) => console.warn(`[wraithgrid] host spawn failed: ${err.message}`))
+    child.unref()
   } finally {
     closeSync(out)
     if (nullFd >= 0) closeSync(nullFd)

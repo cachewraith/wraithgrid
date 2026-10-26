@@ -10,6 +10,8 @@ interface PaneTrack extends PaneActivity {
 
 const TAIL_MAX = 4000
 const PENDING_MAX = 1_000_000
+/** A full terminal reset (RIS): screen, scrollback and modes, as a fresh terminal has them. */
+const RESET = '\x1bc'
 
 /**
  * Routes PTY output to the right xterm instance without going through React state,
@@ -18,6 +20,8 @@ const PENDING_MAX = 1_000_000
 export class PtyBus {
   private readonly sinks = new Map<string, Sink>()
   private readonly pending = new Map<string, string>()
+  /** Panes whose replay is coming in: its pieces arrive in a row, live output ends it. */
+  private readonly replaying = new Set<string>()
   private readonly tracks = new Map<string, PaneTrack>()
   private readonly sizes = new Map<string, { cols: number; rows: number }>()
   /** Each agent pane's "waiting for approval" output (its CLI's); shell panes have none. */
@@ -103,6 +107,7 @@ export class PtyBus {
   forget(paneId: string): void {
     this.sinks.delete(paneId)
     this.pending.delete(paneId)
+    this.replaying.delete(paneId)
     this.tracks.delete(paneId)
     this.sizes.delete(paneId)
     this.approval.delete(paneId)
@@ -128,10 +133,16 @@ export class PtyBus {
   }
 
   private handleData(paneId: string, data: string, replay = false): void {
+    // A reattached screen is the whole screen: drawn over what the terminal already shows, it
+    // would show twice (a reload after a renderer crash, #140). Reset before its first piece,
+    // as `wraithgrid attach` clears; anything queued before it is in it too.
+    const first = replay && !this.replaying.has(paneId)
+    if (replay) this.replaying.add(paneId)
+    else this.replaying.delete(paneId)
     const sink = this.sinks.get(paneId)
-    if (sink) sink(data)
+    if (sink) sink(first ? `${RESET}${data}` : data)
     else {
-      const queued = (this.pending.get(paneId) ?? '') + data
+      const queued = (first ? '' : (this.pending.get(paneId) ?? '')) + data
       this.pending.set(paneId, queued.slice(-PENDING_MAX))
     }
     // A reattached screen is old output: it must not read as running, approval or login.

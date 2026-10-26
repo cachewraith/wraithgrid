@@ -667,7 +667,8 @@ const runGit: GitRunner = (args, cwd, opts) =>
         env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }
       },
       (err, stdout, stderr) => {
-        if (err) reject(Object.assign(err, { stderr: String(stderr) }))
+        // Past maxBuffer, `stdout` is what came before: a big diff shows that much (#140).
+        if (err) reject(Object.assign(err, { stderr: String(stderr), stdout: String(stdout) }))
         else resolve(String(stdout))
       }
     )

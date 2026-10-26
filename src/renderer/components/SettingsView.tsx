@@ -1,6 +1,6 @@
 import { CommunityThemes } from './CommunityThemes'
 import { ThemeEditor } from './ThemeEditor'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import type { ShellOption } from '@shared/ipc-contract'
 import { AGENT_CLIS, AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
@@ -789,6 +789,31 @@ function NotifyRow() {
   )
 }
 
+/**
+ * Runs the latest save 400 ms after typing stops; leaving the page runs a waiting one at once,
+ * so the last edit is kept (#140).
+ */
+function useDebouncedSave(): (fn: () => void) => void {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pending = useRef<(() => void) | null>(null)
+  const run = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current)
+    const fn = pending.current
+    timer.current = null
+    pending.current = null
+    fn?.()
+  }, [])
+  useEffect(() => run, [run])
+  return useCallback(
+    (fn: () => void) => {
+      if (timer.current) clearTimeout(timer.current)
+      pending.current = fn
+      timer.current = setTimeout(run, 400)
+    },
+    [run]
+  )
+}
+
 function ClaudeBinaryRow() {
   const { api } = useServices()
   const actions = useActions()
@@ -796,17 +821,15 @@ function ClaudeBinaryRow() {
   const claude = useApp((s) => s.claude)
   const home = useApp((s) => s.info.homeDir)
   const [draft, setDraft] = useState(claudePath)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const save = useDebouncedSave()
 
   const commit = (value: string): void => {
     setDraft(value)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
+    save(() => {
       actions.setClaudePath(value.trim())
       void actions.detectClaude()
-    }, 400)
+    })
   }
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), [])
 
   const browse = async (): Promise<void> => {
     const picked = await api.dialog.pickFile(draft || '~')
@@ -882,21 +905,19 @@ function CliPathsRow() {
   const { updateConfig } = useActions()
   const saved = useApp((s) => s.config.settings.cliPaths)
   const [draft, setDraft] = useState<Partial<Record<AgentCli, string>>>(saved)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), [])
+  const save = useDebouncedSave()
 
   const commit = (cli: AgentCli, value: string): void => {
     const next = { ...draft, [cli]: value }
     setDraft(next)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
+    save(() => {
       const cliPaths = Object.fromEntries(
         Object.entries(next)
           .map(([k, v]) => [k, (v ?? '').trim()])
           .filter(([, v]) => v)
       ) as Partial<Record<AgentCli, string>>
       updateConfig((c) => ({ ...c, settings: { ...c.settings, cliPaths } }))
-    }, 400)
+    })
   }
 
   return (

@@ -27,6 +27,18 @@ function stripPrefix(name: string): string | null {
   return n.replace(/^[ab]\//, '')
 }
 
+/**
+ * `a/my file.png b/my file.png`: unquoted paths with spaces can't be split on a space, but
+ * both sides name the same file unless renamed (then `rename to` sets it), so cut in the middle.
+ */
+function bothSides(rest: string): string {
+  const half = (rest.length - 1) / 2
+  const b = rest.slice(half + 1)
+  return Number.isInteger(half) && rest[half] === ' ' && rest.startsWith('a/') && b.startsWith('b/')
+    ? b
+    : rest
+}
+
 export function parsePatch(patch: string): DiffFile[] {
   const files: DiffFile[] = []
   let cur: DiffFile | null = null
@@ -35,7 +47,7 @@ export function parsePatch(patch: string): DiffFile[] {
   for (const line of patch.split('\n')) {
     if (line.startsWith('diff --git ')) {
       const m = /^diff --git (\S+|"[^"]*") (\S+|"[^"]*")$/.exec(line)
-      const path = stripPrefix(m?.[2] ?? line.slice(11)) ?? ''
+      const path = stripPrefix(m?.[2] ?? bothSides(line.slice(11))) ?? ''
       cur = {
         path,
         oldPath: null,

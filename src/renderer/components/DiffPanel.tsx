@@ -521,7 +521,9 @@ export function DiffPanel() {
       {pane ? <div className="dp-sub mono">{pane.cwd}</div> : null}
       <div className="dp-bd" role="tabpanel">
         {tab === 'history' && pane && paneId && git?.repo !== false ? (
+          // Keyed by pane: a list loading for one pane never lands in another's (#140).
           <History
+            key={paneId}
             paneId={paneId}
             reload={`${nonce}:${git?.branch}:${git?.ahead}:${git?.behind}`}
           />
@@ -530,7 +532,9 @@ export function DiffPanel() {
         )}
       </div>
       {pane && paneId && git?.repo ? (
+        // Keyed by pane: a commit message or a pending push confirm is for its own repo (#140).
         <GitActions
+          key={paneId}
           paneId={paneId}
           branch={git.branch}
           changed={git.changed}

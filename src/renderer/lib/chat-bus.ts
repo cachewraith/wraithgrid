@@ -134,7 +134,9 @@ export class ChatBus {
     this.forgotten.delete(paneId)
     let p = this.loaded.get(paneId)
     if (!p) {
-      p = this.api.load(paneId).then((raw) => {
+      const mine = (p = this.api.load(paneId).then((raw) => {
+        // Forgotten (and maybe opened again) while reading: a newer load owns the view (#140).
+        if (this.loaded.get(paneId) !== mine) return
         const saved = parseThread(raw)
         const live = this.thread(paneId)
         this.set(paneId, {
@@ -146,7 +148,7 @@ export class ChatBus {
           restored: saved.items.length,
           models: live.models.length ? live.models : saved.models
         })
-      })
+      }))
       this.loaded.set(paneId, p)
     }
     return p

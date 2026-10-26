@@ -607,6 +607,12 @@ export function createAppStore({
   /** Each project's last focused chat: where a preview's report goes (#74). */
   const lastChat = new Map<string, string>()
 
+  /** False only when the CLI's model list says the chosen model has no effort levels. */
+  const takesEffort = (models: ChatModel[], model: string | null): boolean => {
+    const m = models.find((x) => x.value === (model ?? 'default'))
+    return !m || m.efforts.length > 0
+  }
+
   const store = createStore<AppState>()((set, get) => {
     const patchRuntime = (paneId: string, patch: Partial<PaneRuntime>): void => {
       const cur = get().runtime[paneId]
@@ -650,7 +656,7 @@ export function createAppStore({
         // A conversation begun in the terminal view carries on here.
         continueLast: !pane.chatSessionId && pane.hasConversation && pane.resume,
         model: pane.model,
-        effort: pane.effort,
+        effort: takesEffort(chat.thread(paneId).models, pane.model) ? pane.effort : null,
         mode: pane.chatMode
       })
       if (!get().runtime[paneId]) {

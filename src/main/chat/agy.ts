@@ -255,7 +255,11 @@ export function createAgyAdapter(): ChatAdapter {
         'stream-json',
         ...(sessionId ? ['--conversation', sessionId] : continueLast ? ['--continue'] : []),
         ...(model ? ['--model', model] : []),
-        ...(model && effort && effortModels.has(model) ? ['--effort', effort] : []),
+        // The first start comes before `agy models` answered: then the window's pick stands
+        // (it leaves effort out for a model its saved list says has none, #140).
+        ...(model && effort && (!effortModels.size || effortModels.has(model))
+          ? ['--effort', effort]
+          : []),
         ...(MODE_ARGS[mode] ?? [])
       ]
     },

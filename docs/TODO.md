@@ -3,7 +3,7 @@
 ## Now
 - #76 Rust host: phase 3 (macOS + Windows) and 4 (default on, drop node-pty) left; phase 5 arm64 binary never run on real arm64; old `~/.wraithgrid/bin/wraithgrid-host-*` versions on remote machines are never removed
 - CI flakes fixed 2026-10-27 (PR #152): chat.spec.ts:299 (sideways-wheel noise paused follow), chat-history.spec.ts (caret placed a frame late collapsed a select-all). Still seen once locally: responsive.spec.ts:131 (Settings nav heading not hidden in a small window), passed 3/3 on rerun
-- Audit (2026-10-26) bugs: #140 smaller bugs (checklist). #139 fixed on fix/stale-diff-20261026. #135–#138 fixed (PR #148; #138 needs a real cancelled pkexec prompt to see live)
+- Audit (2026-10-26) bugs: all fixed (#135–#138 PR #148, #139 PR #150, #140 PR #151). Not seen live: #138 cancelled pkexec prompt, #140 renderer-crash reattach, codex cancel/stop paths, agy first-start effort
 - Audit (2026-10-26) perf: #141 done (PR #149); not measured live yet (a DevTools profile of a long streaming chat before/after would confirm)
 - #41 (2026-10-22): agy in the chat UI (`src/main/chat/agy.ts`, `chat: true`); agy 1.4.4 has `-p --input-format/--output-format stream-json`, `--model/--effort/--mode`, `--continue/--conversation`; also set its `resumeArgs`
 - #40 (2026-10-22): Codex CLI in the chat UI (`src/main/chat/codex.ts` adapter, `chat: true`; `codex exec --json` vs `app-server` to decide) + codex sign-in dialog (`codex login --device-auth`/`status`; login.ts per-CLI)

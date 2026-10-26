@@ -3,7 +3,13 @@
 // rewritten on every pointer move. It stays set after release (it equals the saved width):
 // clearing it before React renders the saved width would snap the panel back and animate it
 // forward again, moving the handle away from the pointer.
-import { useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject
+} from 'react'
 import { setPanelDragging } from '../lib/panel-drag'
 
 interface Props {
@@ -32,6 +38,10 @@ export function EdgeResizer({
   onReset
 }: Props) {
   const [dragging, setDragging] = useState(false)
+  // Ends a drag the panel didn't live to see released (#140): its window listeners and the
+  // app-wide drag flag (which holds pty resizes and the text reveal) must not stay behind.
+  const abort = useRef<(() => void) | null>(null)
+  useEffect(() => () => abort.current?.(), [])
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     const el = target.current
@@ -51,12 +61,16 @@ export function EdgeResizer({
       width = clamp(startW + sign * (ev.clientX - startX))
       el.style.setProperty(cssVar, `${width}px`)
     }
-    const end = (): void => {
+    const stop = (): void => {
+      abort.current = null
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', end)
-      setDragging(false)
       setPanelDragging(false)
+    }
+    const end = (): void => {
+      stop()
+      setDragging(false)
       onCommit(width)
     }
     // The release point decides the saved width: a busy renderer can drop or coalesce the
@@ -68,6 +82,7 @@ export function EdgeResizer({
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', end)
+    abort.current = stop
   }
 
   return (
