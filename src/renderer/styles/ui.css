@@ -1104,95 +1104,235 @@ input[type='color']::-webkit-color-swatch {
   color: var(--fa);
 }
 
-/* ---- claude asks (AskUserQuestion): answered in the chat, flat rows ------------------ */
+/* ---- claude asks (AskUserQuestion, #127): one question at a time, no inner scroll ---- */
 
 .cq {
-  border: 1px solid var(--line);
-  border-radius: calc(12px * var(--rs, 1));
-  background: var(--panel, var(--bg2));
-  padding: 12px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: min(60vh, 520px);
-  overflow: auto;
+  padding: 14px 16px 12px;
+  border-radius: calc(14px * var(--rs, 1));
+  background: color-mix(in srgb, var(--tx) 5%, var(--bg));
   animation: chat-rise 0.3s var(--ease-spring) both;
 }
-.cq-hd {
+.cq-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.cq-who {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  font-size: 12.5px;
+  color: var(--mu);
+}
+.cq-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cq-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: calc(6px * var(--rs, 1));
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: color-mix(in srgb, var(--fa) 70%, transparent);
+  cursor: pointer;
+}
+.cq-tab:hover {
+  color: var(--tx);
+}
+.cq-tab.on {
+  background: var(--sel);
+  color: var(--tx);
+}
+.cq-tab.did {
+  color: var(--fa);
+}
+.cq-tab.did svg {
+  color: var(--ok);
+}
+.cq-n {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fa);
-  margin-bottom: 2px;
 }
 .cq-q {
-  font-size: 13.5px;
-  font-weight: 500;
-  margin-bottom: 8px;
+  margin: 4px 0 12px;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.45;
-}
-.cq-multi {
-  font-weight: 400;
-  color: var(--fa);
-  font-size: 12px;
+  color: var(--tx);
 }
 .cq-opts {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--line);
+  gap: 2px;
 }
 .cq-opt,
 .cq-other {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 10px;
+  align-items: start;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-radius: calc(9px * var(--rs, 1));
   background: none;
   color: var(--tx);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
+.cq-other {
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  padding-block: 6px;
+  cursor: text;
+}
 .cq-opt:hover {
   background: var(--hover);
 }
-.cq-opt.on,
-.cq-other.on {
+.cq-opt.on {
   background: var(--sel);
 }
 .cq-opt:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent);
   outline-offset: -2px;
 }
+.cq-k {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1px solid var(--line);
+  border-radius: calc(4px * var(--rs, 1));
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fa);
+}
+.cq-opt.on .cq-k {
+  color: var(--tx);
+  border-color: var(--line2);
+}
+.cq-other .cq-k {
+  margin-top: 0;
+}
 .cq-txt {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 .cq-lb {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.cq-rec {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ok);
 }
 .cq-ds {
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--fa);
-  line-height: 1.45;
 }
-.cq-other .cq-lb {
-  flex: none;
-  color: var(--mu);
+.cq-tick {
+  display: flex;
+  margin-top: 3px;
+  color: var(--tx);
 }
 .cq-other input {
-  flex: 1;
-  min-height: 30px;
+  min-height: 34px;
 }
 .cq-ft {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.cq-keys {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fa);
+}
+.cq-keys kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: calc(4px * var(--rs, 1));
+}
+.cq-keys .cq-kic {
+  display: inline-flex;
+  vertical-align: -2px;
+  padding: 1px 2px;
+}
+.cq-kic svg {
+  width: 10px;
+  height: 10px;
+}
+@container pane (max-width: 520px) {
+  .cq-keys {
+    visibility: hidden;
+  }
+  .cq-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .cq-tabs {
+    margin-left: 0;
+    max-width: 100%;
+  }
+}
+/* The tool row of a question: one quiet line, amber word while it waits (no border). */
+.ct.ct-ask,
+.ct.ct-ask.ct-waiting {
+  border-color: transparent;
+  background: none;
+  animation: none;
+}
+.ct-ask .ct-h {
+  cursor: default;
+}
+.ct-ask .ct-state {
+  font-family: var(--font-mono);
+}
+.ct-ask.ct-done .ct-state {
+  color: var(--fa);
+}
+/* The message box while the questions wait: dimmed, still usable. */
+.cc.wait .cc-box {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.cc.wait .cc-box:focus-within {
+  opacity: 1;
 }
 
 /* ---- Scheduled chats (#77, cards #118): flat borderless cards, mono times ---------- */

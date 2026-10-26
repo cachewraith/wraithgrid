@@ -219,10 +219,28 @@ test('chat pane: streamed answer, approval, restore, no leftovers', async () => 
     // ---- Claude asks (AskUserQuestion): answered in the chat, the picks go back to it.
     await composer(win).fill('ask me')
     await composer(win).press('Enter')
+    // One question at a time (#127): tabs by header, "1 of 2", keys pick, a pick moves on.
     const asks = pane(win).getByRole('dialog', { name: 'Claude asks' })
     await expect(asks).toContainText('Which color?')
+    await expect(asks).toContainText('1 of 2')
+    await expect(asks).not.toContainText('Which sizes?')
+    const tabs = asks.getByRole('tablist', { name: 'Questions' })
+    await expect(tabs.getByRole('tab', { name: 'Color' })).toHaveAttribute('aria-selected', 'true')
+    await expect(asks.getByRole('button', { name: 'Next' })).toBeDisabled()
+    // The tool row is one quiet line; the message box says what to do.
+    const askRow = pane(win).locator('.ct-ask')
+    await expect(askRow).toContainText('Claude asks 2 questions')
+    await expect(askRow).toContainText('waiting for you')
+    await expect(composer(win)).toHaveAttribute('placeholder', /Answer the questions above/)
+    await win.keyboard.press('2')
+    await expect(asks).toContainText('Which sizes?')
+    await expect(asks).toContainText('2 of 2 · pick any')
+    await expect(tabs.getByRole('tab', { name: 'Color' })).toHaveClass(/did/)
     await expect(asks.getByRole('button', { name: 'Answer' })).toBeDisabled()
-    await asks.getByRole('radio', { name: /^Blue/ }).click()
+    // Back keeps the pick.
+    await asks.getByRole('button', { name: 'Back' }).click()
+    await expect(asks.getByRole('radio', { name: /^Blue/ })).toHaveAttribute('aria-checked', 'true')
+    await asks.getByRole('button', { name: 'Next' }).click()
     await asks.getByRole('checkbox', { name: /^S$/ }).click()
     await asks.getByLabel('Other answer: Which sizes?').fill('XL')
     await asks.getByRole('button', { name: 'Answer' }).click()
@@ -230,6 +248,8 @@ test('chat pane: streamed answer, approval, restore, no leftovers', async () => 
     await expect(pane(win).locator('.cmsg.agent').last()).toContainText(
       'You picked: Blue; sizes S, XL'
     )
+    await expect(askRow).toContainText('Claude asked 2 questions')
+    await expect(askRow).toContainText('answered')
 
     // ---- A tool that needs approval: the pane says so, Allow runs it.
     await composer(win).fill('run it')

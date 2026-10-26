@@ -111,6 +111,33 @@ export const ToolCard = memo(function ToolCard({
     cwd && item.subtitle.startsWith(`${cwd}/`) ? item.subtitle.slice(cwd.length + 1) : item.subtitle
   const verb = KIND_LABEL[item.toolKind]
   const hasBody = !!item.preview || !!item.output || !!item.result
+  // Claude's questions (#127): one quiet line; the questions themselves are in the card below.
+  const asked = item.approval?.questions?.length ?? 0
+  if (asked) {
+    const word =
+      state === 'waiting'
+        ? 'waiting for you'
+        : item.approval!.decided === 'allow'
+          ? 'answered'
+          : item.approval!.decided === 'deny'
+            ? 'skipped'
+            : ''
+    return (
+      <div className={`ct ct-ask ct-${state}`}>
+        <div className="ct-h">
+          <span className="ct-ic">
+            <Icon small />
+          </span>
+          <span className="ct-name">
+            Claude {state === 'waiting' ? 'asks' : 'asked'} {asked}{' '}
+            {asked === 1 ? 'question' : 'questions'}
+          </span>
+          <span className="ct-sub" />
+          <span className="ct-state">{word}</span>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className={`ct ct-${state}${open ? ' open' : ''}`}>
       <button
