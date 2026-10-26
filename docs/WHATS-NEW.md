@@ -1,4 +1,21 @@
-# What's new in 1.22.1: web preview, and chats stay chats
+# What's new in 1.23.0: scheduled cards, working logos and a bigger About
+
+*v1.23.0 · 2026-10-26*
+
+| New | What changed |
+|---|---|
+| Scheduled as cards | The Scheduled page shows each job as a card: where it runs, the prompt, and its next and last run at a glance. Queued **Send later** messages are cards above the jobs, with Cancel and Send now |
+| Working logos | While a chat thinks or runs a tool, its own logo (Claude, Codex, Antigravity…) pops and turns instead of three bouncing dots. Its row in the sidebar, a closed project that's working and the collapsed rail move the same way |
+| Words blur in | Answers come in word by word from a slight blur, and nothing trails the last word |
+| A bigger About | Updates shows the version large and each install step as it happens: Download, Verify, Ready, Restart. What's new lists every version beside its notes, with new features as cards and fixes as a list |
+
+| Fix | What changed |
+|---|---|
+| "Scheduled run done" | No longer shows up for an ordinary chat when a scheduled run was left over from an earlier session; such a run is now closed quietly when Wraithgrid starts |
+
+---
+
+## Previously, in 1.22.1: web preview, and chats stay chats
 
 *v1.22.1 · 2026-10-25*
 
