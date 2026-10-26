@@ -271,22 +271,10 @@
 .cmsg-tools:focus-within {
   opacity: 1;
 }
-/* While an answer streams, a small muted dot after the text (#62), not a block cursor. */
-.cmsg.streaming .md > :last-child::after {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 4px;
-  vertical-align: 0.1em;
-  border-radius: 50%;
-  background: var(--fa);
-  animation: chat-dot 1.4s ease-in-out infinite;
-}
-
-/* Streaming text (#62): each new word fades in, each new block eases up 2px as it starts. */
+/* Streaming text (#62, #120): each new word comes in from a slight blur, each new block eases
+   up 2px as it starts; nothing trails the last word. */
 .md-w {
-  animation: md-word 260ms ease-out both;
+  animation: md-word 380ms ease-out both;
 }
 .md-in {
   animation: md-block 220ms var(--ease-out) both;
@@ -753,22 +741,16 @@ li.done > .md-box,
   font-size: 12.5px;
   animation: chat-fade 0.3s var(--ease-out);
 }
-.cw-dots {
-  display: inline-flex;
-  gap: 3px;
+/* The chat's own provider logo pops and turns, like its sidebar row (#120, #121). */
+.cw-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
 }
-.cw-dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--acct);
-  animation: chat-bounce 1.2s ease-in-out infinite;
-}
-.cw-dots i:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.cw-dots i:nth-child(3) {
-  animation-delay: 0.3s;
+.cw-logo .provider-logo {
+  animation: ui-icon-pop 1600ms ease-in-out infinite;
+  transform-origin: center;
 }
 /* A light passing over the label, like Claude's "thinking" shimmer. */
 .cw-label {
@@ -1202,29 +1184,13 @@ li.done > .md-box,
 @keyframes md-word {
   from {
     opacity: 0;
+    filter: blur(4px);
   }
 }
 @keyframes md-block {
   from {
     opacity: 0;
     transform: translateY(2px);
-  }
-}
-@keyframes chat-dot {
-  50% {
-    opacity: 0.35;
-  }
-}
-@keyframes chat-bounce {
-  0%,
-  80%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.45;
-  }
-  40% {
-    transform: translateY(-4px);
-    opacity: 1;
   }
 }
 @keyframes chat-shimmer {
@@ -1272,7 +1238,7 @@ li.done > .md-box,
   .chat-working,
   .chat-bg,
   .chat-bg .pn-spin,
-  .cw-dots i,
+  .cw-logo .provider-logo,
   .cw-label,
   .ct-waiting,
   .ca,
@@ -1283,7 +1249,6 @@ li.done > .md-box,
   .chat-viewer,
   .md-copy.done,
   .cc.busy .cc-box::before,
-  .cmsg.streaming .md > :last-child::after,
   .md-w,
   .md-in {
     animation: none;

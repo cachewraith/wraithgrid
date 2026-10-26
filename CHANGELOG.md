@@ -3,6 +3,8 @@
 ## 2026-10-26
 
 - [schedule] "Scheduled run done" only for a run this launch started (#117): a run left `running` by an earlier launch is settled quietly on the first tick (failed "interrupted", done if its chat is in History), so a later ordinary turn in that chat no longer notifies; decision in pure `settleOf` (files: src/shared/schedule.ts, src/renderer/app/store.ts, tests/unit/schedule.test.ts)
+- [chat] No dots while a chat generates (#120): "Thinking"/"Working" shows the chat's own provider logo popping and turning instead of three bouncing dots; streamed words blur in (opacity + 4px blur, 380 ms) and no dot trails the text (files: src/renderer/components/chat/ChatView.tsx, src/renderer/styles/chat.css, tests/e2e/chat.spec.ts)
+- [ui] Working logos in the sidebar (chat rows, closed projects, rail) pop and turn 45° (#121); one shared `ui-icon-pop` keyframe with the chat indicator (files: src/renderer/styles/ui.css)
 - [schedule] Scheduled page as cards (#118, mockup A): jobs in a 2-column grid of flat borderless cards (project · account + switch, 2-line prompt, target · mode · rule, Next/Last footer + ⋯), 1 column at ≤760px of main; queued messages are full-width cards; `running` gets the sidebar sweep; "Queued messages N" / "Jobs N" labels (files: src/renderer/components/ScheduledView.tsx, src/renderer/styles/ui.css)
 
 ## 2026-10-25
