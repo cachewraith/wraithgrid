@@ -207,6 +207,8 @@ const motionReduced = (): boolean =>
  */
 /** How long text must stop growing before the working line shows under it again (#129). */
 const TEXT_QUIET_MS = 1200
+/** How long after a sideways wheel the chat's own upward scroll is taken as its noise. */
+const SIDEWAYS_MS = 150
 
 function usePacedText(text: string, streaming: boolean, visible: boolean): string {
   const [paced] = useState(() => streaming && !motionReduced())
@@ -392,13 +394,18 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
     stick.current = false
     setAtBottom(false)
   }
+  // A sideways swipe (over a wide code block) still scrolls the chat by its few px of vertical
+  // noise, sometimes: that upward move is not the reader going back.
+  const sidewaysAt = useRef(0)
   const onScroll = (): void => {
     const el = scrollRef.current
     if (!el) return
     // Content growing can increase the bottom gap before its resize callback runs.
     // Only upward movement pauses follow; a gap by itself is not user input.
     const maxTop = el.scrollHeight - el.clientHeight
-    if (el.scrollTop < Math.min(lastScrollTop.current, maxTop) - 0.5) stick.current = false
+    const sideways = performance.now() - sidewaysAt.current < SIDEWAYS_MS
+    if (!sideways && el.scrollTop < Math.min(lastScrollTop.current, maxTop) - 0.5)
+      stick.current = false
     lastScrollTop.current = el.scrollTop
     // A small upward movement remains paused until the actual bottom is reached.
     if (maxTop - el.scrollTop < 1) stick.current = true
@@ -463,7 +470,8 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
         ref={scrollRef}
         onScroll={onScroll}
         onWheelCapture={(e) => {
-          if (wheelScrollsUp(e.nativeEvent, scrollRef.current)) pauseFollow()
+          if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) sidewaysAt.current = performance.now()
+          else if (wheelScrollsUp(e.nativeEvent, scrollRef.current)) pauseFollow()
         }}
         onTouchStartCapture={pauseFollow}
         onPointerDown={(e) => {
