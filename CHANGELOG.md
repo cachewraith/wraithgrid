@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-26
+
+- [schedule] Scheduled page as cards (#118, mockup A): jobs in a 2-column grid of flat borderless cards (project · account + switch, 2-line prompt, target · mode · rule, Next/Last footer + ⋯), 1 column at ≤760px of main; queued messages are full-width cards; `running` gets the sidebar sweep; "Queued messages N" / "Jobs N" labels (files: src/renderer/components/ScheduledView.tsx, src/renderer/styles/ui.css)
+
 ## 2026-10-25
 
 - [release] v1.22.1: v1.22.0 + the Send later e2e fix, so the Linux release build completes (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)

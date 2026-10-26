@@ -22,7 +22,7 @@ import { ContextMenu, menuPoint, type MenuPoint } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ProjectIcon } from './ProjectIcon'
 import { ProviderLogo } from './ProviderLogo'
-import { IconMore, IconPlus } from './icons'
+import { IconClock, IconMore, IconPlus } from './icons'
 import { useNow } from './ProjectView'
 
 const RESULT_TONE: Record<RunResult, string> = {
@@ -68,27 +68,28 @@ export function ScheduledView() {
         </header>
         {queued.length ? (
           <section className="sch-q" aria-label="Queued messages">
-            <h2 className="pj-h">Queued messages</h2>
-            <div className="sch-list">
+            <h2 className="pj-h">
+              Queued messages <span className="sch-n">{queued.length}</span>
+            </h2>
+            <div className="sch-qlist">
               {queued.map((j) => {
                 const paneId = j.target.kind === 'chat' ? j.target.paneId : ''
                 const ws = workspaces.find((w) => w.id === j.wsId)
                 const title = ws?.panes.find((p) => p.id === paneId)?.title ?? 'a chat'
                 return (
-                  <div key={j.id} className="sch-row sch-qrow">
+                  <div key={j.id} className="sch-qcard">
+                    <IconClock small />
                     <div className="sch-main">
-                      <div className="sch-t">{j.prompt.split('\n')[0]}</div>
+                      <div className="sch-qt">{j.prompt.split('\n')[0]}</div>
                       <div className="sch-where">
-                        <span>{ws?.name ?? 'project missing'}</span>·<span>“{title}”</span>
+                        {ws ? <ProjectIcon icon={ws.icon} size={14} /> : null}
+                        <span>{ws?.name ?? 'project missing'}</span>·<span>“{title}”</span>·
+                        <span className="sch-m">
+                          {j.nextAt === null
+                            ? 'after the reset'
+                            : `${fmtWhen(j.nextAt, now)} · ${j.nextAt > now ? `in ${fmtUntil(j.nextAt, now)}` : 'now'}`}
+                        </span>
                       </div>
-                    </div>
-                    <div className="sch-cell">
-                      <span className="sch-k">Sends</span>
-                      <span className="sch-m">
-                        {j.nextAt === null
-                          ? 'after the reset'
-                          : `${fmtWhen(j.nextAt, now)} · ${j.nextAt > now ? `in ${fmtUntil(j.nextAt, now)}` : 'now'}`}
-                      </span>
                     </div>
                     <button className="btn sm gh" onClick={() => actions.deleteJob(j.id)}>
                       Cancel
@@ -108,95 +109,107 @@ export function ScheduledView() {
             <p>Start chats on a schedule, or when a limit resets.</p>
           </div>
         ) : (
-          <div className="sch-list" role="list" aria-label="Scheduled jobs">
-            {jobs.map((j) => {
-              const ws = workspaces.find((w) => w.id === j.wsId)
-              const account = accounts.find((a) => a.id === j.accountId)
-              const last = j.runs[0]
-              const target =
-                j.target.kind === 'new'
-                  ? 'new chat'
-                  : `continues “${
-                      ws?.panes.find((p) => p.id === (j.target as { paneId: string }).paneId)
-                        ?.title ??
-                      ws?.history.find((h) => h.pane.id === (j.target as { paneId: string }).paneId)
-                        ?.pane.title ??
-                      'a chat'
-                    }”`
-              return (
-                <div
-                  key={j.id}
-                  role="listitem"
-                  className={`sch-row${j.enabled ? '' : ' off'}`}
-                  onClick={() => actions.openModal({ kind: 'job', jobId: j.id })}
-                  onContextMenu={openMenu(j)}
-                >
-                  <div className="sch-main">
-                    <div className="sch-t">{j.prompt.split('\n')[0]}</div>
-                    <div className="sch-where">
-                      {ws ? <ProjectIcon icon={ws.icon} size={14} /> : null}
-                      <span>{ws?.name ?? 'project missing'}</span>·
-                      {account ? (
-                        <ProviderLogo cli={account.cli} fallbackName={account.name} size={12} />
-                      ) : null}
-                      <span>{account?.name ?? 'account missing'}</span>·<span>{target}</span>
-                      {j.chatMode ? (
-                        <span>· {CHAT_MODE_LABEL[j.chatMode].toLowerCase()}</span>
-                      ) : null}
+          <section aria-label="Jobs">
+            {queued.length ? (
+              <h2 className="pj-h">
+                Jobs <span className="sch-n">{jobs.length}</span>
+              </h2>
+            ) : null}
+            <div className="sch-list" role="list" aria-label="Scheduled jobs">
+              {jobs.map((j) => {
+                const ws = workspaces.find((w) => w.id === j.wsId)
+                const account = accounts.find((a) => a.id === j.accountId)
+                const last = j.runs[0]
+                const target =
+                  j.target.kind === 'new'
+                    ? 'new chat'
+                    : `continues “${
+                        ws?.panes.find((p) => p.id === (j.target as { paneId: string }).paneId)
+                          ?.title ??
+                        ws?.history.find(
+                          (h) => h.pane.id === (j.target as { paneId: string }).paneId
+                        )?.pane.title ??
+                        'a chat'
+                      }”`
+                return (
+                  <div
+                    key={j.id}
+                    role="listitem"
+                    className={`sch-card${j.enabled ? '' : ' off'}`}
+                    onClick={() => actions.openModal({ kind: 'job', jobId: j.id })}
+                    onContextMenu={openMenu(j)}
+                  >
+                    <div className="sch-top">
+                      <div className="sch-where">
+                        {ws ? <ProjectIcon icon={ws.icon} size={14} /> : null}
+                        <span>{ws?.name ?? 'project missing'}</span>·
+                        {account ? (
+                          <ProviderLogo cli={account.cli} fallbackName={account.name} size={12} />
+                        ) : null}
+                        <span>{account?.name ?? 'account missing'}</span>
+                      </div>
+                      <button
+                        className={`sw${j.enabled ? ' on' : ''}`}
+                        role="switch"
+                        aria-checked={j.enabled}
+                        aria-label={j.enabled ? 'Turn off' : 'Turn on'}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          actions.setJobEnabled(j.id, !j.enabled)
+                        }}
+                      ></button>
+                    </div>
+                    <div className="sch-p" title={j.prompt}>
+                      {j.prompt.split('\n')[0]}
+                    </div>
+                    <div className="sch-tgt">
+                      {target}
+                      {j.chatMode ? ` · ${CHAT_MODE_LABEL[j.chatMode].toLowerCase()}` : ''} ·{' '}
+                      <span className="sch-m">{describeWhen(j.when, account?.name)}</span>
+                    </div>
+                    <div className="sch-ft">
+                      <div className="sch-cell">
+                        <span className="sch-k">Next</span>
+                        <span className="sch-m">
+                          {!j.enabled
+                            ? 'off'
+                            : j.nextAt === null
+                              ? j.when.kind === 'reset'
+                                ? 'after the reset'
+                                : '–'
+                              : `${fmtWhen(j.nextAt, now)} · ${j.nextAt > now ? `in ${fmtUntil(j.nextAt, now)}` : 'now'}`}
+                        </span>
+                      </div>
+                      <div className="sch-cell">
+                        <span className="sch-k">Last</span>
+                        <span className="sch-m" title={last?.note || undefined}>
+                          {last ? (
+                            <>
+                              <span className={`sch-r ${RESULT_TONE[last.result]}`}>
+                                {last.result}
+                              </span>
+                              {' · '}
+                              {last.note && last.result !== 'done' ? last.note : ago(last.at, now)}
+                            </>
+                          ) : (
+                            '–'
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        className="icon-btn sm"
+                        aria-label={`Job actions: ${j.prompt.split('\n')[0]}`}
+                        aria-haspopup="menu"
+                        onClick={openMenu(j)}
+                      >
+                        <IconMore small />
+                      </button>
                     </div>
                   </div>
-                  <div className="sch-cell">
-                    <span className="sch-k">When</span>
-                    <span className="sch-m">{describeWhen(j.when, account?.name)}</span>
-                  </div>
-                  <div className="sch-cell">
-                    <span className="sch-k">Next</span>
-                    <span className="sch-m">
-                      {!j.enabled
-                        ? 'off'
-                        : j.nextAt === null
-                          ? j.when.kind === 'reset'
-                            ? 'after the reset'
-                            : '–'
-                          : `${fmtWhen(j.nextAt, now)} · ${j.nextAt > now ? `in ${fmtUntil(j.nextAt, now)}` : 'now'}`}
-                    </span>
-                  </div>
-                  <div className="sch-cell">
-                    <span className="sch-k">Last</span>
-                    <span className="sch-m" title={last?.note || undefined}>
-                      {last ? (
-                        <>
-                          <span className={`sch-r ${RESULT_TONE[last.result]}`}>{last.result}</span>
-                          {' · '}
-                          {last.note && last.result !== 'done' ? last.note : ago(last.at, now)}
-                        </>
-                      ) : (
-                        '–'
-                      )}
-                    </span>
-                  </div>
-                  <button
-                    className={`sw${j.enabled ? ' on' : ''}`}
-                    role="switch"
-                    aria-checked={j.enabled}
-                    aria-label={j.enabled ? 'Turn off' : 'Turn on'}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      actions.setJobEnabled(j.id, !j.enabled)
-                    }}
-                  ></button>
-                  <button
-                    className="icon-btn sm"
-                    aria-label={`Job actions: ${j.prompt.split('\n')[0]}`}
-                    aria-haspopup="menu"
-                    onClick={openMenu(j)}
-                  >
-                    <IconMore small />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </section>
         )}
       </div>
       {menu ? (
