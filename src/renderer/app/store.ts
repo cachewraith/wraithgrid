@@ -755,6 +755,12 @@ export function createAppStore({
 
     /** `wraithgrid new|split` (H6): picks the account, workspace and folder, then adds the pane. */
     const runCliAction = (action: CliAction): CliActionResult => {
+      // As if typed: Enter in the pane means it has a conversation to resume after a restart.
+      if (action.kind === 'sent') {
+        if (!findPane(get().config, action.paneId)) return { ok: false, error: 'No such pane.' }
+        get().markConversation(action.paneId)
+        return { ok: true, paneId: action.paneId }
+      }
       const c = get().config
       const byName = <T extends { id: string; name: string }>(
         list: T[],
