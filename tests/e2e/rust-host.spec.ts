@@ -1,5 +1,5 @@
-// ADR 0004 phase 2: Settings → Advanced "Use the Rust host" starts the Rust background host
-// instead of the Node one; off by default. Linux builds only (the cargo release binary here).
+// ADR 0004 phase 4: panes run in the Rust background host by default; Settings → Advanced
+// "Use the Node host" goes back to the Node one. Linux here (the cargo release binary).
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -23,8 +23,8 @@ const rustHosts = (): number[] => {
   }
 }
 
-for (const on of [true, false]) {
-  test(`the setting ${on ? 'on runs panes in the Rust host' : 'off (default) keeps the Node host'}`, async () => {
+for (const node of [false, true]) {
+  test(`${node ? '"Use the Node host" runs the Node host' : 'the default runs panes in the Rust host'}`, async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wg-rusthost-'))
     const home = path.join(tmp, 'home')
     const data = path.join(tmp, 'data')
@@ -51,13 +51,13 @@ for (const on of [true, false]) {
         settings: {
           checkUpdatesOnLaunch: false,
           shellPath: path.join(ROOT, 'tests/fixtures/fake-shell.sh'),
-          ...(on ? { rustHost: true } : {})
+          ...(node ? { nodeHost: true } : {})
         }
       })
     )
     const before = new Set(rustHosts())
-    // Only the setting decides here, not a WRAITHGRID_RUST_HOST from the test run.
-    const { WRAITHGRID_RUST_HOST: _forced, ...rest } = process.env as Record<string, string>
+    // Only the setting decides here, not a WRAITHGRID_NODE_HOST from the test run.
+    const { WRAITHGRID_NODE_HOST: _forced, ...rest } = process.env as Record<string, string>
     const env = { ...rest, HOME: home, WRAITHGRID_USER_DATA_DIR: data }
     const app = await electron.launch({ args: [path.join(ROOT, 'out/main/index.js')], env })
     try {
@@ -65,7 +65,7 @@ for (const on of [true, false]) {
       const rows = win.locator('section.pane .xterm-rows')
       await expect(rows).toContainText('SHELL-ARGS=')
       const mine = rustHosts().filter((pid) => !before.has(pid))
-      expect(mine).toHaveLength(on ? 1 : 0)
+      expect(mine).toHaveLength(node ? 0 : 1)
       // Typing reaches the pane through whichever host runs it.
       await win.locator('section.pane .xterm-screen').click()
       await win.keyboard.type('through the host\r')
@@ -75,9 +75,9 @@ for (const on of [true, false]) {
       await win.getByRole('button', { name: 'More' }).click()
       await win.getByRole('menuitem', { name: 'Settings' }).click()
       await win.getByRole('tab', { name: 'Advanced' }).click()
-      const sw = win.getByRole('switch', { name: 'Use the Rust host' })
+      const sw = win.getByRole('switch', { name: 'Use the Node host' })
       await expect(sw).toBeEnabled()
-      await expect(sw).toHaveAttribute('aria-checked', String(on))
+      await expect(sw).toHaveAttribute('aria-checked', String(node))
     } finally {
       await app.close()
       fs.rmSync(tmp, { recursive: true, force: true })

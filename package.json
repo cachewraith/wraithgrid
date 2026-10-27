@@ -28,7 +28,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:host": "electron-vite build && cargo build --release --manifest-path host-rs/Cargo.toml && vitest run --config vitest.host.config.ts",
-    "test:e2e": "electron-vite build && playwright test",
+    "test:e2e": "electron-vite build && cargo build --release --locked --manifest-path host-rs/Cargo.toml && playwright test",
     "dist": "electron-vite build && electron-builder --publish never",
     "dist:linux": "electron-vite build && cargo build --release --manifest-path host-rs/Cargo.toml && bash scripts/build-remote-hosts.sh && electron-builder --linux --publish never",
     "dist:linux:portable": "bash scripts/dist-linux-docker.sh",

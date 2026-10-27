@@ -189,9 +189,13 @@ const rustHostBin = ((): string | null => {
   return existsSync(bin) ? bin : null
 })()
 
-/** Settings → Advanced → "Use the Rust host" (WRAITHGRID_RUST_HOST=1 in tests). */
+/**
+ * The Rust host, the default since ADR 0004 phase 4, unless Settings → Advanced "Use the Node
+ * host" (WRAITHGRID_NODE_HOST=1 in tests) asks for the old one. A build without the binary
+ * runs the Node host anyway.
+ */
 const wantRustHost = (): boolean =>
-  store.get().settings.rustHost || process.env.WRAITHGRID_RUST_HOST === '1'
+  !store.get().settings.nodeHost && process.env.WRAITHGRID_NODE_HOST !== '1'
 
 /** A static Rust host this build can copy to a Linux machine (scripts/build-remote-hosts.sh). */
 async function remoteHostBinary(target: string): Promise<Buffer | null> {
