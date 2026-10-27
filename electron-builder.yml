@@ -105,6 +105,11 @@ win:
       arch:
         - x64
   icon: build/icon.png
+  # The Rust background host (ADR 0004 phase 3b), off unless Settings → Advanced turns it on;
+  # `bun run dist:win` builds it first.
+  extraResources:
+    - from: host-rs/target/release/wraithgrid-host.exe
+      to: wraithgrid-host.exe
 nsis:
   oneClick: false
   perMachine: false

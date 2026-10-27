@@ -531,6 +531,7 @@ dependencies = [
  "sha2",
  "tokio",
  "vt100",
+ "windows-sys",
 ]
 
 [[package]]

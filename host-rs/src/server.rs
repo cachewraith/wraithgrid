@@ -11,7 +11,6 @@ use std::time::{Duration, Instant};
 use regex::Regex;
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::protocol::{self, ClientFrame, PaneState, Role};
@@ -160,8 +159,12 @@ impl Host {
     }
 
     /// Serves one connection until it closes.
-    pub async fn accept(self: Arc<Self>, stream: UnixStream) {
-        let (mut read, mut write) = stream.into_split();
+    /// Serves one connection: a Unix socket, or a named pipe instance on Windows.
+    pub async fn accept<S>(self: Arc<Self>, stream: S)
+    where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + 'static,
+    {
+        let (mut read, mut write) = tokio::io::split(stream);
         let (out, mut out_rx) = mpsc::unbounded_channel::<String>();
         let backlog = Arc::new(AtomicUsize::new(0));
         let id = {
