@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  # The Rust pty host (ADR 0004, phase 1): its own checks, then the parity suite against the
-  # Node host. Linux only until phase 3; the runner's preinstalled Rust toolchain.
+  # The Rust pty host (ADR 0004): its own checks, then the parity suite against the Node host,
+  # on Linux here and on macOS in the build job (phase 3); the runner's preinstalled Rust.
   rust-host:
     runs-on: ubuntu-22.04
     steps:
@@ -91,6 +91,14 @@ jobs:
       - name: E2E smoke test
         if: runner.os == 'Linux'
         run: xvfb-run -a bun run test:e2e
+      # The Rust host on macOS (ADR 0004 phase 3): its tests and the parity suite against the
+      # Node host, as the rust-host job runs them on Linux.
+      - name: Rust host on macOS
+        if: runner.os == 'macOS'
+        run: |
+          cargo test --locked --manifest-path host-rs/Cargo.toml
+          bun run test:host
+          bash scripts/build-mac-host.sh
       - if: inputs.package
         run: bun run ${{ matrix.dist }}
         env:

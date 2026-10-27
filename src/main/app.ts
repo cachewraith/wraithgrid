@@ -181,7 +181,8 @@ const hostFiles = hostPaths({
  * when packaged, the cargo release build next to `out/` in development; null when there is none.
  */
 const rustHostBin = ((): string | null => {
-  if (process.platform !== 'linux') return null
+  // Linux and macOS (ADR 0004 phases 2, 3); Windows waits for its own ConPTY spawn.
+  if (process.platform !== 'linux' && process.platform !== 'darwin') return null
   const bin = app.isPackaged
     ? path.join(process.resourcesPath, 'wraithgrid-host')
     : path.join(__dirname, '../../host-rs/target/release/wraithgrid-host')

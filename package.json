@@ -33,7 +33,7 @@
     "dist:linux": "electron-vite build && cargo build --release --manifest-path host-rs/Cargo.toml && bash scripts/build-remote-hosts.sh && electron-builder --linux --publish never",
     "dist:linux:portable": "bash scripts/dist-linux-docker.sh",
     "dist:win": "electron-vite build && electron-builder --win --publish never",
-    "dist:mac": "electron-vite build && electron-builder --mac --publish never",
+    "dist:mac": "electron-vite build && bash scripts/build-mac-host.sh && electron-builder --mac --publish never",
     "postinstall": "electron-builder install-app-deps"
   },
   "devDependencies": {

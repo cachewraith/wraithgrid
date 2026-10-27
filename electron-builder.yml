@@ -132,6 +132,11 @@ mac:
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   extendInfo:
     LSMinimumSystemVersion: '12.0'
+  # The Rust background host (ADR 0004 phase 3), off unless Settings → Advanced turns it on:
+  # one universal binary for both apps (`bun run dist:mac` runs scripts/build-mac-host.sh).
+  extraResources:
+    - from: host-rs/target/release/wraithgrid-host
+      to: wraithgrid-host
 dmg:
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
 # In-app updates (electron-updater) read latest.yml / latest-linux.yml from this repo's
