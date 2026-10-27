@@ -1,7 +1,7 @@
 # TODO
 
 ## Now
-- #76 Rust host: 3a macOS done (never run on a real Mac: only CI's parity suite); 3b Windows done on feat/rust-host-windows-20261027 (only CI's smoke test: never run in the real app on Windows, nor with a real npm claude.cmd); 4a default on done (fallback: "Use the Node host"); 4b (remove the Node host and node-pty) after a release on 4a, ask the user first; phase 5 arm64 binary never run on real arm64; old `~/.wraithgrid/bin/wraithgrid-host-*` versions on remote machines are never removed
+- #76 Rust host: 3a macOS done (never run on a real Mac: only CI's parity suite); 3b Windows done on feat/rust-host-windows-20261027 (only CI's smoke test: never run in the real app on Windows, nor with a real npm claude.cmd); 4a default on done (fallback: "Use the Node host"); 4b (remove the Node host and node-pty) after a release on 4a, ask the user first; phase 5 arm64 binary never run on real arm64
 - CI flakes fixed 2026-10-27 (PR #152): chat.spec.ts:299 (sideways-wheel noise paused follow), chat-history.spec.ts (caret placed a frame late collapsed a select-all). Still seen once locally: responsive.spec.ts:131 (Settings nav heading not hidden in a small window), passed 3/3 on rerun
 - Audit (2026-10-26) bugs: all fixed (#135–#138 PR #148, #139 PR #150, #140 PR #151). Not seen live: #138 cancelled pkexec prompt, #140 renderer-crash reattach, codex cancel/stop paths, agy first-start effort
 - Audit (2026-10-26) perf: #141 done (PR #149); not measured live yet (a DevTools profile of a long streaming chat before/after would confirm)
