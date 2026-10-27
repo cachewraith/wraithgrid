@@ -1,7 +1,8 @@
 # ADR 0004: A Rust pty host
 
-- Status: **Proposed** (2026-10-26), issue #76. Phase 1 added the Rust host next to the Node
-  one; phase 2 (Settings → Advanced, Linux bundle) lets a user turn it on. Off by default.
+- Status: **Accepted** (2026-10-27), issue #76. Phases 1–3 and 5 done; phase 4a makes it the
+  default on Linux, macOS and Windows, with the Node host kept as a fallback setting until 4b
+  removes it and `node-pty`.
 
 ## Context
 
@@ -79,7 +80,14 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
   instead of `host.js` when `settings.rustHost` is on (`WRAITHGRID_RUST_HOST=1` in tests) and
   the binary exists; otherwise the Node host, as before. The switch takes effect when a host
   next starts.
-- Phase 5: with the setting on, a Linux machine reached over ssh gets this version's static
+- Phase 3: macOS gets one universal binary (lipo of arm64 + x64) for both apps; Windows runs
+  panes in a ConPTY of our own (portable-pty quotes every argument, and an npm `.cmd` CLI is a
+  ready `cmd.exe` line) and serves a named pipe. `host-rs/tests/smoke.rs` runs the built host
+  on every OS in CI.
+- Phase 4a: `settings.nodeHost` (Settings → Advanced "Use the Node host", off;
+  `WRAITHGRID_NODE_HOST=1` in tests) replaces `rustHost`, which configs saved as false and is
+  dropped on load, so everyone moves to Rust; a build without the binary runs the Node host.
+- Phase 5: with the Rust host in use, a Linux machine reached over ssh gets this version's static
   musl binary (x64; arm64 built in CI, not yet run on hardware) in `~/.wraithgrid/bin`, copied
   once and checked with `--version`; `wraithgrid-host stdio <version>` there joins (or starts)
   a host under `~/.wraithgrid/remote`. The window sends a `plan` (`src/main/remote-plan.ts`):
@@ -93,7 +101,8 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
 2. **Behind a setting**: Settings → Advanced "Use the Rust host" (off), the binary in the
    Linux bundle; dogfood.
 3. **macOS + Windows**: ConPTY, named pipe, signing/notarization; x64 + arm64 builds.
-4. **Default on**, then remove the Node host and `node-pty`.
+4. **Default on** (4a, done), then remove the Node host and `node-pty` (4b) once a release has
+   run on it.
 5. **Remote** (done behind the setting): the static binary on Linux ssh machines, so they
    need no Wraithgrid installed.
 

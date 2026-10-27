@@ -158,8 +158,12 @@ test('a workspace on another machine runs its panes there, over ssh, and they ou
       squash(`CLAUDE_CONFIG_DIR=${remoteHome}/.wraithgrid/accounts/personal`)
     )
     await expect(win.locator('.ws-mach', { hasText: 'lab' })).toBeVisible()
-    // With the Rust host on, the lab runs the binary copied there, not `wraithgrid host-stdio`.
-    if (process.env.WRAITHGRID_RUST_HOST === '1') {
+    // With the Rust host (the default) and this build's remote binaries, the lab runs the binary
+    // copied there, not `wraithgrid host-stdio`.
+    if (
+      process.env.WRAITHGRID_NODE_HOST !== '1' &&
+      fs.existsSync(path.join(ROOT, 'host-rs/target/remote'))
+    ) {
       // Named after app.getVersion(), which is Electron's own when run unpackaged like here.
       const binDir = path.join(remoteHome, '.wraithgrid/bin')
       const [bin] = fs.readdirSync(binDir).filter((f) => f.startsWith('wraithgrid-host-'))
