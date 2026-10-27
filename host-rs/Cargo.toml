@@ -19,6 +19,17 @@ sha2 = "0.11.1"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "signal", "io-std"] }
 vt100 = "0.18.1"
 
+# Windows (ADR 0004 phase 3b): our own ConPTY spawn, the lock's liveness check and the token.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Cryptography",
+  "Win32_System_Console",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+] }
+
 [profile.release]
 lto = true
 codegen-units = 1

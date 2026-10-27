@@ -99,6 +99,14 @@ jobs:
           cargo test --locked --manifest-path host-rs/Cargo.toml
           bun run test:host
           bash scripts/build-mac-host.sh
+      # Windows (phase 3b): clippy for the Windows code, and the tests, whose smoke test runs
+      # the built host over its named pipe with ConPTY panes (the parity suite is Unix only).
+      - name: Rust host on Windows
+        if: runner.os == 'Windows'
+        working-directory: host-rs
+        run: |
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked
       - if: inputs.package
         run: bun run ${{ matrix.dist }}
         env:

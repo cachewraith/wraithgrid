@@ -631,13 +631,11 @@ function CliRow() {
   )
 }
 
-/** The Rust background host (ADR 0004): off by default, Linux and macOS builds that have it. */
+/** The Rust background host (ADR 0004): off by default, in builds that have it. */
 function RustHostRow() {
   const actions = useActions()
   const on = useApp((s) => s.config.settings.rustHost)
   const available = useApp((s) => s.info.rustHost)
-  const unix = useApp((s) => s.info.platform === 'linux' || s.info.platform === 'darwin')
-  if (!unix) return null
   return (
     <div className="srow">
       <div>
