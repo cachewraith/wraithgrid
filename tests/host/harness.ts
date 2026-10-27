@@ -1,9 +1,7 @@
-// Starts the Node host (out/main/host.js under Electron as Node) or the Rust host
-// (host-rs/target/release/wraithgrid-host) on a temporary socket and talks NDJSON to it, so the
-// parity suite can run the same session against both (ADR 0004 §6).
+// Starts the Rust host (host-rs/target/release/wraithgrid-host) on a temporary socket and
+// talks NDJSON to it (ADR 0004 §6). The Node host it was compared with went in phase 4b.
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -11,13 +9,9 @@ import { Terminal } from '@xterm/headless'
 
 export const ROOT = path.resolve(__dirname, '../..')
 export const RUST_BIN = path.join(ROOT, 'host-rs/target/release/wraithgrid-host')
-// Through the package, which downloads the binary on first use (Electron 44 has no
-// postinstall): a fresh CI checkout has no node_modules/electron/dist yet.
-const ELECTRON = createRequire(__filename)('electron') as string
-const NODE_HOST = path.join(ROOT, 'out/main/host.js')
 export const APP_VERSION = '9.9.9-parity'
 
-export type Kind = 'node' | 'rust'
+export type Kind = 'rust'
 
 export interface Frame {
   t: string
@@ -84,13 +78,7 @@ export async function startHost(kind: Kind): Promise<HostProcess> {
     ...process.env,
     WRAITHGRID_HOST: JSON.stringify({ paths, appVersion: APP_VERSION })
   }
-  const proc =
-    kind === 'node'
-      ? spawn(ELECTRON, [NODE_HOST], {
-          env: { ...env, ELECTRON_RUN_AS_NODE: '1' },
-          stdio: ['ignore', out, out]
-        })
-      : spawn(RUST_BIN, [], { env, stdio: ['ignore', out, out] })
+  const proc = spawn(RUST_BIN, [], { env, stdio: ['ignore', out, out] })
   fs.closeSync(out)
   await until(
     () => fs.existsSync(paths.token) && fs.existsSync(paths.socket),

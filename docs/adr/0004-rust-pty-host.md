@@ -1,8 +1,7 @@
 # ADR 0004: A Rust pty host
 
-- Status: **Accepted** (2026-10-27), issue #76. Phases 1–3 and 5 done; phase 4a makes it the
-  default on Linux, macOS and Windows, with the Node host kept as a fallback setting until 4b
-  removes it and `node-pty`.
+- Status: **Accepted** (2026-10-27), issue #76. All phases done: the Rust host is the only
+  pty host on Linux, macOS and Windows; the Node host and `node-pty` are gone (phase 4b).
 
 ## Context
 
@@ -87,6 +86,11 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
 - Phase 4a: `settings.nodeHost` (Settings → Advanced "Use the Node host", off;
   `WRAITHGRID_NODE_HOST=1` in tests) replaces `rustHost`, which configs saved as false and is
   dropped on load, so everyone moves to Rust; a build without the binary runs the Node host.
+- Phase 4b: `src/host/index.ts`, the `host.js` build entry, `settings.nodeHost` and
+  `node-pty` are removed; `bun install` builds no native module. The Node host's server, screen
+  and pty manager live on in `tests/support/node-host/` as the in-process host of the client
+  unit tests (fake ptys only), and its headless-xterm screen is the parity suite's reference
+  for resizes. `@xterm/headless` and the serialize addon are dev dependencies now.
 - Phase 5: with the Rust host in use, a Linux machine reached over ssh gets this version's static
   musl binary (x64; arm64 built in CI, not yet run on hardware) in `~/.wraithgrid/bin`, copied
   once and checked with `--version`; `wraithgrid-host stdio <version>` there joins (or starts)
@@ -101,8 +105,7 @@ multi-webview (needed for the web preview, ADR 0003) is still unstable in Tauri 
 2. **Behind a setting**: Settings → Advanced "Use the Rust host" (off), the binary in the
    Linux bundle; dogfood.
 3. **macOS + Windows**: ConPTY, named pipe, signing/notarization; x64 + arm64 builds.
-4. **Default on** (4a, done), then remove the Node host and `node-pty` (4b) once a release has
-   run on it.
+4. **Default on** (4a), then remove the Node host and `node-pty` (4b): both done.
 5. **Remote** (done behind the setting): the static binary on Linux ssh machines, so they
    need no Wraithgrid installed.
 

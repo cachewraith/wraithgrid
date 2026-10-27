@@ -1,3 +1,6 @@
+// A test-only copy of the Node host's server (ADR 0004 phase 4b): the in-process host that the
+// pane-host, router and CLI tests talk to, with fake ptys. The product runs the Rust host;
+// tests/host checks that one.
 // The pty host's core, free of sockets and process setup so it can be tested over an
 // in-memory stream: owns every pane process and its screen, and serves any number of
 // clients. A client sees a pane's output only after it created or attached that pane.
@@ -17,7 +20,7 @@ import {
   type HostReply,
   type PaneState,
   type PaneSummary
-} from './protocol'
+} from '../../../src/host/protocol'
 import { PtyManager, type KillPolicy, type SpawnFn } from './pty-manager'
 import { headlessScreen, type Screen, type ScreenFactory } from './screen'
 

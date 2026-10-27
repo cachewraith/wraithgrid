@@ -195,11 +195,6 @@ export const settingsSchema = z.object({
   gpuTerminal: z.boolean().default(false),
   onWindowClose: z.enum(CLOSE_MODES).default('ask').catch('ask'),
   cliAccess: z.boolean().default(false),
-  /**
-   * The Node host as a fallback (ADR 0004 phase 4: Rust is the default). Replaces `rustHost`,
-   * which every config saved as false: dropped on load, so everyone moves to Rust.
-   */
-  nodeHost: z.boolean().default(false),
   newPaneView: z.enum(PANE_VIEWS).default('chat').catch('chat'),
   chatOnlyMigrated: z.boolean().default(false),
   chatModel: z.string().regex(CHAT_MODEL_PATTERN).nullable().default(null).catch(null),

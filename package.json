@@ -20,21 +20,20 @@
   },
   "private": true,
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "cargo build --release --locked --manifest-path host-rs/Cargo.toml && electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:host": "electron-vite build && cargo build --release --manifest-path host-rs/Cargo.toml && vitest run --config vitest.host.config.ts",
+    "test:host": "cargo build --release --manifest-path host-rs/Cargo.toml && vitest run --config vitest.host.config.ts",
     "test:e2e": "electron-vite build && cargo build --release --locked --manifest-path host-rs/Cargo.toml && playwright test",
     "dist": "electron-vite build && electron-builder --publish never",
     "dist:linux": "electron-vite build && cargo build --release --manifest-path host-rs/Cargo.toml && bash scripts/build-remote-hosts.sh && electron-builder --linux --publish never",
     "dist:linux:portable": "bash scripts/dist-linux-docker.sh",
     "dist:win": "electron-vite build && cargo build --release --locked --manifest-path host-rs/Cargo.toml && electron-builder --win --publish never",
-    "dist:mac": "electron-vite build && bash scripts/build-mac-host.sh && electron-builder --mac --publish never",
-    "postinstall": "electron-builder install-app-deps"
+    "dist:mac": "electron-vite build && bash scripts/build-mac-host.sh && electron-builder --mac --publish never"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -46,6 +45,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "5.2.0",
+    "@xterm/addon-serialize": "0.14.0",
+    "@xterm/headless": "6.0.0",
     "electron": "44.4.5",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
@@ -63,14 +64,11 @@
     "@fontsource/geist": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
     "@xterm/addon-fit": "0.11.0",
-    "@xterm/addon-serialize": "0.14.0",
     "@xterm/addon-unicode11": "0.9.0",
     "@xterm/addon-web-links": "0.12.0",
     "@xterm/addon-webgl": "0.19.0",
-    "@xterm/headless": "6.0.0",
     "@xterm/xterm": "6.0.0",
     "electron-updater": "6.8.9",
-    "node-pty": "1.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-resizable-panels": "4.14.1",
@@ -80,7 +78,6 @@
   "packageManager": "bun@1.4.3",
   "trustedDependencies": [
     "electron",
-    "esbuild",
-    "node-pty"
+    "esbuild"
   ]
 }

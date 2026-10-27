@@ -9,7 +9,7 @@ import { parseConfig } from '@shared/schema'
 import { hostPaths } from '../host/paths'
 import { HOST_STDIO, runCli, type Tty } from './cli'
 import { runBridge } from './host-bridge'
-import { connectSocket, startHostProcess } from './host-start'
+import { connectSocket, hostBinary, startHostProcess } from './host-start'
 import { configFilePath } from './paths'
 import { extraBinDirs, loginShellPath, mergePath } from './platform'
 import { resolveSpawn } from './spawn-resolve'
@@ -52,8 +52,7 @@ async function bridge(): Promise<number> {
       startHostProcess({
         paths: files,
         appVersion,
-        execPath: process.execPath,
-        outDir: __dirname,
+        bin: hostBinary(__dirname, process.platform),
         cwd: os.homedir(),
         env: process.env,
         uid

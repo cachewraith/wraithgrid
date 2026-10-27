@@ -1,7 +1,7 @@
 // Sends each pane's process work to the host that runs it: this computer's, or a remote
 // machine's over ssh (H5). Which one comes from the config: the pane's workspace machine.
 import type { Machine } from '@shared/types'
-import type { SpawnRequest, SpawnResult } from '../host/pty-manager'
+import type { SpawnRequest, SpawnResult } from '../host/protocol'
 import type { AttachResult, PaneHost, ProbeResult } from './pane-host'
 import type { SpawnSpec } from './spawn-resolve'
 

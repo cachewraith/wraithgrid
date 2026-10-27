@@ -1,5 +1,8 @@
+// A test-only copy of the Node host's pty manager (ADR 0004 phase 4b): the in-process host the
+// client tests talk to, always with fake ptys. The product runs the Rust host.
 import { execFile } from 'node:child_process'
-import type { IDisposable, IPty, IPtyForkOptions } from 'node-pty'
+import type { SpawnRequest, SpawnResult } from '../../../src/host/protocol'
+import type { IDisposable, IPty, IPtyForkOptions } from './pty-types'
 import type { PtyExitEvent } from '@shared/ipc-contract'
 
 /** On Windows `args` may be a prebuilt command line (used for .cmd shims). */
@@ -73,20 +76,6 @@ export interface PtyManagerDeps {
   /** Grace period between the soft and the hard stop. */
   killGraceMs?: number
 }
-
-export interface SpawnRequest {
-  paneId: string
-  file: string
-  args: string[] | string
-  cwd: string
-  env: Record<string, string>
-  cols: number
-  rows: number
-  /** For the host's pane status only; PtyManager ignores it. */
-  approval?: string
-}
-
-export type SpawnResult = { ok: true; pid: number } | { ok: false; error: string }
 
 interface Entry {
   pty: IPty

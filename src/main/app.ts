@@ -1,5 +1,4 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -55,7 +54,7 @@ import {
   titleBarOverlayFor
 } from './platform'
 import { hostPaths } from '../host/paths'
-import { connectSocket, startHostProcess } from './host-start'
+import { connectSocket, hostBinary, startHostProcess } from './host-start'
 import { PaneHost, type MismatchChoice } from './pane-host'
 import { CommunityCatalog } from './mod-community'
 import { UpdateChecker } from './update-check'
@@ -176,26 +175,8 @@ const hostFiles = hostPaths({
   userName: os.userInfo().username
 })
 
-/**
- * The Rust host binary of this build (ADR 0004 phase 2, Linux only): in the app's resources
- * when packaged, the cargo release build next to `out/` in development; null when there is none.
- */
-const rustHostBin = ((): string | null => {
-  // Linux, macOS and Windows (ADR 0004 phases 2, 3a, 3b).
-  const name = process.platform === 'win32' ? 'wraithgrid-host.exe' : 'wraithgrid-host'
-  const bin = app.isPackaged
-    ? path.join(process.resourcesPath, name)
-    : path.join(__dirname, '../../host-rs/target/release', name)
-  return existsSync(bin) ? bin : null
-})()
-
-/**
- * The Rust host, the default since ADR 0004 phase 4, unless Settings → Advanced "Use the Node
- * host" (WRAITHGRID_NODE_HOST=1 in tests) asks for the old one. A build without the binary
- * runs the Node host anyway.
- */
-const wantRustHost = (): boolean =>
-  !store.get().settings.nodeHost && process.env.WRAITHGRID_NODE_HOST !== '1'
+/** The background host binary of this build (ADR 0004), or null when it has none. */
+const rustHostBin = hostBinary(__dirname, process.platform)
 
 /** A static Rust host this build can copy to a Linux machine (scripts/build-remote-hosts.sh). */
 async function remoteHostBinary(target: string): Promise<Buffer | null> {
@@ -206,20 +187,13 @@ async function remoteHostBinary(target: string): Promise<Buffer | null> {
   return readFile(file).catch(() => null)
 }
 
-/**
- * Starts the host detached: this same Electron binary running as plain Node, or the Rust host
- * when Settings → Advanced asks for it and this build has it.
- */
+/** Starts the host detached: the Rust `wraithgrid-host` of this build (ADR 0004). */
 async function startHost(): Promise<void> {
   await envReady
-  const wantRust = wantRustHost()
-  if (wantRust && !rustHostBin) console.warn('[wraithgrid] no Rust host in this build; using Node')
   await startHostProcess({
     paths: hostFiles,
     appVersion: app.getVersion(),
-    execPath: process.execPath,
-    outDir: __dirname,
-    rustBin: wantRust ? rustHostBin : null,
+    bin: rustHostBin,
     cwd: homeDir,
     env: process.env,
     uid
@@ -267,8 +241,7 @@ function remoteHost(m: Machine): PaneHost {
   return new PaneHost({
     connect: async () => {
       const ssh = process.env.WRAITHGRID_SSH || 'ssh'
-      if (!wantRustHost()) bridge = null
-      else if (!bridge) {
+      if (!bridge) {
         bridge = await prepareRemote({
           version: app.getVersion(),
           run: (command, input) => runSsh(ssh, sshArgs(m.sshHost, [command]), input),
@@ -833,7 +806,6 @@ void app.whenReady().then(() => {
     ptys: router,
     homeDir,
     desktop,
-    rustHostBin,
     envReady,
     updates,
     community: new CommunityCatalog((url, init) => net.fetch(url, init)),

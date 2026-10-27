@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds every Linux package inside Ubuntu 22.04. node-pty's native module links against
-# the build machine's glibc; building on 2.35 keeps the packages working on Ubuntu 22.04+,
+# Builds every Linux package inside Ubuntu 22.04. The Rust host (host-rs) links against the
+# build machine's glibc; building on 2.35 keeps the packages working on Ubuntu 22.04+,
 # Debian 12+, Kali, Fedora and Arch. A build on a rolling distro only runs on that distro.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -20,7 +20,7 @@ tar --exclude=./node_modules --exclude=./dist --exclude=./out --exclude=./.git \
       export DEBIAN_FRONTEND=noninteractive CI=true
       apt-get update -qq
       apt-get install -y -qq --no-install-recommends \
-        ca-certificates curl xz-utils unzip git python3 make g++ rpm libarchive-tools fakeroot gcc-aarch64-linux-gnu >/dev/null
+        ca-certificates curl xz-utils unzip git make g++ rpm libarchive-tools fakeroot gcc-aarch64-linux-gnu >/dev/null
       curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" |
         tar -xJ -C /usr/local --strip-components=1
       curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" >/dev/null

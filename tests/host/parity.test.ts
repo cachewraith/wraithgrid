@@ -1,7 +1,8 @@
-// The Rust host must behave like the Node host (ADR 0004 §6): every scenario here runs
-// against both, with the same expectations, and every screen fixture restored on attach must
-// draw the same as the screen did live. Needs `bun run build` and the release binary
-// (`bun run test:host` does both).
+// The Rust host's protocol and screen (ADR 0004 §6). It was written against the Node host,
+// which these scenarios ran on too until that host went (phase 4b); the reference now is
+// xterm itself: every screen fixture restored on attach must draw the same as it did live, and
+// a resized screen must read as headless xterm (the Node host's screen, kept in tests/support)
+// reads it. Needs the release binary (`bun run test:host` builds it).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,8 +19,9 @@ import {
   until,
   type Kind
 } from './harness'
+import { headlessScreen } from '../support/node-host/screen'
 
-const KINDS: Kind[] = ['node', 'rust']
+const KINDS: Kind[] = ['rust']
 const FIXTURES = fs.mkdtempSync(path.join(os.tmpdir(), 'wgp-fixtures-'))
 
 describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host parity', () => {
@@ -262,7 +264,7 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
   }
 
   describe.each(Object.keys(FIXTURE_SET))('screen: %s', (name) => {
-    it('restores on attach like it drew live, on both hosts', async () => {
+    it('restores on attach like it drew live', async () => {
       const file = path.join(FIXTURES, `${name.replace(/\W/g, '_')}.txt`)
       fs.writeFileSync(file, FIXTURE_SET[name]!)
       const size = { cols: 40, rows: 12 }
@@ -336,7 +338,7 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
     ]
   }
   describe.each(Object.keys(RESIZES))('resize: %s', (name) => {
-    it('keeps the same text, cells and cursor as the Node host', async () => {
+    it('keeps the same text, cells and cursor as xterm', async () => {
       const file = path.join(FIXTURES, 'resize.txt')
       fs.writeFileSync(
         file,
@@ -344,41 +346,48 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
           `${ESC}[32mgreen${ESC}[0m and more\r\n$ prompt`
       )
       const steps = RESIZES[name]!
-      const result: Record<string, { text: string; drawn: Awaited<ReturnType<typeof draw>> }> = {}
-      for (const kind of KINDS) {
-        const c = await Client.open(host(kind))
-        const paneId = `rz${kind}${Math.random().toString(36).slice(2, 6)}`
-        await c.request(shPane(paneId, `stty -onlcr; cat ${JSON.stringify(file)}; sleep 30`))
-        await until(() => c.output.get(paneId)?.includes('prompt'), 5000, 'output')
-        await sleep(200)
-        for (const [cols, rows] of steps) {
-          c.send({ t: 'resize', paneId, cols, rows })
-          await sleep(100)
-        }
-        const [cols, rows] = steps[steps.length - 1]!
-        const text = (await c.request({ t: 'read', paneId, lines: 200 })) as { text: string }
-        const other = await Client.open(host(kind))
-        await other.request({ t: 'attach', paneId, cols, rows })
-        const replay = other.frames
-          .filter((f) => f.t === 'data' && f.paneId === paneId && f.replay)
-          .map((f) => String(f.data))
-          .join('')
-        result[kind] = { text: text.text, drawn: await draw(replay, cols, rows) }
-        c.send({ t: 'kill', paneId })
-        c.close()
-        other.close()
+      const c = await Client.open(host('rust'))
+      const paneId = `rz${Math.random().toString(36).slice(2, 6)}`
+      await c.request(shPane(paneId, `stty -onlcr; cat ${JSON.stringify(file)}; sleep 30`))
+      await until(() => c.output.get(paneId)?.includes('prompt'), 5000, 'output')
+      await sleep(200)
+      // The reference: headless xterm given the same output and the same resizes.
+      const ref = headlessScreen(40, 12)
+      ref.write(c.output.get(paneId)!)
+      // xterm parses writes later: all of it must be in before the first resize, as it was in
+      // a host that had it for a while.
+      await ref.text()
+      for (const [cols, rows] of steps) {
+        c.send({ t: 'resize', paneId, cols, rows })
+        ref.resize(cols, rows)
+        await sleep(100)
       }
-      const node = result.node!
-      const rust = result.rust!
-      const nodeLines = node.text.split('\n')
+      const [cols, rows] = steps[steps.length - 1]!
+      const text = (await c.request({ t: 'read', paneId, lines: 200 })) as { text: string }
+      const other = await Client.open(host('rust'))
+      await other.request({ t: 'attach', paneId, cols, rows })
+      const replay = other.frames
+        .filter((f) => f.t === 'data' && f.paneId === paneId && f.replay)
+        .map((f) => String(f.data))
+        .join('')
+      const rust = { text: text.text, drawn: await draw(replay, cols, rows) }
+      const xterm = {
+        text: await ref.text(200),
+        drawn: await draw(await ref.serialize(), cols, rows)
+      }
+      ref.dispose()
+      c.send({ t: 'kill', paneId })
+      c.close()
+      other.close()
+      const xtermLines = xterm.text.split('\n')
       const rustLines = rust.text.split('\n')
       // Every line but the cursor's is the same, row for row and cell for cell.
-      expect(rustLines.slice(0, -1)).toEqual(nodeLines.slice(0, -1))
-      expect(rust.drawn.lines.slice(0, -1)).toEqual(node.drawn.lines.slice(0, -1))
-      expect(rust.drawn.cursor[1]).toBe(node.drawn.cursor[1])
+      expect(rustLines.slice(0, -1)).toEqual(xtermLines.slice(0, -1))
+      expect(rust.drawn.lines.slice(0, -1)).toEqual(xterm.drawn.lines.slice(0, -1))
+      expect(rust.drawn.cursor[1]).toBe(xterm.drawn.cursor[1])
       // ADR 0004, known differences: xterm cuts the cursor's line when it reflows a much
       // narrower width; the Rust host keeps the whole line, with the cursor after its text.
-      expect(rustLines.at(-1)!.startsWith(nodeLines.at(-1)!)).toBe(true)
+      expect(rustLines.at(-1)!.startsWith(xtermLines.at(-1)!)).toBe(true)
       expect(rust.drawn.cursor[0]).toBe(rustLines.at(-1)!.length)
     })
   })
@@ -433,7 +442,7 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
 
   // ADR 0004, known differences: vt100 keeps only the active buffer, so the normal buffer under
   // a full-screen program is not restored by the Rust host. Pinned so a change is noticed.
-  it('alternate screen: leaving it after a restore shows the normal buffer (Node) or a blank (Rust)', async () => {
+  it('alternate screen: leaving it after a restore shows a blank, not the normal buffer', async () => {
     const file = path.join(FIXTURES, 'alt_leave.txt')
     fs.writeFileSync(file, FIXTURE_SET['alternate screen']!)
     const size = { cols: 40, rows: 12 }
@@ -456,7 +465,7 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync(RUST_BIN))('host 
       live.close()
       other.close()
     }
-    expect(under.node).toContain('u|1|')
+    // xterm (the Node host) restored it; the Rust host doesn't.
     expect(under.rust).not.toContain('u|1|')
   })
 })

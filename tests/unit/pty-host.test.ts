@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type { Duplex } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { IPty } from 'node-pty'
+import type { IPty } from '../support/node-host/pty-types'
 import { FakePty, pipePair, tick } from './host-fixtures'
 import type { PtyExitEvent } from '@shared/ipc-contract'
 import { ensureHostDir, hostPaths } from '../../src/host/paths'
@@ -15,8 +15,8 @@ import {
   chunkReplay,
   encodeFrame
 } from '../../src/host/protocol'
-import type { KillPolicy, SpawnFn } from '../../src/host/pty-manager'
-import { HostServer } from '../../src/host/server'
+import type { KillPolicy, SpawnFn } from '../support/node-host/pty-manager'
+import { HostServer } from '../support/node-host/server'
 import { OlderHostKept, PaneHost } from '../../src/main/pane-host'
 
 const req = (paneId: string) => ({

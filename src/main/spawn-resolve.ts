@@ -13,7 +13,7 @@ import {
   withProjectDocArgs,
   withResumeArgs
 } from '@shared/agent-clis'
-import type { SpawnRequest } from '../host/pty-manager'
+import type { SpawnRequest } from '../host/protocol'
 import { findOnPath, resolveClaudePath } from './claude-detect'
 import { buildPaneEnv } from './pane-env'
 import { resolveUserPath } from './paths'

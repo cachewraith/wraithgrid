@@ -1169,8 +1169,7 @@ export function createAppStore({
         configPath: '',
         version: '',
         chrome: 'custom',
-        desktop: null,
-        rustHost: false
+        desktop: null
       },
       claude: null,
       sharedReport: null,
