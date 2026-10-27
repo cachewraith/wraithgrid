@@ -113,6 +113,14 @@ test('the wraithgrid command lists, reads, types into, waits on and opens panes'
     // Type a prompt; the pane answers; read shows it; wait sees it settle.
     await cli('send', 'alpha', 'from the cli')
     await expect.poll(() => paneText(win, 'alpha')).toContain('got:fromthecli')
+    // The pane now has a conversation, as if typed: a restart resumes it (H6).
+    await expect
+      .poll(() => {
+        const cfg = JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8'))
+        return cfg.workspaces[0].panes.find((p: { id: string }) => p.id === 'p-alpha')
+          ?.hasConversation
+      })
+      .toBe(true)
     expect((await cli('read', 'alpha')).stdout).toContain('got: from the cli')
     expect((await cli('wait', 'p-alpha', '--quiet', '300', '--timeout', '20')).stdout.trim()).toBe(
       'idle'

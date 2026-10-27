@@ -221,7 +221,9 @@ export const cliActionSchema = z.discriminatedUnion('kind', [
     cwd: cliPath.optional(),
     shell: z.boolean().optional(),
     args: cliArgs.optional()
-  })
+  }),
+  /** `wraithgrid send` pressed Enter in this pane: it has a conversation to resume (H6). */
+  z.object({ kind: z.literal('sent'), paneId: idSchema })
 ])
 export type CliAction = z.infer<typeof cliActionSchema>
 export type CliActionResult = { ok: true; paneId: string } | { ok: false; error: string }

@@ -278,6 +278,10 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
         }
         // Make sure the writes left before the connection closes.
         await c.request({ t: 'list' })
+        // The window marks the pane as having a conversation, as when Enter is typed in it, so
+        // a restart resumes it (H6). No window open: nothing to mark, and nothing fails.
+        if (!p.flags.has('--no-enter'))
+          await c.request({ t: 'gui', action: { kind: 'sent', paneId: pane.id } }).catch(() => null)
         return 0
       }
       case 'wait': {

@@ -1748,7 +1748,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       const parsed = cliActionSchema.safeParse(raw)
       if (!parsed.success) return fail('Invalid command')
       const action = parsed.data
-      if (action.cwd) {
+      if (action.kind !== 'sent' && action.cwd) {
         try {
           if (!(await stat(resolveUserPath(action.cwd, homeDir))).isDirectory())
             return fail(`Not a folder: ${action.cwd}`)

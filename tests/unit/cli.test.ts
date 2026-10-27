@@ -123,6 +123,7 @@ describe('wraithgrid command', () => {
       onMismatch: async () => 'keep',
       onGuiAction: async (action) => {
         actions.push(action)
+        if (action.kind === 'sent') return { ok: true, paneId: String(action.paneId) }
         lastId = 'p-new'
         await gui.create(req('p-new'))
         return { ok: true, paneId: 'p-new' }
@@ -179,8 +180,11 @@ describe('wraithgrid command', () => {
   it('types text, then Enter; a line break is the CLI new-line key', async () => {
     expect(await run(['send', 'alpha', 'fix', 'the', 'bug'])).toBe(0)
     expect(ptys.get('p1')!.written).toEqual(['fix the bug', '\r'])
+    // The window hears of the Enter, so the pane resumes its conversation after a restart (H6).
+    expect(actions).toEqual([{ kind: 'sent', paneId: 'p1' }])
     expect(await run(['send', 'p1', 'one\ntwo', '--no-enter'])).toBe(0)
     expect(ptys.get('p1')!.written.slice(2)).toEqual(['one\x1b\rtwo'])
+    expect(actions).toHaveLength(1)
     // gemini has no new-line key: the text goes as typed.
     expect(await run(['send', 'beta', 'a\nb', '--no-enter'])).toBe(0)
     expect(ptys.get('p2')!.written).toEqual(['a\nb'])
