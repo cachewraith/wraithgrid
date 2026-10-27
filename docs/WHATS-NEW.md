@@ -1,4 +1,30 @@
-# What's new in 1.23.0: scheduled cards, working logos and a bigger About
+# What's new in 1.24.0: a lighter background host, everywhere
+
+*v1.24.0 · 2026-10-27*
+
+| New | What changed |
+|---|---|
+| A lighter background host | Terminal panes run in a new background host written in Rust, on Windows, macOS and Linux: about 5 MB of memory while idle instead of about 110 MB. Panes keep running after you close the window, as before |
+| SSH machines without an install | A Linux machine you reach over ssh no longer needs Wraithgrid installed: the host is copied there once per version, and versions unused for 30 days are removed |
+| Prompt history | ↑ and ↓ in the chat box step through the prompts you sent in that chat, like a shell; your draft comes back past the newest |
+| Claude's questions one at a time | When Claude asks several questions, they come as one card with a tab per question, number keys for the options, and Back/Next |
+
+| Fix | What changed |
+|---|---|
+| Long chats | Long and streaming chats stay fast: a new word no longer redraws the message box or re-reads the whole answer |
+| Last answer after quit | Quitting right after an answer, or while one streams, no longer loses it from the chat when you open Wraithgrid again |
+| Closing with busy chats | Closing the window asks when a chat is still working, instead of stopping it; the tray no longer quits under a working chat |
+| Big screens | A pane with a very large screen reattaches instead of making every pane look stopped |
+| Updates on Linux | Cancelling the password prompt of an update no longer stops your terminal panes |
+| Changes panel | Follows further edits to a file that was already changed, without Refresh |
+| Working line | Comes back under an answer that paused while Claude keeps working (a big file write) |
+| Approvals after Stop | A question or approval that was stopped no longer comes back on the next turn |
+| Preview address | The dev server's address is read whole, so the preview opens the right port |
+| Smaller fixes | Settings path fields keep the last edit when you leave the page; Usage counts days right across a clock change; `wraithgrid send` makes the pane resume after a restart; dragging a panel edge no longer redraws every pane |
+
+---
+
+## Previously, in 1.23.0: scheduled cards, working logos and a bigger About
 
 *v1.23.0 · 2026-10-26*
 
