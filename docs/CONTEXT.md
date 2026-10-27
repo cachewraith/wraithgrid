@@ -77,6 +77,7 @@ react-resizable-panels, @dnd-kit. Tests: Vitest (unit), Playwright (Electron e2e
 - `src/renderer/lib/{ansi,ids,scheduling}.ts`, `src/renderer/layout/presets.ts`
 
 ## Known gotchas
+- Commands run on an ssh machine go through the user's own shell and config (sh or fish): call tools as `command find` etc., since a fish function can shadow them (remote-bin.ts).
 - Unpackaged (e2e), `app.getVersion()` is Electron's version (44.x), so the remote Rust host is copied as `wraithgrid-host-44.x`. A process the host starts detached must not keep inherited fds (Playwright's pipes, sshd's): app.close/ssh then never finish (host-start.ts masks them; bridge.rs marks them CLOEXEC).
 - e2e fixtures with claude panes saved as terminals (`view` omitted = terminal) turn into chats on load unless `settings.chatOnlyMigrated: true` (#110); suites driving claude's own screen (background, cli, keys, mods, smoke, git-palette) set it.
 - A reattached screen goes out as several `replay` data frames (`chunkReplay`, 512K chars each, #134), never one over `MAX_FRAME` (4 MB, a client drops the link); clients must treat consecutive replay frames as one screen (`wraithgrid attach` clears only before the first).

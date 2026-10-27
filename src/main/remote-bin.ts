@@ -22,13 +22,22 @@ export function remoteTarget(uname: string): string | null {
 export const remoteBinPath = (version: string): string =>
   `.wraithgrid/bin/wraithgrid-host-${version}`
 
+/** Other versions unused this long are deleted from a machine; 0 days would make two
+ *  Wraithgrid versions that share one machine copy theirs over again on every connect. */
+export const UNUSED_DAYS = 30
+
 /**
  * POSIX sh and fish both run these: plain commands joined by `;` and `&&`. A binary counts
  * only once it ran there (`--version`), so one that can't run falls back instead of failing.
+ * Found, it is touched (its date says when it was last used), and other versions unused for
+ * UNUSED_DAYS go; a host still running one keeps running, since Linux keeps a deleted file
+ * open for it.
  */
 export const preflightCommand = (version: string): string => {
   const bin = remoteBinPath(version)
-  return `uname -sm; test -x ${bin} && ${bin} --version >/dev/null && echo ${PRESENT}`
+  // `command`: a shell function named find (a fish config's) must not stand in for it.
+  const sweep = `command find .wraithgrid/bin -maxdepth 1 -type f -name 'wraithgrid-host-*' ! -name 'wraithgrid-host-${version}' -mtime +${UNUSED_DAYS} -delete 2>/dev/null`
+  return `uname -sm; test -x ${bin} && ${bin} --version >/dev/null && touch ${bin} && echo ${PRESENT}; ${sweep}`
 }
 
 export const uploadCommand = (version: string): string => {

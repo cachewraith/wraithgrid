@@ -1,3 +1,15 @@
+import { spawnSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync
+} from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { applyEnvPlan, buildPaneEnv, paneEnvPlan } from '../../src/main/pane-env'
 import {
@@ -71,6 +83,36 @@ describe('the Rust host on a remote machine', () => {
   it('checks that the binary runs before trusting it', () => {
     expect(preflightCommand('1.2.3')).toContain(`${remoteBinPath('1.2.3')} --version`)
     expect(uploadCommand('1.2.3')).toMatch(/--version >\/dev\/null && mv -f/)
+  })
+
+  // Run for real by the shells a machine may have: sh, and fish when it is installed here.
+  const shells = ['sh', 'fish'].filter(
+    (sh) => spawnSync('sh', ['-c', `command -v ${sh}`]).status === 0
+  )
+  it.each(shells)('in %s: marks the version in use and deletes others unused for 30 days', (sh) => {
+    const home = mkdtempSync(path.join(os.tmpdir(), 'wg-remote-'))
+    try {
+      const dir = path.join(home, '.wraithgrid/bin')
+      mkdirSync(dir, { recursive: true })
+      const day = 86_400_000
+      const file = (name: string, ageDays: number): string => {
+        const f = path.join(dir, name)
+        writeFileSync(f, '#!/bin/sh\nexit 0\n', { mode: 0o700 })
+        const t = new Date(Date.now() - ageDays * day)
+        utimesSync(f, t, t)
+        return f
+      }
+      const current = file(path.basename(remoteBinPath('2.0.0')), 90)
+      const stale = file(path.basename(remoteBinPath('1.0.0')), 40)
+      const recent = file(path.basename(remoteBinPath('1.9.0')), 5)
+      const out = spawnSync(sh, ['-c', preflightCommand('2.0.0')], { cwd: home, encoding: 'utf8' })
+      expect(out.stdout).toContain('__WRAITHGRID_HOST_PRESENT__')
+      expect(existsSync(stale)).toBe(false)
+      expect(existsSync(recent)).toBe(true)
+      expect(Date.now() - statSync(current).mtimeMs).toBeLessThan(60_000)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 
   const deps = (stdout: string, binary: Buffer | null, uploadCode = 0) => {
