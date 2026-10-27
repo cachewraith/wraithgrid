@@ -98,6 +98,7 @@ jobs:
         run: |
           cargo test --locked --manifest-path host-rs/Cargo.toml
           bun run test:host
+          bash scripts/build-mac-host.sh
       - if: inputs.package
         run: bun run ${{ matrix.dist }}
         env:
