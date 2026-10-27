@@ -197,8 +197,6 @@ export interface IpcDeps {
   ptys: Pick<PaneRouter, 'create' | 'spawnOn' | 'attach' | 'write' | 'resize' | 'kill' | 'probe'>
   homeDir: string
   desktop: DesktopInfo
-  /** The Rust host binary of this build (ADR 0004), or null when it has none. */
-  rustHostBin: string | null
   /** Resolves once PATH from the login shell is merged in (launcher-started sessions). */
   envReady: Promise<void>
   updates: UpdateChecker
@@ -1693,8 +1691,7 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
           configPath: contractHome(store.file, homeDir),
           version: app.getVersion(),
           chrome: deps.desktop.chrome,
-          desktop: deps.desktop.desktop,
-          rustHost: !!deps.rustHostBin
+          desktop: deps.desktop.desktop
         }
       : null
   )

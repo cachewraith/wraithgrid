@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the built packages in clean distro containers and checks that
 #   1. the package manager resolves the declared dependencies,
-#   2. the packaged node-pty opens a pty and passes CLAUDE_CONFIG_DIR through,
+#   2. the packaged Rust host (wraithgrid-host) runs there,
 #   3. the app starts and its window loads (under Xvfb).
 # Usage: scripts/test-linux-packages.sh [distro...]   (default: all)
 set -uo pipefail
@@ -18,10 +18,7 @@ set -u
 BIN="$1"
 RES="$(dirname "$BIN")/resources"
 [ -d "$RES" ] || RES="$(dirname "$BIN")/../resources"
-PTY_JS="const pty = require('$RES/app.asar.unpacked/node_modules/node-pty');
-const p = pty.spawn('/bin/sh', ['-c', 'echo PTY_OK CFG=\$CLAUDE_CONFIG_DIR'], { env: { ...process.env, CLAUDE_CONFIG_DIR: '/tmp/acct' } });
-let out = ''; p.onData((d) => (out += d)); p.onExit(() => { console.log(out.trim()); process.exit(out.includes('PTY_OK CFG=/tmp/acct') ? 0 : 1) });"
-if ELECTRON_RUN_AS_NODE=1 "$BIN" -e "$PTY_JS"; then echo "CHECK pty: ok"; else echo "CHECK pty: FAILED"; fi
+if "$RES/wraithgrid-host" --version; then echo "CHECK host: ok"; else echo "CHECK host: FAILED"; fi
 
 Xvfb :99 -screen 0 1440x900x24 >/dev/null 2>&1 &
 sleep 1

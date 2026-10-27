@@ -10,9 +10,8 @@ files:
   - docs/licenses/**
   - docs/PROVIDER-LOGOS.md
   - '!**/*.map'
-asarUnpack:
-  - node_modules/node-pty/**
-npmRebuild: true
+# No native Node modules since the Node pty host went (ADR 0004 phase 4b): nothing to rebuild.
+npmRebuild: false
 linux:
   target:
     - AppImage # any distro
@@ -121,7 +120,7 @@ appImage:
 # macOS: one dmg (to install) and one zip (what electron-updater reads) per CPU.
 # Ad-hoc signed ("-"): Apple Silicon refuses to start unsigned code at all, and there is no
 # Developer ID yet, so the app is not notarized and Gatekeeper asks once (see README).
-# Hardened runtime stays off: with ad-hoc signing it would block loading node-pty.
+# Hardened runtime stays off until there is a Developer ID to sign with.
 mac:
   target:
     - target: dmg

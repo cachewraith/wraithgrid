@@ -313,8 +313,6 @@ export interface AppInfo {
    */
   chrome: 'custom' | 'overlay' | 'tiling' | 'mac'
   desktop: string | null
-  /** This build has the Rust background host (ADR 0004), so the setting can turn it on. */
-  rustHost: boolean
 }
 
 export interface ReleaseInfo {

@@ -13,7 +13,7 @@ import {
   type HostReply,
   type PaneSummary
 } from '../host/protocol'
-import type { SpawnRequest, SpawnResult } from '../host/pty-manager'
+import type { SpawnRequest, SpawnResult } from '../host/protocol'
 import type { SpawnSpec } from './spawn-resolve'
 
 type Request = ClientFrame extends infer F

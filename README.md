@@ -448,32 +448,33 @@ bar, or the command palette) covers the rest:
 
 - Node.js 22.12 or newer, and Bun 1.4 or newer (<https://bun.sh>); Bun installs and runs the
   scripts, the tools themselves still run on Node
-- A C++ toolchain for the `node-pty` native module:
-  - Arch: `sudo pacman -S --needed python make gcc`
-  - Ubuntu, Debian, Kali: `sudo apt install python3 make g++`
-  - Fedora: `sudo dnf install python3 make gcc-c++`
-  - Windows: Visual Studio Build Tools with "Desktop development with C++", and Python 3
+- Rust (stable, <https://rustup.rs>) for the background host in `host-rs/`, with the C
+  linker it uses:
+  - Arch: `sudo pacman -S --needed gcc`
+  - Ubuntu, Debian, Kali: `sudo apt install gcc`
+  - Fedora: `sudo dnf install gcc`
+  - Windows: Visual Studio Build Tools with "Desktop development with C++"
   - macOS: Xcode Command Line Tools (`xcode-select --install`)
 - To build a Fedora `.rpm` on another distro: `rpmbuild` (`rpm-tools` on Arch, `rpm` on
   Ubuntu). The pacman package needs `bsdtar` (`libarchive-tools` on Ubuntu).
 
 ```sh
-bun install                    # installs deps and rebuilds node-pty for Electron
-bun run dev                    # run with hot reload
+bun install                    # installs deps (no native Node modules to build)
+bun run dev                    # builds the Rust host, then runs with hot reload
 bun run dist:linux:portable    # all Linux packages, built in Docker on Ubuntu 22.04
 bun run dist:win               # Windows installer (run on Windows)
 bun run dist:mac               # macOS .dmg and .zip, Apple Silicon and Intel (run on a Mac)
 ```
 
 Bun runs install scripts only for the packages in `trustedDependencies` in `package.json`
-(`electron`, `esbuild`, `node-pty`); `bunfig.toml` keeps a flat `node_modules` for electron-builder.
+(`electron`, `esbuild`); `bunfig.toml` keeps a flat `node_modules` for electron-builder.
 
 <details>
 <summary><b>Why the portable build?</b></summary>
 
 <br />
 
-`node-pty` compiles against the build machine's glibc. A package built on a rolling distro
+The Rust host links against the build machine's glibc. A package built on a rolling distro
 (Arch, current Fedora) only runs on distros at least as new. `dist:linux:portable` builds on
 Ubuntu 22.04 (glibc 2.35) inside Docker, so one set of packages runs on Ubuntu 22.04+,
 Debian 12+, Kali, Fedora and Arch. `scripts/test-linux-packages.sh` then installs each package

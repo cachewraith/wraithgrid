@@ -1,7 +1,9 @@
 # ADR 0001: Agents keep running after Wraithgrid closes (background pty host)
 
 - Status: **Accepted with amendments** (reviewed 2026-10-19; see "Review" at the end, which
-  overrides the sections above where they differ)
+  overrides the sections above where they differ). The host itself is now the Rust binary of
+  ADR 0004 (2026-10-27, phase 4b): the Node host, `out/main/host.js` and node-pty below are
+  gone; the design (detached host, lock, token, socket, frames) is unchanged.
 - Plan item: H1 in `docs/TODO.md`; H5 (SSH machines), H6 (CLI + local API) and H7 (attach
   from a terminal) build on it
 

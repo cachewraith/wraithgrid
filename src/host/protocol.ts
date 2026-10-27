@@ -190,3 +190,18 @@ export class FrameReader {
     }
   }
 }
+
+/** What a host runs for a pane, resolved by the window (spawn-resolve.ts). */
+export interface SpawnRequest {
+  paneId: string
+  file: string
+  args: string[] | string
+  cwd: string
+  env: Record<string, string>
+  cols: number
+  rows: number
+  /** For the host's pane status only; the pty itself ignores it. */
+  approval?: string
+}
+
+export type SpawnResult = { ok: true; pid: number } | { ok: false; error: string }

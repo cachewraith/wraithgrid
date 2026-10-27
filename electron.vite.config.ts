@@ -7,7 +7,6 @@ const alias = { '@shared': resolve(__dirname, 'src/shared') }
 export default defineConfig({
   main: {
     resolve: { alias },
-    // The pty host is a second entry: same Node target and externals, its own process.
     build: {
       rollupOptions: {
         input: {
@@ -15,8 +14,7 @@ export default defineConfig({
           // An entry of its own so it stays in out/main: it resolves files from __dirname.
           app: resolve(__dirname, 'src/main/app.ts'),
           // `wraithgrid <command>`, run as plain Node by index.ts.
-          cli: resolve(__dirname, 'src/main/cli-entry.ts'),
-          host: resolve(__dirname, 'src/host/index.ts')
+          cli: resolve(__dirname, 'src/main/cli-entry.ts')
         }
       }
     }
