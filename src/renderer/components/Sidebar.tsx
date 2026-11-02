@@ -405,7 +405,7 @@ function SidebarUsage() {
   const limit = useSessionLimit(true)
   const accounts = useApp((s) => s.config.accounts)
   const limits = useApp((s) => s.usage.limits)
-  const auto = useApp((s) => s.config.settings.autoSwitchAtLimit)
+  const auto = useApp((s) => s.config.settings.autoSwitchMode !== 'off')
   const at = useApp((s) => s.config.settings.autoSwitchAt)
   const now = useTicker(60_000)
   const account = accounts.find((a) => a.id === limit.account?.id) ?? null

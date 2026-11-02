@@ -2882,3 +2882,76 @@ ol.gh {
 .cdiv > .provider-logo {
   margin-right: 7px;
 }
+
+/* Ask before switching account at the limit (#161). */
+.as-dlg .dlg-hd {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.as-lead {
+  margin: 4px 0 0;
+  color: var(--mu);
+  font-size: 13px;
+}
+.as-where {
+  color: var(--fa);
+}
+.as-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: calc(12px * var(--rs, 1));
+}
+.as-arrow {
+  text-align: center;
+  color: var(--fa);
+}
+.as-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.as-acct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.as-nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.as-use,
+.as-meta {
+  font-size: 11px;
+  color: var(--fa);
+}
+.as-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.account-bar.as-bar {
+  width: 100%;
+  height: 5px;
+}
+.account-bar.full i {
+  background: var(--err);
+}
+.as-dont {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  color: var(--mu);
+  font-size: 12.5px;
+  cursor: pointer;
+}

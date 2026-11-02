@@ -17,6 +17,7 @@ import {
   FONT_SIZE_MIN,
   MOD_DIRS_MAX,
   SHARED_MODES,
+  AUTO_SWITCH_MODES,
   CLOSE_MODES,
   PANE_VIEWS,
   SIDEBAR_WIDTH_DEFAULT,
@@ -176,7 +177,7 @@ export const settingsSchema = z.object({
   sharedMode: z.enum(SHARED_MODES).default('overall'),
   checkUpdatesOnLaunch: z.boolean().default(true),
   notifyPanes: z.boolean().default(true),
-  autoSwitchAtLimit: z.boolean().default(true),
+  autoSwitchMode: z.enum(AUTO_SWITCH_MODES).default('ask').catch('ask'),
   autoSwitchAt: z.number().int().min(50).max(100).default(95).catch(95),
   shellPath: z.string().max(4096).default(''),
   shellArgs: z
@@ -277,7 +278,7 @@ export const configSchema = z.object({
   machines: z.array(machineSchema).max(32).default([]),
   activeWorkspace: idSchema,
   recentFolders: z.array(pathSchema).max(20).default([]),
-  settings: settingsSchema.default(() => settingsSchema.parse({})),
+  settings: z.preprocess(migrateSettings, settingsSchema).default(() => settingsSchema.parse({})),
   // A bad job drops alone, not the whole list or the config.
   schedules: z
     .array(z.unknown())
@@ -340,6 +341,16 @@ function basename(p: string): string {
  * Upgrades an older on-disk shape to the current version. Unversioned files are the
  * requirements §9 shape (v0). Returns the input untouched when it is already current.
  */
+/**
+ * Settings saved before #161 had `autoSwitchAtLimit: boolean`: on asks first now, off stays off.
+ * The old key is then dropped with the other unknown ones.
+ */
+export function migrateSettings(raw: unknown): unknown {
+  if (!isRecord(raw) || raw.autoSwitchMode !== undefined) return raw
+  if (typeof raw.autoSwitchAtLimit !== 'boolean') return raw
+  return { ...raw, autoSwitchMode: raw.autoSwitchAtLimit ? 'ask' : 'off' }
+}
+
 export function migrateConfig(raw: unknown): unknown {
   if (!isRecord(raw)) return raw
   if (raw.version === CONFIG_VERSION) return raw

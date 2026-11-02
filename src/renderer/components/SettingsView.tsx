@@ -27,6 +27,7 @@ import {
   UI_ZOOM_STEPS,
   stepZoom,
   type AccentName,
+  type AutoSwitchMode,
   type CloseMode,
   type SharedMode,
   type ShortcutId
@@ -1240,38 +1241,55 @@ function ChatDefaultsRow() {
 }
 
 /** Switch account at the limit (#61): on/off and the percentage that counts as reached. */
+const AUTO_SWITCH_OPTIONS: { id: AutoSwitchMode; label: string }[] = [
+  { id: 'ask', label: 'Ask first' },
+  { id: 'auto', label: 'Automatically' },
+  { id: 'off', label: 'Off' }
+]
+
 function AutoSwitchRow() {
   const actions = useActions()
-  const on = useApp((s) => s.config.settings.autoSwitchAtLimit)
+  const mode = useApp((s) => s.config.settings.autoSwitchMode)
   const at = useApp((s) => s.config.settings.autoSwitchAt)
   return (
     <div className="srow">
       <div>
         <h3 id="auto-switch-h">Switch account at limit</h3>
         <p className="ex">
-          When a Claude or Codex chat's account reaches its 5-hour or weekly limit, the chat carries
-          on as your next account of the same CLI that has room, with the whole conversation. A
-          message the limit refused is sent again there.
+          When a Claude or Codex chat's account reaches its 5-hour or weekly limit, the chat can
+          carry on as your next account of the same CLI that has room, with the whole conversation.
+          A message the limit refused is sent again there.
         </p>
       </div>
       <div className="ctl">
-        <div className="swrow">
-          <button
-            className={`sw${on ? ' on' : ''}`}
-            role="switch"
-            aria-checked={on}
-            aria-labelledby="set-auto-switch"
-            onClick={() => actions.updateSettings({ autoSwitchAtLimit: !on })}
-          />
-          <span id="set-auto-switch">Switch to the next account at the limit</span>
+        <div className="recent" role="radiogroup" aria-labelledby="auto-switch-h">
+          {AUTO_SWITCH_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`rchip${mode === o.id ? ' on' : ''}`}
+              role="radio"
+              aria-checked={mode === o.id}
+              onClick={() => actions.updateSettings({ autoSwitchMode: o.id })}
+              style={{ fontFamily: 'inherit', fontSize: 12.5, height: 30 }}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
+        <span className="hint">
+          {mode === 'ask'
+            ? 'The chat stops and asks before it switches. Scheduled runs switch on their own.'
+            : mode === 'auto'
+              ? 'The chat switches without asking and says so in the conversation.'
+              : 'The chat stays on its account and shows the limit error.'}
+        </span>
         <div className="seg" role="radiogroup" aria-label="Switch at">
           {[80, 90, 95, 100].map((p) => (
             <button
               key={p}
               role="radio"
               aria-checked={at === p}
-              disabled={!on}
+              disabled={mode === 'off'}
               className={`seg-btn${at === p ? ' on' : ''}`}
               onClick={() => actions.updateSettings({ autoSwitchAt: p })}
             >

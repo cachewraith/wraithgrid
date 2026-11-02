@@ -43,7 +43,7 @@ export function useTicker(ms: number): number {
 }
 
 /** "resets in 2h 13m" (minutes only: the screen updates every 30s) within a day; else the day. */
-function resetLabel(at: number, now: number): string {
+export function resetLabel(at: number, now: number): string {
   const ms = at - now
   if (ms < 3_600_000) return `resets in ${Math.max(1, Math.ceil(ms / 60_000))}m`
   if (ms < 86_400_000) return `resets in ${fmtUntil(at, now)}`
