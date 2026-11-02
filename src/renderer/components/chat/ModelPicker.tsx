@@ -416,7 +416,7 @@ function ModeList({
             <Option
               key={m}
               on={mode === m}
-              name={asking ? 'Click again to bypass permissions' : CHAT_MODE_LABEL[m]}
+              name={asking ? 'Click again for full access' : CHAT_MODE_LABEL[m]}
               hint={(!asks && NO_ASK_HINT[m]) || CHAT_MODE_HINT[m]}
               tone={m === 'bypassPermissions' ? 'danger' : undefined}
               onPick={() => {

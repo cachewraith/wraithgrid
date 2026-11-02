@@ -223,7 +223,7 @@ export function createAgyAdapter(): ChatAdapter {
           push({
             t: 'notice',
             level: 'error',
-            text: `agy can't ask for approval in a chat, so it skipped: ${[...new Set(denied)].join(', ')}. Pick Bypass permissions in the mode menu, or allow it under permissions.allow in agy's settings.json.`
+            text: `agy can't ask for approval in a chat, so it skipped: ${[...new Set(denied)].join(', ')}. Pick Full access in the mode menu, or allow it under permissions.allow in agy's settings.json.`
           })
         push({
           t: 'turnEnd',

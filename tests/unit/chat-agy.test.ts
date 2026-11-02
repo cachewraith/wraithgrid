@@ -162,7 +162,7 @@ describe('agy chat adapter (#41)', () => {
     expect(notices).toHaveLength(1)
     expect(notices[0]!.level).toBe('error')
     expect(notices[0]!.text).toContain('skipped: RunCommand')
-    expect(notices[0]!.text).toContain('Bypass permissions')
+    expect(notices[0]!.text).toContain('Full access')
   })
 
   it('a result answering several queued messages ends each of their turns', () => {
