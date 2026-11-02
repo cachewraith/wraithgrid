@@ -81,15 +81,21 @@ for (const theme of ['dark', 'light'] as const) {
       const chip = win.getByRole('button', { name: 'Account: work. Continue as another account' })
       await chip.click()
       const picker = win.getByRole('dialog', { name: 'Continue as', exact: true })
-      await expect(picker.getByRole('option')).toHaveCount(4)
+      // One provider at a time (#160): the chat's own first, the others in the rail.
+      await expect(picker.getByRole('option')).toHaveCount(2)
+      const tabs = picker.getByRole('tab')
+      await expect(tabs).toHaveText([
+        /Claude\s*2\s*same chat/,
+        /Codex\s*1\s*new chat/,
+        /Gemini\s*1\s*terminal/
+      ])
+      await expect(picker.getByRole('tab', { name: /Claude/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
       await expect(
-        picker
-          .getByRole('group', { name: 'Codex', exact: true })
-          .locator('.account-group > svg.provider-logo path')
+        picker.getByRole('tab', { name: /Codex/ }).locator('svg.provider-logo path')
       ).toHaveCount(1)
-      await expect(picker).toContainText('continue · same chat')
-      await expect(picker).toContainText('new chat · handoff')
-      await expect(picker).toContainText('terminal · no handoff')
       const shots = process.env.WRAITHGRID_E2E_SHOTS
       if (shots) {
         fs.mkdirSync(shots, { recursive: true })
@@ -102,6 +108,29 @@ for (const theme of ['dark', 'light'] as const) {
       // The focused search row draws no square ring inside the rounded popover (#86).
       await expect(search).toBeFocused()
       expect(await search.evaluate((n) => getComputedStyle(n).outlineStyle)).toBe('none')
+      // Tab / Shift+Tab switch provider; the popover keeps its size (#160).
+      const height = (await picker.boundingBox())!.height
+      await search.press('Tab')
+      await expect(picker.getByRole('tab', { name: /Codex/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+      await expect(picker.getByRole('option')).toHaveText([/^org-cambodia-codex/])
+      expect((await picker.boundingBox())!.height).toBe(height)
+      await search.press('Shift+Tab')
+      await expect(picker.getByRole('tab', { name: /Claude/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+      // Searching covers every provider, grouped with what switching does.
+      await search.fill('i')
+      await expect(picker).toContainText('continue · same chat')
+      await expect(picker).toContainText('new chat · handoff')
+      await expect(
+        picker
+          .getByRole('group', { name: 'Codex', exact: true })
+          .locator('.account-group > svg.provider-logo path')
+      ).toHaveCount(1)
       await search.fill('unsigned')
       await expect(picker.getByRole('option')).toContainText('Sign in')
       await search.press('Escape')
@@ -124,6 +153,7 @@ for (const theme of ['dark', 'light'] as const) {
       await confirm.getByRole('button', { name: 'Cancel' }).click()
       await expect(chip).toBeVisible()
       await chip.click()
+      await picker.getByRole('tab', { name: /Codex/ }).click()
       await picker.getByRole('option', { name: /^org-cambodia-codex/ }).click()
       await confirm.getByRole('button', { name: 'Continue in Codex →' }).click()
       await expect(
@@ -200,12 +230,26 @@ for (const theme of ['dark', 'light'] as const) {
       ).toContainText('Remember PEACH')
       // A terminal provider opens a fresh pane without carrying over chat text.
       await win.getByRole('button', { name: 'Account: work. Continue as another account' }).click()
+      await win.getByRole('tab', { name: /Gemini/ }).click()
       await win.getByRole('option', { name: /^terminal/ }).click()
       const terminalConfirm = win.getByRole('dialog', { name: 'Open Gemini as terminal?' })
       await expect(terminalConfirm).toContainText('No conversation is carried over')
       await terminalConfirm.getByRole('button', { name: 'Open Gemini terminal' }).click()
       await expect(win.locator('section.pane')).toHaveCount(3)
       await expect(win.locator('section.pane .xterm')).toHaveCount(1)
+
+      // In the smallest window the pickers stay inside it and scroll instead (#160).
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(900, 420))
+      const workChip = win.getByRole('button', {
+        name: 'Account: work. Continue as another account'
+      })
+      await workChip.click()
+      const pop = (await picker.boundingBox())!
+      const chipTop = (await workChip.boundingBox())!.y
+      expect(pop.y).toBeGreaterThanOrEqual(0)
+      expect(pop.y + pop.height).toBeLessThanOrEqual(chipTop)
+      await expect(picker.getByRole('combobox', { name: 'Search accounts' })).toBeInViewport()
+      await win.keyboard.press('Escape')
     } finally {
       await app.close()
     }

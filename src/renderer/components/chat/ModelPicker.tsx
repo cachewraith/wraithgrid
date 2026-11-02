@@ -16,7 +16,7 @@ import {
 import { IconCheck, IconChevron } from '../icons'
 import { AGENT_CLI_SPECS, AGENT_PROVIDER_LABEL, type AgentCli } from '@shared/agent-clis'
 import { ProviderLogo } from '../ProviderLogo'
-import { Initial } from '../AccountIcon'
+import { modelTabs, tabOf, type ModelTab } from '../../lib/model-groups'
 
 /** A chip that opens a list above it; Esc or a click outside closes it. */
 function ChipMenu({
@@ -26,6 +26,7 @@ function ChipMenu({
   className = '',
   openSignal = 0,
   width = 320,
+  height,
   children
 }: {
   label: ReactNode
@@ -35,6 +36,8 @@ function ChipMenu({
   /** Opens the list whenever it changes (a `/` command). */
   openSignal?: number
   width?: number
+  /** A fixed height (the account list, #160): tabs switching inside never resize it. */
+  height?: number
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -43,17 +46,27 @@ function ChipMenu({
     setSeenSignal(openSignal)
     setOpen(true)
   }
-  const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null)
+  const [pos, setPos] = useState<{ left: number; bottom: number; room: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
 
+  // Above the chip, never past the window's top (#160): the list scrolls inside instead.
+  // Again on resize, which a zoom (Ctrl+=) also is.
   useLayoutEffect(() => {
-    if (!open || !btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    setPos({
-      left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
-      bottom: window.innerHeight - r.top + 6
-    })
+    if (!open) return
+    const place = (): void => {
+      const btn = btnRef.current
+      if (!btn) return
+      const r = btn.getBoundingClientRect()
+      setPos({
+        left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+        bottom: window.innerHeight - r.top + 6,
+        room: Math.max(120, r.top - 6 - 8)
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
   }, [open, width])
 
   useEffect(() => {
@@ -98,7 +111,13 @@ function ChipMenu({
               className="mp-pop"
               role="dialog"
               aria-label={popLabel}
-              style={{ left: pos.left, bottom: pos.bottom, width }}
+              style={{
+                left: pos.left,
+                bottom: pos.bottom,
+                width,
+                maxHeight: pos.room,
+                height: height ? Math.min(height, pos.room) : undefined
+              }}
             >
               {children(() => setOpen(false))}
             </div>,
@@ -159,6 +178,7 @@ export function ModelPicker({
 }) {
   // `default` is the CLI's own "Default (recommended)" entry; picking it clears the choice.
   const chosen = models.find((m) => m.value === (model ?? 'default'))
+  const tabs = modelTabs(models)
   const label =
     chosen?.value === 'default'
       ? (chosen.description.split('·')[0]?.trim() ?? 'Default')
@@ -169,10 +189,20 @@ export function ModelPicker({
       ariaLabel={`Model: ${label}. Change`}
       popLabel="Model"
       openSignal={openSignal}
+      width={tabs ? 440 : 320}
     >
       {(close) =>
         models.length === 0 ? (
           <div className="mp-empty">The model list appears once the chat has started.</div>
+        ) : tabs ? (
+          <ModelTabs
+            tabs={tabs}
+            value={model ?? 'default'}
+            onPick={(v) => {
+              onModel(v === 'default' ? null : v)
+              close()
+            }}
+          />
         ) : (
           <div className="mp-list" role="listbox" aria-label="Models">
             {models.map((m) => (
@@ -191,6 +221,56 @@ export function ModelPicker({
         )
       }
     </ChipMenu>
+  )
+}
+
+/** A long model list as Latest + one tab per family (#160). */
+function ModelTabs({
+  tabs,
+  value,
+  onPick
+}: {
+  tabs: ModelTab[]
+  value: string
+  onPick: (value: string) => void
+}) {
+  const [tab, setTab] = useState(() => tabOf(tabs, value))
+  const list = (tabs.find((t) => t.id === tab) ?? tabs[0]!).models
+  return (
+    <div className="account-body">
+      <div
+        className="account-rail"
+        role="tablist"
+        aria-label="Model families"
+        aria-orientation="vertical"
+      >
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={t.id === tab}
+            className={`account-tab${t.id === tab ? ' on' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="account-tab-lab">
+              <span className="account-tab-nm">{t.label}</span>
+              <span className="account-tab-n mono">{t.models.length}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="mp-list" role="listbox" aria-label="Models">
+        {list.map((m) => (
+          <Option
+            key={m.value}
+            on={m.value === value}
+            name={m.label}
+            hint={m.description}
+            onPick={() => onPick(m.value)}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -394,13 +474,28 @@ export function AccountPicker({
       ariaLabel={`Account: ${current.name}. Continue as another account`}
       popLabel="Continue as"
       className="mp-acct"
-      width={400}
+      // The provider rail needs room only when there is more than one provider.
+      width={new Set([current.cli, ...accounts.map((a) => a.cli)]).size > 1 ? 460 : 360}
+      height={400}
     >
       {(close) => <AccountList {...{ current, accounts, busy, onPick, onSignIn, close }} />}
     </ChipMenu>
   )
 }
 
+/** What switching to an account of `cli` does, from a chat of `from`. */
+function switchHint(cli: AgentCli, from: AgentCli, short: boolean): string {
+  if (cli === from) return short ? 'same chat' : 'continue · same chat'
+  if (AGENT_CLI_SPECS[cli].chat) return short ? 'new chat' : 'new chat · handoff'
+  return short ? 'terminal' : 'terminal · no handoff'
+}
+
+const ORDER: AgentCli[] = ['claude', 'codex', 'agy', 'gemini', 'cursor', 'copilot', 'opencode']
+
+/**
+ * The accounts as one provider at a time (#160): a rail of providers on the left, the chosen
+ * one's accounts on the right, current first. Typing searches every provider, grouped.
+ */
 function AccountList({
   current,
   accounts,
@@ -416,27 +511,20 @@ function AccountList({
   onSignIn: (id: string) => void
   close: () => void
 }) {
-  const order: AgentCli[] = ['claude', 'codex', 'agy', 'gemini', 'cursor', 'copilot', 'opencode']
   const [query, setQuery] = useState('')
-  const [active, setActive] = useState(() =>
-    Math.max(
-      0,
-      order
-        .flatMap((cli) => accounts.filter((a) => a.cli === cli))
-        .findIndex((a) => a.id === current.id)
-    )
-  )
+  const [tab, setTab] = useState<AgentCli>(current.cli)
+  const [active, setActive] = useState(0)
   const keyboardScroll = useRef(true)
   const listRef = useRef<HTMLDivElement>(null)
-  const filtered = order.flatMap((cli) =>
-    accounts.filter(
-      (a) =>
-        a.cli === cli &&
-        `${a.name} ${a.plan ?? ''} ${AGENT_PROVIDER_LABEL[a.cli]}`
-          .toLowerCase()
-          .includes(query.toLowerCase())
-    )
-  )
+  const q = query.trim().toLowerCase()
+  const matches = (a: AccountChoice): boolean =>
+    `${a.name} ${a.plan ?? ''} ${AGENT_PROVIDER_LABEL[a.cli]}`.toLowerCase().includes(q)
+  const ofCli = (cli: AgentCli): AccountChoice[] => accounts.filter((a) => a.cli === cli)
+  const tabs = ORDER.filter((cli) => cli === current.cli || ofCli(cli).length > 0)
+  // The list shown: every provider's matches while searching, else the tab's, current first.
+  const shown = q
+    ? tabs.flatMap((cli) => ofCli(cli).filter(matches))
+    : ofCli(tab).sort((a, b) => Number(b.id === current.id) - Number(a.id === current.id))
   const pick = (a: AccountChoice): void => {
     if (busy && a.id !== current.id) return
     close()
@@ -444,12 +532,60 @@ function AccountList({
     if (a.signedIn) onPick(a.id)
     else onSignIn(a.id)
   }
+  const openTab = (cli: AgentCli): void => {
+    keyboardScroll.current = true
+    setTab(cli)
+    setQuery('')
+    setActive(0)
+  }
   useEffect(() => {
     if (!keyboardScroll.current) return
     listRef.current
       ?.querySelector('[data-active="true"]')
       ?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-  }, [active, query])
+  }, [active, query, tab])
+
+  const row = (a: AccountChoice) => {
+    const sub = !a.signedIn ? 'Not signed in' : a.plan && a.plan !== 'Signed in' ? a.plan : null
+    const pct = a.sessionPct
+    return (
+      <button
+        key={a.id}
+        id={`account-option-${a.id}`}
+        role="option"
+        aria-selected={a.id === current.id}
+        data-active={shown[active]?.id === a.id}
+        className={`account-option${a.id === current.id ? ' current' : ''}${!a.signedIn ? ' unsigned' : ''}`}
+        disabled={busy && a.id !== current.id}
+        onMouseMove={() => {
+          keyboardScroll.current = false
+          setActive(shown.indexOf(a))
+        }}
+        onClick={() => pick(a)}
+      >
+        <ProviderLogo cli={a.cli} fallbackName={a.name} />
+        <span className="account-line">
+          <span className="mp-nm">{a.name}</span>
+          {sub ? <span className="mp-ds">{sub}</span> : null}
+        </span>
+        {!a.signedIn ? (
+          <span className="account-use mono">Sign in</span>
+        ) : pct === null ? (
+          <span className="account-use mono">—</span>
+        ) : (
+          <span
+            className={`account-bar${pct >= 80 ? ' hot' : ''}`}
+            title={`${pct}% of the 5-hour limit`}
+          >
+            <i style={{ width: `${Math.min(100, pct)}%` }} />
+            <span className="sr-only">{pct}%</span>
+          </span>
+        )}
+        {a.id === current.id ? <IconCheck small /> : <span />}
+      </button>
+    )
+  }
+
   return (
     <>
       <input
@@ -460,9 +596,7 @@ function AccountList({
         role="combobox"
         aria-expanded="true"
         aria-controls={`accounts-${current.id}`}
-        aria-activedescendant={
-          filtered[active] ? `account-option-${filtered[active]!.id}` : undefined
-        }
+        aria-activedescendant={shown[active] ? `account-option-${shown[active]!.id}` : undefined}
         value={query}
         onChange={(e) => {
           keyboardScroll.current = true
@@ -475,74 +609,84 @@ function AccountList({
             e.preventDefault()
             keyboardScroll.current = true
             setActive(
-              (active + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) % (filtered.length || 1)
+              (active + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % (shown.length || 1)
             )
-          } else if (e.key === 'Enter' && filtered[active]) {
+          } else if (e.key === 'Enter' && shown[active]) {
             e.preventDefault()
-            pick(filtered[active]!)
+            pick(shown[active]!)
+          } else if (e.key === 'Tab' && !q && tabs.length > 1) {
+            // Tab / Shift+Tab: the next or previous provider.
+            e.preventDefault()
+            const i = tabs.indexOf(tab) + (e.shiftKey ? -1 : 1)
+            openTab(tabs[(i + tabs.length) % tabs.length]!)
           }
         }}
       />
       {busy ? (
         <div className="mp-empty">Wait for the answer to finish, or stop it first.</div>
       ) : null}
-      <div
-        ref={listRef}
-        className="mp-list account-list"
-        role="listbox"
-        aria-label="Accounts"
-        id={`accounts-${current.id}`}
-      >
-        {order.map((cli) => {
-          const group = filtered.filter((a) => a.cli === cli)
-          if (!group.length) return null
-          return (
-            <div key={cli} role="group" aria-label={AGENT_PROVIDER_LABEL[cli]}>
-              <div className="account-group">
-                <ProviderLogo cli={cli} />
-                <span>{cli === 'codex' ? 'ChatGPT · Codex' : AGENT_PROVIDER_LABEL[cli]}</span>
-                <span className="mono">
-                  {cli === current.cli
-                    ? 'continue · same chat'
-                    : AGENT_CLI_SPECS[cli].chat
-                      ? 'new chat · handoff'
-                      : 'terminal · no handoff'}
-                </span>
-              </div>
-              {group.map((a) => (
+      <div className="account-body">
+        {tabs.length > 1 ? (
+          <div
+            className="account-rail"
+            role="tablist"
+            aria-label="Providers"
+            aria-orientation="vertical"
+          >
+            {tabs.map((cli) => {
+              const n = q ? ofCli(cli).filter(matches).length : ofCli(cli).length
+              return (
                 <button
-                  key={a.id}
-                  id={`account-option-${a.id}`}
-                  role="option"
-                  aria-selected={a.id === current.id}
-                  data-active={filtered[active]?.id === a.id}
-                  className={`account-option${a.id === current.id ? ' current' : ''}${!a.signedIn ? ' unsigned' : ''}`}
-                  disabled={busy && a.id !== current.id}
-                  onMouseMove={() => {
-                    keyboardScroll.current = false
-                    setActive(filtered.indexOf(a))
-                  }}
-                  onClick={() => pick(a)}
+                  key={cli}
+                  role="tab"
+                  tabIndex={-1}
+                  aria-selected={!q && cli === tab}
+                  className={`account-tab${!q && cli === tab ? ' on' : ''}${q && !n ? ' none' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => openTab(cli)}
                 >
-                  <Initial name={a.name} size={22} />
-                  <span className="mp-txt">
-                    <span className="mp-nm">{a.name}</span>
-                    <span className="mp-ds">
-                      {a.signedIn ? (a.plan ?? 'Signed in') : 'Not signed in'}
-                    </span>
+                  <span className="account-tab-lab">
+                    <ProviderLogo cli={cli} />
+                    <span className="account-tab-nm">{AGENT_PROVIDER_LABEL[cli]}</span>
+                    <span className="account-tab-n mono">{n}</span>
                   </span>
-                  <span className={`account-use mono${(a.sessionPct ?? 0) >= 80 ? ' hot' : ''}`}>
-                    {a.signedIn ? (a.sessionPct === null ? '—' : `${a.sessionPct}%`) : 'Sign in'}
+                  <span className="account-tab-hint mono">
+                    {switchHint(cli, current.cli, true)}
                   </span>
-                  {a.id === current.id ? <IconCheck small /> : <span />}
                 </button>
-              ))}
-            </div>
-          )
-        })}
-        {!filtered.length ? <div className="mp-empty">No accounts found.</div> : null}
+              )
+            })}
+          </div>
+        ) : null}
+        <div
+          ref={listRef}
+          className="mp-list account-list"
+          role="listbox"
+          aria-label="Accounts"
+          id={`accounts-${current.id}`}
+        >
+          {q
+            ? tabs.map((cli) => {
+                const group = shown.filter((a) => a.cli === cli)
+                if (!group.length) return null
+                return (
+                  <div key={cli} role="group" aria-label={AGENT_PROVIDER_LABEL[cli]}>
+                    <div className="account-group">
+                      <ProviderLogo cli={cli} />
+                      <span>{cli === 'codex' ? 'ChatGPT · Codex' : AGENT_PROVIDER_LABEL[cli]}</span>
+                      <span className="mono">{switchHint(cli, current.cli, false)}</span>
+                    </div>
+                    {group.map(row)}
+                  </div>
+                )
+              })
+            : shown.map(row)}
+          {!shown.length ? <div className="mp-empty">No accounts found.</div> : null}
+        </div>
       </div>
-      <p className="mp-foot">↑↓ move · ↵ choose · esc close</p>
+      <p className="mp-foot">
+        ↑↓ move · ↵ choose{tabs.length > 1 ? ' · tab provider' : ''} · esc close
+      </p>
     </>
   )
 }
