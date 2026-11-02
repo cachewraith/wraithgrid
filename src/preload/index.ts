@@ -46,6 +46,7 @@ const api: WraithApi = {
     onFlush: (cb) => subscribe<void>(IPC.chatFlush, () => cb()),
     flushed: () => ipcRenderer.send(IPC.chatFlushed),
     pickFiles: (paneId) => ipcRenderer.invoke(IPC.chatPickFiles, { paneId }),
+    listFiles: (paneId, query) => ipcRenderer.invoke(IPC.chatListFiles, { paneId, query }),
     filePath: (file) => webUtils.getPathForFile(file)
   },
   config: {

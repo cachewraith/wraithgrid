@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-02
+
+- [chat] `@` mentions files and folders (#159): an `@` word (start of text or after a space) opens the menu with the pane folder's files; main lists them (`git ls-files --cached --others --exclude-standard` in a repo, else a breadth-first walk capped at 20k entries / 1.5s; `.git` and `node_modules` never), caches each folder's list 10s and ranks (file name before path, `src/` opens that folder), ≤50 paths per query over the new `chat:listFiles` (pane id + query only; ssh panes get none). Picking replaces the `@word` (a folder stays open to go on into it); the message is sent as typed and the bubble shows `@path` mentions as chips (files: src/main/chat/files.ts, src/main/ipc.ts, src/shared/ipc-{channels,contract}.ts, src/preload/index.ts, src/renderer/lib/slash.ts, src/renderer/components/chat/{Composer,SlashMenu,ChatView}.tsx, tests/unit/file-mention.test.ts, tests/e2e/file-mention.spec.ts)
+
 ## 2026-10-27
 
 - [release] v1.24.0: the Rust background host everywhere (#76: Linux, macOS, Windows; node-pty gone; ssh machines need no install), audit fixes (#134–#141), prompt history (#132), questions one at a time (#127) (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)

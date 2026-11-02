@@ -20,8 +20,8 @@ export function SlashMenu({
   items: SlashItem[]
   active: number
   query: string
-  /** What opened it: `/`, or `$` for skills only. */
-  sigil: '/' | '$'
+  /** What opened it: `/`, `$` for skills only, `@` for files. */
+  sigil: '/' | '$' | '@'
   onPick: (item: SlashItem) => void
   onHover: (i: number) => void
 }) {
@@ -43,14 +43,20 @@ export function SlashMenu({
     return (
       <div className="slash" role="status">
         <p className="slash-none">
-          No {sigil === '$' ? 'skill' : 'command'} matches “{sigil}
+          No {sigil === '$' ? 'skill' : sigil === '@' ? 'file' : 'command'} matches “{sigil}
           {query}”.
         </p>
       </div>
     )
 
   return (
-    <div className="slash" ref={ref} id={id} role="listbox" aria-label="Commands">
+    <div
+      className="slash"
+      ref={ref}
+      id={id}
+      role="listbox"
+      aria-label={sigil === '@' ? 'Files' : 'Commands'}
+    >
       <div className="slash-ind" ref={ind} aria-hidden="true" />
       {items.map((it, i) => {
         const head =

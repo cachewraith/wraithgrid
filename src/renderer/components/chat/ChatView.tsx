@@ -13,7 +13,7 @@ import { baseName, contractHome, expandHome } from '@shared/paths'
 import { useActions, useApp, useServices } from '../../app/services'
 import { accountById, findPane } from '../../app/store'
 import { pendingApproval, type ChatItem, type ChatThread } from '../../lib/chat-thread'
-import { buildSlashItems, leadingCommand, type SlashItem } from '../../lib/slash'
+import { buildSlashItems, leadingCommand, splitMentions, type SlashItem } from '../../lib/slash'
 import { createPortal } from 'react-dom'
 import { IconArrowDown, IconClock, IconClose, IconRestart } from '../icons'
 import { fmtUntil } from '../../lib/usage-format'
@@ -617,6 +617,8 @@ const ChatFoot = memo(function ChatFoot({
     () => buildSlashItems(commands, terminalOnly),
     [commands, terminalOnly]
   )
+  // The `@` menu (#159): main lists the pane's own folder.
+  const listFiles = useCallback((q: string) => api.chat.listFiles(paneId, q), [api, paneId])
   // All accounts: same-CLI continuation or a cross-CLI handoff (#78).
   const accounts = useApp((s) => s.config.accounts)
   const accountInfo = useApp((s) => s.accountInfo)
@@ -792,6 +794,7 @@ const ChatFoot = memo(function ChatFoot({
           actions.chatSetMode(paneId, list[(list.indexOf(mode) + 1) % list.length]!)
         }}
         commands={slashItems}
+        onListFiles={listFiles}
         onCommand={runCommand}
         onSend={onSend}
         onStop={() => actions.chatInterrupt(paneId)}
@@ -816,14 +819,23 @@ const ChatFoot = memo(function ChatFoot({
   )
 })
 
-/** A message that starts with `/command` shows the command as a chip. */
+/** A message that starts with `/command` shows the command as a chip; `@path` mentions too (#159). */
 function UserText({ text }: { text: string }) {
   const cmd = leadingCommand(text)
-  if (!cmd) return <>{text}</>
+  const rest = cmd ? cmd.rest : text
   return (
     <>
-      <span className="cmd-chip">/{cmd.name}</span>
-      {cmd.rest ? ` ${cmd.rest}` : null}
+      {cmd ? <span className="cmd-chip">/{cmd.name}</span> : null}
+      {cmd && rest ? ' ' : null}
+      {splitMentions(rest).map((part, i) =>
+        part.mention ? (
+          <span key={i} className="cmd-chip mention" title={part.text.slice(1)}>
+            {part.text}
+          </span>
+        ) : (
+          part.text
+        )
+      )}
     </>
   )
 }
