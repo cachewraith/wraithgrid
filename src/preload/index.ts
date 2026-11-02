@@ -7,6 +7,7 @@ import type {
   PreviewEventMessage,
   PtyExitEvent,
   UpdateProgress,
+  UsageLimitsEvent,
   WraithApi
 } from '@shared/ipc-contract'
 import type { ChatEventMessage } from '@shared/chat'
@@ -127,7 +128,8 @@ const api: WraithApi = {
     image: (paneId) => ipcRenderer.invoke(IPC.clipboardImage, { paneId })
   },
   usage: {
-    get: () => ipcRenderer.invoke(IPC.usageGet, {})
+    get: () => ipcRenderer.invoke(IPC.usageGet, {}),
+    onLimits: (cb) => subscribe<UsageLimitsEvent>(IPC.usageLimits, cb)
   },
   themes: {
     list: () => ipcRenderer.invoke(IPC.themesList, {}),
