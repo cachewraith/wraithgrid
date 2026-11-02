@@ -1285,6 +1285,11 @@ export function createAppStore({
             }
           })
         })
+        // Limits main polls from the provider (claude): live, no chat turn needed.
+        api.usage.onLimits(({ accountId, limits }) => {
+          const usage = get().usage
+          set({ usage: { ...usage, limits: { ...usage.limits, [accountId]: limits } } })
+        })
         let usageTimer: ReturnType<typeof setTimeout> | null = null
         chat.onUsage((paneId, e) => {
           if (e.t === 'limits') {

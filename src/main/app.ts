@@ -25,6 +25,7 @@ import type {
   LoginEvent,
   PreviewEventMessage,
   PtyDataEvent,
+  UsageLimitsEvent,
   PtyExitEvent,
   UpdateProgress
 } from '@shared/ipc-contract'
@@ -42,8 +43,9 @@ import { PaneRouter } from './pane-router'
 import { prepareRemote } from './remote-bin'
 import { remotePlan } from './remote-plan'
 import { openSshLink, runSsh, sshArgs, type SshLink } from './ssh'
-import { configFilePath, userDataDir } from './paths'
+import { configFilePath, resolveUserPath, userDataDir } from './paths'
 import { UsageStore } from './usage-store'
+import { UsagePoller } from './usage-poll'
 import {
   detectDesktop,
   extraBinDirs,
@@ -101,6 +103,7 @@ function send(
     | PtyExitEvent
     | UpdateProgress
     | ChatEventMessage
+    | UsageLimitsEvent
     | LoginEvent
     | PreviewEventMessage
     | PreviewRequestFailure
@@ -122,6 +125,18 @@ const usage = new UsageStore({
   }
 })
 void usage.load()
+
+// Live limits (claude accounts): polled while the window is open, saved and pushed to it.
+const usagePoll = new UsagePoller({
+  accounts: () => store.get().accounts,
+  configDir: (a) => resolveUserPath(a.configDir, homeDir),
+  readFile: (f) => readFile(f, 'utf8'),
+  fetch: (url, init) => fetch(url, init),
+  onLimits: (accountId, limits) => {
+    usage.setLimits(accountId, limits)
+    send(IPC.usageLimits, { accountId, limits })
+  }
+})
 
 // Chat panes' headless CLIs (ADR 0002) run here, not in the host: they stop on quit.
 const chats = new ChatSessions({
@@ -314,6 +329,8 @@ function createWindow(hidden = false): void {
     }
   })
   mainWindow = win
+  // Only while someone can see it: no polling with the window closed (agents kept running).
+  usagePoll.start()
 
   win.once('ready-to-show', () => {
     if (!hidden) win.show()
@@ -346,7 +363,10 @@ function createWindow(hidden = false): void {
   })
 
   win.on('closed', () => {
-    if (mainWindow === win) mainWindow = null
+    if (mainWindow === win) {
+      mainWindow = null
+      usagePoll.stop()
+    }
   })
 
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {

@@ -92,6 +92,7 @@ export const IPC = {
   themesCommunityRemove: 'themes:communityRemove',
   themesOpenFolder: 'themes:openFolder',
   usageGet: 'usage:get',
+  usageLimits: 'usage:limits',
   previewDetect: 'preview:detect',
   previewStart: 'preview:start',
   previewStop: 'preview:stop',

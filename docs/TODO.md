@@ -1,6 +1,7 @@
 # TODO
 
 ## Now
+- Live usage (feat/live-usage-20261102): macOS keeps claude's token in the Keychain, so nothing is polled there yet; codex accounts still update per turn (could poll `account/rateLimits/read` on open chats)
 - #161 ask before switching on feat/ask-before-switch-20261102: try with real accounts at the limit (only the fake claude so far); codex at its limit
 - #160 pickers on fix/picker-overflow-20261102: look at the account rail with many real accounts and at 125–150% zoom in the real app (e2e checks only the 420px window)
 - #159 `@` file mentions shipped on feat/at-mention-files-20261102: check with real claude whether a stream-json `@path` gets the file attached like the interactive screen (today the agent reads it with its tools); try codex/agy with a mention

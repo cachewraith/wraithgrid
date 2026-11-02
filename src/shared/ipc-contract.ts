@@ -19,7 +19,7 @@ import {
 import { idSchema, sshHostSchema } from './schema'
 import { themeFileSchema, type AppTheme, type ThemeFile } from './themes'
 import type { PreviewEvent, PreviewRequestFailure } from './preview'
-import type { UsageData } from './usage'
+import type { AccountLimits, UsageData } from './usage'
 import type { ReleaseNote } from './whats-new'
 import { SHARED_MODES, type CloseMode, type Config, type SharedMode } from './types'
 
@@ -690,6 +690,8 @@ export interface WraithApi {
   /** Chat-turn cost and tokens (90 days) and plan limits, recorded in main. */
   usage: {
     get(): Promise<UsageData>
+    /** An account's limits as main polls them (#live usage): no chat turn needed. */
+    onLimits(cb: (e: UsageLimitsEvent) => void): () => void
   }
   /** Theme files in ~/.wraithgrid/themes. Import and export ask for a file; null = canceled. */
   themes: {
@@ -768,4 +770,10 @@ export interface WraithApi {
     onAction(cb: (id: number, action: CliAction) => void): () => void
     reply(id: number, result: CliActionResult): void
   }
+}
+
+/** Main polled an account's plan limits from its provider (claude: every 2 minutes). */
+export interface UsageLimitsEvent {
+  accountId: string
+  limits: AccountLimits
 }

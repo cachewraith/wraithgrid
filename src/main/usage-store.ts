@@ -1,9 +1,16 @@
 // Records chat-turn usage and plan limits as the chat events pass through main, into
 // userData/usage.json (90 days, written a moment after the last change). Nothing is sent
-// anywhere: the CLI already reported these numbers.
+// anywhere: the CLI reported these numbers, or main polled the limits (usage-poll.ts).
 import { readFile } from 'node:fs/promises'
 import type { ChatEvent } from '@shared/chat'
-import { EMPTY_USAGE, addTurn, pruneUsage, usageDataSchema, type UsageData } from '@shared/usage'
+import {
+  EMPTY_USAGE,
+  addTurn,
+  pruneUsage,
+  usageDataSchema,
+  type AccountLimits,
+  type UsageData
+} from '@shared/usage'
 import { writeFileAtomic } from './config-store'
 
 export interface PaneOwner {
@@ -42,6 +49,12 @@ export class UsageStore {
 
   get(): UsageData {
     return pruneUsage(this.data, this.now())
+  }
+
+  /** An account's limits from elsewhere than a chat turn (main's poll). */
+  setLimits(accountId: string, limits: AccountLimits): void {
+    this.data = { ...this.data, limits: { ...this.data.limits, [accountId]: limits } }
+    this.scheduleSave()
   }
 
   onChatEvent(paneId: string, e: ChatEvent): void {
