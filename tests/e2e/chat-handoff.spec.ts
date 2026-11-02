@@ -116,7 +116,8 @@ for (const theme of ['dark', 'light'] as const) {
         'true'
       )
       await expect(picker.getByRole('option')).toHaveText([/^org-cambodia-codex/])
-      expect((await picker.boundingBox())!.height).toBe(height)
+      // Sub-pixel noise from the open animation's scale; the size itself must not change.
+      expect((await picker.boundingBox())!.height).toBeCloseTo(height, 0)
       await search.press('Shift+Tab')
       await expect(picker.getByRole('tab', { name: /Claude/ })).toHaveAttribute(
         'aria-selected',

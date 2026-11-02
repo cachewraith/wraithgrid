@@ -585,7 +585,8 @@ test('at its limit a chat carries on as the next account, and a refused message 
       ],
       activeWorkspace: 'ws-main',
       recentFolders: [],
-      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false }
+      // Switching on its own (#161 made Ask first the default).
+      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false, autoSwitchMode: 'auto' }
     })
   )
   const { app, win } = await launch(home, userData)
@@ -615,6 +616,91 @@ test('at its limit a chat carries on as the next account, and a refused message 
       'over limit (config ' + path.join(home, '.wraithgrid/accounts/spare')
     )
     await expect(win.locator('.cmsg.user', { hasText: 'over limit' })).toHaveCount(2)
+  } finally {
+    await app.close()
+  }
+})
+
+test('at its limit a chat asks before switching: Stay, then Switch & resend, then never again (#161)', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wraithgrid-ask-switch-'))
+  const home = path.join(tmp, 'home')
+  const userData = path.join(tmp, 'userdata')
+  fs.mkdirSync(path.join(home, 'proj'), { recursive: true })
+  fs.mkdirSync(userData, { recursive: true })
+  const account = (id: string, name: string) => ({
+    id,
+    name,
+    configDir: `~/.wraithgrid/accounts/${name}`,
+    color: '#7c5cff',
+    signedIn: true,
+    imported: false
+  })
+  fs.writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      version: 1,
+      claudePath: FAKE_CLAUDE,
+      accounts: [account('a-work', 'work'), account('a-home', 'home'), account('a-spare', 'spare')],
+      workspaces: [
+        {
+          id: 'ws-main',
+          name: 'main',
+          panes: [
+            { id: 'p-chat', accountId: 'a-home', cwd: '~/proj', title: 'proj', view: 'chat' }
+          ],
+          layout: null
+        }
+      ],
+      activeWorkspace: 'ws-main',
+      recentFolders: [],
+      settings: { defaultAccountId: 'a-work', checkUpdatesOnLaunch: false }
+    })
+  )
+  const { app, win } = await launch(home, userData)
+  try {
+    const box = win.getByLabel('Message', { exact: true })
+    const chip = (name: string) =>
+      win.getByRole('button', { name: `Account: ${name}. Continue as another account` })
+    const ask = win.getByRole('alertdialog', { name: 'Switch to spare?' })
+
+    // At 97% the chat stops and asks; nothing switches until it is answered.
+    await box.fill('nearly out')
+    await box.press('Enter')
+    await expect(ask).toContainText('home reached 97% of its 5-hour limit · in “nearly out”')
+    await expect(ask).toContainText('Nothing is sent again')
+    await expect(ask.getByRole('button', { name: 'Switch', exact: true })).toBeFocused()
+    await expect(win.locator('.cnote', { hasText: 'switching to' })).toHaveCount(0)
+
+    // Esc is Stay: same account, and not asked again after the next turn at the same limit.
+    await win.keyboard.press('Escape')
+    await expect(ask).toHaveCount(0)
+    await expect(chip('home')).toBeVisible()
+    await box.fill('nearly out again')
+    await box.press('Enter')
+    await expect(win.locator('.cmsg.agent', { hasText: 'Noted.' })).toHaveCount(2)
+    await win.waitForTimeout(600)
+    await expect(ask).toHaveCount(0)
+
+    // A refused message asks again, to resend it; Don't ask again turns asking off.
+    await box.fill('over limit')
+    await expect(win.getByRole('button', { name: 'Send (Enter)' })).toBeEnabled()
+    await box.press('Enter')
+    await expect(ask).toContainText('home hit its usage limit')
+    await expect(ask).toContainText('Your last message is sent again.')
+    await ask.getByRole('checkbox', { name: 'Don’t ask again' }).check()
+    await ask.getByRole('button', { name: 'Switch & resend' }).click()
+    await expect(ask).toHaveCount(0)
+    await expect(chip('spare')).toBeVisible()
+    await expect(win.locator('.cmsg.agent').last()).toContainText(
+      'over limit (config ' + path.join(home, '.wraithgrid/accounts/spare')
+    )
+    await expect
+      .poll(
+        () =>
+          JSON.parse(fs.readFileSync(path.join(userData, 'config.json'), 'utf8')).settings
+            .autoSwitchMode
+      )
+      .toBe('auto')
   } finally {
     await app.close()
   }

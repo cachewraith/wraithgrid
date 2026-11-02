@@ -151,6 +151,17 @@ export type Modal =
   /** New or edit a scheduled job (#77); null: new. */
   | { kind: 'job'; jobId: string | null }
 
+/** A chat at its account's limit, waiting for an answer before it switches account (#161). */
+export interface SwitchAsk {
+  paneId: string
+  fromId: string
+  /** Where it would go; null: no other account of its CLI has room. */
+  toId: string | null
+  reason: string
+  /** The limit refused the last message: it is sent again after the switch. */
+  resend: boolean
+}
+
 export interface NewProjectInput {
   name: string
   /** The project's folder; '' = none picked. */
@@ -190,6 +201,8 @@ export interface AppState {
   view: View
   accountsMode: AccountsMode
   modal: Modal | null
+  /** Switches waiting for an answer, one dialog at a time, oldest first (#161). */
+  switchAsks: SwitchAsk[]
   focusedPaneId: string | null
   zoomedPaneId: string | null
   closingPaneId: string | null
@@ -386,6 +399,13 @@ export interface AppState {
   /** Saves the draft as a new theme and switches to it; returns why it could not, or null. */
   saveThemeDraft(): Promise<string | null>
   deleteTheme(id: string): Promise<string | null>
+
+  /**
+   * The answer to a switch question (#161): `switch` carries the chat on as the asked account
+   * (or the next with room, if that one filled up meanwhile); `stay` leaves it. `dontAsk` turns
+   * asking off: later switches happen on their own.
+   */
+  answerSwitch(paneId: string, answer: 'switch' | 'stay', dontAsk?: boolean): void
 
   // settings
   updateSettings(patch: Partial<Settings>): void
@@ -631,6 +651,46 @@ export function createAppStore({
         }))
       )
     }
+
+    // Switching account at the limit (#61): the chat carries on as `to` via "Continue as…" (the
+    // whole conversation goes with it); a turn the limit refused is sent again there, once.
+    // Shared by the automatic switch and the answer to its question (#161).
+    const switching = new Set<string>()
+    const toldNoneLeft = new Set<string>()
+    /** Panes whose question was answered Stay, by the account they stayed on. */
+    const declined = new Map<string, string>()
+    const runSwitch = async (
+      paneId: string,
+      to: Account,
+      reason: string,
+      resend: boolean
+    ): Promise<void> => {
+      const last = [...chat.thread(paneId).items]
+        .reverse()
+        .find((it) => it.kind === 'user' || it.kind === 'handoff')
+      switching.add(paneId)
+      chat.notice(paneId, 'info', `${reason}: switching to ${to.name}`)
+      const err = await get().chatSwitchAccount(paneId, to.id)
+      switching.delete(paneId)
+      if (err) {
+        chat.notice(paneId, 'error', `Could not switch to ${to.name}: ${err}`)
+        return
+      }
+      if (resend && (last?.kind === 'user' || last?.kind === 'handoff') && last.text.trim()) {
+        // Once the new account's chat is up (a few seconds at most).
+        const until = now() + 30_000
+        const wait = setInterval(() => {
+          if (get().runtime[paneId]?.started) {
+            clearInterval(wait)
+            if (last.kind === 'handoff') chat.sendPreparedHandoff(paneId)
+            else get().chatSend(paneId, last.text, [])
+          } else if (now() > until) clearInterval(wait)
+        }, 200)
+      }
+    }
+    /** Queues a question for a pane, replacing any it already had. */
+    const askSwitch = (ask: SwitchAsk): void =>
+      set({ switchAsks: [...get().switchAsks.filter((a) => a.paneId !== ask.paneId), ask] })
 
     /**
      * Restarts a chat without a word in the view: its conversation resumes by id. For start-up
@@ -932,8 +992,9 @@ export function createAppStore({
           return { at, result: 'skipped', paneId: last.paneId, note: 'previous run still going' }
       }
       if ((peakUse(s.usage.limits[account.id], at)?.pct ?? 0) >= 100) {
+        // A scheduled run has nobody to ask (#161): Ask first switches it on its own too.
         const other =
-          job.atLimit === 'switch' && s.config.settings.autoSwitchAtLimit
+          job.atLimit === 'switch' && s.config.settings.autoSwitchMode !== 'off'
             ? nextAccount(
                 s.config.accounts,
                 account,
@@ -1179,6 +1240,7 @@ export function createAppStore({
       view: 'grid',
       accountsMode: 'list',
       modal: null,
+      switchAsks: [],
       focusedPaneId: null,
       zoomedPaneId: null,
       closingPaneId: null,
@@ -1242,13 +1304,10 @@ export function createAppStore({
           void autoSwitch(paneId, e.error)
         })
 
-        // Switching account at the limit (#61): after a turn, a chat at its account's limit
-        // carries on as the next account of its CLI with room, via "Continue as…" (the whole
-        // conversation goes with it). A turn the limit refused is sent again there, once.
-        const switching = new Set<string>()
-        const toldNoneLeft = new Set<string>()
+        // After a turn, a chat at its account's limit carries on as the next account of its CLI
+        // with room (#61), once the user says so unless switching is set to happen on its own (#161).
         const autoSwitch = async (paneId: string, error: string | null): Promise<void> => {
-          if (!get().config.settings.autoSwitchAtLimit || switching.has(paneId)) return
+          if (get().config.settings.autoSwitchMode === 'off' || switching.has(paneId)) return
           // The turn's end and "not busy" come as separate messages: let the turn settle.
           for (let i = 0; i < 40 && chat.thread(paneId).busy; i++)
             await new Promise((r) => setTimeout(r, 50))
@@ -1267,43 +1326,40 @@ export function createAppStore({
             s.config.settings.autoSwitchAt,
             error
           )
+          const ask = s.config.settings.autoSwitchMode === 'ask'
           if (d.kind === 'stay') {
             toldNoneLeft.delete(paneId)
+            declined.delete(paneId)
             return
           }
           if (d.kind === 'none-left') {
             if (toldNoneLeft.has(paneId)) return
             toldNoneLeft.add(paneId)
-            chat.notice(
-              paneId,
-              'error',
-              `${d.reason}, and no other ${AGENT_CLI_LABEL[from.cli]} account has room left.`
-            )
+            if (ask)
+              askSwitch({ paneId, fromId: from.id, toId: null, reason: d.reason, resend: false })
+            else
+              chat.notice(
+                paneId,
+                'error',
+                `${d.reason}, and no other ${AGENT_CLI_LABEL[from.cli]} account has room.`
+              )
             return
           }
           toldNoneLeft.delete(paneId)
-          const last = [...thread.items]
-            .reverse()
-            .find((it) => it.kind === 'user' || it.kind === 'handoff')
-          switching.add(paneId)
-          chat.notice(paneId, 'info', `${d.reason}: switching to ${d.to.name}`)
-          const err = await get().chatSwitchAccount(paneId, d.to.id)
-          switching.delete(paneId)
-          if (err) {
-            chat.notice(paneId, 'error', `Could not switch to ${d.to.name}: ${err}`)
+          if (ask) {
+            // Answered Stay on this account: not again after every turn, only when the limit
+            // refuses a message.
+            if (declined.get(paneId) === from.id && !d.resend) return
+            askSwitch({
+              paneId,
+              fromId: from.id,
+              toId: d.to.id,
+              reason: d.reason,
+              resend: d.resend
+            })
             return
           }
-          if (d.resend && (last?.kind === 'user' || last?.kind === 'handoff') && last.text.trim()) {
-            // Once the new account's chat is up (a few seconds at most).
-            const until = now() + 30_000
-            const wait = setInterval(() => {
-              if (get().runtime[paneId]?.started) {
-                clearInterval(wait)
-                if (last.kind === 'handoff') chat.sendPreparedHandoff(paneId)
-                else get().chatSend(paneId, last.text, [])
-              } else if (now() > until) clearInterval(wait)
-            }, 200)
-          }
+          await runSwitch(paneId, d.to, d.reason, d.resend)
         }
         // claude can change mode itself (leaving plan mode): the next start keeps that.
         chat.onMode((paneId, mode) => {
@@ -2516,6 +2572,36 @@ export function createAppStore({
       },
 
       // ---- settings ------------------------------------------------------------
+
+      answerSwitch(paneId, answer, dontAsk = false) {
+        const ask = get().switchAsks.find((a) => a.paneId === paneId)
+        set({ switchAsks: get().switchAsks.filter((a) => a.paneId !== paneId) })
+        const s = get()
+        const pane = findPane(s.config, paneId)?.pane
+        const from = pane ? accountById(s.config, pane.accountId) : null
+        // A pane closed or switched by hand meanwhile: nothing to do.
+        if (!ask || !from || from.id !== ask.fromId || !ask.toId) return
+        if (answer === 'stay') {
+          declined.set(paneId, from.id)
+          return
+        }
+        if (dontAsk) s.updateSettings({ autoSwitchMode: 'auto' })
+        if (switching.has(paneId)) return
+        // The asked account may have filled up or signed out while the question was open.
+        const at = s.config.settings.autoSwitchAt
+        const asked = accountById(s.config, ask.toId)
+        const room = (a: Account): boolean =>
+          a.signedIn && (peakUse(s.usage.limits[a.id], now())?.pct ?? 0) < at
+        const to =
+          asked && room(asked)
+            ? asked
+            : nextAccount(s.config.accounts, from, s.usage.limits, now(), at)
+        if (!to) {
+          askSwitch({ ...ask, toId: null })
+          return
+        }
+        void runSwitch(paneId, to, ask.reason, ask.resend)
+      },
 
       updateSettings(patch) {
         get().updateConfig((c) => ({ ...c, settings: { ...c.settings, ...patch } }))

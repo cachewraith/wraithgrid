@@ -27,6 +27,7 @@ import { useApp, useServices } from './services'
 import { matchShortcut } from './shortcuts'
 import { paneIds } from '../layout/tree'
 import { terminalTheme } from '../lib/term-theme'
+import { AutoSwitchDialog } from '../components/AutoSwitchDialog'
 import { DENSE_PANE_COUNT, activeWorkspace, currentTheme, drawnTheme } from './store'
 import { stepZoom } from '@shared/types'
 import { themeVars } from '@shared/themes'
@@ -222,6 +223,7 @@ export function App() {
       </div>
       <ZoomBadge />
       <Modals />
+      <AutoSwitchDialog />
     </div>
   )
 }

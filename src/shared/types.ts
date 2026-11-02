@@ -45,6 +45,9 @@ export type PaneView = (typeof PANE_VIEWS)[number]
 
 /** What closing the window does while agents run: ask, stop them, or keep them running. */
 export const CLOSE_MODES = ['ask', 'stop', 'keep'] as const
+/** At an account's limit (#61, #161): ask before switching, switch on its own, or stay. */
+export const AUTO_SWITCH_MODES = ['ask', 'auto', 'off'] as const
+export type AutoSwitchMode = (typeof AUTO_SWITCH_MODES)[number]
 export type CloseMode = (typeof CLOSE_MODES)[number]
 
 export const FONT_SIZE_MIN = 10
@@ -279,8 +282,8 @@ export interface Settings {
   checkUpdatesOnLaunch: boolean
   /** OS notification when a pane you aren't looking at finishes or needs approval. */
   notifyPanes: boolean
-  /** After a turn, a chat at its account's limit carries on as the next account (#61). */
-  autoSwitchAtLimit: boolean
+  /** After a turn, a chat at its account's limit carries on as the next account (#61): asking first (#161), on its own, or not at all. */
+  autoSwitchMode: AutoSwitchMode
   /** The limit, in percent of the 5-hour or weekly window, that counts as reached. */
   autoSwitchAt: number
   /** The shell plain shell panes run: a path or a name on PATH. Empty: automatic. */

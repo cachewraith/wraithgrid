@@ -351,3 +351,26 @@ describe('ConfigStore', () => {
     expect(gemini.ok && gemini.config.accounts[0]!.cli).toBe('gemini')
   })
 })
+
+describe('switch at limit setting (#161)', () => {
+  const settingsOf = (settings: Record<string, unknown>) => {
+    const r = parseConfig({ ...JSON.parse(JSON.stringify(defaultConfig())), settings })
+    if (!r.ok) throw new Error(r.error)
+    return r.config.settings
+  }
+  it('asks first by default', () => {
+    expect(settingsOf({}).autoSwitchMode).toBe('ask')
+  })
+  it('turns the old on/off switch into ask/off and drops it', () => {
+    expect(settingsOf({ autoSwitchAtLimit: true }).autoSwitchMode).toBe('ask')
+    const off = settingsOf({ autoSwitchAtLimit: false })
+    expect(off.autoSwitchMode).toBe('off')
+    expect('autoSwitchAtLimit' in off).toBe(false)
+  })
+  it('keeps a saved mode, and an unknown one falls back to ask', () => {
+    expect(settingsOf({ autoSwitchMode: 'auto', autoSwitchAtLimit: false }).autoSwitchMode).toBe(
+      'auto'
+    )
+    expect(settingsOf({ autoSwitchMode: 'sometimes' }).autoSwitchMode).toBe('ask')
+  })
+})
