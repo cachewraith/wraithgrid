@@ -1,4 +1,22 @@
-# What's new in 1.24.0: a lighter background host, everywhere
+# What's new in 1.25.0: live usage, @ files and asking before a switch
+
+*v1.25.0 · 2026-11-02*
+
+| New | What changed |
+|---|---|
+| Live usage | Each Claude account's 5-hour and weekly use updates on its own every 2 minutes while Wraithgrid is open, including use from claude.ai or another computer. No chat turn or click needed. The account's own sign-in is used, only with Anthropic; not on macOS yet |
+| @ files and folders | Type `@` in a chat to pick a file or folder of the project, like the claude CLI: filter as you type, Enter or Tab inserts its path. Ignored files and `node_modules` are left out |
+| Ask before switching account | When a chat reaches its account's limit, it now asks before carrying on as your next account: both accounts with their use, what carries over, Switch or Stay. Settings → Switch account at limit: Ask first, Automatically or Off |
+| Account picker by provider | The account picker shows one provider at a time, with Claude, Codex and the others in a column on the left; each account is one line with a usage bar. Tab switches provider; search finds accounts in all of them. Claude's long model list is split into Latest and one tab per family |
+| Full access | The "Bypass permissions" mode is now called Full access |
+
+| Fix | What changed |
+|---|---|
+| Menus off the screen | The account, model, effort and mode menus no longer run past the top of the window with many accounts or when zoomed in (Ctrl+=); the list scrolls inside instead |
+
+---
+
+## Previously, in 1.24.0: a lighter background host, everywhere
 
 *v1.24.0 · 2026-10-27*
 
