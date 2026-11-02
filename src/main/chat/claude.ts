@@ -446,7 +446,7 @@ export function createClaudeAdapter(): ChatAdapter {
       '--include-partial-messages',
       '--permission-prompt-tool',
       'stdio',
-      // Only makes Bypass a mode the user can pick mid-chat; without it claude refuses the switch.
+      // Only makes Full access (bypassPermissions) a mode the user can pick mid-chat; without it claude refuses the switch.
       '--allow-dangerously-skip-permissions',
       ...(sessionId ? ['--resume', sessionId] : continueLast ? ['--continue'] : []),
       ...(model ? ['--model', model] : []),

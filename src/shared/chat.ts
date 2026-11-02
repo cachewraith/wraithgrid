@@ -86,7 +86,7 @@ export const CHAT_MODE_LABEL: Record<ChatMode, string> = {
   plan: 'Plan',
   auto: 'Auto',
   dontAsk: "Don't ask",
-  bypassPermissions: 'Bypass permissions'
+  bypassPermissions: 'Full access'
 }
 
 export const CHAT_MODE_HINT: Record<ChatMode, string> = {

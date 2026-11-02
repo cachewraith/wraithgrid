@@ -1230,9 +1230,7 @@ function ChatDefaultsRow() {
               )
             })}
           </div>
-          <span className="hint">
-            Bypass permissions is only offered per chat, never by default.
-          </span>
+          <span className="hint">Full access is only offered per chat, never by default.</span>
         </div>
       </div>
       <AutoSwitchRow />
