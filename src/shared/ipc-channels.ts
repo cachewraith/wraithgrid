@@ -15,6 +15,7 @@ export const IPC = {
   chatSetModel: 'chat:setModel',
   chatSetMode: 'chat:setMode',
   chatPickFiles: 'chat:pickFiles',
+  chatListFiles: 'chat:listFiles',
   chatEvent: 'chat:event',
   chatLoad: 'chat:load',
   chatSave: 'chat:save',

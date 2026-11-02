@@ -31,7 +31,14 @@ import {
 } from '../icons'
 import { ContextMenu, type MenuPoint } from '../ContextMenu'
 import { toLocal } from '@shared/schedule'
-import { mentionQuery, rankSlash, slashQuery, type SlashItem } from '../../lib/slash'
+import {
+  fileItem,
+  fileQuery,
+  mentionQuery,
+  rankSlash,
+  slashQuery,
+  type SlashItem
+} from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
 import { NOT_BROWSING, atEdge, historyStep, type HistoryNav } from '../../lib/prompt-history'
 
@@ -52,6 +59,8 @@ interface Props {
   model?: ReactNode
   /** The `/` menu's items; empty: no menu. */
   commands?: SlashItem[]
+  /** The `@` menu's paths under the chat's folder for what was typed (#159); no prop, no menu. */
+  onListFiles?: (query: string) => Promise<string[]>
   /** A Wraithgrid or terminal-only command was picked (the box is cleared). */
   onCommand?: (item: SlashItem) => void
   /** Shift+Tab: the next permission mode, as in Claude Code. */
@@ -100,6 +109,7 @@ export function Composer({
   meta,
   model,
   commands = [],
+  onListFiles,
   onCommand,
   onCycleMode,
   onSend,
@@ -124,18 +134,37 @@ export function Composer({
   const listId = useId().replace(/:/g, '')
 
   // The `/` menu: open while the first word starts with `/` and the caret is in it; a
-  // `$word` anywhere opens it with the skills named that way (codex, #96).
+  // `$word` anywhere opens it with the skills named that way (codex, #96), an `@word` with the
+  // project's files, listed by main (#159).
   const [caret, setCaret] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const slash = commands.length ? slashQuery(text, caret) : null
   const mentions = commands.filter((c) => c.sigil === '$')
   const mention = slash === null && mentions.length ? mentionQuery(text, caret) : null
-  const query = slash ?? mention?.query ?? null
+  const at = slash === null && !mention && onListFiles ? fileQuery(text, caret) : null
+  const query = slash ?? mention?.query ?? at?.query ?? null
+  /** The last file list main answered; shown until the next one comes. */
+  const [found, setFound] = useState<SlashItem[] | null>(null)
+  if (!at && found) setFound(null)
+  const asked = useRef(0)
+  const fileAsk = at && dismissed !== text ? at.query : null
+  useEffect(() => {
+    if (fileAsk === null || !onListFiles) return
+    const n = ++asked.current
+    void onListFiles(fileAsk).then((paths) => {
+      if (n === asked.current) setFound(paths.map(fileItem))
+    })
+  }, [fileAsk, onListFiles])
   const ranked =
-    query !== null && dismissed !== text ? rankSlash(mention ? mentions : commands, query) : null
-  // A `$` that names no skill (a price, a shell variable) shows nothing.
-  const open = ranked !== null && (!mention || ranked.length > 0)
+    query === null || dismissed === text
+      ? null
+      : at
+        ? found
+        : rankSlash(mention ? mentions : commands, query)
+  // A `$` that names no skill (a price, a shell variable), or an `@` no file matches, shows nothing.
+  const open = ranked !== null && (!(mention || at) || ranked.length > 0)
   const items = ranked ?? []
+  const menus = commands.length > 0 || !!onListFiles
   const [active, setActive] = useState(0)
   const [lastQuery, setLastQuery] = useState(query)
   if (query !== lastQuery) {
@@ -174,6 +203,16 @@ export function Composer({
     if (item.group === 'app') {
       setText('')
       onCommand?.(item)
+      return
+    }
+    if (item.sigil === '@' && at) {
+      // A file replaces the `@word`; a folder stays open (`@src/`) to go on into it.
+      const dir = item.name.endsWith('/')
+      const head = `${text.slice(0, at.start)}@${item.name}${dir ? '' : ' '}`
+      const next = head + (dir ? text.slice(caret) : text.slice(caret).trimStart())
+      setText(next)
+      setCaret(head.length)
+      placeCaret.current = { text: next, at: head.length, focus: true }
       return
     }
     // A `$` skill replaces the word being typed and keeps the rest; a `/` command is the text.
@@ -259,7 +298,7 @@ export function Composer({
           items={items}
           active={active}
           query={query ?? ''}
-          sigil={mention ? '$' : '/'}
+          sigil={mention ? '$' : at ? '@' : '/'}
           onPick={pick}
           onHover={setActive}
         />
@@ -334,10 +373,10 @@ export function Composer({
           placeholder={ready ? placeholder : 'Starting…'}
           aria-label="Message"
           spellCheck
-          role={commands.length ? 'combobox' : undefined}
-          aria-expanded={commands.length ? open : undefined}
+          role={menus ? 'combobox' : undefined}
+          aria-expanded={menus ? open : undefined}
           aria-controls={open ? listId : undefined}
-          aria-autocomplete={commands.length ? 'list' : undefined}
+          aria-autocomplete={menus ? 'list' : undefined}
           aria-activedescendant={open && items.length ? slashOptionId(listId, active) : undefined}
           onChange={(e) => {
             nav.current = NOT_BROWSING

@@ -1,9 +1,10 @@
 // The `/` menu in the chat box: Wraithgrid's own commands, then the CLI's skills and
 // commands (from its own list); the ones that only work in the CLI's screen are left out, as
-// chats have no terminal view (#110). codex skills are named as `$name` instead, and also open from a `$` word (#96). Pure.
+// chats have no terminal view (#110). codex skills are named as `$name` instead, and also open from a `$` word (#96).
+// An `@` word lists the project's files (#159). Pure.
 import type { ChatCommand } from '@shared/chat'
 
-export type SlashGroup = 'app' | 'skill' | 'builtin'
+export type SlashGroup = 'app' | 'skill' | 'builtin' | 'file'
 
 export interface SlashItem {
   name: string
@@ -13,16 +14,17 @@ export interface SlashItem {
   group: SlashGroup
   /** The plugin a skill comes from (`postman` of `postman:api-testing`). */
   source: string | null
-  /** What goes before the name in the text: `$` for a codex skill. */
-  sigil: '/' | '$'
+  /** What goes before the name in the text: `$` for a codex skill, `@` for a file. */
+  sigil: '/' | '$' | '@'
 }
 
 export const SLASH_GROUP_LABEL: Record<SlashGroup, string> = {
   app: 'Wraithgrid',
   skill: 'Skills and commands',
-  builtin: 'Built in'
+  builtin: 'Built in',
+  file: 'Files'
 }
-const GROUP_ORDER: SlashGroup[] = ['app', 'skill', 'builtin']
+const GROUP_ORDER: SlashGroup[] = ['app', 'skill', 'builtin', 'file']
 
 /** Handled by Wraithgrid itself; the CLI's commands of the same name are hidden. */
 export const APP_COMMANDS: SlashItem[] = [
@@ -117,6 +119,44 @@ export function mentionQuery(text: string, caret: number): { start: number; quer
   const m = /(?:^|\s)\$([A-Za-z0-9_.:-]{0,100})$/.exec(text.slice(0, caret))
   if (!m) return null
   return { start: caret - m[1]!.length - 1, query: m[1]! }
+}
+
+/**
+ * The `@path` the caret ends (start of the text or after a space), for the file menu: where
+ * it starts and the text after `@`; null when the caret is not in one (an email's `@` isn't).
+ */
+export function fileQuery(text: string, caret: number): { start: number; query: string } | null {
+  const m = /(?:^|\s)@([^\s@]{0,300})$/.exec(text.slice(0, caret))
+  if (!m) return null
+  return { start: caret - m[1]!.length - 1, query: m[1]! }
+}
+
+/** A path from main's file list as a menu item. */
+export function fileItem(path: string): SlashItem {
+  return {
+    name: path,
+    description: '',
+    argumentHint: '',
+    aliases: [],
+    group: 'file',
+    source: null,
+    sigil: '@'
+  }
+}
+
+/** A sent message's `@path` mentions (with a `/` or `.` in them, so `@someone` isn't one). */
+export function splitMentions(text: string): { text: string; mention: boolean }[] {
+  const out: { text: string; mention: boolean }[] = []
+  const re = /(^|\s)(@[^\s@]*[./][^\s@]*)/g
+  let at = 0
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    const start = m.index + m[1]!.length
+    if (start > at) out.push({ text: text.slice(at, start), mention: false })
+    out.push({ text: m[2]!, mention: true })
+    at = start + m[2]!.length
+  }
+  if (at < text.length) out.push({ text: text.slice(at), mention: false })
+  return out
 }
 
 function subsequence(q: string, s: string): boolean {

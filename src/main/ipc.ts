@@ -21,6 +21,7 @@ import {
   IPC,
   chatApproveArgs,
   chatPaneArgs,
+  chatListFilesArgs,
   chatSaveArgs,
   chatSendArgs,
   chatSetModelArgs,
@@ -181,6 +182,7 @@ import type { SpawnSpec } from './spawn-resolve'
 import { resolveSpawn } from './spawn-resolve'
 import { chatAdapterFor } from './chat/adapter'
 import { readPicked } from './chat/attach'
+import { makeFileLister, rankPaths } from './chat/files'
 import { listFolder } from './folders'
 import { copyCodexRollout, copyTranscript } from './chat/transcript'
 import { LOGIN_FLOWS, type Logins } from './login'
@@ -1036,6 +1038,20 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
       return res.canceled ? null : readPicked(res.filePaths)
     },
     null
+  )
+
+  // The `@` menu (#159): files under the pane's own folder; chats on ssh machines get none.
+  const listFiles = makeFileLister(deps.git)
+  handle(
+    IPC.chatListFiles,
+    chatListFilesArgs,
+    async (a): Promise<string[]> => {
+      const cwd = machineOfPane(store.get(), a.paneId) ? null : paneCwd(a.paneId)
+      if (!cwd) return []
+      await deps.envReady
+      return rankPaths(await listFiles(cwd), a.query)
+    },
+    []
   )
 
   // Project icons (#80): the project's own folder (from main's config, never a renderer

@@ -92,6 +92,8 @@ export const chatApproveArgs = z.object({
   answers: z.record(z.string().max(2000), z.string().max(4000)).optional()
 })
 export const chatPaneArgs = z.object({ paneId: idSchema })
+/** The `@` menu (#159): the pane only, never a path; main resolves its folder. */
+export const chatListFilesArgs = z.object({ paneId: idSchema, query: z.string().max(500) })
 export const chatSetModelArgs = z.object({
   paneId: idSchema,
   model: z.string().regex(CHAT_MODEL_PATTERN)
@@ -569,6 +571,8 @@ export interface WraithApi {
     flushed(): void
     /** The native file picker in the pane's folder; null when cancelled. */
     pickFiles(paneId: string): Promise<ChatPickResult | null>
+    /** Paths under the pane's folder matching `query` for the `@` menu, relative, `/`-separated; folders end with `/`. */
+    listFiles(paneId: string, query: string): Promise<string[]>
     /** A dropped file's path on disk ('' when it has none). */
     filePath(file: File): string
   }
