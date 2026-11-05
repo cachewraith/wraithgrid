@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-05
+
+- [chat] Preview pasted images before sending (#163): each thumbnail in the message box is a button ("Preview image N of M") that opens the full-window viewer over all pasted images (← → step, Esc or a click closes, focus back on the thumbnail, draft kept); `×` still only removes. `ImageViewer` moved out of ChatView so both use it (files: src/renderer/components/chat/{ImageViewer,Composer,ChatView}.tsx, src/renderer/styles/chat.css, tests/e2e/chat.spec.ts)
+
 ## 2026-11-02
 
 - [release] v1.25.0: live usage limits for claude accounts, `@` file mentions (#159), pickers fit the window with a provider rail (#160), ask before switching at the limit (#161), Full access mode label (files: package.json, CHANGELOG.md, docs/{WHATS-NEW,CONTEXT}.md)

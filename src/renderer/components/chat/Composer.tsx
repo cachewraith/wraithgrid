@@ -40,6 +40,7 @@ import {
   type SlashItem
 } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
+import { ImageViewer } from './ImageViewer'
 import { NOT_BROWSING, atEdge, historyStep, type HistoryNav } from '../../lib/prompt-history'
 
 interface Props {
@@ -125,6 +126,8 @@ export function Composer({
   const [laterAt, setLaterAt] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [images, setImages] = useState<ChatImage[]>([])
+  /** The pasted image open full size before sending (#163). */
+  const [preview, setPreview] = useState<number | null>(null)
   /** Attached files sent as paths, listed after the message. */
   const [files, setFiles] = useState<string[]>([])
   /** Reports handed in (a preview's), sent as text after the message. */
@@ -352,11 +355,19 @@ export function Composer({
           <div className="cc-imgs">
             {images.map((img, i) => (
               <div key={i} className="cc-img">
-                <img
-                  src={`data:${img.mediaType};base64,${img.data}`}
-                  alt={`Pasted image ${i + 1}`}
-                />
                 <button
+                  className="cc-img-open"
+                  aria-label={`Preview image ${i + 1} of ${images.length}`}
+                  onClick={() => setPreview(i)}
+                >
+                  <img
+                    src={`data:${img.mediaType};base64,${img.data}`}
+                    alt={`Pasted image ${i + 1}`}
+                    draggable={false}
+                  />
+                </button>
+                <button
+                  className="cc-img-x"
                   aria-label="Remove image"
                   onClick={() => setImages(images.filter((_, j) => j !== i))}
                 >
@@ -365,6 +376,14 @@ export function Composer({
               </div>
             ))}
           </div>
+        ) : null}
+        {preview !== null && images.length ? (
+          <ImageViewer
+            images={images.map((img) => `data:${img.mediaType};base64,${img.data}`)}
+            at={Math.min(preview, images.length - 1)}
+            onMove={setPreview}
+            onClose={() => setPreview(null)}
+          />
         ) : null}
         <textarea
           ref={ref}
