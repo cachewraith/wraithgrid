@@ -7,6 +7,7 @@ import { SHORTCUT_HINT } from '../app/shortcuts'
 import { ProviderLogo } from './ProviderLogo'
 import { useTitleDoubleClick, WindowControls } from './TitleBar'
 import { HiddenChip, LayoutPresets, ProjectLink } from './TopBar'
+import { GitButton } from './GitButton'
 import { UsageButton } from './UsageView'
 import { IconBranch, IconMonitor, IconMore, IconUnzoom, IconZoom } from './icons'
 
@@ -99,7 +100,9 @@ export function PaneHeader({ setDragHandle, dragListeners, ...p }: Props) {
         {st.word}
       </span>
       {p.solo && p.hiddenCount > 0 ? <HiddenChip count={p.hiddenCount} /> : null}
-      {p.view !== 'chat' && p.git?.repo ? (
+      {/* Alone, the row is the top bar: its Git button (#162) instead of the branch chip. */}
+      {p.solo ? <GitButton /> : null}
+      {!p.solo && p.view !== 'chat' && p.git?.repo ? (
         <button
           className={`gitc${p.git.changed ? ' dirty' : ''}`}
           title={`${p.git.branch ?? 'detached HEAD'}${p.git.changed ? ` · ${p.git.changed} changed` : ''}${p.git.ahead ? ` · ${p.git.ahead} ahead` : ''} — show changes (${SHORTCUT_HINT.diff}); right-click to switch branch`}

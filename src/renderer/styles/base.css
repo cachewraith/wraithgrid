@@ -2302,6 +2302,47 @@ kbd,
 }
 
 /* Branch chip in the pane header; dirty trees show their change count. */
+/* The top bar's Git button (#162): the focused pane's branch and changed count. */
+.top-git {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  max-width: 260px;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: calc(7px * var(--rs, 1));
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 12px;
+  flex: 0 1 auto;
+  cursor: pointer;
+}
+.top-git:hover,
+.top-git.open {
+  background: var(--raise);
+  color: var(--tx);
+}
+.top-git:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 1px;
+}
+.top-git .i {
+  flex: none;
+}
+.top-git-b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.top-git-n {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--warn);
+}
 .gitc {
   display: inline-flex;
   align-items: center;
@@ -2431,6 +2472,25 @@ button.dp-branch:hover:not(:disabled) {
 }
 .bp-note.err {
   color: var(--err);
+}
+/* Other panes share the folder (#162): switch them all, or a new pane on its own worktree. */
+.bp-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 4px 2px;
+  padding: 8px;
+  border: 1px solid var(--line2);
+  border-radius: calc(8px * var(--rs, 1));
+  background: var(--bg2);
+  font-size: 12px;
+  color: var(--tx);
+  white-space: normal;
+}
+.bp-ask-b {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
 }
 .dp-sub {
   padding: 0 14px 8px;

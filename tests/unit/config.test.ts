@@ -54,7 +54,8 @@ const sample = (): Config => ({
       preview: { command: '', url: '' },
       accountId: null,
       history: [],
-      team: []
+      team: [],
+      worktreePanes: false
     }
   ],
   machines: [],

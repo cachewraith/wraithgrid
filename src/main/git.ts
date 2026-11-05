@@ -113,30 +113,88 @@ export function worktreeDir(worktreesRoot: string, repoRoot: string, branch: str
   return path.join(worktreesRoot, path.basename(repoRoot), branch.replace(/\//g, '-'))
 }
 
+/** What a new worktree checks out: a new branch, or one the repo has (local or remote, #162). */
+export type WorktreeFrom = 'new' | 'local' | 'remote'
+
+/**
+ * The repo's main checkout, so a worktree made from a worktree pane goes with the repo's others
+ * (#162); a checkout whose git dir is elsewhere (a submodule) uses its own top folder.
+ */
+async function mainCheckout(run: GitRunner, cwd: string): Promise<string> {
+  const top = (await run(['rev-parse', '--show-toplevel'], cwd)).trim()
+  try {
+    const common = (
+      await run(['rev-parse', '--path-format=absolute', '--git-common-dir'], cwd)
+    ).trim()
+    if (path.basename(common) === '.git') return path.dirname(path.resolve(common))
+  } catch {
+    // An old git without --path-format: the top folder.
+  }
+  return top
+}
+
+/** git refusing a branch that another folder has checked out, said plainly (#162). */
+export function explainWorktreeError(line: string, branch: string): string {
+  const m = /^'[^']+' is already (?:checked out|used by worktree) at '([^']+)'/.exec(line)
+  return m
+    ? `${branch} is already checked out in ${m[1]}. A branch can be open in one folder at a time: open that folder, or pick another branch.`
+    : line
+}
+
 export async function addWorktree(
   run: GitRunner,
   cwd: string,
   branch: string,
   worktreesRoot: string,
   /** Use the folder if it is there, or check out the branch if only it exists (team, #79). */
-  reuse = false
+  reuse = false,
+  /** `local`/`remote`: open that branch (a remote one as a new local branch tracking it). */
+  from: WorktreeFrom = 'new'
 ): Promise<GitWorktreeResult> {
   if (!BRANCH_PATTERN.test(branch)) return { ok: false, error: 'Not a valid branch name.' }
   let root: string
   try {
-    root = (await run(['rev-parse', '--show-toplevel'], cwd)).trim()
+    root = await mainCheckout(run, cwd)
     await run(['check-ref-format', '--branch', branch], cwd)
   } catch (err) {
     return { ok: false, error: firstLine(err) }
   }
-  const dir = worktreeDir(worktreesRoot, root, branch)
+  // An existing branch must be one git lists, so nothing from the renderer reaches git as an
+  // option; a remote one gets the local name without its remote (`origin/feat/x` → `feat/x`).
+  let local = branch
+  if (from !== 'new') {
+    const list = await listBranches(run, root)
+    if (!list.ok) return list
+    const known = from === 'local' ? list.local.map((b) => b.name) : list.remote.map((b) => b.name)
+    if (!known.includes(branch)) return { ok: false, error: `No branch ${branch} here any more.` }
+    if (from === 'remote') local = branch.slice(branch.indexOf('/') + 1)
+    if (!BRANCH_PATTERN.test(local)) return { ok: false, error: 'Not a valid branch name.' }
+  }
+  const dir = worktreeDir(worktreesRoot, root, local)
   if (reuse && existsSync(path.join(dir, '.git'))) return { ok: true, dir }
+  // Its folder is there on that branch already: git would only say the folder exists.
+  if (from !== 'new' && existsSync(path.join(dir, '.git'))) {
+    const there = await currentBranch(run, dir).catch(() => null)
+    if (there === local)
+      return {
+        ok: false,
+        error: explainWorktreeError(`'${local}' is already checked out at '${dir}'`, local)
+      }
+  }
+  const args =
+    from === 'local'
+      ? ['worktree', 'add', dir, branch]
+      : from === 'remote'
+        ? ['worktree', 'add', '--track', '-b', local, dir, branch]
+        : ['worktree', 'add', '-b', branch, dir]
   try {
-    await run(['worktree', 'add', '-b', branch, dir], root)
+    // Slow: a big checkout and post-checkout hooks take longer than the status poll's timeout.
+    await run(args, root, { slow: true })
   } catch (err) {
-    if (!reuse) return { ok: false, error: firstLine(err) }
+    if (!reuse || from !== 'new')
+      return { ok: false, error: explainWorktreeError(firstLine(err), local) }
     try {
-      await run(['worktree', 'add', dir, branch], root)
+      await run(['worktree', 'add', dir, branch], root, { slow: true })
     } catch {
       return { ok: false, error: firstLine(err) }
     }

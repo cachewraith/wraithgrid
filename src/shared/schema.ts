@@ -129,7 +129,9 @@ export const workspaceSchema = z.object({
     .max(200)
     .default([])
     .catch([]),
-  team: z.array(teamAgentSchema).max(TEAM_MAX).default([]).catch([])
+  team: z.array(teamAgentSchema).max(TEAM_MAX).default([]).catch([]),
+  /** New panes start on a branch of their own (a git worktree, #162): the dialog's last choice. */
+  worktreePanes: z.boolean().default(false).catch(false)
 })
 
 /** Never starts with `-` (it would be read as an ssh option) and has no spaces or quotes. */
@@ -317,7 +319,8 @@ export function defaultConfig(): Config {
         preview: { command: '', url: '' },
         accountId: null,
         history: [],
-        team: []
+        team: [],
+        worktreePanes: false
       }
     ],
     machines: [],
