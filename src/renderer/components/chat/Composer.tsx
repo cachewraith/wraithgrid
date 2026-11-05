@@ -27,6 +27,7 @@ import {
   IconFile,
   IconGlobe,
   IconPaperclip,
+  IconQuote,
   IconStop
 } from '../icons'
 import { ContextMenu, type MenuPoint } from '../ContextMenu'
@@ -41,6 +42,7 @@ import {
 } from '../../lib/slash'
 import { SlashMenu, slashOptionId } from './SlashMenu'
 import { ImageViewer } from './ImageViewer'
+import { QUOTES_MAX, makeQuote, withQuotes, type Quote } from '../../lib/quotes'
 import { NOT_BROWSING, atEdge, historyStep, type HistoryNav } from '../../lib/prompt-history'
 
 interface Props {
@@ -76,6 +78,8 @@ interface Props {
   /** Something handed to this chat (a preview report, #74): added to the draft, not sent. */
   drop?: ChatDrop | null
   onDropTaken?: () => void
+  /** Text selected in the chat to reply to (#164): added as a quote once per id, not sent. */
+  quote?: { id: number; text: string } | null
   sendLater?: {
     reset: { label: string; hint: string } | null
     onQueue: (text: string, when: number | 'reset') => void
@@ -119,7 +123,8 @@ export function Composer({
   filePath,
   sendLater,
   drop,
-  onDropTaken
+  onDropTaken,
+  quote
 }: Props) {
   const [laterMenu, setLaterMenu] = useState<MenuPoint | null>(null)
   /** "At a time…": the date field in place of the menu. */
@@ -132,6 +137,10 @@ export function Composer({
   const [files, setFiles] = useState<string[]>([])
   /** Reports handed in (a preview's), sent as text after the message. */
   const [notes, setNotes] = useState<{ label: string; text: string }[]>([])
+  /** Parts of the chat this message replies to (#164), sent first as blockquotes. */
+  const [quotes, setQuotes] = useState<Quote[]>([])
+  /** The quote card shown whole. */
+  const [quoteOpen, setQuoteOpen] = useState<number | null>(null)
   const [dragging, setDragging] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
   const listId = useId().replace(/:/g, '')
@@ -244,10 +253,30 @@ export function Composer({
     ref.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dropId])
+  // The same for a quote: kept while rendering, then the box takes focus with the draft as it was.
+  const [quoteId, setQuoteId] = useState<number | null>(null)
+  if (quote && quote.id !== quoteId) {
+    setQuoteId(quote.id)
+    const q = makeQuote(quote.text)
+    if (q && quotes.length < QUOTES_MAX) setQuotes([...quotes, q])
+  }
+  useEffect(() => {
+    if (quoteId !== null) ref.current?.focus()
+  }, [quoteId])
   const withNotes = (body: string): string =>
-    [body, ...notes.map((n) => n.text)].filter(Boolean).join('\n\n')
+    withQuotes(quotes, [body, ...notes.map((n) => n.text)].filter(Boolean).join('\n\n'))
   const canSend =
-    ready && (text.trim().length > 0 || images.length > 0 || files.length > 0 || notes.length > 0)
+    ready &&
+    (text.trim().length > 0 ||
+      images.length > 0 ||
+      files.length > 0 ||
+      notes.length > 0 ||
+      quotes.length > 0)
+  const clearParts = (): void => {
+    setNotes([])
+    setQuotes([])
+    setQuoteOpen(null)
+  }
   const send = (): void => {
     if (!canSend) return
     onSend(withNotes(withAttachments(text.trim(), files)), images)
@@ -255,7 +284,7 @@ export function Composer({
     setText('')
     setImages([])
     setFiles([])
-    setNotes([])
+    clearParts()
   }
 
   const attach = (add: ChatPickResult): void => {
@@ -319,6 +348,35 @@ export function Composer({
         }}
         onDrop={onDrop}
       >
+        {quotes.length ? (
+          <div className="cc-quotes" aria-label="Quoted">
+            {quotes.map((q, i) => (
+              <div key={i} className={`cc-quote${quoteOpen === i ? ' open' : ''}`}>
+                <button
+                  className="cc-quote-t"
+                  aria-expanded={quoteOpen === i}
+                  title={quoteOpen === i ? 'Show less' : 'Show all'}
+                  onClick={() => setQuoteOpen(quoteOpen === i ? null : i)}
+                >
+                  <IconQuote small />
+                  <span>{q.text}</span>
+                </button>
+                {q.trimmed ? <span className="cc-quote-cut">trimmed to fit</span> : null}
+                <button
+                  className="cc-quote-x"
+                  aria-label={`Remove quote ${i + 1}`}
+                  onClick={() => {
+                    setQuotes(quotes.filter((_, j) => j !== i))
+                    setQuoteOpen(null)
+                    ref.current?.focus()
+                  }}
+                >
+                  <IconClose small />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {notes.length ? (
           <div className="cc-files" aria-label="Attached reports">
             {notes.map((n, i) => (
@@ -515,7 +573,7 @@ export function Composer({
             const queue = (when: number | 'reset') => () => {
               sendLater.onQueue(withNotes(text), when)
               setText('')
-              setNotes([])
+              clearParts()
             }
             return [
               ...(sendLater.reset
@@ -546,8 +604,9 @@ export function Composer({
             e.preventDefault()
             const t = new Date(laterAt).getTime()
             if (!Number.isFinite(t) || !text.trim()) return
-            sendLater.onQueue(text, t)
+            sendLater.onQueue(withNotes(text), t)
             setText('')
+            clearParts()
             setLaterAt(null)
           }}
         >

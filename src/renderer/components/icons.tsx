@@ -242,6 +242,12 @@ export const IconList = make(
 export const IconTool = make(
   <path d="M10.5 2.8a3 3 0 0 0-3.4 4L3 10.9 5.1 13l4.1-4.1a3 3 0 0 0 4-3.4l-1.8 1.8-1.7-.4-.4-1.7z" />
 )
+/** Reply to a quote (#164): a curved arrow back. */
+export const IconReply = make(<path d="M6.5 4 3 7.5 6.5 11M3.5 7.5H9a4 4 0 0 1 4 4v1" />)
+/** A quote card in the message box (#164). */
+export const IconQuote = make(
+  <path d="M3.5 8.5h3v3.5h-3zM3.5 8.5c0-2 .8-3.3 2.5-4M9.5 8.5h3v3.5h-3zM9.5 8.5c0-2 .8-3.3 2.5-4" />
+)
 export const IconArrowUp = make(<path d="M8 13V3.5M4 7.5l4-4 4 4" />)
 export const IconArrowDown = make(<path d="M8 3v9.5M4 8.5l4 4 4-4" />)
 export const IconStop = make(<rect x="4.5" y="4.5" width="7" height="7" rx="1.5" />)

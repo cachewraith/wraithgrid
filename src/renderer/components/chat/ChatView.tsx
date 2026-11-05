@@ -36,6 +36,8 @@ import { panelDragging } from '../../lib/panel-drag'
 import { promptHistory } from '../../lib/prompt-history'
 import { ImageViewer } from './ImageViewer'
 import { QuestionCard } from './QuestionCard'
+import { ReplyButton } from './ReplyButton'
+import { splitQuotes } from '../../lib/quotes'
 import { ApprovalBar, ToolCard } from './ToolCard'
 
 interface Props {
@@ -396,6 +398,9 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
     const t = setTimeout(() => setQuietKey(textKey), TEXT_QUIET_MS)
     return () => clearTimeout(t)
   }, [textKey])
+  // Select → Reply (#164): the selection goes to the message box as a quote, once per id.
+  const [quote, setQuote] = useState<{ id: number; text: string } | null>(null)
+  const reply = useCallback((text: string) => setQuote((q) => ({ id: (q?.id ?? 0) + 1, text })), [])
   const send = useCallback(
     (text: string, images: Parameters<typeof actions.chatSend>[2]): void => {
       stick.current = true
@@ -491,6 +496,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
           {thread.background.length ? <BackgroundTasks tasks={thread.background} /> : null}
         </div>
       </div>
+      <ReplyButton root={scrollRef} onReply={reply} />
       {atBottom ? null : (
         <button className="chat-jump" aria-label="Scroll to the latest message" onClick={jump}>
           <IconArrowDown small />
@@ -510,6 +516,7 @@ function ChatViewBody({ paneId, visible, focused }: Props) {
         commands={thread.commands}
         terminalOnly={thread.terminalOnly}
         autoFocus={focused && visible && canTakeFocus}
+        quote={quote}
         onSend={send}
       />
     </div>
@@ -530,6 +537,7 @@ interface FootProps {
   commands: ChatThread['commands']
   terminalOnly: string[]
   autoFocus: boolean
+  quote: { id: number; text: string } | null
   onSend: (text: string, images: Parameters<ReturnType<typeof useActions>['chatSend']>[2]) => void
 }
 
@@ -552,6 +560,7 @@ const ChatFoot = memo(function ChatFoot({
   commands,
   terminalOnly,
   autoFocus,
+  quote,
   onSend
 }: FootProps) {
   const { api } = useServices()
@@ -699,6 +708,7 @@ const ChatFoot = memo(function ChatFoot({
         waiting={asking}
         history={history}
         autoFocus={autoFocus}
+        quote={quote}
         meta={[cwdLabel, branch]}
         model={
           // Any CLI whose adapter reports models gets the controls.
@@ -770,12 +780,21 @@ const ChatFoot = memo(function ChatFoot({
   )
 })
 
-/** A message that starts with `/command` shows the command as a chip; `@path` mentions too (#159). */
-function UserText({ text }: { text: string }) {
+/**
+ * A message that starts with `/command` shows the command as a chip; `@path` mentions too (#159);
+ * quotes it replies to (#164) as blockquotes above it.
+ */
+function UserText({ text: whole }: { text: string }) {
+  const { quotes, rest: text } = splitQuotes(whole)
   const cmd = leadingCommand(text)
   const rest = cmd ? cmd.rest : text
   return (
     <>
+      {quotes.map((q, i) => (
+        <blockquote key={i} className="cmsg-quote">
+          {q}
+        </blockquote>
+      ))}
       {cmd ? <span className="cmd-chip">/{cmd.name}</span> : null}
       {cmd && rest ? ' ' : null}
       {splitMentions(rest).map((part, i) =>

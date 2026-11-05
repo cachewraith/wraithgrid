@@ -18,6 +18,7 @@ const ROWS: { label: string; id?: ShortcutId; keys?: string[] }[] = [
   { label: 'Show / hide the git diff', id: 'diff' },
   { label: 'Zoom the app in / out / reset', keys: chordKeys(['mod', '+', '-', '0']) },
   { label: 'New line in claude', keys: ['Shift', 'Enter'] },
+  { label: 'Reply to the selected chat text', keys: chordKeys(['mod', 'shift', 'R']) },
   {
     label: 'Copy / paste in a terminal',
     keys: IS_MAC ? ['⌘', 'C', '/', 'V'] : ['Ctrl', 'Shift', 'C', '/', 'V']

@@ -5,6 +5,7 @@ import {
   bindingProblem,
   chord,
   chordKeys,
+  isReplyKey,
   matchShortcut,
   parseBinding,
   setShortcutBindings,
@@ -147,7 +148,21 @@ describe('rebound shortcuts', () => {
     expect(bindingProblem(b('mod+shift+Digit2'), 'newPane')).toMatch(/projects/)
     expect(bindingProblem(b('mod+shift+KeyC'), 'newPane')).toMatch(/copy/)
     expect(bindingProblem(b('mod+shift+KeyP'), 'newPane')).toMatch(/Search panes/)
+    expect(bindingProblem(b('mod+shift+KeyR'), 'newPane')).toMatch(/replying/)
     expect(bindingProblem(b('mod+shift+KeyK'), 'newPane')).toBeNull()
     expect(parseBinding('shift+KeyK')).toBeNull()
+  })
+})
+
+describe('isReplyKey (#164)', () => {
+  it('is Ctrl+Shift+R, or ⌘⇧R on macOS, and nothing else', () => {
+    expect(isReplyKey(ctrlShift('KeyR', 'R'), false)).toBe(true)
+    expect(isReplyKey(key({ code: 'KeyR', ctrlKey: true }), false)).toBe(false)
+    expect(
+      isReplyKey(key({ code: 'KeyR', ctrlKey: true, shiftKey: true, altKey: true }), false)
+    ).toBe(false)
+    expect(isReplyKey(ctrlShift('KeyR', 'R'), true)).toBe(false)
+    expect(isReplyKey(key({ code: 'KeyR', metaKey: true, shiftKey: true }), true)).toBe(true)
+    expect(match(ctrlShift('KeyR', 'R'))).toBeNull()
   })
 })
