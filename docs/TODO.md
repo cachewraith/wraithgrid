@@ -1,6 +1,7 @@
 # TODO
 
 ## Now
+- #164 Reply quotes shipped on feat/reply-quote-20261105: try with real claude/codex/agy answers (long tables, nested lists); terminal (xterm) selection → Reply is a later issue
 - Live usage (feat/live-usage-20261102): macOS keeps claude's token in the Keychain, so nothing is polled there yet; codex accounts still update per turn (could poll `account/rateLimits/read` on open chats)
 - #161 ask before switching on feat/ask-before-switch-20261102: try with real accounts at the limit (only the fake claude so far); codex at its limit
 - #160 pickers on fix/picker-overflow-20261102: look at the account rail with many real accounts and at 125–150% zoom in the real app (e2e checks only the 420px window)

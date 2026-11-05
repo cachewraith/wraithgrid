@@ -171,6 +171,52 @@
   color: var(--fa);
   margin-bottom: 2px;
 }
+/* A quote the message replied to (#164). */
+.cmsg-quote {
+  margin: 2px 0 8px;
+  padding: 1px 0 1px 10px;
+  border-left: 3px solid var(--line2);
+  color: var(--mu);
+  font-size: 0.95em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  overflow: hidden;
+}
+/* Select → Reply (#164): floats over the selection, inside `.chat`. */
+.chat-reply {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line2);
+  border-radius: calc(8px * var(--rs, 1));
+  background: var(--panel);
+  color: var(--tx);
+  font: inherit;
+  font-size: 12.5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: translate(-50%, calc(-100% - 6px));
+  cursor: pointer;
+  animation: chat-reply-in 0.18s var(--ease-spring);
+}
+.chat-reply[hidden] {
+  display: none;
+}
+.chat-reply:hover {
+  background: var(--raise);
+}
+.chat-reply:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+.chat-reply .i {
+  width: 12px;
+  height: 12px;
+}
 /* Sent images (#50): one shown large, several as square tiles. */
 .cmsg-thumbs {
   display: flex;
@@ -1126,6 +1172,91 @@ li.done > .md-box,
   width: 11px;
   height: 11px;
 }
+/* Quotes the message replies to (#164): a few lines each, the whole text on a click. */
+.cc-quotes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+.cc-quote {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 4px 2px 0;
+  border: 1px solid var(--line2);
+  border-left: 3px solid color-mix(in srgb, var(--acc) 60%, var(--line2));
+  border-radius: calc(8px * var(--rs, 1));
+  background: var(--bg2);
+  animation: chat-pop-in 0.25s var(--ease-spring);
+}
+.cc-quote-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 7px;
+  padding: 5px 4px 5px 9px;
+  border: 0;
+  background: none;
+  color: var(--mu);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.cc-quote-t > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cc-quote.open .cc-quote-t > span {
+  display: block;
+  max-height: 220px;
+  overflow: auto;
+}
+.cc-quote-t .i {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-top: 3px;
+}
+.cc-quote-t:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: -2px;
+  border-radius: calc(6px * var(--rs, 1));
+}
+.cc-quote-cut {
+  flex: none;
+  align-self: center;
+  font-size: 11px;
+  color: var(--fa);
+}
+.cc-quote-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  border: 0;
+  border-radius: calc(5px * var(--rs, 1));
+  background: none;
+  color: var(--fa);
+  cursor: pointer;
+}
+.cc-quote-x:hover {
+  background: var(--raise);
+  color: var(--tx);
+}
+.cc-quote-x .i {
+  width: 11px;
+  height: 11px;
+}
 .cc-imgs {
   display: flex;
   gap: 8px;
@@ -1230,6 +1361,12 @@ li.done > .md-box,
     transform: scale(1.25);
   }
 }
+@keyframes chat-reply-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 2px)) scale(0.9);
+  }
+}
 @keyframes chat-pop-in {
   from {
     opacity: 0;
@@ -1259,6 +1396,8 @@ li.done > .md-box,
   .chat-jump,
   .cc-btn.stop,
   .cc-img,
+  .cc-quote,
+  .chat-reply,
   .chat-viewer,
   .md-copy.done,
   .cc.busy .cc-box::before,

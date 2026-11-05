@@ -114,6 +114,7 @@ export function bindingProblem(
   if (b.shift && b.code === 'Minus') return "Reserved for claude's undo."
   if (b.shift && b.code === 'KeyC') return 'Reserved for copy.'
   if (b.shift && b.code === 'KeyV') return 'Reserved for paste.'
+  if (b.shift && !b.alt && b.code === 'KeyR') return 'Reserved for replying to chat text.'
   const taken = SHORTCUT_IDS.find(
     (other) =>
       other !== id &&
@@ -200,6 +201,13 @@ export function matchShortcut(e: KeyLike, mac = IS_MAC): ShortcutAction | null {
   return null
 }
 
+/** Ctrl+Shift+R (⌘⇧R): reply to the text selected in a chat (#164). Fixed, like copy/paste. */
+export function isReplyKey(e: KeyLike, mac = IS_MAC): boolean {
+  const mod = mac ? e.metaKey : e.ctrlKey
+  const other = mac ? e.ctrlKey : e.metaKey
+  return mod && !other && e.shiftKey && !e.altKey && e.code === 'KeyR' && !recording
+}
+
 /** How a chord is written on this platform: "Ctrl+Shift+N", or "⌘⇧N" on macOS. */
 export function chord(keys: ('mod' | 'shift' | 'alt' | string)[], mac = IS_MAC): string {
   const glyph: Record<string, string> = mac
@@ -239,6 +247,7 @@ export const SHORTCUT_HINT = {
   get diff() {
     return bindingHint(bindings.diff)
   },
+  reply: chord(['mod', 'shift', 'R']),
   fontSize: IS_MAC ? '⌘= / ⌘- / ⌘0' : 'Ctrl+= / Ctrl+- / Ctrl+0',
   /** Ctrl+Shift+3 or ⌘⇧3: switch to workspace n. */
   workspaceN: (n: number) => chord(['mod', 'shift', String(n)])

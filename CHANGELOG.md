@@ -2,6 +2,7 @@
 
 ## 2026-11-05
 
+- [chat] Select → Reply (#164): selecting text in a chat message (answers, your messages, code, tool output) shows a Reply button over it once the mouse lets go (hidden on scroll, Esc, an empty or outside selection; Ctrl/⌘+Shift+R does the same, fixed and reserved, in the Shortcuts sheet). The selection becomes a quote card above the box (3 lines, a click shows all, ×; up to 5, each cut at CHAT_TEXT_MAX with "trimmed"), focus back in the box with the draft kept. On send the quotes go first as markdown blockquotes (code fenced, copy buttons/labels left out), so every CLI gets plain text; sent messages draw leading quotes as blockquotes. "Send at a time…" now also carries reports and quotes (files: src/renderer/lib/quotes.ts, src/renderer/components/chat/{ReplyButton,Composer,ChatView}.tsx, src/renderer/components/{icons,ShortcutsSheet}.tsx, src/renderer/app/shortcuts.ts, src/renderer/styles/chat.css, tests/unit/{quotes,shortcuts}.test.ts, tests/e2e/chat-reply.spec.ts)
 - [chat] Preview pasted images before sending (#163): each thumbnail in the message box is a button ("Preview image N of M") that opens the full-window viewer over all pasted images (← → step, Esc or a click closes, focus back on the thumbnail, draft kept); `×` still only removes. `ImageViewer` moved out of ChatView so both use it (files: src/renderer/components/chat/{ImageViewer,Composer,ChatView}.tsx, src/renderer/styles/chat.css, tests/e2e/chat.spec.ts)
 
 ## 2026-11-02
