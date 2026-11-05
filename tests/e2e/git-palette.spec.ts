@@ -289,11 +289,14 @@ test('sidebar pane list, palette, git chip, diff panel and worktree panes', asyn
     const wtDir = path.join(home, '.wraithgrid', 'worktrees', 'api', 'feat-limit')
     expect(git(wtDir, 'branch', '--show-current').trim()).toBe('feat/limit')
 
-    // An existing branch is refused with git's message, and the dialog stays open.
+    // An existing branch is refused with git's message, and the dialog stays open. The switch
+    // is still on: the project remembers it (#162).
     await win.keyboard.press('Control+Shift+N')
     await pickFolder(win, '~/proj/api')
     await win.getByRole('button', { name: 'More options' }).click()
-    await win.getByRole('switch', { name: 'Work on a new branch (git worktree)' }).click()
+    await expect(
+      win.getByRole('switch', { name: 'Work on a new branch (git worktree)' })
+    ).toHaveAttribute('aria-checked', 'true')
     await win.locator('#np-branch').fill('feat/limit')
     await win.getByRole('button', { name: /Create pane|Start chat/ }).click()
     await expect(win.getByRole('alert')).toContainText('already exists')

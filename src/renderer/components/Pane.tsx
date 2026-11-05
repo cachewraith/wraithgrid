@@ -80,6 +80,8 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
   const settings = useApp((s) => s.config.settings)
   const home = useApp((s) => s.info.homeDir)
   const git = useApp((s) => s.git[paneId])
+  // Worktrees (#162) are made on this computer only.
+  const remote = useApp((s) => !!findPane(s.config, paneId)?.ws.machineId)
   const view = useApp((s) => paneView(s.config, paneId))
   const previewState = useApp((s) => s.previews[paneId]?.state)
   const chatable = useApp((s) => canChat(s.config, paneId))
@@ -254,7 +256,16 @@ export const Pane = memo(function Pane({ paneId, rect, dense, zoomed, dragDisabl
                     label: 'Switch branch…',
                     icon: <IconBranch small />,
                     onSelect: () => actions.openModal({ kind: 'branches', paneId, at: menu })
-                  }
+                  },
+                  ...(remote
+                    ? []
+                    : [
+                        {
+                          label: 'Open a branch in a new pane…',
+                          onSelect: () =>
+                            actions.openModal({ kind: 'branches', paneId, at: menu, mode: 'open' })
+                        }
+                      ])
                 ]
               : []),
             {

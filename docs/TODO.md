@@ -1,6 +1,7 @@
 # TODO
 
 ## Now
+- #162 Git button + worktree panes shipped on feat/git-topbar-worktrees-20261105: try with real repos (big checkouts, hooks); later (own issue): per-project setup after a worktree is made (copy `.env`, `bun install`), dev-server port clashes across worktrees
 - #164 Reply quotes shipped on feat/reply-quote-20261105: try with real claude/codex/agy answers (long tables, nested lists); terminal (xterm) selection → Reply is a later issue
 - Live usage (feat/live-usage-20261102): macOS keeps claude's token in the Keychain, so nothing is polled there yet; codex accounts still update per turn (could poll `account/rateLimits/read` on open chats)
 - #161 ask before switching on feat/ask-before-switch-20261102: try with real accounts at the limit (only the fake claude so far); codex at its limit

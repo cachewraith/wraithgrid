@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { DIFF_WIDTH_DEFAULT, DIFF_WIDTH_MAX, DIFF_WIDTH_MIN } from '@shared/types'
 import type { GitCommit, GitDiffResult, GitShowResult } from '@shared/ipc-contract'
 import { useActions, useApp, useServices } from '../app/services'
-import { findPane } from '../app/store'
+import { findPane, type GitAsk } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { parsePatch, sameDiff, type DiffFile } from '../lib/diff'
 import { layoutGraph, refLabels, type GraphRow } from '../lib/commit-graph'
@@ -60,7 +60,9 @@ type Asked = Exclude<GitAction, 'commit'>
 const CONFIRM: Record<Asked, (branch: string, changed: number) => string> = {
   push: (b) => `Push ${b} to its remote?`,
   pull: (b, n) =>
-    `${n} uncommitted ${n === 1 ? 'change' : 'changes'} in this folder. Pull ${b} anyway? git stops if they are in the way.`,
+    n
+      ? `${n} uncommitted ${n === 1 ? 'change' : 'changes'} in this folder. Pull ${b} anyway? git stops if they are in the way.`
+      : `Pull ${b} from its remote?`,
   pr: (b) => `Open a pull request page for ${b} in your browser?`
 }
 const CONFIRM_BUTTON: Record<Asked, string> = { push: 'Push', pull: 'Pull', pr: 'Open' }
@@ -79,12 +81,21 @@ function GitActions({
   ahead: number
   behind: number
 }) {
-  const { api } = useServices()
+  const { api, store } = useServices()
   const actions = useActions()
   const [message, setMessage] = useState('')
   const [asking, setAsking] = useState<Asked | null>(null)
   const [busy, setBusy] = useState<GitAction | null>(null)
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const msgRef = useRef<HTMLTextAreaElement>(null)
+  // Commit / pull / push from the top bar's Git menu (#162): the same as these buttons, once per
+  // ask; a pull or push waits for its confirm here, so the menu never sends anything by itself.
+  const ask = useApp((s) => (s.gitAsk?.paneId === paneId ? s.gitAsk : null))
+  const [taken, setTaken] = useState<GitAsk | null>(null)
+  if (ask && ask.id !== taken?.id) {
+    setTaken(ask)
+    if (ask.what !== 'commit') setAsking(ask.what)
+  }
 
   const run = async (what: GitAction): Promise<void> => {
     setAsking(null)
@@ -103,10 +114,16 @@ function GitActions({
     if (r.ok && what === 'commit') setMessage('')
     void actions.refreshGit()
   }
+  useEffect(() => {
+    if (!taken) return
+    store.getState().takeGitAsk(taken.id)
+    if (taken.what === 'commit') msgRef.current?.focus()
+  }, [store, taken])
 
   return (
     <div className="dp-ft">
       <textarea
+        ref={msgRef}
         className="inpt dp-msg"
         placeholder={changed ? 'Commit message' : 'Nothing to commit'}
         aria-label="Commit message"

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { PANE_STATUS_LABEL } from '@shared/types'
 import { useActions, useApp } from '../app/services'
-import { currentTheme, type AppState } from '../app/store'
+import { currentTheme, findPane, type AppState } from '../app/store'
 import { SHORTCUT_HINT } from '../app/shortcuts'
 import { matches } from '../lib/search'
 import { Initial } from './AccountIcon'
@@ -87,7 +87,34 @@ function buildItems(s: AppState): Item[] {
             sub: s.git[s.focusedPaneId]?.branch ?? undefined,
             icon: <IconBranch />,
             run: () => s.openModal({ kind: 'branches', paneId: s.focusedPaneId!, at: null })
-          }
+          },
+          // Each pane its own branch (#162): worktrees are made on this computer only.
+          ...(findPane(config, s.focusedPaneId)?.ws.machineId
+            ? []
+            : [
+                {
+                  id: 'cmd:branch-pane',
+                  group: 'Commands' as const,
+                  label: 'New pane on a new branch…',
+                  sub: 'its own folder (git worktree)',
+                  icon: <IconBranch />,
+                  run: () =>
+                    s.openModal({ kind: 'newPane', slotId: null, branchFrom: s.focusedPaneId! })
+                },
+                {
+                  id: 'cmd:branch-open',
+                  group: 'Commands' as const,
+                  label: 'Open a branch in a new pane…',
+                  icon: <IconBranch />,
+                  run: () =>
+                    s.openModal({
+                      kind: 'branches',
+                      paneId: s.focusedPaneId!,
+                      at: null,
+                      mode: 'open'
+                    })
+                }
+              ])
         ]
       : []),
     // A project's team (#79): start it, or stop it while its agents run.

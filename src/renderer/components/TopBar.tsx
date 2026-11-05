@@ -18,6 +18,7 @@ import {
   IconZoom
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuPoint } from './ContextMenu'
+import { GitButton } from './GitButton'
 import { useTitleDoubleClick, WindowControls } from './TitleBar'
 import { UsageButton } from './UsageView'
 
@@ -97,6 +98,7 @@ export function TopBar() {
       <header className="top" onDoubleClick={onDoubleClick}>
         <span className="top-title">{zoomedPane.title}</span>
         <span className="top-sub">zoomed · {ws.name}</span>
+        <GitButton />
         <div className="top-sp" />
         <div
           className="minimap"
@@ -129,6 +131,7 @@ export function TopBar() {
         {empty ? 'No chats yet' : `${ws.panes.length} ${ws.panes.length === 1 ? 'chat' : 'chats'}`}
       </span>
       {hiddenCount > 0 ? <HiddenChip count={hiddenCount} /> : null}
+      <GitButton />
       <div className="top-sp" />
       {empty ? null : (
         <LayoutPresets>

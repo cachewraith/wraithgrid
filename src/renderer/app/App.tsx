@@ -158,7 +158,7 @@ function Modals() {
   if (!modal) return null
   switch (modal.kind) {
     case 'newPane':
-      return <NewPaneDialog slotId={modal.slotId} />
+      return <NewPaneDialog slotId={modal.slotId} branchFrom={modal.branchFrom ?? null} />
     case 'shortcuts':
       return <ShortcutsSheet />
     case 'workspaces':
@@ -178,7 +178,7 @@ function Modals() {
     case 'switchChatAccount':
       return <SwitchAccountDialog paneId={modal.paneId} accountId={modal.accountId} />
     case 'branches':
-      return <BranchPicker paneId={modal.paneId} at={modal.at} />
+      return <BranchPicker paneId={modal.paneId} at={modal.at} mode={modal.mode ?? 'switch'} />
     case 'projectIcon':
       return <ProjectIconPicker wsId={modal.wsId} />
     case 'startTeam':

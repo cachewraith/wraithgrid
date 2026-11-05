@@ -152,7 +152,9 @@ export const gitWorktreeAddArgs = z.object({
   cwd: z.string().min(1).max(4096),
   branch: z.string().min(1).max(100),
   /** A team agent's branch (#79): use its folder or branch again if it is already there. */
-  reuse: z.boolean().default(false)
+  reuse: z.boolean().default(false),
+  /** `local`/`remote`: open a branch the repo has instead of creating one (#162). */
+  from: z.enum(['new', 'local', 'remote']).default('new')
 })
 export const gitCommitArgs = z.object({
   paneId: idSchema,
@@ -648,8 +650,16 @@ export interface WraithApi {
   git: {
     status(paneId: string): Promise<GitStatus>
     diff(paneId: string): Promise<GitDiffResult>
-    /** Creates a worktree on a new branch for `cwd`'s repo; returns its folder. */
-    addWorktree(cwd: string, branch: string, reuse?: boolean): Promise<GitWorktreeResult>
+    /**
+     * Creates a worktree for `cwd`'s repo on a new branch, or on one it has (`from`, #162);
+     * returns its folder.
+     */
+    addWorktree(
+      cwd: string,
+      branch: string,
+      reuse?: boolean,
+      from?: 'new' | 'local' | 'remote'
+    ): Promise<GitWorktreeResult>
     /** Local and remote branches of the pane's folder. */
     branches(paneId: string): Promise<GitBranchesResult>
     /** Checks out a branch in the pane's folder (every pane on that folder sees it). */

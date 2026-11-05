@@ -10,6 +10,7 @@ import {
   addWorktree,
   checkWorktree,
   commitAll,
+  explainWorktreeError,
   gitDiff,
   gitLog,
   gitShow,
@@ -99,6 +100,32 @@ describe('branch names', () => {
     expect(called).toBe(false)
   })
 
+  it('says plainly when a branch is checked out in another folder (#162)', () => {
+    for (const line of [
+      "'feat/x' is already checked out at '/w/api/feat-x'",
+      "'feat/x' is already used by worktree at '/w/api/feat-x'"
+    ])
+      expect(explainWorktreeError(line, 'feat/x')).toBe(
+        'feat/x is already checked out in /w/api/feat-x. A branch can be open in one folder at a time: open that folder, or pick another branch.'
+      )
+    expect(explainWorktreeError('something else', 'x')).toBe('something else')
+  })
+
+  it('opens only a branch git lists, never a name from outside as an option (#162)', async () => {
+    const calls: string[][] = []
+    const run: GitRunner = (args) => {
+      calls.push(args)
+      if (args[0] === 'rev-parse') return Promise.resolve('/r\n')
+      if (args[0] === 'for-each-ref') return Promise.resolve('refs/heads/main\0now\0\n')
+      return Promise.resolve('')
+    }
+    expect(await addWorktree(run, '/r', 'nope', '/w', false, 'local')).toEqual({
+      ok: false,
+      error: 'No branch nope here any more.'
+    })
+    expect(calls.some((a) => a[0] === 'worktree')).toBe(false)
+  })
+
   it('puts worktrees under the root, one folder per repo, slashes flattened', () => {
     expect(worktreeDir('/h/wt', '/code/api', 'feat/x')).toBe(path.join('/h/wt', 'api', 'feat-x'))
   })
@@ -161,6 +188,40 @@ describe('with a real repository', { timeout: REAL_GIT_TIMEOUT }, () => {
     await rm(path.join(wt, path.basename(dir), 'feat-x'), { recursive: true, force: true })
     await realGit(['worktree', 'prune'], dir)
     expect(await addWorktree(realGit, dir, 'feat/x', wt, true)).toEqual(r)
+  })
+
+  it('opens an existing local or remote branch in a worktree, next to the repo (#162)', async () => {
+    await realGit(['branch', 'feat/old'], dir)
+    const r = await addWorktree(realGit, dir, 'feat/old', wt, false, 'local')
+    expect(r).toEqual({ ok: true, dir: path.join(wt, path.basename(dir), 'feat-old') })
+    expect(r.ok && (await gitStatus(realGit, r.dir)).branch).toBe('feat/old')
+    // The main checkout stays where it was.
+    expect((await gitStatus(realGit, dir)).branch).toBe('main')
+    // Checked out there already: said plainly, with the folder.
+    const twice = await addWorktree(realGit, dir, 'feat/old', wt, false, 'local')
+    expect(!twice.ok && twice.error).toMatch(/^feat\/old is already checked out in .*feat-old\./)
+    const main = await addWorktree(realGit, dir, 'main', wt, false, 'local')
+    expect(!main.ok && main.error).toMatch(/^main is already checked out in /)
+
+    // A worktree made from a worktree goes with the repo's others, not inside its folder name.
+    const fromWt = await addWorktree(realGit, r.ok ? r.dir : dir, 'feat/next', wt)
+    expect(fromWt).toEqual({ ok: true, dir: path.join(wt, path.basename(dir), 'feat-next') })
+
+    // A remote branch nobody has locally: a new local branch tracking it.
+    const bare = path.join(wt, 'remote.git')
+    await realGit(['init', '-q', '--bare', bare], wt)
+    await realGit(['remote', 'add', 'origin', bare], dir)
+    await realGit(['push', '-q', 'origin', 'main:feat/remote'], dir)
+    await realGit(['fetch', '-q', 'origin'], dir)
+    const rem = await addWorktree(realGit, dir, 'origin/feat/remote', wt, false, 'remote')
+    expect(rem).toEqual({ ok: true, dir: path.join(wt, path.basename(dir), 'feat-remote') })
+    expect(rem.ok && (await realGit(['rev-parse', '--abbrev-ref', '@{u}'], rem.dir)).trim()).toBe(
+      'origin/feat/remote'
+    )
+    expect(await addWorktree(realGit, dir, 'origin/nope', wt, false, 'remote')).toEqual({
+      ok: false,
+      error: 'No branch origin/nope here any more.'
+    })
   })
 
   it('commits everything, then pushes the branch with an upstream on the first push', async () => {

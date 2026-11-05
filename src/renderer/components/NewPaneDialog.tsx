@@ -1,11 +1,13 @@
 // New chat / New pane: Account → Folder → Start, the rest under More options. The folder is
-// picked in the app's own picker (FolderPicker); main lists and checks folders.
+// picked in the app's own picker (FolderPicker); main lists and checks folders. "Work on a new
+// branch" is remembered per project (#162); from the Git menu it opens set up for that pane.
 import { useEffect, useState } from 'react'
 import { formatArgs, parseArgs } from '@shared/args'
 import { contractHome } from '@shared/paths'
 import { AGENT_CLI_LABEL, AGENT_CLI_SPECS, type AgentCli } from '@shared/agent-clis'
 import { Initial } from './AccountIcon'
 import { useActions, useApp, useServices } from '../app/services'
+import { findPane } from '../app/store'
 import { Dialog } from './Dialog'
 import { IconBranch, IconCheck, IconChevron, IconClose, IconFolder } from './icons'
 import { FolderPicker } from './FolderPicker'
@@ -18,7 +20,20 @@ const cliEnvPrefix = (cli: AgentCli, dir: string): string => {
   return v ? `${v}=${dir} ` : ''
 }
 
-export function NewPaneDialog({ slotId }: { slotId: string | null }) {
+/** A branch name to start from, free in practice: `task-1105-0942` (month, day, time). */
+function suggestBranch(now = new Date()): string {
+  const two = (n: number): string => String(n).padStart(2, '0')
+  return `task-${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}`
+}
+
+export function NewPaneDialog({
+  slotId,
+  branchFrom = null
+}: {
+  slotId: string | null
+  /** A pane whose repo the new pane gets a branch of, from the Git menu (#162). */
+  branchFrom?: string | null
+}) {
   const { api } = useServices()
   const actions = useActions()
   const accounts = useApp((s) => s.config.accounts)
@@ -35,23 +50,30 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
 
   // The active project's own defaults come first (set in New project), then the app-wide ones.
   const project = useApp((s) => s.config.workspaces.find((w) => w.id === s.config.activeWorkspace))
+  // From the Git menu: that pane's folder and account (#162).
+  const from = useApp((s) => (branchFrom ? findPane(s.config, branchFrom)?.pane : undefined))
   const initialAccount =
+    accounts.find((a) => a.id === from?.accountId)?.id ??
     accounts.find((a) => a.id === project?.accountId)?.id ??
     accounts.find((a) => a.id === settings.defaultAccountId)?.id ??
     accounts[0]?.id ??
     null
   const [accountId, setAccountId] = useState<string | null>(initialAccount)
-  const [folder, setFolder] = useState(project?.folder || (recent[0] ?? settings.defaultCwd))
+  const [folder, setFolder] = useState(
+    from?.cwd || project?.folder || (recent[0] ?? settings.defaultCwd)
+  )
   const [argsText, setArgsText] = useState('')
-  const [shell, setShell] = useState(accounts.length === 0)
-  const [worktree, setWorktree] = useState(false)
-  const [branch, setBranch] = useState('')
+  const [shell, setShell] = useState(accounts.length === 0 || !!from?.shell)
+  const [worktree, setWorktree] = useState(!!from || !!project?.worktreePanes)
+  const [branch, setBranch] = useState(() =>
+    from || project?.worktreePanes ? suggestBranch() : ''
+  )
   const [busy, setBusy] = useState(false)
   // Opens as a chat: the dialog says so (a shell is a pane).
   const chatLike = !shell
   const [error, setError] = useState<string | null>(null)
   const [picking, setPicking] = useState(false)
-  const [more, setMore] = useState(accounts.length === 0)
+  const [more, setMore] = useState(accounts.length === 0 || !!from)
   const plans = useApp((s) => s.accountInfo)
   const pinned = settings.pinnedFolders
   // The chosen folder, checked in main: exists, and its git branch.
@@ -124,6 +146,14 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
       }
       cwd = r.dir
     }
+    // The project's default for its next panes: a branch of their own or not (#162).
+    if (!from && project && worktree !== project.worktreePanes) {
+      const id = project.id
+      actions.updateConfig((c) => ({
+        ...c,
+        workspaces: c.workspaces.map((w) => (w.id === id ? { ...w, worktreePanes: worktree } : w))
+      }))
+    }
     actions.createPane({
       accountId: shell ? null : accountId,
       cwd,
@@ -168,7 +198,9 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
     <Dialog onClose={actions.closeModal} labelledBy="np-t" className="pinned np">
       <form onSubmit={(e) => void submit(e)}>
         <div className="dlg-hd">
-          <h2 id="np-t">{chatLike ? 'New chat' : 'New pane'}</h2>
+          <h2 id="np-t">
+            {from ? 'New pane on a new branch' : chatLike ? 'New chat' : 'New pane'}
+          </h2>
           <button
             type="button"
             className="icon-btn"
@@ -350,6 +382,7 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                   aria-checked={worktree}
                   aria-label="Work on a new branch (git worktree)"
                   onClick={() => {
+                    if (!worktree && !branch.trim()) setBranch(suggestBranch())
                     setWorktree((v) => !v)
                     setError(null)
                   }}
@@ -376,6 +409,9 @@ export function NewPaneDialog({ slotId }: { slotId: string | null }) {
                   <span className="hint">
                     Branches off the folder's current commit, in{' '}
                     <span className="mono">~/.wraithgrid/worktrees</span>.
+                    {from
+                      ? null
+                      : ' New panes in this project start this way until you turn it off.'}
                   </span>
                 </div>
               ) : null}

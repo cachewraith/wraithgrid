@@ -231,6 +231,8 @@ export interface Workspace {
   history: ArchivedChat[]
   /** Its team (#79): agents started together; [] = none. */
   team: TeamAgent[]
+  /** New panes start on a branch of their own, a git worktree (#162): the dialog's last choice. */
+  worktreePanes: boolean
 }
 
 /** A closed chat, kept so it can be reopened and carry on (its saved view keeps its id). */

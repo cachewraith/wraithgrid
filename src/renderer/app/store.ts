@@ -131,7 +131,8 @@ export interface PaneRuntime {
 export type View = 'grid' | 'project' | 'accounts' | 'mods' | 'settings' | 'usage' | 'scheduled'
 export type AccountsMode = 'list' | 'add' | 'import'
 export type Modal =
-  | { kind: 'newPane'; slotId: string | null }
+  /** `branchFrom`: a pane whose repo the new pane gets a branch of (a worktree, #162). */
+  | { kind: 'newPane'; slotId: string | null; branchFrom?: string }
   | { kind: 'shortcuts' }
   | { kind: 'workspaces' }
   | { kind: 'newProject' }
@@ -141,8 +142,16 @@ export type Modal =
   | { kind: 'deleteChat'; wsId: string; paneId: string }
   | { kind: 'switchChatAccount'; paneId: string; accountId: string }
   | { kind: 'login'; accountId: string }
-  /** `at`: where it was opened (a right-click); null: centred (the palette). */
-  | { kind: 'branches'; paneId: string; at: { x: number; y: number } | null }
+  /**
+   * `at`: where it was opened (a right-click); null: centred (the palette). `open`: the branch
+   * opens in a new pane on its own worktree instead of being checked out here (#162).
+   */
+  | {
+      kind: 'branches'
+      paneId: string
+      at: { x: number; y: number } | null
+      mode?: 'switch' | 'open'
+    }
   | { kind: 'projectIcon'; wsId: string }
   /** Before Start team (#79) when an agent's account is missing or at its limit. */
   | { kind: 'startTeam'; wsId: string; only: string | null }
@@ -150,6 +159,13 @@ export type Modal =
   | { kind: 'stopTeam'; wsId: string }
   /** New or edit a scheduled job (#77); null: new. */
   | { kind: 'job'; jobId: string | null }
+
+/** Commit / pull / push picked in the top bar's Git menu (#162), done in the Changes panel. */
+export interface GitAsk {
+  id: number
+  paneId: string
+  what: 'commit' | 'pull' | 'push'
+}
 
 /** A chat at its account's limit, waiting for an answer before it switches account (#161). */
 export interface SwitchAsk {
@@ -227,6 +243,8 @@ export interface AppState {
   git: Record<string, GitStatus>
   /** The diff panel beside the grid, showing the focused pane's folder. */
   diffOpen: boolean
+  /** The top bar's Git menu asked the Changes panel to commit, pull or push (#162); it takes it. */
+  gitAsk: GitAsk | null
   /** Each account's plan and models, as its CLI said when a chat last started (not saved). */
   accountInfo: Record<string, { info: ChatAccountInfo | null; models: ChatModel[] }>
   /** Installed mods per claude account, as each account's CLI last listed them. */
@@ -321,6 +339,19 @@ export interface AppState {
     name: string
   ): Promise<string | null>
   toggleDiff(open?: boolean): void
+  /** Opens the Changes panel to commit, pull or push the pane's repo, with its usual confirm. */
+  askGit(paneId: string, what: GitAsk['what']): void
+  /** The Changes panel took the ask. */
+  takeGitAsk(id: number): void
+  /**
+   * A new pane like `paneId` (account, view) on a branch of its own: a worktree on a new
+   * branch, or on one the repo has (#162). Returns git's error, or null.
+   */
+  openBranchPane(
+    paneId: string,
+    from: 'new' | 'local' | 'remote',
+    name: string
+  ): Promise<string | null>
   /** A notification the pane's program asked its terminal for (e.g. a mod's `$.ui.notify`). */
   paneNotice(paneId: string, title: string, body: string): void
 
@@ -866,6 +897,9 @@ export function createAppStore({
       return { ok: true, paneId }
     }
 
+    /** Ids of the Git menu's asks to the Changes panel (#162). */
+    let gitAskSeq = 0
+
     const placePane = (ws: Workspace, paneId: string, slotId: string | null): LayoutNode => {
       const focused = get().focusedPaneId
       const r = focused ? rects.get(focused) : undefined
@@ -1257,6 +1291,7 @@ export function createAppStore({
       settingsAnchor: null,
       git: {},
       diffOpen: false,
+      gitAsk: null,
       mods: { loading: false, accounts: null },
       themes: BUILT_IN_THEMES,
       themeDraft: null,
@@ -2027,6 +2062,44 @@ export function createAppStore({
         if (diffOpen !== get().diffOpen) set({ diffOpen })
       },
 
+      askGit(paneId, what) {
+        // The panel shows the focused pane's repo. A new id every time: the last one may be
+        // taken already (gitAsk back to null).
+        set({ focusedPaneId: paneId, diffOpen: true, gitAsk: { id: ++gitAskSeq, paneId, what } })
+      },
+
+      takeGitAsk(id) {
+        if (get().gitAsk?.id === id) set({ gitAsk: null })
+      },
+
+      async openBranchPane(paneId, from, name) {
+        const c = get().config
+        const found = findPane(c, paneId)
+        if (!found) return 'That pane is gone.'
+        const base = found.pane
+        const r = await api.git.addWorktree(base.cwd, name, false, from)
+        if (!r.ok) return r.error
+        // Same account and view as the pane it came from; a preview has none, so the project's.
+        const accountId = base.shell
+          ? null
+          : ((
+              accountById(c, base.accountId) ??
+              accountById(c, found.ws.accountId) ??
+              accountById(c, c.settings.defaultAccountId) ??
+              c.accounts[0]
+            )?.id ?? null)
+        get().createPane({
+          accountId,
+          cwd: r.dir,
+          args: [],
+          shell: base.shell || accountId === null,
+          slotId: null,
+          view: paneView(c, paneId) === 'terminal' ? 'terminal' : undefined
+        })
+        void get().refreshGit()
+        return null
+      },
+
       typeInPane(paneId, text) {
         bus.input(paneId, text)
       },
@@ -2113,7 +2186,8 @@ export function createAppStore({
           panes: [],
           layout: null,
           history: [],
-          team: []
+          team: [],
+          worktreePanes: false
         }
         set({ config: { ...s.config, workspaces: [...s.config.workspaces, ws] } })
         get().switchWorkspace(ws.id)

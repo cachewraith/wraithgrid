@@ -1120,9 +1120,11 @@ export function registerIpc(deps: IpcDeps): IpcHandle {
         return fail(`Folder not found: ${a.cwd}`)
       }
       await deps.envReady
-      const r = await addWorktree(deps.git, cwd, a.branch, worktreesRoot(homeDir), a.reuse)
+      const r = await addWorktree(deps.git, cwd, a.branch, worktreesRoot(homeDir), a.reuse, a.from)
       if (!r.ok) return r
-      log(`created worktree ${contractHome(r.dir, homeDir)} on branch ${a.branch}`)
+      log(
+        `created worktree ${contractHome(r.dir, homeDir)} on ${a.from === 'new' ? 'new ' : ''}branch ${a.branch}`
+      )
       return { ok: true, dir: contractHome(r.dir, homeDir) }
     },
     fail('Could not create the worktree')
