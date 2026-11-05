@@ -1,4 +1,22 @@
-# What's new in 1.25.0: live usage, @ files and asking before a switch
+# What's new in 1.26.0: a branch per pane, Reply to a quote, image preview
+
+*v1.26.0 · 2026-11-05*
+
+| New | What changed |
+|---|---|
+| Git button | The top bar shows the focused pane's branch and how many files changed, e.g. `main · 3`. Click it for Show changes, Commit, Pull, Push, Switch branch, and a new pane on a branch of its own. Hidden when the pane isn't in a git repository |
+| A branch per pane | Run tasks side by side, each pane on its own branch in its own folder (a git worktree): **New pane on a new branch** (a name is ready, press Enter) or **Open a branch in a new pane**, for a local or remote branch. New pane remembers per project whether its panes get their own branch |
+| Switching asks first | Switch branch in a folder other panes use now asks: open the branch in a new pane instead, or switch them all |
+| Reply to part of a chat | Select text in a chat message and click **Reply** (or Ctrl+Shift+R, ⌘⇧R on a Mac): it is added above the message box as a quote, up to 5, and sent first as a quote before what you type. Works for every chat CLI |
+| Preview pasted images | Click an image you pasted into the message box to see it full size before sending; ← → step through several, Esc closes it, your text stays |
+
+| Fix | What changed |
+|---|---|
+| Clear worktree errors | Opening a branch that is already checked out in another folder says which folder, instead of git's message |
+
+---
+
+## Previously, in 1.25.0: live usage, @ files and asking before a switch
 
 *v1.25.0 · 2026-11-02*
 
