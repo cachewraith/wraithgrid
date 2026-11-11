@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in Wraithgrid doesn't work as it should
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Wraithgrid version
+      description: Settings → About
+      placeholder: 1.26.0
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Linux (deb)
+        - Linux (rpm)
+        - Linux (pacman)
+        - Linux (AppImage)
+        - Windows
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: input
+    id: details
+    attributes:
+      label: System details
+      description: Distro and version, desktop or compositor (X11/Wayland, Hyprland…), agent CLI and its version
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened
+      description: Steps to reproduce, what you expected, what you saw. Leave out tokens, keys and private paths.
+    validations:
+      required: true
