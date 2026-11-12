@@ -1,13 +1,13 @@
 #!/bin/sh
 # One-line install of the latest Wraithgrid release, checked against the release's SHA256SUMS:
-#   curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid-releases/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts/install.sh | sh
 # Linux: the .deb (apt), .rpm (dnf/zypper), .pacman (pacman) or else the AppImage into
 # ~/.local/bin. macOS: the dmg's app into /Applications. Windows: use the Setup .exe or winget.
 # Env: WRAITHGRID_VERSION=1.8.0 picks a release; WRAITHGRID_FORMAT=appimage|deb|rpm|pacman
 # forces a package; WRAITHGRID_DRY_RUN=1 downloads and checks without installing.
 set -eu
 
-REPO="cachewraith/wraithgrid-releases"
+REPO="cachewraith/wraithgrid"
 BASE="https://github.com/$REPO/releases"
 
 say() { printf '%s\n' "wraithgrid: $*" >&2; }

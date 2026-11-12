@@ -6,7 +6,7 @@
 
 **Run many agent CLI sessions (`claude`, `gemini`, `agy`, `codex`, `opencode`, `cursor-agent`, `copilot`) side by side, each with its own account and project folder, as a chat or a terminal.**
 
-[![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid-releases?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid-releases/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/cachewraith/wraithgrid?style=flat-square&color=7c5cff)](https://github.com/cachewraith/wraithgrid/releases/latest)
 [![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-2dd4bf?style=flat-square)](#install)
 
 [Install](#install) · [Updates](#updates) · [Verify a download](#verify-a-download) · [Report a bug](#report-a-bug)
@@ -19,7 +19,7 @@ notes. There is no source code here. The desktop app checks this repository for 
 ## Install
 
 Download the package for your system from the
-[latest release](https://github.com/cachewraith/wraithgrid-releases/releases/latest).
+[latest release](https://github.com/cachewraith/wraithgrid/releases/latest).
 
 | System                          | Package                                                      |
 | ------------------------------- | ------------------------------------------------------------ |
@@ -35,7 +35,7 @@ On Linux or macOS, one line picks the right package, checks it against `SHA256SU
 installs it (`WRAITHGRID_DRY_RUN=1` only downloads and checks):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid-releases/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/cachewraith/wraithgrid/main/scripts/install.sh | sh
 ```
 
 `WRAITHGRID_VERSION=1.26.0` installs a given release; `WRAITHGRID_FORMAT=appimage|deb|rpm|pacman`
@@ -83,7 +83,7 @@ On Windows: `Get-FileHash .\Wraithgrid-Setup-<version>-x64.exe` and compare with
 
 ## Report a bug
 
-[Open an issue](https://github.com/cachewraith/wraithgrid-releases/issues/new/choose) here. Include
+[Open an issue](https://github.com/cachewraith/wraithgrid/issues/new/choose) here. Include
 your Wraithgrid version (**Settings → About**), your system, and the steps that lead to the
 problem. Please leave out tokens, keys and private paths.
 
